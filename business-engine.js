@@ -40,7 +40,9 @@
   }
 
 
+  setTimeout(function () {
   waitForSimulation(init);
+}, 0);
 
 
   /* =======================================================
