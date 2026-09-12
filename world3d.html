@@ -2,69 +2,128 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport"
+      content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 
-<title>Empire Rush 3D</title>
+<title>Empire Rush — 3D Headquarters</title>
 
 <style>
-html, body {
-  margin: 0;
-  padding: 0;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  background: #101318;
-  font-family: Arial, sans-serif;
-  touch-action: none;
+*{
+  box-sizing:border-box;
+  -webkit-tap-highlight-color:transparent;
 }
 
-#game {
-  width: 100%;
-  height: 100%;
-  display: block;
+html,body{
+  margin:0;
+  width:100%;
+  height:100%;
+  overflow:hidden;
+  background:#11151b;
+  font-family:Arial,sans-serif;
 }
 
-#hud {
-  position: fixed;
-  top: 14px;
-  left: 14px;
-  right: 14px;
-  z-index: 10;
-  pointer-events: none;
+#game{
+  width:100%;
+  height:100%;
+  display:block;
 }
 
-.panel {
-  display: inline-block;
-  padding: 10px 14px;
-  border-radius: 14px;
-  background: rgba(15, 18, 24, 0.86);
-  color: white;
-  box-shadow: 0 6px 25px rgba(0,0,0,.25);
+#topbar{
+  position:fixed;
+  top:14px;
+  left:14px;
+  right:14px;
+  z-index:10;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  pointer-events:none;
 }
 
-.title {
-  font-size: 18px;
-  font-weight: 700;
+.brand{
+  background:rgba(15,18,23,.9);
+  color:white;
+  padding:10px 14px;
+  border-radius:14px;
+  font-weight:800;
+  font-size:15px;
+  box-shadow:0 8px 30px rgba(0,0,0,.25);
 }
 
-.sub {
-  margin-top: 3px;
-  font-size: 12px;
-  opacity: .7;
+.brand span{
+  color:#b9f52d;
 }
 
-#hint {
-  position: fixed;
-  bottom: 18px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 10;
-  color: white;
-  background: rgba(15,18,24,.82);
-  padding: 9px 14px;
-  border-radius: 999px;
-  font-size: 12px;
-  white-space: nowrap;
+.stats{
+  display:flex;
+  gap:7px;
+}
+
+.stat{
+  background:rgba(15,18,23,.9);
+  color:white;
+  padding:8px 11px;
+  border-radius:12px;
+  font-size:11px;
+}
+
+.stat b{
+  display:block;
+  font-size:13px;
+  margin-top:2px;
+}
+
+#hint{
+  position:fixed;
+  bottom:18px;
+  left:50%;
+  transform:translateX(-50%);
+  z-index:10;
+  color:white;
+  background:rgba(15,18,23,.82);
+  padding:9px 14px;
+  border-radius:20px;
+  font-size:11px;
+  white-space:nowrap;
+  pointer-events:none;
+}
+
+#panel{
+  position:fixed;
+  right:16px;
+  bottom:55px;
+  width:245px;
+  background:rgba(15,18,23,.95);
+  color:white;
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:18px;
+  padding:16px;
+  z-index:20;
+  display:none;
+  box-shadow:0 15px 50px rgba(0,0,0,.4);
+}
+
+#panel h3{
+  margin:0 0 6px;
+  font-size:18px;
+}
+
+#panel p{
+  margin:6px 0;
+  color:#b8bec7;
+  font-size:12px;
+}
+
+#close{
+  position:absolute;
+  right:10px;
+  top:9px;
+  border:0;
+  background:#292e36;
+  color:white;
+  border-radius:50%;
+  width:25px;
+  height:25px;
 }
 </style>
 </head>
@@ -73,576 +132,853 @@ html, body {
 
 <canvas id="game"></canvas>
 
-<div id="hud">
-  <div class="panel">
-    <div class="title">EMPIRE RUSH</div>
-    <div class="sub">3D BUSINESS WORLD • DAY 1</div>
+<div id="topbar">
+  <div class="brand">EMPIRE <span>RUSH</span> · HQ</div>
+
+  <div class="stats">
+    <div class="stat">CASH<b>₹7.09L</b></div>
+    <div class="stat">DAY<b>32</b></div>
   </div>
 </div>
 
 <div id="hint">
-  Drag to rotate • Pinch to zoom • Tap a worker
+  Drag to rotate · Pinch / wheel to zoom · Tap employee
 </div>
+
+<div id="panel">
+  <button id="close">×</button>
+  <h3 id="personName">Employee</h3>
+  <p id="personRole">Role</p>
+  <p id="personStatus">Status</p>
+  <p id="personDept">Department</p>
+</div>
+
+<script type="importmap">
+{
+  "imports":{
+    "three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+    "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+  }
+}
+</script>
 
 <script type="module">
 
-import * as THREE from
-"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
+import * as THREE from "three";
+import { OrbitControls } from
+"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/controls/OrbitControls.js";
+
+/* =========================================================
+   CORE
+========================================================= */
 
 const canvas = document.getElementById("game");
 
 const scene = new THREE.Scene();
 
-scene.background = new THREE.Color(0xb8c4d6);
+scene.background = new THREE.Color(0xb9c9d5);
+scene.fog = new THREE.Fog(0xb9c9d5,45,110);
 
 const camera = new THREE.PerspectiveCamera(
-  45,
-  window.innerWidth / window.innerHeight,
+  42,
+  innerWidth/innerHeight,
   0.1,
-  1000
+  200
 );
 
-camera.position.set(14, 13, 14);
-camera.lookAt(0, 0, 0);
+camera.position.set(25,24,28);
 
 const renderer = new THREE.WebGLRenderer({
   canvas,
-  antialias: true,
-  powerPreference: "high-performance"
+  antialias:true,
+  powerPreference:"high-performance"
 });
 
-renderer.setPixelRatio(
-  Math.min(window.devicePixelRatio, 1.5)
-);
-
-renderer.setSize(
-  window.innerWidth,
-  window.innerHeight
-);
+renderer.setSize(innerWidth,innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio,1.6));
 
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
+renderer.outputColorSpace = THREE.SRGBColorSpace;
 
-/* =========================
+const controls = new OrbitControls(camera,canvas);
+
+controls.enableDamping = true;
+controls.dampingFactor = .07;
+
+controls.minDistance = 13;
+controls.maxDistance = 65;
+
+controls.maxPolarAngle = Math.PI/2.15;
+controls.minPolarAngle = .35;
+
+controls.target.set(0,2,0);
+
+/* =========================================================
    LIGHTING
-========================= */
+========================================================= */
 
-const ambient = new THREE.HemisphereLight(
-  0xffffff,
-  0x667788,
-  2.2
+const hemi = new THREE.HemisphereLight(
+  0xeaf5ff,
+  0x52616b,
+  2.0
 );
 
-scene.add(ambient);
+scene.add(hemi);
 
 const sun = new THREE.DirectionalLight(
   0xffffff,
   3
 );
 
-sun.position.set(10, 20, 8);
+sun.position.set(20,35,15);
 sun.castShadow = true;
+
+sun.shadow.mapSize.set(2048,2048);
+
+sun.shadow.camera.left = -45;
+sun.shadow.camera.right = 45;
+sun.shadow.camera.top = 45;
+sun.shadow.camera.bottom = -45;
 
 scene.add(sun);
 
+/* =========================================================
+   MATERIALS
+========================================================= */
 
-/* =========================
-   GROUND
-========================= */
+const M = {
 
-const groundGeometry =
-  new THREE.PlaneGeometry(50, 50);
+  grass:new THREE.MeshStandardMaterial({
+    color:0x5e8052,
+    roughness:1
+  }),
 
-const groundMaterial =
-  new THREE.MeshStandardMaterial({
-    color: 0x879b7a
-  });
+  road:new THREE.MeshStandardMaterial({
+    color:0x252a30,
+    roughness:.9
+  }),
 
-const ground =
-  new THREE.Mesh(
-    groundGeometry,
-    groundMaterial
-  );
+  concrete:new THREE.MeshStandardMaterial({
+    color:0xbfc5c8,
+    roughness:.9
+  }),
 
-ground.rotation.x = -Math.PI / 2;
-ground.receiveShadow = true;
+  wall:new THREE.MeshStandardMaterial({
+    color:0xdce1e2,
+    roughness:.8
+  }),
 
-scene.add(ground);
+  dark:new THREE.MeshStandardMaterial({
+    color:0x20262c,
+    roughness:.7
+  }),
 
+  glass:new THREE.MeshStandardMaterial({
+    color:0x68a6b8,
+    transparent:true,
+    opacity:.55,
+    roughness:.15,
+    metalness:.1
+  }),
 
-/* =========================
-   ROAD
-========================= */
+  wood:new THREE.MeshStandardMaterial({
+    color:0x79583e,
+    roughness:.75
+  }),
 
-function createBox(
-  x,
-  y,
-  z,
-  w,
-  h,
-  d,
-  color
-) {
+  metal:new THREE.MeshStandardMaterial({
+    color:0x68727b,
+    metalness:.65,
+    roughness:.3
+  }),
 
-  const geometry =
-    new THREE.BoxGeometry(w, h, d);
+  screen:new THREE.MeshStandardMaterial({
+    color:0x1c5d68,
+    emissive:0x08333a,
+    emissiveIntensity:.7
+  }),
 
-  const material =
-    new THREE.MeshStandardMaterial({
-      color
-    });
+  shirt:new THREE.MeshStandardMaterial({
+    color:0x365b9d
+  }),
 
-  const mesh =
-    new THREE.Mesh(
-      geometry,
-      material
-    );
+  skin:new THREE.MeshStandardMaterial({
+    color:0xd79c76
+  }),
 
-  mesh.position.set(x, y, z);
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
+  pants:new THREE.MeshStandardMaterial({
+    color:0x272b33
+  }),
 
-  scene.add(mesh);
+  green:new THREE.MeshStandardMaterial({
+    color:0xb8ee28,
+    emissive:0x355500,
+    emissiveIntensity:.3
+  })
+};
 
-  return mesh;
+/* =========================================================
+   HELPERS
+========================================================= */
+
+function box(
+  w,h,d,
+  material,
+  x=0,y=0,z=0
+){
+  const g = new THREE.BoxGeometry(w,h,d);
+  const m = new THREE.Mesh(g,material);
+
+  m.position.set(x,y,z);
+  m.castShadow = true;
+  m.receiveShadow = true;
+
+  scene.add(m);
+
+  return m;
 }
 
-createBox(
-  0,
-  0.02,
-  7,
-  50,
-  0.04,
-  5,
-  0x4b5057
-);
+function cylinder(
+  r,h,
+  material,
+  x=0,y=0,z=0
+){
+  const g = new THREE.CylinderGeometry(r,r,h,12);
+  const m = new THREE.Mesh(g,material);
 
+  m.position.set(x,y,z);
 
-/* =========================
-   OFFICE BUILDING
-========================= */
+  m.castShadow = true;
+  m.receiveShadow = true;
 
-createBox(
-  0,
-  3,
-  -1,
-  13,
-  6,
-  9,
-  0xe8edf2
-);
+  scene.add(m);
 
+  return m;
+}
 
-/* Roof */
+/* =========================================================
+   WORLD
+========================================================= */
 
-createBox(
-  0,
-  6.25,
-  -1,
-  13.5,
-  .5,
-  9.5,
-  0x252b35
-);
+box(100,.4,100,M.grass,0,-.2,0);
 
+/* plaza */
 
-/* Glass windows */
+box(42,.15,30,M.concrete,0,.05,0);
 
-for (let x = -5; x <= 5; x += 2.5) {
+/* road */
 
-  createBox(
-    x,
-    3.7,
-    3.55,
-    1.7,
-    2,
+box(100,.18,9,M.road,0,.08,17);
+
+/* road lines */
+
+for(let x=-45;x<45;x+=7){
+  box(4,.03,.22,M.concrete,x,.19,17);
+}
+
+/* =========================================================
+   HEADQUARTERS BUILDING
+========================================================= */
+
+const building = new THREE.Group();
+
+scene.add(building);
+
+function BBox(w,h,d,mat,x,y,z){
+
+  const g=new THREE.BoxGeometry(w,h,d);
+  const m=new THREE.Mesh(g,mat);
+
+  m.position.set(x,y,z);
+
+  m.castShadow=true;
+  m.receiveShadow=true;
+
+  building.add(m);
+
+  return m;
+}
+
+/* main structure */
+
+BBox(30,7,19,M.wall,0,3.5,0);
+
+/* roof */
+
+BBox(31,.8,20,M.dark,0,7.4,0);
+
+/* front glass */
+
+for(let x=-12;x<=12;x+=6){
+
+  BBox(
+    4.8,
+    4.7,
     .12,
-    0x6da4c7
+    M.glass,
+    x,
+    4,
+    -9.58
   );
 
 }
 
+/* side windows */
 
-/* =========================
-   ENTRANCE
-========================= */
+for(let z=-6;z<=6;z+=6){
 
-createBox(
-  0,
-  1.5,
-  3.6,
-  3,
-  3,
-  .2,
-  0x263b4a
-);
-
-
-/* =========================
-   DESKS
-========================= */
-
-function createDesk(x, z) {
-
-  createBox(
-    x,
-    1.05,
-    z,
-    1.6,
-    .15,
-    .8,
-    0x754c32
-  );
-
-  createBox(
-    x - .6,
-    .5,
-    z,
+  BBox(
     .12,
-    1,
-    .7,
-    0x4c3426
-  );
-
-  createBox(
-    x + .6,
-    .5,
-    z,
-    .12,
-    1,
-    .7,
-    0x4c3426
-  );
-}
-
-createDesk(-4, -1);
-createDesk(0, -1);
-createDesk(4, -1);
-
-createDesk(-4, -4);
-createDesk(0, -4);
-createDesk(4, -4);
-
-
-/* =========================
-   WORKER
-========================= */
-
-const workers = [];
-
-function createWorker(
-  x,
-  z,
-  shirtColor
-) {
-
-  const group = new THREE.Group();
-
-  const body = new THREE.Mesh(
-    new THREE.BoxGeometry(.55, .8, .35),
-    new THREE.MeshStandardMaterial({
-      color: shirtColor
-    })
-  );
-
-  body.position.y = 1.25;
-  body.castShadow = true;
-
-  group.add(body);
-
-
-  const head = new THREE.Mesh(
-    new THREE.SphereGeometry(.25, 12, 12),
-    new THREE.MeshStandardMaterial({
-      color: 0xd39a72
-    })
-  );
-
-  head.position.y = 1.85;
-  head.castShadow = true;
-
-  group.add(head);
-
-
-  group.position.set(
-    x,
-    0,
+    4.7,
+    4.8,
+    M.glass,
+    15.05,
+    4,
     z
   );
 
-  group.userData.baseX = x;
-  group.userData.baseZ = z;
-  group.userData.phase =
-    Math.random() * Math.PI * 2;
-
-  scene.add(group);
-
-  workers.push(group);
-
-  return group;
 }
 
+/* entrance */
 
-createWorker(-4, -1.9, 0x3467d6);
-createWorker(0, -1.9, 0x3b9b63);
-createWorker(4, -1.9, 0xc96b42);
-
-createWorker(-4, -4.9, 0x7c55b8);
-createWorker(0, -4.9, 0xd08a34);
-createWorker(4, -4.9, 0x3c8c9a);
-
-
-/* =========================
-   MEETING TABLE
-========================= */
-
-createBox(
-  0,
-  .8,
-  -3,
+BBox(
   4,
-  .2,
-  1.5,
-  0x6a4935
+  4.2,
+  .25,
+  M.dark,
+  0,
+  2.1,
+  -9.75
 );
 
+/* entrance glass */
 
-/* =========================
-   CAMERA CONTROLS
-========================= */
-
-let rotation = 0.78;
-let distance = 20;
-
-let dragging = false;
-let lastX = 0;
-
-canvas.addEventListener(
-  "pointerdown",
-  event => {
-
-    dragging = true;
-    lastX = event.clientX;
-
-  }
+BBox(
+  3.2,
+  3.7,
+  .08,
+  M.glass,
+  0,
+  2,
+  -9.9
 );
 
-canvas.addEventListener(
-  "pointermove",
-  event => {
+/* logo */
 
-    if (!dragging) return;
-
-    const dx =
-      event.clientX - lastX;
-
-    rotation -= dx * 0.008;
-
-    lastX = event.clientX;
-
-    updateCamera();
-
-  }
+BBox(
+  7,
+  1.2,
+  .15,
+  M.dark,
+  0,
+  7.9,
+  -10
 );
 
-canvas.addEventListener(
-  "pointerup",
-  () => {
-    dragging = false;
-  }
+BBox(
+  3,
+  .35,
+  .18,
+  M.green,
+  0,
+  7.9,
+  -10.12
 );
 
-canvas.addEventListener(
-  "pointercancel",
-  () => {
-    dragging = false;
-  }
+/* =========================================================
+   INTERIOR
+========================================================= */
+
+/* floor */
+
+BBox(
+  28,.15,17,
+  new THREE.MeshStandardMaterial({
+    color:0x737b80,
+    roughness:.8
+  }),
+  0,.4,0
 );
 
+/* internal room divider */
 
-/* =========================
-   ZOOM
-========================= */
+BBox(11,3,.18,M.dark,-8,2.1,0);
+BBox(.18,3,9,M.dark,0,2.1,4);
 
-canvas.addEventListener(
-  "wheel",
-  event => {
+function createDesk(x,z){
 
-    distance +=
-      event.deltaY * 0.01;
+  /* table top */
 
-    distance =
-      Math.max(
-        10,
-        Math.min(30, distance)
-      );
-
-    updateCamera();
-
-  }
-);
-
-
-function updateCamera() {
-
-  camera.position.x =
-    Math.sin(rotation) * distance;
-
-  camera.position.z =
-    Math.cos(rotation) * distance;
-
-  camera.position.y =
-    distance * .72;
-
-  camera.lookAt(
-    0,
-    1,
-    -1
+  BBox(
+    3.3,.18,1.5,
+    M.wood,
+    x,1.45,z
   );
 
+  /* legs */
+
+  for(const dx of [-1.3,1.3]){
+    for(const dz of [-.5,.5]){
+
+      BBox(
+        .12,1.35,.12,
+        M.metal,
+        x+dx,
+        .75,
+        z+dz
+      );
+
+    }
+  }
+
+  /* monitor */
+
+  BBox(
+    1.15,.75,.12,
+    M.dark,
+    x,.2+1.95,z-.35
+  );
+
+  BBox(
+    .9,.5,.06,
+    M.screen,
+    x,2.0,z-.42
+  );
+
+  /* keyboard */
+
+  BBox(
+    .8,.06,.35,
+    M.dark,
+    x,1.62,z-.55
+  );
 }
 
+/* desks */
 
-/* =========================
-   TAP WORKER
-========================= */
+createDesk(-10,-5);
+createDesk(-5,-5);
+createDesk(5,-5);
+createDesk(10,-5);
 
-const raycaster =
-  new THREE.Raycaster();
+createDesk(-10,5);
+createDesk(-5,5);
+createDesk(5,5);
+createDesk(10,5);
 
-const pointer =
-  new THREE.Vector2();
+/* =========================================================
+   CHAIRS
+========================================================= */
 
-canvas.addEventListener(
-  "click",
-  event => {
+function chair(x,z){
 
-    pointer.x =
-      (event.clientX /
-      window.innerWidth) * 2 - 1;
+  cylinder(.45,.12,M.dark,x,.72,z);
 
-    pointer.y =
-      -(event.clientY /
-      window.innerHeight) * 2 + 1;
+  box(.1,1,.1,M.metal,x,.95,z);
 
-    raycaster.setFromCamera(
-      pointer,
-      camera
+  box(.9,.12,.9,M.dark,x,1.05,z);
+}
+
+[
+ [-10,-6.3],[-5,-6.3],
+ [5,-6.3],[10,-6.3],
+ [-10,3.7],[-5,3.7],
+ [5,3.7],[10,3.7]
+].forEach(p=>chair(...p));
+
+/* =========================================================
+   MEETING ROOM
+========================================================= */
+
+BBox(
+  9,.12,5,
+  M.wood,
+  0,1.25,6
+);
+
+for(let x=-3;x<=3;x+=2){
+
+  chair(x,8.2);
+  chair(x,3.8);
+
+}
+
+BBox(
+  7,2.4,.15,
+  M.glass,
+  0,3.2,8.7
+);
+
+/* meeting display */
+
+BBox(
+  4,2.1,.12,
+  M.dark,
+  0,3.5,8.55
+);
+
+BBox(
+  3.5,1.5,.06,
+  M.screen,
+  0,3.5,8.45
+);
+
+/* =========================================================
+   WORKERS
+========================================================= */
+
+const workers=[];
+
+const roles=[
+  "Operations Manager",
+  "Finance Analyst",
+  "Marketing Executive",
+  "Product Manager",
+  "HR Manager",
+  "Sales Executive",
+  "R&D Engineer",
+  "Accountant"
+];
+
+function createWorker(name,role,x,z,index){
+
+  const g=new THREE.Group();
+
+  g.position.set(x,0,z);
+
+  /* legs */
+
+  const leg1=box(
+    .25,.9,.25,
+    M.pants
+  );
+
+  const leg2=box(
+    .25,.9,.25,
+    M.pants
+  );
+
+  leg1.position.set(-.18,.45,0);
+  leg2.position.set(.18,.45,0);
+
+  g.add(leg1,leg2);
+
+  /* body */
+
+  const body=box(
+    .7,1.05,.45,
+    M.shirt
+  );
+
+  body.position.y=1.35;
+
+  g.add(body);
+
+  /* head */
+
+  const head=new THREE.Mesh(
+    new THREE.SphereGeometry(.32,16,12),
+    M.skin
+  );
+
+  head.position.y=2.1;
+
+  head.castShadow=true;
+
+  g.add(head);
+
+  /* hair */
+
+  const hair=new THREE.Mesh(
+    new THREE.SphereGeometry(.34,16,8,0,Math.PI*2,0,Math.PI/2),
+    M.dark
+  );
+
+  hair.position.y=2.28;
+
+  g.add(hair);
+
+  /* arms */
+
+  const arm1=box(.18,.75,.18,M.shirt);
+  const arm2=box(.18,.75,.18,M.shirt);
+
+  arm1.position.set(-.48,1.4,0);
+  arm2.position.set(.48,1.4,0);
+
+  g.add(arm1,arm2);
+
+  /* unique data */
+
+  g.userData={
+    name,
+    role,
+    status:"Working",
+    department:role.split(" ")[0],
+    phase:index*.7,
+    baseX:x,
+    baseZ:z
+  };
+
+  scene.add(g);
+  workers.push(g);
+}
+
+const positions=[
+ [-10,-5],
+ [-5,-5],
+ [5,-5],
+ [10,-5],
+ [-10,5],
+ [-5,5],
+ [5,5],
+ [10,5]
+];
+
+positions.forEach((p,i)=>{
+  createWorker(
+    "Employee "+(i+1),
+    roles[i],
+    p[0],
+    p[1],
+    i
+  );
+});
+
+/* =========================================================
+   OUTSIDE PARKING
+========================================================= */
+
+function createCar(x,z,scale=1){
+
+  const car=new THREE.Group();
+
+  car.position.set(x,.45,z);
+  car.scale.setScalar(scale);
+
+  const body=box(
+    2.4,.55,1.25,
+    M.dark
+  );
+
+  body.position.y=.35;
+  car.add(body);
+
+  const cabin=box(
+    1.25,.55,1,
+    M.glass
+  );
+
+  cabin.position.set(0,.75,0);
+  car.add(cabin);
+
+  for(const wx of [-.85,.85]){
+
+    const wheel=cylinder(
+      .3,.18,
+      M.dark,
+      wx,0,-.7
     );
 
-    const objects = [];
+    wheel.rotation.x=Math.PI/2;
+    car.add(wheel);
 
-    workers.forEach(worker => {
+    const wheel2=wheel.clone();
+    wheel2.position.z=.7;
+    car.add(wheel2);
+  }
 
-      worker.traverse(
-        object => {
+  scene.add(car);
+}
 
-          if (object.isMesh)
-            objects.push(object);
+createCar(-7,14,.9);
+createCar(3,14,.9);
+createCar(18,14,.8);
 
-        }
+/* =========================================================
+   TREES
+========================================================= */
+
+function tree(x,z){
+
+  cylinder(
+    .28,2,
+    new THREE.MeshStandardMaterial({
+      color:0x67472f
+    }),
+    x,1,z
+  );
+
+  const crown=new THREE.Mesh(
+    new THREE.SphereGeometry(1.25,12,10),
+    new THREE.MeshStandardMaterial({
+      color:0x3f713c
+    })
+  );
+
+  crown.position.set(x,2.7,z);
+  crown.castShadow=true;
+
+  scene.add(crown);
+}
+
+[
+ [-20,-14],[-14,-14],
+ [20,-14],[25,-5],
+ [-22,7],[22,7],
+ [-25,18],[25,20]
+].forEach(p=>tree(...p));
+
+/* =========================================================
+   CITY BUILDINGS
+========================================================= */
+
+function cityBuilding(x,z,w,h,d){
+
+  const mat=new THREE.MeshStandardMaterial({
+    color:0x9da8ad,
+    roughness:.9
+  });
+
+  box(w,h,d,mat,x,h/2,z);
+
+  for(let yy=3;yy<h-1;yy+=2.4){
+
+    for(let xx=x-w/2+1.2;xx<x+w/2-1;xx+=2.3){
+
+      box(
+        .8,
+        .7,
+        .04,
+        M.glass,
+        xx,
+        yy,
+        z-d/2-.03
       );
+
+    }
+  }
+}
+
+cityBuilding(-35,-5,10,12,9);
+cityBuilding(35,-2,11,16,10);
+cityBuilding(-34,15,8,9,8);
+cityBuilding(34,16,12,13,10);
+
+/* =========================================================
+   TAP / RAYCAST
+========================================================= */
+
+const raycaster=new THREE.Raycaster();
+const pointer=new THREE.Vector2();
+
+function inspect(clientX,clientY){
+
+  const rect=canvas.getBoundingClientRect();
+
+  pointer.x=((clientX-rect.left)/rect.width)*2-1;
+  pointer.y=-((clientY-rect.top)/rect.height)*2+1;
+
+  raycaster.setFromCamera(pointer,camera);
+
+  const hits=raycaster.intersectObjects(
+    workers,
+    true
+  );
+
+  if(!hits.length)return;
+
+  let obj=hits[0].object;
+
+  while(obj.parent && !obj.userData.name){
+    obj=obj.parent;
+  }
+
+  if(!obj.userData.name)return;
+
+  document.getElementById("personName").textContent=
+    obj.userData.name;
+
+  document.getElementById("personRole").textContent=
+    "Role: "+obj.userData.role;
+
+  document.getElementById("personStatus").textContent=
+    "Status: "+obj.userData.status;
+
+  document.getElementById("personDept").textContent=
+    "Department: "+obj.userData.department;
+
+  document.getElementById("panel").style.display="block";
+}
+
+canvas.addEventListener("pointerdown",e=>{
+  if(e.button===0){
+    setTimeout(()=>{
+      if(!controls.state) inspect(e.clientX,e.clientY);
+    },120);
+  }
+});
+
+document.getElementById("close").onclick=()=>{
+  document.getElementById("panel").style.display="none";
+};
+
+/* =========================================================
+   ANIMATION
+========================================================= */
+
+const clock=new THREE.Clock();
+
+function animate(){
+
+  requestAnimationFrame(animate);
+
+  const t=clock.getElapsedTime();
+
+  workers.forEach((w,i)=>{
+
+    const p=w.userData;
+
+    /* natural idle movement */
+
+    w.position.y=
+      Math.sin(t*2+p.phase)*.025;
+
+    /* subtle working animation */
+
+    w.children.forEach((part,j)=>{
+
+      if(j===5 || j===6){
+        part.rotation.z=
+          Math.sin(t*2.5+p.phase)*.05;
+      }
 
     });
 
-    const hits =
-      raycaster.intersectObjects(
-        objects
-      );
+  });
 
-    if (hits.length > 0) {
+  controls.update();
 
-      const worker =
-        hits[0].object.parent;
-
-      worker.scale.set(
-        1.15,
-        1.15,
-        1.15
-      );
-
-      setTimeout(() => {
-
-        worker.scale.set(
-          1,
-          1,
-          1
-        );
-
-      }, 300);
-
-    }
-
-  }
-);
-
-
-/* =========================
-   ANIMATION
-========================= */
-
-const clock =
-  new THREE.Clock();
-
-function animate() {
-
-  requestAnimationFrame(
-    animate
-  );
-
-  const time =
-    clock.getElapsedTime();
-
-  workers.forEach(
-    (worker, index) => {
-
-      worker.position.y =
-        Math.sin(
-          time * 2 +
-          worker.userData.phase
-        ) * .025;
-
-      worker.rotation.y =
-        Math.sin(
-          time * .7 +
-          worker.userData.phase
-        ) * .08;
-
-    }
-  );
-
-  renderer.render(
-    scene,
-    camera
-  );
+  renderer.render(scene,camera);
 }
 
-
-/* =========================
-   RESIZE
-========================= */
-
-window.addEventListener(
-  "resize",
-  () => {
-
-    camera.aspect =
-      window.innerWidth /
-      window.innerHeight;
-
-    camera.updateProjectionMatrix();
-
-    renderer.setSize(
-      window.innerWidth,
-      window.innerHeight
-    );
-
-  }
-);
-
-updateCamera();
 animate();
+
+/* =========================================================
+   RESIZE
+========================================================= */
+
+addEventListener("resize",()=>{
+
+  camera.aspect=innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+
+  renderer.setSize(innerWidth,innerHeight);
+  renderer.setPixelRatio(Math.min(devicePixelRatio,1.6));
+
+});
 
 </script>
 
