@@ -317,6 +317,17 @@ for(let x=-50;x<50;x+=7){
 
 const HQ=new THREE.Group();
 scene.add(HQ);
+  window.EmpireWorld = {
+  scene,
+  camera,
+  renderer,
+  controls,
+  HQ
+};
+
+window.dispatchEvent(
+  new Event("EmpireWorldReady")
+);
 
 cube(
   31,3.2,.45,
@@ -959,6 +970,6 @@ addEventListener("resize",()=>{
 });
 
 </script>
-
+<script src="./world3d.js"></script>
 </body>
 </html>
