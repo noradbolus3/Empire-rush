@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#f4f5f7">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+
+  <title>Empire Rush</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      min-height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display",
+                   "Segoe UI", sans-serif;
+      background: #f3f4f6;
+      color: #111214;
+    }
+
+    body {
+      padding-bottom: 105px;
+    }
+
+    button {
+      font: inherit;
+      border: 0;
+      cursor: pointer;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 720px;
+      margin: auto;
+      padding: 22px 18px 30px;
+    }
+
+    /* HEADER */
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+    }
+
+    .profile {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .avatar {
+      width: 54px;
+      height: 54px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #222, #777);
+      display: grid;
+      place-items: center;
+      color: white;
+      font-weight: 800;
+      font-size: 18px;
+      box-shadow: 0 3px 12px rgba(0,0,0,.15);
+    }
+
+    .player-name {
+      font-size: 20px;
+      font-weight: 800;
+    }
+
+    .level {
+      color: #73757c;
+      font-weight: 700;
+      margin-top: 2px;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .round-btn {
+      width: 45px;
+      height: 45px;
+      border-radius: 50%;
+      background: white;
+      box-shadow: 0 3px 12px rgba(0,0,0,.08);
+      font-size: 20px;
+    }
+
+    /* MONEY CARD */
+
+    .money-card {
+      background: white;
+      border-radius: 28px;
+      padding: 22px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.08);
+      margin-bottom: 18px;
+    }
+
+    .eyebrow {
+      color: #777980;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 2px;
+    }
+
+    .money {
+      font-size: clamp(38px, 10vw, 60px);
+      line-height: 1;
+      font-weight: 900;
+      margin: 8px 0;
+      letter-spacing: -2px;
+    }
+
+    .positive {
+      color: #72c900;
+    }
+
+    .money-sub {
+      color: #72b900;
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    /* STATS */
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .stat {
+      background: white;
+      border-radius: 20px;
+      padding: 15px 12px;
+      box-shadow: 0 5px 18px rgba(0,0,0,.05);
+    }
+
+    .stat-label {
+      color: #85868c;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 1px;
+    }
+
+    .stat-value {
+      font-size: 20px;
+      font-weight: 900;
+      margin-top: 5px;
+    }
+
+    /* MAIN CARD */
+
+    .hero {
+      background: #111113;
+      color: white;
+      border-radius: 30px;
+      padding: 22px;
+      margin-bottom: 18px;
+      box-shadow: 0 12px 30px rgba(0,0,0,.16);
+    }
+
+    .hero-title {
+      font-size: 31px;
+      font-weight: 900;
+      letter-spacing: -1px;
+      margin: 5px 0;
+    }
+
+    .hero-description {
+      color: #a8a8ae;
+      font-size: 15px;
+      line-height: 1.45;
+      margin-bottom: 20px;
+    }
+
+    .business-card {
+      background: #252527;
+      border-radius: 22px;
+      padding: 18px;
+      margin-bottom: 12px;
+    }
+
+    .business-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .business-name {
+      font-size: 20px;
+      font-weight: 850;
+    }
+
+    .business-type {
+      color: #a0a0a5;
+      font-size: 13px;
+      margin-top: 3px;
+    }
+
+    .owned {
+      background: #cfff72;
+      color: #3f6800;
+      padding: 7px 11px;
+      border-radius: 15px;
+      font-size: 12px;
+      font-weight: 900;
+      height: fit-content;
+    }
+
+    .business-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 17px;
+    }
+
+    .mini-stat {
+      background: #303032;
+      border-radius: 15px;
+      padding: 10px;
+    }
+
+    .mini-label {
+      color: #99999f;
+      font-size: 10px;
+      font-weight: 800;
+    }
+
+    .mini-value {
+      margin-top: 3px;
+      font-size: 15px;
+      font-weight: 900;
+    }
+
+    /* DECISION BUTTON */
+
+    .decision {
+      background: #c9ff58;
+      color: #182000;
+      width: 100%;
+      border-radius: 18px;
+      padding: 15px;
+      font-weight: 900;
+      margin-top: 12px;
+      transition: transform .1s;
+    }
+
+    .decision:active {
+      transform: scale(.97);
+    }
+
+    /* DAY PANEL */
+
+    .day-panel {
+      background: white;
+      border-radius: 25px;
+      padding: 20px;
+      margin-bottom: 18px;
+      box-shadow: 0 5px 20px rgba(0,0,0,.06);
+    }
+
+    .day-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .day-title {
+      font-size: 18px;
+      font-weight: 900;
+    }
+
+    .day-number {
+      background: #111113;
+      color: white;
+      padding: 9px 14px;
+      border-radius: 14px;
+      font-weight: 900;
+    }
+
+    .progress {
+      height: 12px;
+      background: #e8e8ea;
+      border-radius: 20px;
+      overflow: hidden;
+      margin-top: 15px;
+    }
+
+    .progress-bar {
+      width: 38%;
+      height: 100%;
+      background: linear-gradient(90deg, #8ee800, #61d400);
+      border-radius: inherit;
+    }
+
+    /* BOTTOM NAV */
+
+    .bottom-nav {
+      position: fixed;
+      z-index: 20;
+      left: 50%;
+      bottom: 12px;
+      transform: translateX(-50%);
+      width: min(680px, calc(100% - 22px));
+      background: rgba(255,255,255,.94);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border-radius: 30px;
+      padding: 8px;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      box-shadow: 0 12px 40px rgba(0,0,0,.16);
+      border: 1px solid rgba(0,0,0,.06);
+    }
+
+    .nav-btn {
+      background: transparent;
+      border-radius: 23px;
+      padding: 10px 4px;
+      color: #777980;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .nav-icon {
+      font-size: 22px;
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .nav-btn.active {
+      background: #111113;
+      color: white;
+    }
+
+    /* RESPONSIVE */
+
+    @media (min-width: 700px) {
+      .app {
+        padding-top: 35px;
+      }
+
+      .hero-title {
+        font-size: 38px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <main class="app">
+
+    <!-- HEADER -->
+
+    <header class="header">
+
+      <div class="profile">
+        <div class="avatar">AV</div>
+
+        <div>
+          <div class="player-name">Abhishek</div>
+          <div class="level">LEVEL 1 • ENTREPRENEUR</div>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <button class="round-btn">🏆</button>
+        <button class="round-btn">⚙️</button>
+      </div>
+
+    </header>
+
+
+    <!-- MONEY -->
+
+    <section class="money-card">
+
+      <div class="eyebrow">NET WORTH</div>
+
+      <div class="money" id="cash">
+        ₹1,00,000
+      </div>
+
+      <div class="money-sub">
+        +₹9,000 EST. DAILY PROFIT
+      </div>
+
+    </section>
+
+
+    <!-- STATS -->
+
+    <section class="stats">
+
+      <div class="stat">
+        <div class="stat-label">REPUTATION</div>
+        <div class="stat-value">50</div>
+      </div>
+
+      <div class="stat">
+        <div class="stat-label">INFLUENCE</div>
+        <div class="stat-value">10</div>
+      </div>
+
+      <div class="stat">
+        <div class="stat-label">RISK</div>
+        <div class="stat-value">15</div>
+      </div>
+
+    </section>
+
+
+    <!-- MAIN -->
+
+    <section class="hero">
+
+      <div class="eyebrow positive">YOUR EMPIRE</div>
+
+      <div class="hero-title">
+        Build. Decide. Dominate.
+      </div>
+
+      <div class="hero-description">
+        Start with one business, make smart decisions,
+        survive market shocks and build a global empire.
+      </div>
+
+
+      <!-- BUSINESS -->
+
+      <div class="business-card">
+
+        <div class="business-top">
+
+          <div>
+            <div class="business-name">
+              City Sparkle Car Wash
+            </div>
+
+            <div class="business-type">
+              SERVICES • TIER 1
+            </div>
+          </div>
+
+          <div class="owned">
+            OWNED
+          </div>
+
+        </div>
+
+
+        <div class="business-stats">
+
+          <div class="mini-stat">
+            <div class="mini-label">DEMAND</div>
+            <div class="mini-value">72</div>
+          </div>
+
+          <div class="mini-stat">
+            <div class="mini-label">CAPACITY</div>
+            <div class="mini-value">97</div>
+          </div>
+
+          <div class="mini-stat">
+            <div class="mini-label">PROFIT/DAY</div>
+            <div class="mini-value positive">
+              ₹9K
+            </div>
+          </div>
+
+        </div>
+
+
+        <button class="decision" onclick="advanceDay()">
+          ▶ RUN NEXT DAY
+        </button>
+
+      </div>
+
+    </section>
+
+
+    <!-- DAY -->
+
+    <section class="day-panel">
+
+      <div class="day-row">
+
+        <div class="day-title">
+          Empire Progress
+        </div>
+
+        <div class="day-number" id="day">
+          DAY 1
+        </div>
+
+      </div>
+
+      <div class="progress">
+        <div class="progress-bar"></div>
+      </div>
+
+    </section>
+
+  </main>
+
+
+  <!-- BOTTOM NAV -->
+
+  <nav class="bottom-nav">
+
+    <button class="nav-btn active">
+      <span class="nav-icon">⌂</span>
+      Home
+    </button>
+
+    <button class="nav-btn">
+      <span class="nav-icon">🏢</span>
+      Business
+    </button>
+
+    <button class="nav-btn">
+      <span class="nav-icon">📈</span>
+      Market
+    </button>
+
+    <button class="nav-btn">
+      <span class="nav-icon">💎</span>
+      Assets
+    </button>
+
+    <button class="nav-btn">
+      <span class="nav-icon">📒</span>
+      Ledger
+    </button>
+
+  </nav>
+
+
+  <script>
+
+    let cash = 100000;
+    let day = 1;
+
+    function formatMoney(value) {
+      return "₹" + Math.round(value).toLocaleString("en-IN");
+    }
+
+    function advanceDay() {
+
+      const dailyProfit = 9000;
+
+      cash += dailyProfit;
+      day++;
+
+      document.getElementById("cash").textContent =
+        formatMoney(cash);
+
+      document.getElementById("day").textContent =
+        "DAY " + day;
+
+      alert(
+        "DAY " + day +
+        " COMPLETE\n\n" +
+        "+₹9,000 profit added."
+      );
+    }
+
+  </script>
+
+</body>
+</html>
