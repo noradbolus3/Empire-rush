@@ -177,7 +177,7 @@ const camera=new THREE.PerspectiveCamera(
   200
 );
 
-camera.position.set(27,25,30);
+camera.position.set(25,15,27);
 
 const renderer=new THREE.WebGLRenderer({
   canvas,
@@ -200,7 +200,7 @@ controls.minDistance=13;
 controls.maxDistance=60;
 controls.maxPolarAngle=Math.PI/2.18;
 controls.minPolarAngle=.35;
-controls.target.set(0,2.2,0);
+controls.target.set(0,1.8,0);
 
 /* =====================================================
    LIGHT
@@ -319,9 +319,9 @@ const HQ=new THREE.Group();
 scene.add(HQ);
 
 cube(
-  31,.18,20,
-  floor,
-  0,.35,0,
+  31,3.2,.45,
+  wallDark,
+  0,1.8,9.7,
   HQ
 );
 
@@ -333,43 +333,43 @@ cube(
 /* back wall */
 
 cube(
-  31,6.5,.45,
-  wallDark,
-  0,3.55,9.7,
+  31,3.2,.45,
+wallDark,
+0,1.8,9.7,
   HQ
 );
 
 /* left wall */
 
 cube(
-  .45,6.5,20,
+  .45,3.2,20,
   wall,
-  -15.25,3.55,0,
+  -15.25,1.8,0,
   HQ
 );
 
 /* right wall */
 
 cube(
-  .45,6.5,20,
+  .45,3.2,20,
   wall,
-  15.25,3.55,0,
+  15.25,1.8,0,
   HQ
 );
 
 /* partial front walls */
 
 cube(
-  7,6.5,.45,
+  7,3.2,.45,
   wall,
-  -12,3.55,-9.7,
+  -12,1.8,-9.7,
   HQ
 );
 
 cube(
-  7,6.5,.45,
+  7,3.2,.45,
   wall,
-  12,3.55,-9.7,
+  12,1.8,-9.7,
   HQ
 );
 
