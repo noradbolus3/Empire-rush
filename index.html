@@ -619,6 +619,31 @@
   }
 
   updateUI();
+  document.querySelectorAll(".nav-btn").forEach((button, index) => {
+  button.addEventListener("click", function () {
+
+    if (index === 0) {
+      alert("HOME");
+    }
+
+    if (index === 1) {
+      alert("BUSINESS");
+    }
+
+    if (index === 2) {
+      alert("MARKET");
+    }
+
+    if (index === 3) {
+      alert("ASSETS");
+    }
+
+    if (index === 4) {
+      alert("LEDGER");
+    }
+
+  });
+});
 </script>
 
 </body>
