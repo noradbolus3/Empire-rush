@@ -549,36 +549,77 @@
   </nav>
 
 
-  <script>
+<script src="engine.js"></script>
 
-    let cash = 100000;
-    let day = 1;
+<script>
+  const state = EmpireEngine.loadGame();
 
-    function formatMoney(value) {
-      return "₹" + Math.round(value).toLocaleString("en-IN");
-    }
+  function formatMoney(value) {
+    return "₹" + Math.round(value).toLocaleString("en-IN");
+  }
 
-    function advanceDay() {
+  function updateUI() {
+    const business = state.businesses[0];
 
-      const dailyProfit = 9000;
+    const stats = EmpireEngine.calculateBusiness(
+      state,
+      business
+    );
 
-      cash += dailyProfit;
-      day++;
+    document.getElementById("cash").textContent =
+      formatMoney(state.player.cash);
 
-      document.getElementById("cash").textContent =
-        formatMoney(cash);
+    document.getElementById("day").textContent =
+      "DAY " + state.player.day;
 
-      document.getElementById("day").textContent =
-        "DAY " + day;
+    document.querySelector(".money-sub").textContent =
+      (stats.profit >= 0 ? "+" : "") +
+      formatMoney(stats.profit) +
+      " EST. DAILY PROFIT";
 
-      alert(
-        "DAY " + day +
-        " COMPLETE\n\n" +
-        "+₹9,000 profit added."
-      );
-    }
+    const statValues =
+      document.querySelectorAll(".stat-value");
 
-  </script>
+    statValues[0].textContent =
+      Math.round(state.player.reputation);
+
+    statValues[1].textContent =
+      Math.round(state.player.influence);
+
+    statValues[2].textContent =
+      Math.round(state.player.risk);
+
+    const miniValues =
+      document.querySelectorAll(".mini-value");
+
+    miniValues[0].textContent =
+      stats.demand;
+
+    miniValues[1].textContent =
+      stats.capacity;
+
+    miniValues[2].textContent =
+      formatMoney(stats.profit);
+  }
+
+  function advanceDay() {
+    const result =
+      EmpireEngine.runDay(state);
+
+    updateUI();
+
+    alert(
+      "DAY " +
+      result.day +
+      " COMPLETE\n\n" +
+      (result.profit >= 0 ? "+" : "") +
+      formatMoney(result.profit) +
+      " daily profit"
+    );
+  }
+
+  updateUI();
+</script>
 
 </body>
 </html>
