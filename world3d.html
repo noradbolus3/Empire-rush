@@ -861,7 +861,11 @@ function inspect(x,y){
   if(!obj.userData.name)return;
 
   const d=obj.userData;
-
+window.dispatchEvent(
+  new CustomEvent("EmpireEmployeeSelected", {
+    detail: d
+  })
+);
   document.getElementById("ename").textContent=d.name;
   document.getElementById("erole").textContent="Role: "+d.role;
   document.getElementById("edept").textContent="Department: "+d.dept;
