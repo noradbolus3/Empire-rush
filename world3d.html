@@ -2,23 +2,18 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport"
-      content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-
-<title>Empire Rush — 3D Headquarters</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Empire Rush — Headquarters</title>
 
 <style>
-*{
-  box-sizing:border-box;
-  -webkit-tap-highlight-color:transparent;
-}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 
 html,body{
   margin:0;
   width:100%;
   height:100%;
   overflow:hidden;
-  background:#11151b;
+  background:#b9c9d5;
   font-family:Arial,sans-serif;
 }
 
@@ -28,102 +23,96 @@ html,body{
   display:block;
 }
 
-#topbar{
+#top{
   position:fixed;
-  top:14px;
-  left:14px;
-  right:14px;
+  top:12px;
+  left:12px;
+  right:12px;
   z-index:10;
   display:flex;
   justify-content:space-between;
-  align-items:center;
   pointer-events:none;
 }
 
-.brand{
-  background:rgba(15,18,23,.9);
+.brand,.stat,.tip,#employeePanel{
+  background:rgba(16,20,25,.91);
   color:white;
-  padding:10px 14px;
-  border-radius:14px;
-  font-weight:800;
-  font-size:15px;
   box-shadow:0 8px 30px rgba(0,0,0,.25);
 }
 
+.brand{
+  padding:10px 14px;
+  border-radius:13px;
+  font-weight:800;
+  font-size:14px;
+}
+
 .brand span{
-  color:#b9f52d;
+  color:#baf02c;
 }
 
 .stats{
   display:flex;
-  gap:7px;
+  gap:6px;
 }
 
 .stat{
-  background:rgba(15,18,23,.9);
-  color:white;
-  padding:8px 11px;
-  border-radius:12px;
-  font-size:11px;
+  padding:7px 10px;
+  border-radius:11px;
+  font-size:9px;
 }
 
-.stat b{
+.stat strong{
   display:block;
-  font-size:13px;
+  font-size:12px;
   margin-top:2px;
 }
 
-#hint{
+.tip{
   position:fixed;
-  bottom:18px;
+  bottom:14px;
   left:50%;
   transform:translateX(-50%);
-  z-index:10;
-  color:white;
-  background:rgba(15,18,23,.82);
-  padding:9px 14px;
-  border-radius:20px;
-  font-size:11px;
+  padding:8px 13px;
+  border-radius:18px;
+  font-size:10px;
   white-space:nowrap;
+  z-index:10;
   pointer-events:none;
 }
 
-#panel{
-  position:fixed;
-  right:16px;
-  bottom:55px;
-  width:245px;
-  background:rgba(15,18,23,.95);
-  color:white;
-  border:1px solid rgba(255,255,255,.08);
-  border-radius:18px;
-  padding:16px;
-  z-index:20;
+#employeePanel{
   display:none;
-  box-shadow:0 15px 50px rgba(0,0,0,.4);
+  position:fixed;
+  right:14px;
+  bottom:48px;
+  width:245px;
+  padding:16px;
+  border-radius:17px;
+  z-index:20;
 }
 
-#panel h3{
-  margin:0 0 6px;
+#employeePanel h2{
+  margin:0 0 5px;
   font-size:18px;
 }
 
-#panel p{
-  margin:6px 0;
-  color:#b8bec7;
+#employeePanel p{
+  margin:5px 0;
+  color:#b9c0c8;
   font-size:12px;
 }
 
 #close{
   position:absolute;
-  right:10px;
+  right:9px;
   top:9px;
+  width:26px;
+  height:26px;
   border:0;
-  background:#292e36;
-  color:white;
   border-radius:50%;
-  width:25px;
-  height:25px;
+  background:#30363e;
+  color:#fff;
 }
 </style>
 </head>
@@ -132,25 +121,27 @@ html,body{
 
 <canvas id="game"></canvas>
 
-<div id="topbar">
-  <div class="brand">EMPIRE <span>RUSH</span> · HQ</div>
+<div id="top">
+  <div class="brand">
+    EMPIRE <span>RUSH</span> · HQ
+  </div>
 
   <div class="stats">
-    <div class="stat">CASH<b>₹7.09L</b></div>
-    <div class="stat">DAY<b>32</b></div>
+    <div class="stat">CASH<strong>₹7.09L</strong></div>
+    <div class="stat">DAY<strong>32</strong></div>
   </div>
 </div>
 
-<div id="hint">
-  Drag to rotate · Pinch / wheel to zoom · Tap employee
+<div class="tip">
+  Drag = rotate · Pinch = zoom · Tap employee
 </div>
 
-<div id="panel">
+<div id="employeePanel">
   <button id="close">×</button>
-  <h3 id="personName">Employee</h3>
-  <p id="personRole">Role</p>
-  <p id="personStatus">Status</p>
-  <p id="personDept">Department</p>
+  <h2 id="ename">Employee</h2>
+  <p id="erole"></p>
+  <p id="edept"></p>
+  <p id="estatus"></p>
 </div>
 
 <script type="importmap">
@@ -165,728 +156,688 @@ html,body{
 <script type="module">
 
 import * as THREE from "three";
-import { OrbitControls } from
+import {OrbitControls} from
 "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/controls/OrbitControls.js";
 
-/* =========================================================
-   CORE
-========================================================= */
+/* =====================================================
+   ENGINE
+===================================================== */
 
-const canvas = document.getElementById("game");
+const canvas=document.getElementById("game");
 
-const scene = new THREE.Scene();
+const scene=new THREE.Scene();
 
-scene.background = new THREE.Color(0xb9c9d5);
-scene.fog = new THREE.Fog(0xb9c9d5,45,110);
+scene.background=new THREE.Color(0xc8d5dc);
+scene.fog=new THREE.Fog(0xc8d5dc,55,115);
 
-const camera = new THREE.PerspectiveCamera(
+const camera=new THREE.PerspectiveCamera(
   42,
   innerWidth/innerHeight,
-  0.1,
+  .1,
   200
 );
 
-camera.position.set(25,24,28);
+camera.position.set(27,25,30);
 
-const renderer = new THREE.WebGLRenderer({
+const renderer=new THREE.WebGLRenderer({
   canvas,
   antialias:true,
   powerPreference:"high-performance"
 });
 
 renderer.setSize(innerWidth,innerHeight);
-renderer.setPixelRatio(Math.min(devicePixelRatio,1.6));
+renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));
 
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.outputColorSpace=THREE.SRGBColorSpace;
 
-renderer.outputColorSpace = THREE.SRGBColorSpace;
+const controls=new OrbitControls(camera,canvas);
 
-const controls = new OrbitControls(camera,canvas);
+controls.enableDamping=true;
+controls.dampingFactor=.065;
+controls.minDistance=13;
+controls.maxDistance=60;
+controls.maxPolarAngle=Math.PI/2.18;
+controls.minPolarAngle=.35;
+controls.target.set(0,2.2,0);
 
-controls.enableDamping = true;
-controls.dampingFactor = .07;
+/* =====================================================
+   LIGHT
+===================================================== */
 
-controls.minDistance = 13;
-controls.maxDistance = 65;
-
-controls.maxPolarAngle = Math.PI/2.15;
-controls.minPolarAngle = .35;
-
-controls.target.set(0,2,0);
-
-/* =========================================================
-   LIGHTING
-========================================================= */
-
-const hemi = new THREE.HemisphereLight(
-  0xeaf5ff,
-  0x52616b,
-  2.0
+scene.add(
+  new THREE.HemisphereLight(
+    0xf4f8ff,
+    0x52616a,
+    2.3
+  )
 );
 
-scene.add(hemi);
+const sun=new THREE.DirectionalLight(0xffffff,3.2);
 
-const sun = new THREE.DirectionalLight(
-  0xffffff,
-  3
-);
-
-sun.position.set(20,35,15);
-sun.castShadow = true;
+sun.position.set(25,38,20);
+sun.castShadow=true;
 
 sun.shadow.mapSize.set(2048,2048);
-
-sun.shadow.camera.left = -45;
-sun.shadow.camera.right = 45;
-sun.shadow.camera.top = 45;
-sun.shadow.camera.bottom = -45;
+sun.shadow.camera.left=-45;
+sun.shadow.camera.right=45;
+sun.shadow.camera.top=45;
+sun.shadow.camera.bottom=-45;
 
 scene.add(sun);
 
-/* =========================================================
+/* =====================================================
    MATERIALS
-========================================================= */
+===================================================== */
 
-const M = {
+function mat(color,rough=.8,metal=0){
+  return new THREE.MeshStandardMaterial({
+    color,
+    roughness:rough,
+    metalness:metal
+  });
+}
 
-  grass:new THREE.MeshStandardMaterial({
-    color:0x5e8052,
-    roughness:1
-  }),
+const grass=mat(0x668657);
+const pavement=mat(0xbcc2c4);
+const road=mat(0x252a30);
+const wall=mat(0xd8ddde);
+const wallDark=mat(0x343a41);
+const floor=mat(0x747b80);
+const wood=mat(0x79583f);
+const metal=mat(0x667079,.35,.7);
+const black=mat(0x20252b);
+const blueGlass=new THREE.MeshStandardMaterial({
+  color:0x69a8bb,
+  transparent:true,
+  opacity:.55,
+  roughness:.12
+});
+const screen=mat(0x1c6974,.2,.1);
+const green=mat(0xb9ef2d,.4,.05);
+const skin=mat(0xd69a73);
+const shirtBlue=mat(0x365c9e);
+const shirtGreen=mat(0x4d8061);
+const pants=mat(0x292e35);
 
-  road:new THREE.MeshStandardMaterial({
-    color:0x252a30,
-    roughness:.9
-  }),
-
-  concrete:new THREE.MeshStandardMaterial({
-    color:0xbfc5c8,
-    roughness:.9
-  }),
-
-  wall:new THREE.MeshStandardMaterial({
-    color:0xdce1e2,
-    roughness:.8
-  }),
-
-  dark:new THREE.MeshStandardMaterial({
-    color:0x20262c,
-    roughness:.7
-  }),
-
-  glass:new THREE.MeshStandardMaterial({
-    color:0x68a6b8,
-    transparent:true,
-    opacity:.55,
-    roughness:.15,
-    metalness:.1
-  }),
-
-  wood:new THREE.MeshStandardMaterial({
-    color:0x79583e,
-    roughness:.75
-  }),
-
-  metal:new THREE.MeshStandardMaterial({
-    color:0x68727b,
-    metalness:.65,
-    roughness:.3
-  }),
-
-  screen:new THREE.MeshStandardMaterial({
-    color:0x1c5d68,
-    emissive:0x08333a,
-    emissiveIntensity:.7
-  }),
-
-  shirt:new THREE.MeshStandardMaterial({
-    color:0x365b9d
-  }),
-
-  skin:new THREE.MeshStandardMaterial({
-    color:0xd79c76
-  }),
-
-  pants:new THREE.MeshStandardMaterial({
-    color:0x272b33
-  }),
-
-  green:new THREE.MeshStandardMaterial({
-    color:0xb8ee28,
-    emissive:0x355500,
-    emissiveIntensity:.3
-  })
-};
-
-/* =========================================================
+/* =====================================================
    HELPERS
-========================================================= */
+===================================================== */
 
-function box(
-  w,h,d,
-  material,
-  x=0,y=0,z=0
-){
-  const g = new THREE.BoxGeometry(w,h,d);
-  const m = new THREE.Mesh(g,material);
+function cube(w,h,d,m,x=0,y=0,z=0,parent=scene){
 
-  m.position.set(x,y,z);
-  m.castShadow = true;
-  m.receiveShadow = true;
+  const mesh=new THREE.Mesh(
+    new THREE.BoxGeometry(w,h,d),
+    m
+  );
 
-  scene.add(m);
+  mesh.position.set(x,y,z);
+  mesh.castShadow=true;
+  mesh.receiveShadow=true;
 
-  return m;
+  parent.add(mesh);
+
+  return mesh;
 }
 
-function cylinder(
-  r,h,
-  material,
-  x=0,y=0,z=0
-){
-  const g = new THREE.CylinderGeometry(r,r,h,12);
-  const m = new THREE.Mesh(g,material);
+function cyl(r,h,m,x=0,y=0,z=0,parent=scene){
 
-  m.position.set(x,y,z);
+  const mesh=new THREE.Mesh(
+    new THREE.CylinderGeometry(r,r,h,16),
+    m
+  );
 
-  m.castShadow = true;
-  m.receiveShadow = true;
+  mesh.position.set(x,y,z);
+  mesh.castShadow=true;
+  mesh.receiveShadow=true;
 
-  scene.add(m);
+  parent.add(mesh);
 
-  return m;
+  return mesh;
 }
 
-/* =========================================================
-   WORLD
-========================================================= */
+/* =====================================================
+   CAMPUS
+===================================================== */
 
-box(100,.4,100,M.grass,0,-.2,0);
+cube(110,.4,110,grass,0,-.2,0);
 
-/* plaza */
+cube(44,.15,32,pavement,0,.03,0);
 
-box(42,.15,30,M.concrete,0,.05,0);
+cube(110,.18,8,road,0,.08,18);
 
-/* road */
-
-box(100,.18,9,M.road,0,.08,17);
-
-/* road lines */
-
-for(let x=-45;x<45;x+=7){
-  box(4,.03,.22,M.concrete,x,.19,17);
+for(let x=-50;x<50;x+=7){
+  cube(4,.03,.18,pavement,x,.19,18);
 }
 
-/* =========================================================
-   HEADQUARTERS BUILDING
-========================================================= */
+/* =====================================================
+   HQ FLOOR
+===================================================== */
 
-const building = new THREE.Group();
+const HQ=new THREE.Group();
+scene.add(HQ);
 
-scene.add(building);
+cube(
+  31,.18,20,
+  floor,
+  0,.35,0,
+  HQ
+);
 
-function BBox(w,h,d,mat,x,y,z){
+/* =====================================================
+   EXTERIOR WALLS
+   ROOF INTENTIONALLY REMOVED
+===================================================== */
 
-  const g=new THREE.BoxGeometry(w,h,d);
-  const m=new THREE.Mesh(g,mat);
+/* back wall */
 
-  m.position.set(x,y,z);
+cube(
+  31,6.5,.45,
+  wallDark,
+  0,3.55,9.7,
+  HQ
+);
 
-  m.castShadow=true;
-  m.receiveShadow=true;
+/* left wall */
 
-  building.add(m);
+cube(
+  .45,6.5,20,
+  wall,
+  -15.25,3.55,0,
+  HQ
+);
 
-  return m;
-}
+/* right wall */
 
-/* main structure */
+cube(
+  .45,6.5,20,
+  wall,
+  15.25,3.55,0,
+  HQ
+);
 
-BBox(30,7,19,M.wall,0,3.5,0);
+/* partial front walls */
 
-/* roof */
+cube(
+  7,6.5,.45,
+  wall,
+  -12,3.55,-9.7,
+  HQ
+);
 
-BBox(31,.8,20,M.dark,0,7.4,0);
+cube(
+  7,6.5,.45,
+  wall,
+  12,3.55,-9.7,
+  HQ
+);
 
-/* front glass */
+/* =====================================================
+   WINDOWS
+===================================================== */
 
-for(let x=-12;x<=12;x+=6){
+for(let x=-8;x<=8;x+=4){
 
-  BBox(
-    4.8,
-    4.7,
-    .12,
-    M.glass,
+  cube(
+    3.1,
+    4.4,
+    .08,
+    blueGlass,
     x,
     4,
-    -9.58
+    -9.76,
+    HQ
   );
 
 }
 
-/* side windows */
+/* =====================================================
+   RECEPTION
+===================================================== */
 
-for(let z=-6;z<=6;z+=6){
+cube(
+  5.5,1.15,1.6,
+  wood,
+  0,1.05,-7.4,
+  HQ
+);
 
-  BBox(
-    .12,
-    4.7,
-    4.8,
-    M.glass,
-    15.05,
-    4,
-    z
+cube(
+  4.2,.7,.08,
+  screen,
+  0,1.2,-8.23,
+  HQ
+);
+
+/* reception sign */
+
+cube(
+  5,.7,.12,
+  black,
+  0,4.8,-9.82,
+  HQ
+);
+
+cube(
+  2.4,.22,.15,
+  green,
+  0,4.8,-9.91,
+  HQ
+);
+
+/* =====================================================
+   CEO CABIN
+===================================================== */
+
+cube(
+  8,.12,5,
+  wood,
+  -9,1.1,4.8,
+  HQ
+);
+
+cube(
+  8,2.5,.12,
+  blueGlass,
+  -9,2.6,7.25,
+  HQ
+);
+
+cube(
+  2.5,1.2,1.2,
+  wood,
+  -9,1.7,3.2,
+  HQ
+);
+
+cube(
+  1.8,.8,.08,
+  screen,
+  -9,2.15,2.58,
+  HQ
+);
+
+/* CEO chair */
+
+cyl(
+  .55,.15,
+  black,
+  -9,.9,2.0,
+  HQ
+);
+
+/* =====================================================
+   OPEN OFFICE DESKS
+===================================================== */
+
+function desk(x,z){
+
+  cube(
+    2.8,.16,1.35,
+    wood,
+    x,1.45,z,
+    HQ
   );
 
-}
-
-/* entrance */
-
-BBox(
-  4,
-  4.2,
-  .25,
-  M.dark,
-  0,
-  2.1,
-  -9.75
-);
-
-/* entrance glass */
-
-BBox(
-  3.2,
-  3.7,
-  .08,
-  M.glass,
-  0,
-  2,
-  -9.9
-);
-
-/* logo */
-
-BBox(
-  7,
-  1.2,
-  .15,
-  M.dark,
-  0,
-  7.9,
-  -10
-);
-
-BBox(
-  3,
-  .35,
-  .18,
-  M.green,
-  0,
-  7.9,
-  -10.12
-);
-
-/* =========================================================
-   INTERIOR
-========================================================= */
-
-/* floor */
-
-BBox(
-  28,.15,17,
-  new THREE.MeshStandardMaterial({
-    color:0x737b80,
-    roughness:.8
-  }),
-  0,.4,0
-);
-
-/* internal room divider */
-
-BBox(11,3,.18,M.dark,-8,2.1,0);
-BBox(.18,3,9,M.dark,0,2.1,4);
-
-function createDesk(x,z){
-
-  /* table top */
-
-  BBox(
-    3.3,.18,1.5,
-    M.wood,
-    x,1.45,z
-  );
-
-  /* legs */
-
-  for(const dx of [-1.3,1.3]){
-    for(const dz of [-.5,.5]){
-
-      BBox(
-        .12,1.35,.12,
-        M.metal,
-        x+dx,
-        .75,
-        z+dz
-      );
-
-    }
+  for(const dx of[-1.1,1.1]){
+    cube(
+      .1,1.35,.1,
+      metal,
+      x+dx,.75,z,
+      HQ
+    );
   }
 
-  /* monitor */
-
-  BBox(
-    1.15,.75,.12,
-    M.dark,
-    x,.2+1.95,z-.35
+  cube(
+    1.15,.72,.1,
+    black,
+    x,1.92,z-.3,
+    HQ
   );
 
-  BBox(
-    .9,.5,.06,
-    M.screen,
-    x,2.0,z-.42
+  cube(
+    .9,.5,.05,
+    screen,
+    x,1.95,z-.37,
+    HQ
   );
 
-  /* keyboard */
-
-  BBox(
-    .8,.06,.35,
-    M.dark,
-    x,1.62,z-.55
+  cube(
+    .75,.06,.3,
+    black,
+    x,1.61,z-.5,
+    HQ
   );
 }
 
-/* desks */
+const deskPositions=[
+  [-10,-4],
+  [-5,-4],
+  [4,-4],
+  [9,-4],
+  [-10,.5],
+  [-5,.5],
+  [4,.5],
+  [9,.5]
+];
 
-createDesk(-10,-5);
-createDesk(-5,-5);
-createDesk(5,-5);
-createDesk(10,-5);
+deskPositions.forEach(p=>desk(p[0],p[1]));
 
-createDesk(-10,5);
-createDesk(-5,5);
-createDesk(5,5);
-createDesk(10,5);
-
-/* =========================================================
+/* =====================================================
    CHAIRS
-========================================================= */
+===================================================== */
 
 function chair(x,z){
 
-  cylinder(.45,.12,M.dark,x,.72,z);
+  cyl(.42,.12,black,x,.7,z,HQ);
 
-  box(.1,1,.1,M.metal,x,.95,z);
+  cube(.1,1,.1,metal,x,.95,z,HQ);
 
-  box(.9,.12,.9,M.dark,x,1.05,z);
+  cube(.75,.12,.65,black,x,1.05,z,HQ);
 }
 
 [
- [-10,-6.3],[-5,-6.3],
- [5,-6.3],[10,-6.3],
- [-10,3.7],[-5,3.7],
- [5,3.7],[10,3.7]
+ [-10,-5.4],
+ [-5,-5.4],
+ [4,-5.4],
+ [9,-5.4],
+ [-10,-.9],
+ [-5,-.9],
+ [4,-.9],
+ [9,-.9]
 ].forEach(p=>chair(...p));
 
-/* =========================================================
+/* =====================================================
    MEETING ROOM
-========================================================= */
+===================================================== */
 
-BBox(
-  9,.12,5,
-  M.wood,
-  0,1.25,6
+cube(
+  7,.15,4,
+  wood,
+  5.5,1.25,6.5,
+  HQ
 );
 
-for(let x=-3;x<=3;x+=2){
-
-  chair(x,8.2);
-  chair(x,3.8);
-
+for(let x=3;x<=8;x+=2.5){
+  chair(x,8.7);
+  chair(x,4.3);
 }
 
-BBox(
-  7,2.4,.15,
-  M.glass,
-  0,3.2,8.7
+cube(
+  6.5,2.6,.12,
+  blueGlass,
+  5.5,3.2,8.5,
+  HQ
 );
 
-/* meeting display */
-
-BBox(
-  4,2.1,.12,
-  M.dark,
-  0,3.5,8.55
+cube(
+  3.6,1.7,.08,
+  black,
+  5.5,3.5,8.38,
+  HQ
 );
 
-BBox(
-  3.5,1.5,.06,
-  M.screen,
-  0,3.5,8.45
+cube(
+  3.1,1.25,.05,
+  screen,
+  5.5,3.5,8.3,
+  HQ
 );
 
-/* =========================================================
+/* =====================================================
    WORKERS
-========================================================= */
+===================================================== */
 
 const workers=[];
 
-const roles=[
-  "Operations Manager",
-  "Finance Analyst",
-  "Marketing Executive",
-  "Product Manager",
-  "HR Manager",
-  "Sales Executive",
-  "R&D Engineer",
-  "Accountant"
+const data=[
+ ["Aarav","Operations Manager","Operations"],
+ ["Riya","Finance Analyst","Finance"],
+ ["Kabir","Marketing Executive","Marketing"],
+ ["Anaya","Product Manager","Product"],
+ ["Vivaan","HR Manager","Human Resources"],
+ ["Meera","Sales Executive","Sales"],
+ ["Arjun","R&D Engineer","R&D"],
+ ["Ishita","Accountant","Finance"]
 ];
 
-function createWorker(name,role,x,z,index){
+function worker(name,role,dept,x,z,i){
 
   const g=new THREE.Group();
 
-  g.position.set(x,0,z);
+  g.position.set(x,.35,z);
+
+  const shirt=i%2?shirtGreen:shirtBlue;
 
   /* legs */
 
-  const leg1=box(
-    .25,.9,.25,
-    M.pants
-  );
-
-  const leg2=box(
-    .25,.9,.25,
-    M.pants
-  );
-
-  leg1.position.set(-.18,.45,0);
-  leg2.position.set(.18,.45,0);
-
-  g.add(leg1,leg2);
+  const l1=cube(.22,.85,.22,pants,-.17,.43,0,g);
+  const l2=cube(.22,.85,.22,pants,.17,.43,0,g);
 
   /* body */
 
-  const body=box(
-    .7,1.05,.45,
-    M.shirt
-  );
+  cube(.68,1.05,.44,shirt,0,1.3,0,g);
 
-  body.position.y=1.35;
+  /* neck */
 
-  g.add(body);
+  cyl(.12,.16,skin,0,1.9,0,g);
 
   /* head */
 
   const head=new THREE.Mesh(
-    new THREE.SphereGeometry(.32,16,12),
-    M.skin
+    new THREE.SphereGeometry(.31,16,12),
+    skin
   );
 
-  head.position.y=2.1;
-
+  head.position.y=2.15;
   head.castShadow=true;
-
   g.add(head);
 
   /* hair */
 
   const hair=new THREE.Mesh(
-    new THREE.SphereGeometry(.34,16,8,0,Math.PI*2,0,Math.PI/2),
-    M.dark
+    new THREE.SphereGeometry(
+      .33,16,8,0,Math.PI*2,0,Math.PI/2
+    ),
+    black
   );
 
-  hair.position.y=2.28;
-
+  hair.position.y=2.3;
   g.add(hair);
 
   /* arms */
 
-  const arm1=box(.18,.75,.18,M.shirt);
-  const arm2=box(.18,.75,.18,M.shirt);
-
-  arm1.position.set(-.48,1.4,0);
-  arm2.position.set(.48,1.4,0);
-
-  g.add(arm1,arm2);
-
-  /* unique data */
+  const a1=cube(.16,.72,.16,shirt,-.45,1.35,0,g);
+  const a2=cube(.16,.72,.16,shirt,.45,1.35,0,g);
 
   g.userData={
     name,
     role,
-    status:"Working",
-    department:role.split(" ")[0],
-    phase:index*.7,
-    baseX:x,
-    baseZ:z
+    dept,
+    phase:i*.8,
+    homeX:x,
+    homeZ:z,
+    arm1:a1,
+    arm2:a2,
+    leftLeg:l1,
+    rightLeg:l2
   };
 
   scene.add(g);
   workers.push(g);
 }
 
-const positions=[
- [-10,-5],
- [-5,-5],
- [5,-5],
- [10,-5],
- [-10,5],
- [-5,5],
- [5,5],
- [10,5]
-];
-
-positions.forEach((p,i)=>{
-  createWorker(
-    "Employee "+(i+1),
-    roles[i],
-    p[0],
-    p[1],
+data.forEach((d,i)=>{
+  worker(
+    d[0],
+    d[1],
+    d[2],
+    deskPositions[i][0],
+    deskPositions[i][1]+.9,
     i
   );
 });
 
-/* =========================================================
-   OUTSIDE PARKING
-========================================================= */
+/* =====================================================
+   WALKING ASSISTANTS
+===================================================== */
 
-function createCar(x,z,scale=1){
+const walkers=[];
 
-  const car=new THREE.Group();
+function createWalker(x,z){
 
-  car.position.set(x,.45,z);
-  car.scale.setScalar(scale);
+  const g=new THREE.Group();
 
-  const body=box(
-    2.4,.55,1.25,
-    M.dark
+  g.position.set(x,.35,z);
+
+  const shirt=mat(
+    Math.random()>.5?0x80633d:0x704e83
   );
 
-  body.position.y=.35;
-  car.add(body);
+  cube(.22,.85,.22,pants,-.17,.43,0,g);
+  cube(.22,.85,.22,pants,.17,.43,0,g);
 
-  const cabin=box(
-    1.25,.55,1,
-    M.glass
+  cube(.68,1.05,.44,shirt,0,1.3,0,g);
+
+  const head=new THREE.Mesh(
+    new THREE.SphereGeometry(.31,14,10),
+    skin
   );
 
-  cabin.position.set(0,.75,0);
-  car.add(cabin);
+  head.position.y=2.15;
+  g.add(head);
 
-  for(const wx of [-.85,.85]){
+  g.userData={
+    startX:x,
+    startZ:z,
+    phase:Math.random()*10
+  };
 
-    const wheel=cylinder(
-      .3,.18,
-      M.dark,
-      wx,0,-.7
-    );
-
-    wheel.rotation.x=Math.PI/2;
-    car.add(wheel);
-
-    const wheel2=wheel.clone();
-    wheel2.position.z=.7;
-    car.add(wheel2);
-  }
-
-  scene.add(car);
+  scene.add(g);
+  walkers.push(g);
 }
 
-createCar(-7,14,.9);
-createCar(3,14,.9);
-createCar(18,14,.8);
+createWalker(-1,-1.8);
+createWalker(2,-2.2);
 
-/* =========================================================
+/* =====================================================
+   PARKING
+===================================================== */
+
+function car(x,z,s=1){
+
+  const g=new THREE.Group();
+
+  g.position.set(x,.4,z);
+  g.scale.setScalar(s);
+
+  cube(2.4,.55,1.2,black,0,.35,0,g);
+
+  cube(1.3,.55,1,blueGlass,0,.75,0,g);
+
+  for(const px of[-.85,.85]){
+
+    const w1=cyl(.3,.18,black,px,.02,-.68,g);
+    w1.rotation.x=Math.PI/2;
+
+    const w2=w1.clone();
+    w2.position.z=.68;
+    g.add(w2);
+  }
+
+  scene.add(g);
+}
+
+car(-6,14,.9);
+car(3,14,.9);
+car(13,14,.8);
+
+/* =====================================================
    TREES
-========================================================= */
+===================================================== */
 
 function tree(x,z){
 
-  cylinder(
-    .28,2,
-    new THREE.MeshStandardMaterial({
-      color:0x67472f
-    }),
-    x,1,z
+  cyl(
+    .25,1.8,
+    mat(0x67472f),
+    x,.9,z
   );
 
   const crown=new THREE.Mesh(
-    new THREE.SphereGeometry(1.25,12,10),
-    new THREE.MeshStandardMaterial({
-      color:0x3f713c
-    })
+    new THREE.SphereGeometry(1.2,14,10),
+    mat(0x47773e)
   );
 
-  crown.position.set(x,2.7,z);
+  crown.position.set(x,2.4,z);
   crown.castShadow=true;
 
   scene.add(crown);
 }
 
 [
- [-20,-14],[-14,-14],
- [20,-14],[25,-5],
- [-22,7],[22,7],
- [-25,18],[25,20]
+ [-21,-13],
+ [-15,-14],
+ [20,-13],
+ [25,-4],
+ [-22,8],
+ [22,8],
+ [-26,20],
+ [27,21]
 ].forEach(p=>tree(...p));
 
-/* =========================================================
-   CITY BUILDINGS
-========================================================= */
+/* =====================================================
+   CITY
+===================================================== */
 
-function cityBuilding(x,z,w,h,d){
+function city(x,z,w,h,d){
 
-  const mat=new THREE.MeshStandardMaterial({
-    color:0x9da8ad,
-    roughness:.9
-  });
+  cube(
+    w,h,d,
+    mat(0x9da7ac),
+    x,h/2,z
+  );
 
-  box(w,h,d,mat,x,h/2,z);
+  for(let y=2;y<h-1;y+=2.5){
 
-  for(let yy=3;yy<h-1;yy+=2.4){
+    for(
+      let xx=x-w/2+1;
+      xx<x+w/2-1;
+      xx+=2
+    ){
 
-    for(let xx=x-w/2+1.2;xx<x+w/2-1;xx+=2.3){
-
-      box(
-        .8,
-        .7,
-        .04,
-        M.glass,
-        xx,
-        yy,
-        z-d/2-.03
+      cube(
+        .65,.65,.04,
+        blueGlass,
+        xx,y,z-d/2-.03
       );
-
     }
   }
 }
 
-cityBuilding(-35,-5,10,12,9);
-cityBuilding(35,-2,11,16,10);
-cityBuilding(-34,15,8,9,8);
-cityBuilding(34,16,12,13,10);
+city(-34,-4,9,12,8);
+city(34,-3,10,16,9);
+city(-35,15,8,9,8);
+city(35,17,11,14,9);
 
-/* =========================================================
-   TAP / RAYCAST
-========================================================= */
+/* =====================================================
+   RAYCAST
+===================================================== */
 
-const raycaster=new THREE.Raycaster();
+const ray=new THREE.Raycaster();
 const pointer=new THREE.Vector2();
 
-function inspect(clientX,clientY){
+function inspect(x,y){
 
-  const rect=canvas.getBoundingClientRect();
+  const r=canvas.getBoundingClientRect();
 
-  pointer.x=((clientX-rect.left)/rect.width)*2-1;
-  pointer.y=-((clientY-rect.top)/rect.height)*2+1;
+  pointer.x=((x-r.left)/r.width)*2-1;
+  pointer.y=-((y-r.top)/r.height)*2+1;
 
-  raycaster.setFromCamera(pointer,camera);
+  ray.setFromCamera(pointer,camera);
 
-  const hits=raycaster.intersectObjects(
-    workers,
-    true
-  );
+  const hits=ray.intersectObjects(workers,true);
 
   if(!hits.length)return;
 
@@ -898,36 +849,41 @@ function inspect(clientX,clientY){
 
   if(!obj.userData.name)return;
 
-  document.getElementById("personName").textContent=
-    obj.userData.name;
+  const d=obj.userData;
 
-  document.getElementById("personRole").textContent=
-    "Role: "+obj.userData.role;
+  document.getElementById("ename").textContent=d.name;
+  document.getElementById("erole").textContent="Role: "+d.role;
+  document.getElementById("edept").textContent="Department: "+d.dept;
+  document.getElementById("estatus").textContent="Status: Working";
 
-  document.getElementById("personStatus").textContent=
-    "Status: "+obj.userData.status;
-
-  document.getElementById("personDept").textContent=
-    "Department: "+obj.userData.department;
-
-  document.getElementById("panel").style.display="block";
+  document.getElementById("employeePanel").style.display="block";
 }
 
+let downX=0;
+let downY=0;
+
 canvas.addEventListener("pointerdown",e=>{
-  if(e.button===0){
-    setTimeout(()=>{
-      if(!controls.state) inspect(e.clientX,e.clientY);
-    },120);
+  downX=e.clientX;
+  downY=e.clientY;
+});
+
+canvas.addEventListener("pointerup",e=>{
+
+  const dx=e.clientX-downX;
+  const dy=e.clientY-downY;
+
+  if(Math.sqrt(dx*dx+dy*dy)<8){
+    inspect(e.clientX,e.clientY);
   }
 });
 
 document.getElementById("close").onclick=()=>{
-  document.getElementById("panel").style.display="none";
+  document.getElementById("employeePanel").style.display="none";
 };
 
-/* =========================================================
+/* =====================================================
    ANIMATION
-========================================================= */
+===================================================== */
 
 const clock=new THREE.Clock();
 
@@ -939,23 +895,38 @@ function animate(){
 
   workers.forEach((w,i)=>{
 
-    const p=w.userData;
+    const d=w.userData;
 
-    /* natural idle movement */
+    w.position.y=.35+
+      Math.sin(t*2+d.phase)*.025;
 
-    w.position.y=
-      Math.sin(t*2+p.phase)*.025;
+    d.arm1.rotation.z=
+      Math.sin(t*3+d.phase)*.08;
 
-    /* subtle working animation */
+    d.arm2.rotation.z=
+      -Math.sin(t*3+d.phase)*.08;
 
-    w.children.forEach((part,j)=>{
+  });
 
-      if(j===5 || j===6){
-        part.rotation.z=
-          Math.sin(t*2.5+p.phase)*.05;
-      }
+  walkers.forEach((w,i)=>{
 
-    });
+    const d=w.userData;
+
+    const distance=4;
+
+    w.position.x=
+      d.startX+
+      Math.sin(t*.55+d.phase)*distance;
+
+    w.position.z=
+      d.startZ+
+      Math.cos(t*.55+d.phase)*1.5;
+
+    w.rotation.y=
+      Math.atan2(
+        Math.cos(t*.55+d.phase),
+        Math.cos(t*.55+d.phase)
+      );
 
   });
 
@@ -966,17 +937,24 @@ function animate(){
 
 animate();
 
-/* =========================================================
+/* =====================================================
    RESIZE
-========================================================= */
+===================================================== */
 
 addEventListener("resize",()=>{
 
   camera.aspect=innerWidth/innerHeight;
+
   camera.updateProjectionMatrix();
 
-  renderer.setSize(innerWidth,innerHeight);
-  renderer.setPixelRatio(Math.min(devicePixelRatio,1.6));
+  renderer.setSize(
+    innerWidth,
+    innerHeight
+  );
+
+  renderer.setPixelRatio(
+    Math.min(devicePixelRatio,1.5)
+  );
 
 });
 
