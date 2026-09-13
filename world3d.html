@@ -156,8 +156,15 @@ html,body{
 <script type="module">
 
 import * as THREE from "three";
+
 import {OrbitControls} from
 "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/controls/OrbitControls.js";
+
+import {GLTFLoader} from
+"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/loaders/GLTFLoader.js";
+
+import {SkeletonUtils} from
+"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/utils/SkeletonUtils.js";
 
 /* =====================================================
    ENGINE
@@ -317,17 +324,7 @@ for(let x=-50;x<50;x+=7){
 
 const HQ=new THREE.Group();
 scene.add(HQ);
-  window.EmpireWorld = {
-  scene,
-  camera,
-  renderer,
-  controls,
-  HQ
-};
-
-window.dispatchEvent(
-  new Event("EmpireWorldReady")
-);
+  
 
 cube(
   31,3.2,.45,
@@ -597,98 +594,860 @@ cube(
 );
 
 /* =====================================================
-   WORKERS
+   REAL HUMAN NPC SYSTEM
+   =====================================================
+
+   IMPORTANT:
+   No boxes.
+   No spheres.
+   No procedural dummy people.
+
+   Humans are real GLTF/GLB skinned characters.
 ===================================================== */
 
-const workers=[];
+const humanLoader = new GLTFLoader();
 
-const data=[
- ["Aarav","Operations Manager","Operations"],
- ["Riya","Finance Analyst","Finance"],
- ["Kabir","Marketing Executive","Marketing"],
- ["Anaya","Product Manager","Product"],
- ["Vivaan","HR Manager","Human Resources"],
- ["Meera","Sales Executive","Sales"],
- ["Arjun","R&D Engineer","R&D"],
- ["Ishita","Accountant","Finance"]
+const HUMAN_MODEL_URL =
+  "https://cdn.jsdelivr.net/gh/UMRAM-Bilkent/supine-human-model@main/assets/human.glb";
+
+let humanTemplate = null;
+let humanAnimations = [];
+
+const workers = [];
+const humanMixers = [];
+
+const humanLoading = {
+  started:false,
+  loaded:false,
+  failed:false
+};
+
+
+/* =====================================================
+   EMPLOYEE DATA
+===================================================== */
+
+const data = [
+
+  {
+    name:"Aarav",
+    role:"Operations Manager",
+    dept:"Operations",
+    x:-5,
+    z:-.4,
+    gender:"male",
+    scale:1
+  },
+
+  {
+    name:"Riya",
+    role:"Finance Analyst",
+    dept:"Finance",
+    x:-10,
+    z:-3.1,
+    gender:"female",
+    scale:.98
+  },
+
+  {
+    name:"Kabir",
+    role:"Marketing Executive",
+    dept:"Marketing",
+    x:9,
+    z:-3.1,
+    gender:"male",
+    scale:1
+  },
+
+  {
+    name:"Anaya",
+    role:"Product Manager",
+    dept:"Product",
+    x:4,
+    z:-3.1,
+    gender:"female",
+    scale:1
+  },
+
+  {
+    name:"Vivaan",
+    role:"HR Manager",
+    dept:"Human Resources",
+    x:-5,
+    z:.9,
+    gender:"male",
+    scale:1.02
+  },
+
+  {
+    name:"Meera",
+    role:"Sales Executive",
+    dept:"Sales",
+    x:9,
+    z:-3.1,
+    gender:"female",
+    scale:.98
+  },
+
+  {
+    name:"Arjun",
+    role:"R&D Engineer",
+    dept:"R&D",
+    x:9,
+    z:.9,
+    gender:"male",
+    scale:1
+  },
+
+  {
+    name:"Ishita",
+    role:"Accountant",
+    dept:"Finance",
+    x:-5,
+    z:-3.1,
+    gender:"female",
+    scale:.98
+  }
+
 ];
 
-function worker(name,role,dept,x,z,i){
 
-  const g=new THREE.Group();
+/* =====================================================
+   LOAD HUMAN MODEL
+===================================================== */
 
-  g.position.set(x,.35,z);
+function loadHumanModel(){
 
-  const shirt=i%2?shirtGreen:shirtBlue;
+  if(humanLoading.started)
+    return;
 
-  /* legs */
+  humanLoading.started=true;
 
-  const l1=cube(.22,.85,.22,pants,-.17,.43,0,g);
-  const l2=cube(.22,.85,.22,pants,.17,.43,0,g);
+  humanLoader.load(
 
-  /* body */
+    HUMAN_MODEL_URL,
 
-  cube(.68,1.05,.44,shirt,0,1.3,0,g);
+    function(gltf){
 
-  /* neck */
+      console.log(
+        "REAL HUMAN MODEL LOADED",
+        gltf
+      );
 
-  cyl(.12,.16,skin,0,1.9,0,g);
+      humanTemplate =
+        gltf.scene;
 
-  /* head */
+      humanAnimations =
+        gltf.animations || [];
 
-  const head=new THREE.Mesh(
-    new THREE.SphereGeometry(.31,16,12),
-    skin
+      humanTemplate.traverse(
+        function(object){
+
+          if(!object.isMesh)
+            return;
+
+          object.castShadow=true;
+          object.receiveShadow=true;
+
+          if(object.material){
+
+            object.material.side =
+              THREE.FrontSide;
+
+            object.material.needsUpdate=true;
+
+          }
+
+        }
+      );
+
+      humanLoading.loaded=true;
+
+      spawnAllEmployees();
+
+    },
+
+    function(progress){
+
+      if(progress.total){
+
+        console.log(
+          "Human loading:",
+          Math.round(
+            progress.loaded /
+            progress.total *
+            100
+          )+"%"
+        );
+
+      }
+
+    },
+
+    function(error){
+
+      humanLoading.failed=true;
+
+      console.error(
+        "REAL HUMAN MODEL FAILED",
+        error
+      );
+
+    }
+
   );
 
-  head.position.y=2.15;
-  head.castShadow=true;
-  g.add(head);
-
-  /* hair */
-
-  const hair=new THREE.Mesh(
-    new THREE.SphereGeometry(
-      .33,16,8,0,Math.PI*2,0,Math.PI/2
-    ),
-    black
-  );
-
-  hair.position.y=2.3;
-  g.add(hair);
-
-  /* arms */
-
-  const a1=cube(.16,.72,.16,shirt,-.45,1.35,0,g);
-  const a2=cube(.16,.72,.16,shirt,.45,1.35,0,g);
-
-  g.userData={
-    name,
-    role,
-    dept,
-    phase:i*.8,
-    homeX:x,
-    homeZ:z,
-    arm1:a1,
-    arm2:a2,
-    leftLeg:l1,
-    rightLeg:l2
-  };
-
-  scene.add(g);
-  workers.push(g);
 }
 
-data.forEach((d,i)=>{
-  worker(
-    d[0],
-    d[1],
-    d[2],
-    deskPositions[i][0],
-    deskPositions[i][1]+.9,
-    i
+
+/* =====================================================
+   FIND ANIMATION
+===================================================== */
+
+function findHumanAnimation(
+  keywords
+){
+
+  if(!humanAnimations.length)
+    return null;
+
+  const lower =
+    keywords.map(
+      x=>x.toLowerCase()
+    );
+
+  return humanAnimations.find(
+    clip=>{
+
+      const name =
+        clip.name.toLowerCase();
+
+      return lower.some(
+        key=>name.includes(key)
+      );
+
+    }
+  ) || null;
+
+}
+
+
+/* =====================================================
+   CREATE HUMAN
+===================================================== */
+
+function createRealHuman(employee){
+
+  if(!humanTemplate)
+    return null;
+
+
+  /*
+     SkeletonUtils.clone is important.
+
+     Normal .clone() is NOT enough for
+     skinned / rigged humans.
+  */
+
+  const human =
+    SkeletonUtils.clone(
+      humanTemplate
+    );
+
+
+  human.position.set(
+    employee.x,
+    .05,
+    employee.z
   );
-});
+
+
+  human.scale.setScalar(
+    employee.scale || 1
+  );
+
+
+  /*
+     Real shadows
+  */
+
+  human.traverse(
+    function(object){
+
+      if(!object.isMesh)
+        return;
+
+      object.castShadow=true;
+      object.receiveShadow=true;
+
+      if(object.material){
+
+        object.material.needsUpdate=true;
+
+      }
+
+    }
+  );
+
+
+  /*
+     Employee metadata
+  */
+
+  human.userData = {
+
+    name:
+      employee.name,
+
+    role:
+      employee.role,
+
+    dept:
+      employee.dept,
+
+    gender:
+      employee.gender,
+
+    status:
+      "Working",
+
+    homeX:
+      employee.x,
+
+    homeZ:
+      employee.z,
+
+    targetX:null,
+
+    targetZ:null,
+
+    speed:
+      .9 +
+      Math.random()*.35
+
+  };
+
+
+  /*
+     Animation system
+  */
+
+  const mixer =
+    new THREE.AnimationMixer(
+      human
+    );
+
+  human.userData.mixer =
+    mixer;
+
+
+  /*
+     Find clips automatically.
+
+     Different GLBs use different
+     animation names.
+  */
+
+  const idleClip =
+    findHumanAnimation([
+      "idle",
+      "standing",
+      "stand"
+    ]);
+
+  const walkClip =
+    findHumanAnimation([
+      "walk",
+      "walking",
+      "locomotion"
+    ]);
+
+  const runClip =
+    findHumanAnimation([
+      "run",
+      "running"
+    ]);
+
+  const actions={};
+
+
+  if(idleClip){
+
+    actions.idle =
+      mixer.clipAction(
+        idleClip
+      );
+
+    actions.idle.play();
+
+  }
+
+
+  if(walkClip){
+
+    actions.walk =
+      mixer.clipAction(
+        walkClip
+      );
+
+  }
+
+
+  if(runClip){
+
+    actions.run =
+      mixer.clipAction(
+        runClip
+      );
+
+  }
+
+
+  human.userData.actions =
+    actions;
+
+  human.userData.currentAction =
+    "idle";
+
+
+  /*
+     Add to world
+  */
+
+  scene.add(human);
+
+  workers.push(human);
+  humanMixers.push(mixer);
+
+
+  return human;
+
+}
+
+
+/* =====================================================
+   PLAY HUMAN ANIMATION
+===================================================== */
+
+function playHumanAnimation(
+  human,
+  name
+){
+
+  if(!human)
+    return;
+
+  const actions =
+    human.userData.actions;
+
+  if(!actions)
+    return;
+
+  const next =
+    actions[name];
+
+  if(!next)
+    return;
+
+  const current =
+    actions[
+      human.userData.currentAction
+    ];
+
+
+  if(current===next)
+    return;
+
+
+  if(current){
+
+    current.fadeOut(.25);
+
+  }
+
+
+  next.reset();
+
+  next.fadeIn(.25);
+
+  next.play();
+
+
+  human.userData.currentAction =
+    name;
+
+}
+
+
+/* =====================================================
+   SPAWN ALL EMPLOYEES
+===================================================== */
+
+function spawnAllEmployees(){
+
+  if(!humanTemplate)
+    return;
+
+
+  /*
+     Prevent duplicate spawning.
+  */
+
+  if(workers.length)
+    return;
+
+
+  data.forEach(
+    function(employee){
+
+      createRealHuman(
+        employee
+      );
+
+    }
+  );
+
+
+  console.log(
+    "REAL EMPLOYEES:",
+    workers.length
+  );
+
+}
+
+
+/* =====================================================
+   MOVE HUMAN
+===================================================== */
+
+function moveHumanTo(
+  human,
+  x,
+  z,
+  status="Walking"
+){
+
+  if(!human)
+    return;
+
+
+  human.userData.targetX=x;
+  human.userData.targetZ=z;
+  human.userData.status=status;
+
+
+  playHumanAnimation(
+    human,
+    "walk"
+  );
+
+}
+
+
+/* =====================================================
+   UPDATE HUMAN MOVEMENT
+===================================================== */
+
+function updateHumans(delta){
+
+  /*
+     Update animation mixers
+  */
+
+  humanMixers.forEach(
+    function(mixer){
+
+      mixer.update(delta);
+
+    }
+  );
+
+
+  /*
+     Move humans
+  */
+
+  workers.forEach(
+    function(human){
+
+      const d =
+        human.userData;
+
+
+      if(
+        d.targetX===null ||
+        d.targetZ===null
+      ){
+
+        return;
+
+      }
+
+
+      const dx =
+        d.targetX -
+        human.position.x;
+
+      const dz =
+        d.targetZ -
+        human.position.z;
+
+
+      const distance =
+        Math.sqrt(
+          dx*dx+
+          dz*dz
+        );
+
+
+      /*
+         Destination reached
+      */
+
+      if(distance < .15){
+
+        human.position.x =
+          d.targetX;
+
+        human.position.z =
+          d.targetZ;
+
+        d.targetX=null;
+        d.targetZ=null;
+
+        d.status="Working";
+
+        playHumanAnimation(
+          human,
+          "idle"
+        );
+
+        return;
+
+      }
+
+
+      /*
+         Direction
+      */
+
+      const targetRotation =
+        Math.atan2(
+          dx,
+          dz
+        );
+
+
+      let difference =
+        targetRotation -
+        human.rotation.y;
+
+
+      while(
+        difference >
+        Math.PI
+      ){
+
+        difference -=
+          Math.PI*2;
+
+      }
+
+
+      while(
+        difference <
+        -Math.PI
+      ){
+
+        difference +=
+          Math.PI*2;
+
+      }
+
+
+      /*
+         Smooth rotation
+      */
+
+      human.rotation.y +=
+        difference *
+        Math.min(
+          delta*8,
+          1
+        );
+
+
+      /*
+         Walk
+      */
+
+      const speed =
+        d.speed *
+        delta;
+
+
+      human.position.x +=
+        Math.sin(
+          human.rotation.y
+        ) * speed;
+
+
+      human.position.z +=
+        Math.cos(
+          human.rotation.y
+        ) * speed;
+
+    }
+  );
+
+}
+
+
+/* =====================================================
+   EMPLOYEE HIRING
+===================================================== */
+
+window.addEventListener(
+  "EmpireEmployeeHired",
+  async function(event){
+
+    const employee =
+      event.detail;
+
+    if(!employee)
+      return;
+
+
+    /*
+       If model isn't loaded yet,
+       wait for it.
+    */
+
+    if(!humanTemplate){
+
+      console.log(
+        "Human model still loading..."
+      );
+
+      return;
+
+    }
+
+
+    /*
+       New employee starts
+       outside the gate.
+    */
+
+    const human =
+      createRealHuman({
+
+        name:
+          employee.name,
+
+        role:
+          employee.role ||
+          "Employee",
+
+        dept:
+          employee.department ||
+          "General",
+
+        gender:
+          "male",
+
+        x:0,
+
+        z:-18,
+
+        scale:1
+
+      });
+
+
+    if(!human)
+      return;
+
+
+    human.userData.status =
+      "Entering campus";
+
+
+    /*
+       Gate
+       ↓
+       Reception
+    */
+
+    moveHumanTo(
+      human,
+      0,
+      -7,
+      "Entering campus"
+    );
+
+
+    /*
+       Department destination
+    */
+
+    setTimeout(
+      function(){
+
+        const positions={
+
+          Finance:
+            [-10,-3],
+
+          Sales:
+            [9,-3],
+
+          Marketing:
+            [9,-3],
+
+          Operations:
+            [-5,.9],
+
+          "Human Resources":
+            [-5,.9],
+
+          Product:
+            [4,.9],
+
+          "R&D":
+            [9,.9]
+
+        };
+
+
+        const target =
+          positions[
+            employee.department
+          ] ||
+          [0,-3];
+
+
+        moveHumanTo(
+          human,
+          target[0],
+          target[1],
+          "Going to department"
+        );
+
+
+      },
+      6500
+    );
+
+  }
+);
+
+
+/* =====================================================
+   START REAL HUMAN SYSTEM
+===================================================== */
+
+loadHumanModel();
 
 /* =====================================================
    WALKING ASSISTANTS
@@ -900,57 +1659,93 @@ document.getElementById("close").onclick=()=>{
    ANIMATION
 ===================================================== */
 
-const clock=new THREE.Clock();
+/* =====================================================
+   REAL HUMAN ANIMATION LOOP
+===================================================== */
+
+const clock =
+  new THREE.Clock();
+
 
 function animate(){
 
-  requestAnimationFrame(animate);
+  requestAnimationFrame(
+    animate
+  );
 
-  const t=clock.getElapsedTime();
 
-  workers.forEach((w,i)=>{
+  const delta =
+    Math.min(
+      clock.getDelta(),
+      .05
+    );
 
-    const d=w.userData;
 
-    w.position.y=.35+
-      Math.sin(t*2+d.phase)*.025;
+  /*
+     REAL HUMAN
+     animations + walking
+  */
 
-    d.arm1.rotation.z=
-      Math.sin(t*3+d.phase)*.08;
+  updateHumans(
+    delta
+  );
 
-    d.arm2.rotation.z=
-      -Math.sin(t*3+d.phase)*.08;
-
-  });
-
-  walkers.forEach((w,i)=>{
-
-    const d=w.userData;
-
-    const distance=4;
-
-    w.position.x=
-      d.startX+
-      Math.sin(t*.55+d.phase)*distance;
-
-    w.position.z=
-      d.startZ+
-      Math.cos(t*.55+d.phase)*1.5;
-
-    w.rotation.y=
-      Math.atan2(
-        Math.cos(t*.55+d.phase),
-        Math.cos(t*.55+d.phase)
-      );
-
-  });
 
   controls.update();
 
-  renderer.render(scene,camera);
+
+  renderer.render(
+    scene,
+    camera
+  );
+
 }
 
+
 animate();
+
+/* =====================================================
+   WORLD API
+===================================================== */
+
+window.THREE = THREE;
+
+window.EmpireWorld = {
+  THREE,
+  scene,
+  camera,
+  renderer,
+  controls,
+  HQ,
+  workers,
+
+  focusOn(x=0,z=0){
+
+    controls.target.set(
+      x,
+      1.8,
+      z
+    );
+
+    camera.lookAt(
+      x,
+      1.8,
+      z
+    );
+
+  }
+};
+
+window.dispatchEvent(
+  new Event("EmpireWorldReady")
+);
+
+
+/* =====================================================
+   RESIZE
+===================================================== */
+
+addEventListener("resize",()=>{
 
 /* =====================================================
    RESIZE
