@@ -1343,4 +1343,784 @@
   );
 
 
+/* ============================================================
+   EMPIRE RUSH — LIVING CITY VISUAL LAYER
+   Roads + Park + Buildings + Traffic + Pedestrians
+   ============================================================ */
+
+(function () {
+  "use strict";
+
+  let started = false;
+  let cityGroup = null;
+  let trafficTimer = null;
+  let pedestrianTimer = null;
+
+  function getWorld() {
+    return window.EmpireWorld || null;
+  }
+
+  function startLivingCity() {
+    if (started) return;
+
+    const world = getWorld();
+    if (!world || !world.scene || !world.THREE) {
+      setTimeout(startLivingCity, 1000);
+      return;
+    }
+
+    started = true;
+
+    const THREE = world.THREE;
+    const scene = world.scene;
+
+    cityGroup = new THREE.Group();
+    cityGroup.name = "EmpireLivingCity";
+    scene.add(cityGroup);
+
+    createGround(THREE);
+    createRoadNetwork(THREE);
+    createPark(THREE);
+    createCityBuildings(THREE);
+    createStreetLights(THREE);
+    createTrees(THREE);
+    createTraffic(THREE);
+    createPedestrians(THREE);
+
+    console.log("🏙️ Empire Rush Living City loaded");
+
+    trafficTimer = setInterval(() => {
+      updateTraffic(THREE);
+    }, 100);
+
+    pedestrianTimer = setInterval(() => {
+      updatePedestrians(THREE);
+    }, 100);
+
+    window.EmpireLivingCity = {
+      group: cityGroup,
+      refresh: () => {
+        console.log("🏙️ Living city refreshed");
+      }
+    };
+  }
+
+  /* ============================================================
+     GROUND
+     ============================================================ */
+
+  function createGround(THREE) {
+
+    const groundGeometry =
+      new THREE.PlaneGeometry(180, 180);
+
+    const groundMaterial =
+      new THREE.MeshStandardMaterial({
+        color: 0x71806d,
+        roughness: 1
+      });
+
+    const ground =
+      new THREE.Mesh(
+        groundGeometry,
+        groundMaterial
+      );
+
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = -0.08;
+    ground.name = "CityGround";
+
+    cityGroup.add(ground);
+  }
+
+  /* ============================================================
+     ROADS
+     ============================================================ */
+
+  function createRoadNetwork(THREE) {
+
+    createRoad(
+      THREE,
+      0,
+      -28,
+      150,
+      10,
+      true
+    );
+
+    createRoad(
+      THREE,
+      0,
+      28,
+      150,
+      10,
+      true
+    );
+
+    createRoad(
+      THREE,
+      -45,
+      0,
+      10,
+      150,
+      false
+    );
+
+    createRoad(
+      THREE,
+      45,
+      0,
+      10,
+      150,
+      false
+    );
+
+    createRoad(
+      THREE,
+      0,
+      0,
+      110,
+      8,
+      true
+    );
+  }
+
+  function createRoad(
+    THREE,
+    x,
+    z,
+    width,
+    depth,
+    horizontal
+  ) {
+
+    const geometry =
+      new THREE.BoxGeometry(
+        horizontal ? width : depth,
+        0.12,
+        horizontal ? depth : width
+      );
+
+    const material =
+      new THREE.MeshStandardMaterial({
+        color: 0x30343a,
+        roughness: 0.9
+      });
+
+    const road =
+      new THREE.Mesh(
+        geometry,
+        material
+      );
+
+    road.position.set(x, 0.01, z);
+    road.name = "CityRoad";
+
+    cityGroup.add(road);
+
+    /* Road markings */
+
+    const lineMaterial =
+      new THREE.MeshBasicMaterial({
+        color: 0xf2f2f2
+      });
+
+    const lineGeometry =
+      new THREE.BoxGeometry(
+        horizontal ? 4 : 0.3,
+        0.04,
+        horizontal ? 0.3 : 4
+      );
+
+    for (
+      let i = -60;
+      i <= 60;
+      i += 10
+    ) {
+
+      const line =
+        new THREE.Mesh(
+          lineGeometry,
+          lineMaterial
+        );
+
+      if (horizontal) {
+        line.position.set(
+          i,
+          0.09,
+          z
+        );
+      } else {
+        line.position.set(
+          x,
+          0.09,
+          i
+        );
+      }
+
+      cityGroup.add(line);
+    }
+  }
+
+  /* ============================================================
+     PARK
+     ============================================================ */
+
+  function createPark(THREE) {
+
+    const parkGeometry =
+      new THREE.BoxGeometry(
+        32,
+        0.25,
+        24
+      );
+
+    const parkMaterial =
+      new THREE.MeshStandardMaterial({
+        color: 0x527a4d,
+        roughness: 1
+      });
+
+    const park =
+      new THREE.Mesh(
+        parkGeometry,
+        parkMaterial
+      );
+
+    park.position.set(
+      -25,
+      0.14,
+      15
+    );
+
+    park.name = "CentralPark";
+
+    cityGroup.add(park);
+
+    /* Walking paths */
+
+    const pathMaterial =
+      new THREE.MeshStandardMaterial({
+        color: 0xb7aa91
+      });
+
+    const path1 =
+      new THREE.Mesh(
+        new THREE.BoxGeometry(
+          28,
+          0.08,
+          2
+        ),
+        pathMaterial
+      );
+
+    path1.position.set(
+      -25,
+      0.3,
+      15
+    );
+
+    cityGroup.add(path1);
+
+    const path2 =
+      new THREE.Mesh(
+        new THREE.BoxGeometry(
+          2,
+          0.08,
+          20
+        ),
+        pathMaterial
+      );
+
+    path2.position.set(
+      -25,
+      0.31,
+      15
+    );
+
+    cityGroup.add(path2);
+
+    /* Benches */
+
+    for (
+      let i = -1;
+      i <= 1;
+      i++
+    ) {
+
+      createBench(
+        THREE,
+        -35,
+        15 + i * 7
+      );
+    }
+  }
+
+  function createBench(THREE, x, z) {
+
+    const material =
+      new THREE.MeshStandardMaterial({
+        color: 0x704c32
+      });
+
+    const seat =
+      new THREE.Mesh(
+        new THREE.BoxGeometry(
+          4,
+          0.35,
+          1
+        ),
+        material
+      );
+
+    seat.position.set(
+      x,
+      0.8,
+      z
+    );
+
+    cityGroup.add(seat);
+
+    for (
+      const dx of [-1.4, 1.4]
+    ) {
+
+      const leg =
+        new THREE.Mesh(
+          new THREE.BoxGeometry(
+            0.25,
+            0.8,
+            0.25
+          ),
+          material
+        );
+
+      leg.position.set(
+        x + dx,
+        0.4,
+        z
+      );
+
+      cityGroup.add(leg);
+    }
+  }
+
+  /* ============================================================
+     CITY BUILDINGS
+     ============================================================ */
+
+  function createCityBuildings(THREE) {
+
+    const positions = [
+      [-60, -45, 14, 12, 18],
+      [-35, -45, 18, 15, 22],
+      [35, -45, 16, 14, 20],
+      [60, -45, 12, 12, 17],
+
+      [-60, 45, 18, 15, 22],
+      [-35, 45, 14, 12, 18],
+      [35, 45, 20, 16, 25],
+      [60, 45, 14, 12, 18],
+
+      [-65, 0, 15, 13, 20],
+      [65, 0, 20, 16, 25]
+    ];
+
+    positions.forEach(
+      data => {
+
+        const [
+          x,
+          z,
+          w,
+          d,
+          h
+        ] = data;
+
+        const geometry =
+          new THREE.BoxGeometry(
+            w,
+            h,
+            d
+          );
+
+        const material =
+          new THREE.MeshStandardMaterial({
+            color:
+              0x9ca7ae,
+            roughness:
+              0.85
+          });
+
+        const building =
+          new THREE.Mesh(
+            geometry,
+            material
+          );
+
+        building.position.set(
+          x,
+          h / 2,
+          z
+        );
+
+        building.name =
+          "CityBuilding";
+
+        cityGroup.add(building);
+
+        createWindows(
+          THREE,
+          x,
+          z,
+          w,
+          d,
+          h
+        );
+      }
+    );
+  }
+
+  function createWindows(
+    THREE,
+    x,
+    z,
+    w,
+    d,
+    h
+  ) {
+
+    const material =
+      new THREE.MeshBasicMaterial({
+        color: 0x6f9fa8
+      });
+
+    for (
+      let y = 3;
+      y < h - 1;
+      y += 4
+    ) {
+
+      for (
+        let xx = -w / 2 + 2;
+        xx < w / 2;
+        xx += 4
+      ) {
+
+        const window =
+          new THREE.Mesh(
+            new THREE.BoxGeometry(
+              1.5,
+              1.5,
+              0.08
+            ),
+            material
+          );
+
+        window.position.set(
+          x + xx,
+          y,
+          z - d / 2 - 0.05
+        );
+
+        cityGroup.add(window);
+      }
+    }
+  }
+
+  /* ============================================================
+     TREES
+     ============================================================ */
+
+  function createTrees(THREE) {
+
+    const locations = [
+      [-38, 8],
+      [-38, 22],
+      [-30, 8],
+      [-22, 22],
+      [-15, 10],
+      [20, 38],
+      [30, 38],
+      [55, 18],
+      [55, -18],
+      [-55, 18],
+      [-55, -18]
+    ];
+
+    locations.forEach(
+      ([x, z]) => {
+
+        const trunk =
+          new THREE.Mesh(
+            new THREE.CylinderGeometry(
+              0.35,
+              0.45,
+              2.2,
+              8
+            ),
+            new THREE.MeshStandardMaterial({
+              color: 0x68482f
+            })
+          );
+
+        trunk.position.set(
+          x,
+          1.1,
+          z
+        );
+
+        cityGroup.add(trunk);
+
+        const crown =
+          new THREE.Mesh(
+            new THREE.SphereGeometry(
+              1.8,
+              10,
+              8
+            ),
+            new THREE.MeshStandardMaterial({
+              color: 0x477348
+            })
+          );
+
+        crown.position.set(
+          x,
+          3.1,
+          z
+        );
+
+        cityGroup.add(crown);
+      }
+    );
+  }
+
+  /* ============================================================
+     STREET LIGHTS
+     ============================================================ */
+
+  function createStreetLights(THREE) {
+
+    const positions = [
+      [-10, -28],
+      [10, -28],
+      [-10, 28],
+      [10, 28],
+      [-45, -10],
+      [-45, 10],
+      [45, -10],
+      [45, 10]
+    ];
+
+    positions.forEach(
+      ([x, z]) => {
+
+        const pole =
+          new THREE.Mesh(
+            new THREE.CylinderGeometry(
+              0.12,
+              0.16,
+              5
+            ),
+            new THREE.MeshStandardMaterial({
+              color: 0x22262b
+            })
+          );
+
+        pole.position.set(
+          x,
+          2.5,
+          z
+        );
+
+        cityGroup.add(pole);
+
+        const lamp =
+          new THREE.Mesh(
+            new THREE.SphereGeometry(
+              0.35,
+              8,
+              8
+            ),
+            new THREE.MeshBasicMaterial({
+              color: 0xffe8ad
+            })
+          );
+
+        lamp.position.set(
+          x,
+          5.2,
+          z
+        );
+
+        cityGroup.add(lamp);
+      }
+    );
+  }
+
+  /* ============================================================
+     TRAFFIC
+     ============================================================ */
+
+  const cars = [];
+
+  function createTraffic(THREE) {
+
+    for (
+      let i = 0;
+      i < 8;
+      i++
+    ) {
+
+      const car =
+        new THREE.Mesh(
+          new THREE.BoxGeometry(
+            2.4,
+            0.8,
+            1.3
+          ),
+          new THREE.MeshStandardMaterial({
+            color:
+              i % 2 === 0
+                ? 0x394b5c
+                : 0x8c4a3d
+          })
+        );
+
+      car.position.set(
+        -70 + i * 18,
+        0.7,
+        -28
+      );
+
+      car.userData.speed =
+        0.08 + Math.random() * 0.06;
+
+      cityGroup.add(car);
+
+      cars.push(car);
+    }
+  }
+
+  function updateTraffic(THREE) {
+
+    cars.forEach(
+      car => {
+
+        car.position.x +=
+          car.userData.speed;
+
+        if (
+          car.position.x > 75
+        ) {
+          car.position.x = -75;
+        }
+      }
+    );
+  }
+
+  /* ============================================================
+     PEDESTRIANS
+     ============================================================ */
+
+  const pedestrians = [];
+
+  function createPedestrians(THREE) {
+
+    for (
+      let i = 0;
+      i < 15;
+      i++
+    ) {
+
+      const person =
+        new THREE.Group();
+
+      const body =
+        new THREE.Mesh(
+          new THREE.CylinderGeometry(
+            0.3,
+            0.35,
+            1.3,
+            8
+          ),
+          new THREE.MeshStandardMaterial({
+            color:
+              0x737b86
+          })
+        );
+
+      body.position.y =
+        0.9;
+
+      person.add(body);
+
+      const head =
+        new THREE.Mesh(
+          new THREE.SphereGeometry(
+            0.35,
+            8,
+            8
+          ),
+          new THREE.MeshStandardMaterial({
+            color:
+              0xc7b09a
+          })
+        );
+
+      head.position.y =
+        1.8;
+
+      person.add(head);
+
+      person.position.set(
+        -35 + Math.random() * 25,
+        0,
+        5 + Math.random() * 20
+      );
+
+      person.userData.speed =
+        0.015 +
+        Math.random() * 0.025;
+
+      cityGroup.add(person);
+
+      pedestrians.push(person);
+    }
+  }
+
+  function updatePedestrians(THREE) {
+
+    pedestrians.forEach(
+      person => {
+
+        person.position.x +=
+          person.userData.speed;
+
+        if (
+          person.position.x > -8
+        ) {
+          person.position.x = -45;
+        }
+      }
+    );
+  }
+
+  /* ============================================================
+     START
+     ============================================================ */
+
+  window.addEventListener(
+    "EmpireWorldReady",
+    () => {
+      startLivingCity();
+    }
+  );
+
+  /* fallback */
+  setTimeout(
+    startLivingCity,
+    1500
+  );
+
 })();
