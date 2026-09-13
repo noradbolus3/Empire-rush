@@ -1,1113 +1,2016 @@
 (function () {
-  "use strict";
+    "use strict";
 
-  const Game = window.EmpireGameState;
+    /*
+    ============================================================
+    EMPIRE RUSH
+    CAREER & JOB PROGRESSION SYSTEM
+    ============================================================
 
-  if (!Game) {
-    console.warn("Career Progression System waiting for EmpireGameState.");
-    return;
-  }
+    RESPONSIBILITY:
+    - Job database
+    - Job applications
+    - Interviews
+    - Job acceptance
+    - Career XP
+    - Experience
+    - Skills
+    - Performance
+    - Stress
+    - Reputation
+    - Promotions
+    - Resignation
 
-  const Career = {
+    IMPORTANT:
+    Money / salary payment is controlled by EmpireGameState.
+    This system NEVER directly pays daily salary.
 
-    /* ============================================================
-       JOB DATABASE
-       ============================================================ */
+    FLOW:
 
-    jobs: {
+    Player
+      ↓
+    Career
+      ↓
+    Job
+      ↓
+    Monthly Salary
+      ↓
+    EmpireGameState
+      ↓
+    Cash / Savings
+      ↓
+    Business Capital
+    ============================================================
+    */
 
-      OfficeAssistant: {
-        title: "Office Assistant",
-        department: "Administration",
-        salary: 18000,
-        level: "Entry",
-        requiredExperience: 0,
-        requiredSkill: 10,
-        stress: 20
-      },
+    const Game = window.EmpireGameState;
 
-      SalesExecutive: {
-        title: "Sales Executive",
-        department: "Sales",
-        salary: 25000,
-        level: "Entry",
-        requiredExperience: 0,
-        requiredSkill: 15,
-        stress: 30
-      },
+    if (!Game) {
+        console.warn(
+            "Career Progression System waiting for EmpireGameState."
+        );
+        return;
+    }
 
-      JuniorAccountant: {
-        title: "Junior Accountant",
-        department: "Finance",
-        salary: 32000,
-        level: "Junior",
-        requiredExperience: 10,
-        requiredSkill: 20,
-        stress: 25
-      },
-
-      JuniorDeveloper: {
-        title: "Junior Software Developer",
-        department: "Technology",
-        salary: 45000,
-        level: "Junior",
-        requiredExperience: 10,
-        requiredSkill: 25,
-        stress: 35
-      },
-
-      SeniorExecutive: {
-        title: "Senior Executive",
-        department: "Management",
-        salary: 65000,
-        level: "Senior",
-        requiredExperience: 60,
-        requiredSkill: 40,
-        stress: 40
-      },
-
-      SeniorDeveloper: {
-        title: "Senior Software Developer",
-        department: "Technology",
-        salary: 85000,
-        level: "Senior",
-        requiredExperience: 70,
-        requiredSkill: 55,
-        stress: 45
-      },
-
-      FinanceManager: {
-        title: "Finance Manager",
-        department: "Finance",
-        salary: 95000,
-        level: "Manager",
-        requiredExperience: 100,
-        requiredSkill: 60,
-        stress: 50
-      },
-
-      SalesManager: {
-        title: "Sales Manager",
-        department: "Sales",
-        salary: 90000,
-        level: "Manager",
-        requiredExperience: 100,
-        requiredSkill: 60,
-        stress: 50
-      },
-
-      OperationsManager: {
-        title: "Operations Manager",
-        department: "Operations",
-        salary: 90000,
-        level: "Manager",
-        requiredExperience: 110,
-        requiredSkill: 60,
-        stress: 55
-      },
-
-      GeneralManager: {
-        title: "General Manager",
-        department: "Management",
-        salary: 130000,
-        level: "Executive",
-        requiredExperience: 160,
-        requiredSkill: 70,
-        stress: 65
-      },
-
-      Director: {
-        title: "Director",
-        department: "Management",
-        salary: 200000,
-        level: "Executive",
-        requiredExperience: 230,
-        requiredSkill: 80,
-        stress: 70
-      },
-
-      COO: {
-        title: "Chief Operating Officer",
-        department: "Management",
-        salary: 300000,
-        level: "C-Level",
-        requiredExperience: 300,
-        requiredSkill: 85,
-        stress: 80
-      },
-
-      CFO: {
-        title: "Chief Financial Officer",
-        department: "Finance",
-        salary: 320000,
-        level: "C-Level",
-        requiredExperience: 320,
-        requiredSkill: 88,
-        stress: 80
-      },
-
-      CTO: {
-        title: "Chief Technology Officer",
-        department: "Technology",
-        salary: 350000,
-        level: "C-Level",
-        requiredExperience: 320,
-        requiredSkill: 90,
-        stress: 82
-      }
-    },
 
     /* ============================================================
-       CAREER LEVELS
-       ============================================================ */
+       CAREER OBJECT
+    ============================================================ */
 
-    levels: {
-      Entry: 1,
-      Junior: 2,
-      Mid: 3,
-      Senior: 4,
-      Manager: 5,
-      Executive: 6,
-      "C-Level": 7
-    },
+    const Career = {
 
-    /* ============================================================
-       STATE
-       ============================================================ */
 
-    getPlayer() {
-      return Game.getState()?.player;
-    },
+        /* ========================================================
+           JOB DATABASE
+        ======================================================== */
 
-    save() {
-      if (typeof Game.save === "function") {
-        Game.save();
-      }
-    },
+        jobs: {
 
-    ensurePlayer() {
+            OfficeAssistant: {
+                id: "OfficeAssistant",
+                title: "Office Assistant",
+                department: "Administration",
+                salary: 18000,
+                level: "Entry",
+                requiredExperience: 0,
+                requiredSkill: 10,
+                stress: 20
+            },
 
-      const player = this.getPlayer();
+            SalesExecutive: {
+                id: "SalesExecutive",
+                title: "Sales Executive",
+                department: "Sales",
+                salary: 25000,
+                level: "Entry",
+                requiredExperience: 0,
+                requiredSkill: 12,
+                stress: 30
+            },
 
-      if (!player) return null;
+            JuniorAccountant: {
+                id: "JuniorAccountant",
+                title: "Junior Accountant",
+                department: "Finance",
+                salary: 32000,
+                level: "Junior",
+                requiredExperience: 1,
+                requiredSkill: 15,
+                stress: 25
+            },
 
-      if (!player.career) {
-        player.career = {};
-      }
+            JuniorDeveloper: {
+                id: "JuniorDeveloper",
+                title: "Junior Developer",
+                department: "Technology",
+                salary: 45000,
+                level: "Junior",
+                requiredExperience: 1,
+                requiredSkill: 15,
+                stress: 35
+            },
 
-      if (!Array.isArray(player.career.history)) {
-        player.career.history = [];
-      }
+            SeniorExecutive: {
+                id: "SeniorExecutive",
+                title: "Senior Executive",
+                department: "Business",
+                salary: 65000,
+                level: "Senior",
+                requiredExperience: 3,
+                requiredSkill: 25,
+                stress: 40
+            },
 
-      if (!Array.isArray(player.career.skills)) {
-        player.career.skills = [];
-      }
+            SeniorDeveloper: {
+                id: "SeniorDeveloper",
+                title: "Senior Developer",
+                department: "Technology",
+                salary: 85000,
+                level: "Senior",
+                requiredExperience: 3,
+                requiredSkill: 28,
+                stress: 45
+            },
 
-      if (
-        typeof player.career.performance !== "number"
-      ) {
-        player.career.performance = 60;
-      }
+            FinanceManager: {
+                id: "FinanceManager",
+                title: "Finance Manager",
+                department: "Finance",
+                salary: 95000,
+                level: "Manager",
+                requiredExperience: 5,
+                requiredSkill: 35,
+                stress: 45
+            },
 
-      if (
-        typeof player.career.stress !== "number"
-      ) {
-        player.career.stress = 10;
-      }
+            SalesManager: {
+                id: "SalesManager",
+                title: "Sales Manager",
+                department: "Sales",
+                salary: 90000,
+                level: "Manager",
+                requiredExperience: 5,
+                requiredSkill: 35,
+                stress: 50
+            },
 
-      if (
-        typeof player.career.reputation !== "number"
-      ) {
-        player.career.reputation = 0;
-      }
+            OperationsManager: {
+                id: "OperationsManager",
+                title: "Operations Manager",
+                department: "Operations",
+                salary: 90000,
+                level: "Manager",
+                requiredExperience: 5,
+                requiredSkill: 35,
+                stress: 50
+            },
 
-      if (
-        typeof player.career.interviews !== "number"
-      ) {
-        player.career.interviews = 0;
-      }
+            GeneralManager: {
+                id: "GeneralManager",
+                title: "General Manager",
+                department: "Management",
+                salary: 130000,
+                level: "Executive",
+                requiredExperience: 7,
+                requiredSkill: 45,
+                stress: 55
+            },
 
-      if (
-        typeof player.career.jobsCompleted !== "number"
-      ) {
-        player.career.jobsCompleted = 0;
-      }
+            Director: {
+                id: "Director",
+                title: "Director",
+                department: "Management",
+                salary: 200000,
+                level: "Executive",
+                requiredExperience: 9,
+                requiredSkill: 55,
+                stress: 60
+            },
 
-      return player;
-    },
+            COO: {
+                id: "COO",
+                title: "Chief Operating Officer",
+                department: "Executive",
+                salary: 300000,
+                level: "C-Level",
+                requiredExperience: 12,
+                requiredSkill: 65,
+                stress: 65
+            },
 
-    /* ============================================================
-       SKILLS
-       ============================================================ */
+            CFO: {
+                id: "CFO",
+                title: "Chief Financial Officer",
+                department: "Executive",
+                salary: 320000,
+                level: "C-Level",
+                requiredExperience: 12,
+                requiredSkill: 65,
+                stress: 65
+            },
 
-    getAverageSkill() {
+            CTO: {
+                id: "CTO",
+                title: "Chief Technology Officer",
+                department: "Executive",
+                salary: 350000,
+                level: "C-Level",
+                requiredExperience: 12,
+                requiredSkill: 65,
+                stress: 65
+            }
+        },
 
-      const player = this.ensurePlayer();
 
-      if (!player) return 0;
+        /* ========================================================
+           CAREER LEVELS
+        ======================================================== */
 
-      const skills =
-        player.skills || {};
+        levels: {
+            Entry: 1,
+            Junior: 2,
+            Mid: 3,
+            Senior: 4,
+            Manager: 5,
+            Executive: 6,
+            "C-Level": 7
+        },
 
-      const values =
-        Object.values(skills)
-          .map(Number)
-          .filter(value =>
-            Number.isFinite(value)
-          );
 
-      if (!values.length) {
-        return 10;
-      }
+        /* ========================================================
+           ENSURE CAREER DATA
+        ======================================================== */
 
-      return Math.round(
-        values.reduce(
-          (sum, value) =>
-            sum + value,
-          0
-        ) / values.length
-      );
-    },
+        ensurePlayer: function () {
 
-    improveSkills() {
+            const player = Game.getPlayer();
 
-      const player =
-        this.ensurePlayer();
+            if (!player) {
+                return null;
+            }
 
-      if (!player) return;
 
-      const skills =
-        player.skills || {};
+            if (!player.career) {
 
-      Object.keys(skills)
-        .forEach(skill => {
+                player.career = {
+                    level: 1,
+                    xp: 0,
+                    experience: Number(player.experience || 0),
 
-          const current =
-            Number(
-              skills[skill] || 0
+                    performance: 70,
+                    stress: 10,
+                    reputation: 0,
+
+                    history: [],
+                    interviews: [],
+                    jobsCompleted: 0,
+
+                    lastWorkDay: 0,
+                    daysWorked: 0,
+                    promotions: 0
+                };
+            }
+
+
+            const career = player.career;
+
+
+            /* Defensive normalization */
+
+            career.level = Number(career.level || 1);
+            career.xp = Number(career.xp || 0);
+
+            career.experience = Number(
+                player.experience ??
+                career.experience ??
+                0
             );
 
-          if (
-            Math.random() < 0.25
-          ) {
+            career.performance = Number(
+                career.performance ?? 70
+            );
 
-            skills[skill] =
-              Math.min(
-                100,
-                current + 1
-              );
-          }
+            career.stress = Number(
+                career.stress ?? 10
+            );
 
-        });
-    },
+            career.reputation = Number(
+                career.reputation ?? 0
+            );
 
-    /* ============================================================
-       JOB REQUIREMENTS
-       ============================================================ */
+            career.history = Array.isArray(career.history)
+                ? career.history
+                : [];
 
-    canApply(jobId) {
+            career.interviews = Array.isArray(career.interviews)
+                ? career.interviews
+                : [];
 
-      const player =
-        this.ensurePlayer();
+            career.jobsCompleted = Number(
+                career.jobsCompleted || 0
+            );
 
-      const job =
-        this.jobs[jobId];
+            career.daysWorked = Number(
+                career.daysWorked || 0
+            );
 
-      if (!player || !job) {
-        return {
-          eligible: false,
-          reason: "Invalid job."
-        };
-      }
+            career.promotions = Number(
+                career.promotions || 0
+            );
 
-      const experience =
-        Number(
-          player.experience || 0
-        );
+            return career;
+        },
 
-      const skill =
-        this.getAverageSkill();
 
-      const reasons = [];
+        /* ========================================================
+           GET PLAYER
+        ======================================================== */
 
-      if (
-        experience <
-        job.requiredExperience
-      ) {
-        reasons.push(
-          `Requires ${job.requiredExperience} experience.`
-        );
-      }
+        getPlayer: function () {
+            return Game.getPlayer();
+        },
 
-      if (
-        skill <
-        job.requiredSkill
-      ) {
-        reasons.push(
-          `Requires average skill ${job.requiredSkill}.`
-        );
-      }
 
-      return {
-        eligible:
-          reasons.length === 0,
-        reasons,
-        job
-      };
-    },
+        /* ========================================================
+           GET JOB
+        ======================================================== */
 
-    /* ============================================================
-       INTERVIEW
-       ============================================================ */
+        getJob: function (jobId) {
 
-    interview(jobId) {
-
-      const player =
-        this.ensurePlayer();
-
-      const job =
-        this.jobs[jobId];
-
-      if (!player || !job) {
-        return {
-          success: false,
-          reason: "Invalid job."
-        };
-      }
-
-      const eligibility =
-        this.canApply(jobId);
-
-      if (!eligibility.eligible) {
-        return {
-          success: false,
-          reason:
-            eligibility.reasons.join(" ")
-        };
-      }
-
-      player.career.interviews++;
-
-      const skill =
-        this.getAverageSkill();
-
-      const experience =
-        Number(
-          player.experience || 0
-        );
-
-      const performance =
-        Number(
-          player.career.performance || 60
-        );
-
-      let chance =
-        0.45 +
-        skill / 250 +
-        experience / 500 +
-        performance / 500;
-
-      chance =
-        Math.min(
-          0.95,
-          Math.max(
-            0.20,
-            chance
-          )
-        );
-
-      const accepted =
-        Math.random() < chance;
-
-      if (!accepted) {
-
-        player.career.reputation =
-          Math.max(
-            0,
-            player.career.reputation - 1
-          );
-
-        this.save();
-
-        return {
-          success: false,
-          accepted: false,
-          chance:
-            Math.round(
-              chance * 100
-            ),
-          reason:
-            "Interview unsuccessful."
-        };
-      }
-
-      return {
-        success: true,
-        accepted: true,
-        chance:
-          Math.round(
-            chance * 100
-          ),
-        job
-      };
-    },
-
-    /* ============================================================
-       ACCEPT JOB
-       ============================================================ */
-
-    acceptJob(jobId) {
-
-      const player =
-        this.ensurePlayer();
-
-      const job =
-        this.jobs[jobId];
-
-      if (!player || !job) {
-        return {
-          success: false,
-          reason: "Invalid job."
-        };
-      }
-
-      const result =
-        this.interview(jobId);
-
-      if (!result.accepted) {
-        return result;
-      }
-
-      if (
-        typeof Game.setJob ===
-        "function"
-      ) {
-
-        Game.setJob(
-          job.title,
-          job.salary,
-          job.level
-        );
-
-      } else {
-
-        player.currentJob =
-          job.title;
-
-        player.salary =
-          job.salary;
-
-      }
-
-      player.career.currentJobId =
-        jobId;
-
-      player.career.currentDepartment =
-        job.department;
-
-      player.career.currentLevel =
-        job.level;
-
-      player.career.performance =
-        65;
-
-      player.career.stress =
-        job.stress;
-
-      player.career.history.push({
-
-        jobId,
-
-        title:
-          job.title,
-
-        salary:
-          job.salary,
-
-        department:
-          job.department,
-
-        level:
-          job.level,
-
-        startDay:
-          Game.getState()
-            ?.world
-            ?.day || 1
-
-      });
-
-      player.career.reputation =
-        Math.min(
-          100,
-          player.career.reputation + 3
-        );
-
-      this.save();
-
-      window.dispatchEvent(
-        new CustomEvent(
-          "EmpireCareerJobAccepted",
-          {
-            detail: {
-              player,
-              job
+            if (!jobId) {
+                return null;
             }
-          }
-        )
-      );
 
-      return {
-        success: true,
-        accepted: true,
-        job
-      };
-    },
+            return this.jobs[jobId] || null;
+        },
 
-    /* ============================================================
-       WORK DAY
-       ============================================================ */
 
-    workDay() {
+        /* ========================================================
+           GET ALL JOBS
+        ======================================================== */
 
-      const player =
-        this.ensurePlayer();
+        getJobs: function () {
 
-      if (!player) {
-        return {
-          success: false
-        };
-      }
+            return Object.values(this.jobs);
+        },
 
-      if (
-        !player.career.currentJobId
-      ) {
-        return {
-          success: false,
-          reason:
-            "Player does not have a job."
-        };
-      }
 
-      const job =
-        this.jobs[
-          player.career.currentJobId
-        ];
+        /* ========================================================
+           AVERAGE SKILL
+        ======================================================== */
 
-      if (!job) {
-        return {
-          success: false,
-          reason:
-            "Current job not found."
-        };
-      }
+        getAverageSkill: function () {
 
-      const performance =
-        Number(
-          player.career.performance || 60
-        );
+            const player = this.getPlayer();
 
-      const stress =
-        Number(
-          player.career.stress || 0
-        );
+            if (!player) {
+                return 0;
+            }
 
-      let performanceChange = 0;
+            const skills = player.skills || {};
 
-      if (
-        performance >= 70
-      ) {
-        performanceChange += 1;
-      }
+            const values = Object.values(skills)
+                .map(Number)
+                .filter(v => Number.isFinite(v));
 
-      if (
-        stress > 70
-      ) {
-        performanceChange -= 2;
-      }
+            if (!values.length) {
+                return 0;
+            }
 
-      if (
-        Math.random() < 0.20
-      ) {
-        performanceChange += 1;
-      }
+            const total = values.reduce(
+                (sum, value) => sum + value,
+                0
+            );
 
-      player.career.performance =
-        Math.max(
-          0,
-          Math.min(
-            100,
-            performance +
-            performanceChange
-          )
-        );
+            return Math.round(
+                total / values.length
+            );
+        },
 
-      player.career.stress =
-        Math.max(
-          0,
-          Math.min(
-            100,
-            stress +
-            Math.round(
-              job.stress / 10
+
+        /* ========================================================
+           REQUIRED SKILL CHECK
+        ======================================================== */
+
+        hasRequiredSkill: function (job) {
+
+            if (!job) {
+                return false;
+            }
+
+            return (
+                this.getAverageSkill() >=
+                Number(job.requiredSkill || 0)
+            );
+        },
+
+
+        /* ========================================================
+           EXPERIENCE CHECK
+        ======================================================== */
+
+        hasRequiredExperience: function (job) {
+
+            const player = this.getPlayer();
+
+            if (!player || !job) {
+                return false;
+            }
+
+            const experience = Number(
+                player.experience || 0
+            );
+
+            return (
+                experience >=
+                Number(job.requiredExperience || 0)
+            );
+        },
+
+
+        /* ========================================================
+           CAN APPLY
+        ======================================================== */
+
+        canApply: function (jobId) {
+
+            const job = this.getJob(jobId);
+
+            if (!job) {
+                return {
+                    allowed: false,
+                    reason: "Job not found."
+                };
+            }
+
+
+            const player = this.getPlayer();
+
+            if (!player) {
+                return {
+                    allowed: false,
+                    reason: "Player unavailable."
+                };
+            }
+
+
+            const experience = Number(
+                player.experience || 0
+            );
+
+            const skill = this.getAverageSkill();
+
+
+            if (
+                experience <
+                Number(job.requiredExperience || 0)
+            ) {
+
+                return {
+                    allowed: false,
+                    reason:
+                        "More experience required.",
+                    requiredExperience:
+                        job.requiredExperience,
+                    currentExperience:
+                        experience
+                };
+            }
+
+
+            if (
+                skill <
+                Number(job.requiredSkill || 0)
+            ) {
+
+                return {
+                    allowed: false,
+                    reason:
+                        "Your skills are not high enough.",
+                    requiredSkill:
+                        job.requiredSkill,
+                    currentSkill:
+                        skill
+                };
+            }
+
+
+            return {
+                allowed: true,
+                reason: "Eligible to apply."
+            };
+        },
+
+
+        /* ========================================================
+           INTERVIEW
+        ======================================================== */
+
+        interview: function (jobId) {
+
+            const job = this.getJob(jobId);
+
+            if (!job) {
+                return {
+                    success: false,
+                    message: "Job not found."
+                };
+            }
+
+
+            const eligibility =
+                this.canApply(jobId);
+
+
+            if (!eligibility.allowed) {
+
+                return {
+                    success: false,
+                    message:
+                        eligibility.reason
+                };
+            }
+
+
+            const player = this.getPlayer();
+            const career = this.ensurePlayer();
+
+
+            const skill =
+                this.getAverageSkill();
+
+            const experience =
+                Number(player.experience || 0);
+
+            const performance =
+                Number(career.performance || 70);
+
+
+            /*
+            Interview score.
+
+            Higher:
+            - skill
+            - experience
+            - performance
+
+            Lower:
+            - job difficulty
+            */
+
+            const skillScore =
+                skill * 0.45;
+
+            const experienceScore =
+                Math.min(
+                    experience * 4,
+                    25
+                );
+
+            const performanceScore =
+                performance * 0.30;
+
+
+            let score =
+                skillScore +
+                experienceScore +
+                performanceScore;
+
+
+            score +=
+                Math.random() * 15;
+
+
+            const difficulty =
+                Number(job.requiredSkill || 10) *
+                0.25;
+
+
+            score -= difficulty;
+
+
+            const passed =
+                score >= 45;
+
+
+            const interview = {
+
+                jobId: job.id,
+
+                jobTitle: job.title,
+
+                score: Math.round(score),
+
+                passed: passed,
+
+                day:
+                    Number(
+                        Game.getState()?.world?.totalDays ||
+                        1
+                    )
+            };
+
+
+            career.interviews.push(
+                interview
+            );
+
+
+            /*
+            Keep history manageable.
+            */
+
+            if (
+                career.interviews.length >
+                50
+            ) {
+
+                career.interviews =
+                    career.interviews.slice(-50);
+            }
+
+
+            Game.save();
+
+
+            window.dispatchEvent(
+                new CustomEvent(
+                    "EmpireCareerInterview",
+                    {
+                        detail: interview
+                    }
+                )
+            );
+
+
+            return {
+
+                success: true,
+
+                passed: passed,
+
+                score: Math.round(score),
+
+                job: job,
+
+                message: passed
+                    ? "Interview passed."
+                    : "Interview failed."
+            };
+        },
+
+
+        /* ========================================================
+           ACCEPT JOB
+        ======================================================== */
+
+        acceptJob: function (jobId) {
+
+            const job =
+                this.getJob(jobId);
+
+
+            if (!job) {
+
+                return {
+                    success: false,
+                    message: "Job not found."
+                };
+            }
+
+
+            const eligibility =
+                this.canApply(jobId);
+
+
+            if (!eligibility.allowed) {
+
+                return {
+                    success: false,
+                    message:
+                        eligibility.reason
+                };
+            }
+
+
+            const player =
+                this.getPlayer();
+
+            const career =
+                this.ensurePlayer();
+
+
+            /*
+            IMPORTANT:
+
+            Central salary API:
+                Game.player.setJob(job)
+
+            NOT:
+                Game.setJob(...)
+            */
+
+            if (
+                !Game.player ||
+                typeof Game.player.setJob !==
+                "function"
+            ) {
+
+                return {
+                    success: false,
+                    message:
+                        "EmpireGameState player.setJob() is unavailable."
+                };
+            }
+
+
+            const previousJob =
+                player.currentJob ||
+                "Unemployed";
+
+
+            const previousSalary =
+                Number(
+                    player.monthlyIncome || 0
+                );
+
+
+            const success =
+                Game.player.setJob({
+
+                    id: job.id,
+
+                    title: job.title,
+
+                    department:
+                        job.department,
+
+                    level:
+                        job.level,
+
+                    monthlySalary:
+                        Number(job.salary || 0),
+
+                    salary:
+                        Number(job.salary || 0)
+                });
+
+
+            if (success === false) {
+
+                return {
+                    success: false,
+                    message:
+                        "Unable to update player job."
+                };
+            }
+
+
+            /*
+            Explicitly synchronize career metadata.
+            */
+
+            player.jobLevel =
+                job.level;
+
+            player.currentJob =
+                job.title;
+
+            player.monthlyIncome =
+                Number(job.salary || 0);
+
+
+            /*
+            Career level.
+            */
+
+            player.careerLevel =
+                this.levels[job.level] ||
+                player.careerLevel ||
+                1;
+
+
+            career.level =
+                player.careerLevel;
+
+
+            /*
+            Job history.
+            */
+
+            const historyEntry = {
+
+                jobId: job.id,
+
+                title: job.title,
+
+                department:
+                    job.department,
+
+                level:
+                    job.level,
+
+                salary:
+                    Number(job.salary || 0),
+
+                previousJob:
+                    previousJob,
+
+                previousSalary:
+                    previousSalary,
+
+                day:
+                    Number(
+                        Game.getState()?.world?.totalDays ||
+                        1
+                    )
+            };
+
+
+            career.history.push(
+                historyEntry
+            );
+
+
+            if (
+                career.history.length >
+                50
+            ) {
+
+                career.history =
+                    career.history.slice(-50);
+            }
+
+
+            career.jobsCompleted += 1;
+
+
+            Game.save();
+
+
+            window.dispatchEvent(
+                new CustomEvent(
+                    "EmpireCareerJobAccepted",
+                    {
+                        detail: {
+
+                            job: job,
+
+                            previousJob:
+                                previousJob,
+
+                            previousSalary:
+                                previousSalary
+                        }
+                    }
+                )
+            );
+
+
+            return {
+
+                success: true,
+
+                job: job,
+
+                salary:
+                    Number(job.salary || 0),
+
+                message:
+                    "Job accepted successfully."
+            };
+        },
+
+
+        /* ========================================================
+           WORK DAY
+        ======================================================== */
+
+        workDay: function () {
+
+            const player =
+                this.getPlayer();
+
+            const career =
+                this.ensurePlayer();
+
+
+            if (!player) {
+
+                return {
+                    success: false,
+                    message: "Player unavailable."
+                };
+            }
+
+
+            const employed =
+                player.currentJob &&
+                player.currentJob !==
+                "Unemployed";
+
+
+            if (!employed) {
+
+                return {
+                    success: false,
+                    message:
+                        "You are currently unemployed."
+                };
+            }
+
+
+            const world =
+                Game.getWorld() || {};
+
+
+            const currentDay =
+                Number(
+                    world.totalDays || 1
+                );
+
+
+            /*
+            Prevent duplicate work
+            on same game day.
+            */
+
+            if (
+                Number(career.lastWorkDay || 0) ===
+                currentDay
+            ) {
+
+                return {
+                    success: false,
+                    message:
+                        "You have already worked today."
+                };
+            }
+
+
+            const job =
+                Object.values(this.jobs)
+                    .find(
+                        item =>
+                            item.title ===
+                            player.currentJob
+                    );
+
+
+            const stress =
+                Number(
+                    job?.stress || 25
+                );
+
+
+            /*
+            Performance changes.
+            */
+
+            const performanceChange =
+                Math.round(
+                    (Math.random() * 6) - 2
+                );
+
+
+            career.performance =
+                Math.max(
+                    0,
+                    Math.min(
+                        100,
+                        career.performance +
+                        performanceChange
+                    )
+                );
+
+
+            /*
+            Stress.
+            */
+
+            career.stress =
+                Math.max(
+                    0,
+                    Math.min(
+                        100,
+                        career.stress +
+                        Math.round(
+                            stress * 0.08
+                        )
+                    )
+                );
+
+
+            /*
+            Experience.
+
+            One work day gives
+            fractional experience.
+            */
+
+            const experienceGain =
+                0.05;
+
+
+            player.experience =
+                Number(
+                    player.experience || 0
+                ) +
+                experienceGain;
+
+
+            career.experience =
+                player.experience;
+
+
+            /*
+            Career XP.
+            */
+
+            const xpGain =
+                Math.max(
+                    1,
+                    Math.round(
+                        5 +
+                        career.performance *
+                        0.04
+                    )
+                );
+
+
+            career.xp +=
+                xpGain;
+
+
+            career.daysWorked += 1;
+
+            career.lastWorkDay =
+                currentDay;
+
+
+            /*
+            Skill improvement.
+
+            Only a small chance per day.
+            */
+
+            this.improveSkills(
+                player
+            );
+
+
+            /*
+            Reputation.
+            */
+
+            if (
+                career.performance >= 80
+            ) {
+
+                career.reputation =
+                    Math.min(
+                        100,
+                        career.reputation +
+                        0.2
+                    );
+            }
+
+
+            Game.save();
+
+
+            const result = {
+
+                success: true,
+
+                day: currentDay,
+
+                experienceGain:
+                    experienceGain,
+
+                xpGain:
+                    xpGain,
+
+                performance:
+                    career.performance,
+
+                stress:
+                    career.stress,
+
+                experience:
+                    player.experience
+            };
+
+
+            window.dispatchEvent(
+                new CustomEvent(
+                    "EmpireCareerWorkDay",
+                    {
+                        detail: result
+                    }
+                )
+            );
+
+
+            return result;
+        },
+
+
+        /* ========================================================
+           IMPROVE SKILLS
+        ======================================================== */
+
+        improveSkills: function (player) {
+
+            if (!player) {
+                return;
+            }
+
+
+            if (!player.skills) {
+
+                player.skills = {};
+            }
+
+
+            const skills =
+                Object.keys(
+                    player.skills
+                );
+
+
+            if (!skills.length) {
+                return;
+            }
+
+
+            /*
+            35% chance of learning something
+            during a work day.
+            */
+
+            if (
+                Math.random() > 0.35
+            ) {
+                return;
+            }
+
+
+            const skillName =
+                skills[
+                    Math.floor(
+                        Math.random() *
+                        skills.length
+                    )
+                ];
+
+
+            const oldValue =
+                Number(
+                    player.skills[
+                        skillName
+                    ] || 0
+                );
+
+
+            const increase =
+                Math.random() < 0.85
+                    ? 1
+                    : 2;
+
+
+            player.skills[
+                skillName
+            ] =
+                Math.min(
+                    100,
+                    oldValue +
+                    increase
+                );
+
+
+            window.dispatchEvent(
+                new CustomEvent(
+                    "EmpireSkillImproved",
+                    {
+                        detail: {
+
+                            skill:
+                                skillName,
+
+                            oldValue:
+                                oldValue,
+
+                            newValue:
+                                player.skills[
+                                    skillName
+                                ]
+                        }
+                    }
+                )
+            );
+        },
+
+
+        /* ========================================================
+           PROMOTION
+        ======================================================== */
+
+        promote: function (jobId) {
+
+            const job =
+                this.getJob(jobId);
+
+
+            if (!job) {
+
+                return {
+                    success: false,
+                    message: "Job not found."
+                };
+            }
+
+
+            const player =
+                this.getPlayer();
+
+            const career =
+                this.ensurePlayer();
+
+
+            if (!player) {
+
+                return {
+                    success: false,
+                    message:
+                        "Player unavailable."
+                };
+            }
+
+
+            const currentLevel =
+                this.levels[
+                    player.jobLevel
+                ] ||
+                Number(
+                    player.careerLevel || 1
+                );
+
+
+            const targetLevel =
+                this.levels[
+                    job.level
+                ] || 1;
+
+
+            /*
+            Promotion must move forward.
+            */
+
+            if (
+                targetLevel <=
+                currentLevel
+            ) {
+
+                return {
+                    success: false,
+                    message:
+                        "This is not a higher career level."
+                };
+            }
+
+
+            const eligibility =
+                this.canApply(jobId);
+
+
+            if (!eligibility.allowed) {
+
+                return {
+                    success: false,
+                    message:
+                        eligibility.reason
+                };
+            }
+
+
+            const oldJob =
+                player.currentJob ||
+                "Unemployed";
+
+
+            const oldSalary =
+                Number(
+                    player.monthlyIncome || 0
+                );
+
+
+            /*
+            CENTRAL STATE UPDATE.
+
+            This is the critical fix.
+            */
+
+            if (
+                !Game.player ||
+                typeof Game.player.setJob !==
+                "function"
+            ) {
+
+                return {
+                    success: false,
+                    message:
+                        "EmpireGameState player.setJob() is unavailable."
+                };
+            }
+
+
+            const success =
+                Game.player.setJob({
+
+                    id: job.id,
+
+                    title: job.title,
+
+                    department:
+                        job.department,
+
+                    level:
+                        job.level,
+
+                    monthlySalary:
+                        Number(job.salary || 0),
+
+                    salary:
+                        Number(job.salary || 0)
+                });
+
+
+            if (success === false) {
+
+                return {
+                    success: false,
+                    message:
+                        "Promotion failed."
+                };
+            }
+
+
+            /*
+            Synchronize all career fields.
+            */
+
+            player.currentJob =
+                job.title;
+
+            player.jobLevel =
+                job.level;
+
+            player.monthlyIncome =
+                Number(job.salary || 0);
+
+            player.careerLevel =
+                targetLevel;
+
+
+            career.level =
+                targetLevel;
+
+            career.promotions += 1;
+
+
+            career.history.push({
+
+                type: "promotion",
+
+                jobId:
+                    job.id,
+
+                title:
+                    job.title,
+
+                level:
+                    job.level,
+
+                salary:
+                    Number(job.salary || 0),
+
+                previousJob:
+                    oldJob,
+
+                previousSalary:
+                    oldSalary,
+
+                day:
+                    Number(
+                        Game.getState()?.world?.totalDays ||
+                        1
+                    )
+            });
+
+
+            Game.save();
+
+
+            const result = {
+
+                success: true,
+
+                job: job,
+
+                previousJob:
+                    oldJob,
+
+                previousSalary:
+                    oldSalary,
+
+                newSalary:
+                    Number(job.salary || 0),
+
+                newLevel:
+                    job.level
+            };
+
+
+            window.dispatchEvent(
+                new CustomEvent(
+                    "EmpireCareerPromoted",
+                    {
+                        detail: result
+                    }
+                )
+            );
+
+
+            return result;
+        },
+
+
+        /* ========================================================
+           RESIGN
+        ======================================================== */
+
+        resign: function () {
+
+            const player =
+                this.getPlayer();
+
+            const career =
+                this.ensurePlayer();
+
+
+            if (!player) {
+
+                return {
+                    success: false,
+                    message:
+                        "Player unavailable."
+                };
+            }
+
+
+            const previousJob =
+                player.currentJob ||
+                "Unemployed";
+
+
+            const previousSalary =
+                Number(
+                    player.monthlyIncome || 0
+                );
+
+
+            /*
+            IMPORTANT:
+
+            Clear central monthly income.
+            Otherwise GameState could continue
+            paying salary every month.
+            */
+
+            if (
+                Game.player &&
+                typeof Game.player.setJob ===
+                "function"
+            ) {
+
+                Game.player.setJob({
+
+                    title: "Unemployed",
+
+                    level: "Entry",
+
+                    monthlySalary: 0,
+
+                    salary: 0
+                });
+
+            } else {
+
+                player.currentJob =
+                    "Unemployed";
+
+                player.jobLevel =
+                    "Entry";
+
+                player.monthlyIncome =
+                    0;
+            }
+
+
+            /*
+            Explicit synchronization.
+            */
+
+            player.currentJob =
+                "Unemployed";
+
+            player.jobLevel =
+                "Entry";
+
+            player.monthlyIncome =
+                0;
+
+
+            career.history.push({
+
+                type: "resignation",
+
+                previousJob:
+                    previousJob,
+
+                previousSalary:
+                    previousSalary,
+
+                day:
+                    Number(
+                        Game.getState()?.world?.totalDays ||
+                        1
+                    )
+            });
+
+
+            Game.save();
+
+
+            const result = {
+
+                success: true,
+
+                previousJob:
+                    previousJob,
+
+                previousSalary:
+                    previousSalary,
+
+                message:
+                    "You resigned from your job."
+            };
+
+
+            window.dispatchEvent(
+                new CustomEvent(
+                    "EmpireCareerResigned",
+                    {
+                        detail: result
+                    }
+                )
+            );
+
+
+            return result;
+        },
+
+
+        /* ========================================================
+           RECOVER STRESS
+        ======================================================== */
+
+        recoverStress: function (
+            amount = 5
+        ) {
+
+            const career =
+                this.ensurePlayer();
+
+
+            if (!career) {
+                return;
+            }
+
+
+            career.stress =
+                Math.max(
+                    0,
+                    Number(career.stress || 0) -
+                    Number(amount || 0)
+                );
+
+
+            Game.save();
+        },
+
+
+        /* ========================================================
+           INCREASE REPUTATION
+        ======================================================== */
+
+        increaseReputation: function (
+            amount = 1
+        ) {
+
+            const career =
+                this.ensurePlayer();
+
+
+            if (!career) {
+                return;
+            }
+
+
+            career.reputation =
+                Math.min(
+                    100,
+                    Number(career.reputation || 0) +
+                    Number(amount || 0)
+                );
+
+
+            Game.save();
+        },
+
+
+        /* ========================================================
+           GET CURRENT JOB
+        ======================================================== */
+
+        getCurrentJob: function () {
+
+            const player =
+                this.getPlayer();
+
+
+            if (!player) {
+                return null;
+            }
+
+
+            return Object.values(
+                this.jobs
+            ).find(
+                job =>
+                    job.title ===
+                    player.currentJob
+            ) || null;
+        },
+
+
+        /* ========================================================
+           GET CAREER SUMMARY
+        ======================================================== */
+
+        getSummary: function () {
+
+            const player =
+                this.getPlayer();
+
+            const career =
+                this.ensurePlayer();
+
+
+            if (!player || !career) {
+                return null;
+            }
+
+
+            const currentJob =
+                this.getCurrentJob();
+
+
+            return {
+
+                name:
+                    player.name,
+
+                age:
+                    player.age,
+
+                currentJob:
+                    player.currentJob ||
+                    "Unemployed",
+
+                jobLevel:
+                    player.jobLevel ||
+                    "Entry",
+
+                monthlySalary:
+                    Number(
+                        player.monthlyIncome || 0
+                    ),
+
+                experience:
+                    Number(
+                        player.experience || 0
+                    ),
+
+                careerLevel:
+                    Number(
+                        player.careerLevel ||
+                        career.level ||
+                        1
+                    ),
+
+                careerXP:
+                    Number(
+                        career.xp || 0
+                    ),
+
+                performance:
+                    Number(
+                        career.performance || 0
+                    ),
+
+                stress:
+                    Number(
+                        career.stress || 0
+                    ),
+
+                reputation:
+                    Number(
+                        career.reputation || 0
+                    ),
+
+                averageSkill:
+                    this.getAverageSkill(),
+
+                currentJobData:
+                    currentJob,
+
+                daysWorked:
+                    Number(
+                        career.daysWorked || 0
+                    ),
+
+                promotions:
+                    Number(
+                        career.promotions || 0
+                    )
+            };
+        },
+
+
+        /* ========================================================
+           GET NEXT JOBS
+        ======================================================== */
+
+        getAvailableJobs: function () {
+
+            const result = [];
+
+
+            Object.values(
+                this.jobs
+            ).forEach(
+                job => {
+
+                    const check =
+                        this.canApply(
+                            job.id
+                        );
+
+
+                    result.push({
+
+                        ...job,
+
+                        eligible:
+                            check.allowed,
+
+                        reason:
+                            check.reason
+                    });
+                }
+            );
+
+
+            return result;
+        },
+
+
+        /* ========================================================
+           GET PROMOTION OPTIONS
+        ======================================================== */
+
+        getPromotionOptions: function () {
+
+            const player =
+                this.getPlayer();
+
+
+            if (!player) {
+                return [];
+            }
+
+
+            const currentLevel =
+                this.levels[
+                    player.jobLevel
+                ] ||
+                Number(
+                    player.careerLevel || 1
+                );
+
+
+            return Object.values(
+                this.jobs
             )
-          )
-        );
+            .filter(
+                job => {
 
-      player.experience =
-        Number(
-          player.experience || 0
-        ) + 1;
+                    const level =
+                        this.levels[
+                            job.level
+                        ] || 1;
 
-      this.improveSkills();
+                    return (
+                        level >
+                        currentLevel
+                    );
+                }
+            )
+            .map(
+                job => {
 
-      if (
-        Math.random() < 0.15
-      ) {
-        player.career.reputation =
-          Math.min(
-            100,
-            player.career.reputation + 1
-          );
-      }
+                    const check =
+                        this.canApply(
+                            job.id
+                        );
 
-      this.save();
+                    return {
 
-      window.dispatchEvent(
-        new CustomEvent(
-          "EmpireCareerWorkDay",
-          {
-            detail: {
-              player,
-              job
+                        ...job,
+
+                        eligible:
+                            check.allowed,
+
+                        reason:
+                            check.reason
+                    };
+                }
+            );
+        },
+
+
+        /* ========================================================
+           DAILY CAREER RECOVERY
+        ======================================================== */
+
+        onDayAdvanced: function () {
+
+            const player =
+                this.getPlayer();
+
+            const career =
+                this.ensurePlayer();
+
+
+            if (!player || !career) {
+                return;
             }
-          }
-        )
-      );
 
-      return {
-        success: true,
-        performance:
-          player.career.performance,
-        stress:
-          player.career.stress,
-        experience:
-          player.experience
-      };
-    },
+
+            /*
+            Stress recovery when not working.
+
+            Employed players can still recover
+            slightly, rather than staying permanently
+            stressed.
+            */
+
+            if (
+                player.currentJob ===
+                "Unemployed"
+            ) {
+
+                this.recoverStress(8);
+
+            } else {
+
+                this.recoverStress(2);
+            }
+
+
+            /*
+            Performance slowly normalizes.
+            */
+
+            if (
+                career.performance < 70
+            ) {
+
+                career.performance =
+                    Math.min(
+                        70,
+                        career.performance +
+                        0.25
+                    );
+            }
+
+
+            Game.save();
+        }
+    };
+
 
     /* ============================================================
-       REST / RECOVERY
-       ============================================================ */
+       INITIALIZE
+    ============================================================ */
 
-    recover() {
+    Career.ensurePlayer();
 
-      const player =
-        this.ensurePlayer();
-
-      if (!player) return;
-
-      player.career.stress =
-        Math.max(
-          0,
-          Number(
-            player.career.stress || 0
-          ) - 15
-        );
-
-      player.career.performance =
-        Math.min(
-          100,
-          Number(
-            player.career.performance || 0
-          ) + 2
-        );
-
-      this.save();
-    },
 
     /* ============================================================
-       PROMOTION
-       ============================================================ */
+       DAY EVENT
+    ============================================================ */
 
-    getPromotionOptions() {
+    window.addEventListener(
+        "EmpireDayAdvanced",
+        function () {
 
-      const player =
-        this.ensurePlayer();
-
-      if (!player) return [];
-
-      const currentId =
-        player.career.currentJobId;
-
-      const current =
-        this.jobs[currentId];
-
-      if (!current) return [];
-
-      const currentLevel =
-        this.levels[
-          current.level
-        ] || 1;
-
-      const experience =
-        Number(
-          player.experience || 0
-        );
-
-      const skill =
-        this.getAverageSkill();
-
-      return Object.entries(
-        this.jobs
-      )
-      .filter(
-        ([id, job]) => {
-
-          const level =
-            this.levels[
-              job.level
-            ] || 1;
-
-          return (
-            level >
-            currentLevel &&
-            job.department ===
-            current.department &&
-            experience >=
-            job.requiredExperience &&
-            skill >=
-            job.requiredSkill
-          );
+            Career.onDayAdvanced();
 
         }
-      )
-      .map(
-        ([id, job]) => ({
-          id,
-          ...job
-        })
-      );
-    },
+    );
 
-    promote(jobId) {
-
-      const player =
-        this.ensurePlayer();
-
-      const job =
-        this.jobs[jobId];
-
-      if (!player || !job) {
-        return {
-          success: false,
-          reason:
-            "Invalid promotion."
-        };
-      }
-
-      const options =
-        this.getPromotionOptions();
-
-      const allowed =
-        options.some(
-          option =>
-            option.id === jobId
-        );
-
-      if (!allowed) {
-        return {
-          success: false,
-          reason:
-            "Promotion requirements not met."
-        };
-      }
-
-      const previousJob =
-        player.currentJob;
-
-      player.currentJob =
-        job.title;
-
-      player.salary =
-        job.salary;
-
-      player.currentJobLevel =
-        job.level;
-
-      player.career.currentJobId =
-        jobId;
-
-      player.career.currentLevel =
-        job.level;
-
-      player.career.currentDepartment =
-        job.department;
-
-      player.career.performance =
-        Math.min(
-          100,
-          Number(
-            player.career.performance || 0
-          ) + 5
-        );
-
-      player.career.reputation =
-        Math.min(
-          100,
-          Number(
-            player.career.reputation || 0
-          ) + 5
-        );
-
-      player.career.history.push({
-
-        jobId,
-
-        title:
-          job.title,
-
-        salary:
-          job.salary,
-
-        department:
-          job.department,
-
-        level:
-          job.level,
-
-        promotion: true,
-
-        from:
-          previousJob,
-
-        startDay:
-          Game.getState()
-            ?.world
-            ?.day || 1
-
-      });
-
-      this.save();
-
-      window.dispatchEvent(
-        new CustomEvent(
-          "EmpireCareerPromoted",
-          {
-            detail: {
-              player,
-              job,
-              previousJob
-            }
-          }
-        )
-      );
-
-      return {
-        success: true,
-        job,
-        previousJob
-      };
-    },
 
     /* ============================================================
-       RESIGN
-       ============================================================ */
+       JOB ACCEPTED EVENT
+    ============================================================ */
 
-    resign() {
+    window.addEventListener(
+        "EmpireCareerJobAccepted",
+        function (event) {
 
-      const player =
-        this.ensurePlayer();
+            const job =
+                event.detail?.job;
 
-      if (!player) {
-        return {
-          success: false
-        };
-      }
-
-      const previousJob =
-        player.currentJob;
-
-      player.currentJob =
-        "Unemployed";
-
-      player.salary =
-        0;
-
-      player.currentJobLevel =
-        "Entry";
-
-      player.career.currentJobId =
-        null;
-
-      player.career.currentDepartment =
-        null;
-
-      player.career.currentLevel =
-        "Entry";
-
-      player.career.stress =
-        Math.max(
-          0,
-          player.career.stress - 10
-        );
-
-      player.career.history.push({
-
-        type:
-          "Resignation",
-
-        previousJob,
-
-        day:
-          Game.getState()
-            ?.world
-            ?.day || 1
-
-      });
-
-      this.save();
-
-      window.dispatchEvent(
-        new CustomEvent(
-          "EmpireCareerResigned",
-          {
-            detail: {
-              player,
-              previousJob
+            if (!job) {
+                return;
             }
-          }
-        )
-      );
 
-      return {
-        success: true,
-        previousJob
-      };
-    },
+            console.log(
+                "[Career] Job accepted:",
+                job.title,
+                "₹" + job.salary
+            );
+        }
+    );
+
 
     /* ============================================================
-       CAREER SUMMARY
-       ============================================================ */
+       PROMOTION EVENT
+    ============================================================ */
 
-    getSummary() {
+    window.addEventListener(
+        "EmpireCareerPromoted",
+        function (event) {
 
-      const player =
-        this.ensurePlayer();
+            const data =
+                event.detail;
 
-      if (!player) return null;
+            if (!data) {
+                return;
+            }
 
-      const job =
-        player.career.currentJobId
-          ? this.jobs[
-              player.career.currentJobId
-            ]
-          : null;
+            console.log(
+                "[Career] Promoted to:",
+                data.job?.title
+            );
+        }
+    );
 
-      return {
 
-        currentJob:
-          player.currentJob,
+    /* ============================================================
+       PUBLIC API
+    ============================================================ */
 
-        salary:
-          Number(
-            player.salary || 0
-          ),
+    window.EmpireCareer = Career;
 
-        department:
-          player.career.currentDepartment,
 
-        level:
-          player.career.currentLevel,
+    /*
+    Compatibility aliases.
 
-        experience:
-          Number(
-            player.experience || 0
-          ),
+    Existing UI can use either:
+        EmpireCareer.jobs
+        EmpireCareer.getJobs()
+    */
 
-        averageSkill:
-          this.getAverageSkill(),
+    window.EmpireCareerJobs =
+        Career.jobs;
 
-        performance:
-          Math.round(
-            player.career.performance
-          ),
 
-        stress:
-          Math.round(
-            player.career.stress
-          ),
-
-        reputation:
-          Math.round(
-            player.career.reputation
-          ),
-
-        jobDefinition:
-          job,
-
-        promotionOptions:
-          this.getPromotionOptions(),
-
-        history:
-          player.career.history
-      };
-    }
-  };
-
-  /* ============================================================
-     EVENTS
-     ============================================================ */
-
-  window.addEventListener(
-    "EmpireDayAdvanced",
-    () => {
-
-      const player =
-        Career.ensurePlayer();
-
-      if (!player) return;
-
-      /*
-       * Stress slowly recovers on
-       * non-working time.
-       */
-
-      if (
-        !player.career.currentJobId
-      ) {
-        Career.recover();
-      }
-
-    }
-  );
-
-  window.addEventListener(
-    "EmpireCareerJobAccepted",
-    event => {
-
-      const player =
-        event.detail?.player;
-
-      if (player) {
-        Career.ensurePlayer();
-        Career.save();
-      }
-
-    }
-  );
-
-  /* ============================================================
-     PUBLIC API
-     ============================================================ */
-
-  window.EmpireCareer =
-    Career;
-
-  Career.ensurePlayer();
-
-  console.log(
-    "Empire Rush: Career Progression System loaded."
-  );
+    console.log(
+        "Empire Career Progression System initialized."
+    );
 
 })();
