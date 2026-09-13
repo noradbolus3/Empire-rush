@@ -1,0 +1,1190 @@
+(function () {
+  "use strict";
+
+  /*
+   * ============================================================
+   * EMPIRE RUSH — BUSINESS FINANCING SYSTEM
+   * ============================================================
+   *
+   * Company Financial History
+   *          ↓
+   *      Credit Score
+   *          ↓
+   *    Loan Eligibility
+   *          ↓
+   *      Bank Decision
+   *          ↓
+   *        Loan
+   *          ↓
+   *     EMI + Interest
+   *          ↓
+   *   Credit History
+   * ============================================================
+   */
+
+  const Game = window.EmpireGameState;
+
+  if (!Game) {
+    console.warn(
+      "EmpireGameState not found. Financing system stopped."
+    );
+    return;
+  }
+
+  const Financing = {
+
+    /* ==========================================================
+       LOAN PRODUCTS
+       ========================================================== */
+
+    loanProducts: {
+
+      workingCapital: {
+        name: "Working Capital Loan",
+        minAmount: 25000,
+        maxAmount: 500000,
+        minTenure: 6,
+        maxTenure: 36,
+        baseRate: 0.14
+      },
+
+      equipment: {
+        name: "Equipment Finance",
+        minAmount: 50000,
+        maxAmount: 2000000,
+        minTenure: 12,
+        maxTenure: 60,
+        baseRate: 0.12
+      },
+
+      expansion: {
+        name: "Business Expansion Loan",
+        minAmount: 100000,
+        maxAmount: 10000000,
+        minTenure: 12,
+        maxTenure: 84,
+        baseRate: 0.11
+      }
+    },
+
+    /* ==========================================================
+       INITIALIZE
+       ========================================================== */
+
+    ensureCompany(company) {
+
+      if (!company) return null;
+
+      if (!company.finance) {
+        company.finance = {};
+      }
+
+      const f = company.finance;
+
+      f.cash = Number(f.cash || 0);
+      f.bankBalance = Number(f.bankBalance || 0);
+      f.totalRevenue = Number(f.totalRevenue || 0);
+      f.totalExpenses = Number(f.totalExpenses || 0);
+      f.totalProfit = Number(f.totalProfit || 0);
+      f.loanPrincipal = Number(f.loanPrincipal || 0);
+      f.loanInterestPaid = Number(f.loanInterestPaid || 0);
+
+      if (!Array.isArray(f.loans)) {
+        f.loans = [];
+      }
+
+      if (!Array.isArray(f.creditHistory)) {
+        f.creditHistory = [];
+      }
+
+      if (!f.credit) {
+        f.credit = {
+          score: 500,
+          paymentHistory: 50,
+          utilization: 0,
+          defaults: 0,
+          successfulPayments: 0,
+          latePayments: 0
+        };
+      }
+
+      if (f.credit.score === undefined) {
+        f.credit.score = 500;
+      }
+
+      return company;
+    },
+
+    /* ==========================================================
+       CREDIT SCORE
+       ========================================================== */
+
+    calculateCreditScore(company) {
+
+      this.ensureCompany(company);
+
+      const f = company.finance;
+      const credit = f.credit;
+
+      let score = 500;
+
+      /*
+       * Profitability
+       */
+
+      if (f.totalProfit > 0) {
+        score += 50;
+      }
+
+      if (f.totalProfit > 500000) {
+        score += 50;
+      }
+
+      if (f.totalProfit > 2000000) {
+        score += 50;
+      }
+
+      /*
+       * Revenue history
+       */
+
+      if (f.totalRevenue > 250000) {
+        score += 30;
+      }
+
+      if (f.totalRevenue > 1000000) {
+        score += 30;
+      }
+
+      /*
+       * Successful loan payments
+       */
+
+      score +=
+        Math.min(
+          100,
+          Number(credit.successfulPayments || 0) * 5
+        );
+
+      /*
+       * Late payments
+       */
+
+      score -=
+        Number(credit.latePayments || 0) * 25;
+
+      /*
+       * Defaults
+       */
+
+      score -=
+        Number(credit.defaults || 0) * 100;
+
+      /*
+       * Existing debt utilization
+       */
+
+      const annualRevenue =
+        Math.max(
+          1,
+          Number(f.totalRevenue || 0)
+        );
+
+      const debtRatio =
+        Number(f.loanPrincipal || 0) /
+        annualRevenue;
+
+      if (debtRatio > 1) {
+        score -= 80;
+      } else if (debtRatio > 0.5) {
+        score -= 40;
+      } else if (debtRatio > 0.25) {
+        score -= 15;
+      }
+
+      score =
+        Math.max(
+          300,
+          Math.min(
+            850,
+            Math.round(score)
+          )
+        );
+
+      credit.score = score;
+
+      return score;
+    },
+
+    /* ==========================================================
+       CREDIT RATING
+       ========================================================== */
+
+    getCreditRating(score) {
+
+      score = Number(score || 0);
+
+      if (score >= 750) return "Excellent";
+      if (score >= 700) return "Very Good";
+      if (score >= 650) return "Good";
+      if (score >= 600) return "Fair";
+      if (score >= 500) return "Weak";
+
+      return "Poor";
+    },
+
+    /* ==========================================================
+       LOAN ELIGIBILITY
+       ========================================================== */
+
+    getEligibility(company, productType) {
+
+      this.ensureCompany(company);
+
+      const product =
+        this.loanProducts[productType];
+
+      if (!product) {
+        return {
+          eligible: false,
+          reason: "Unknown loan product."
+        };
+      }
+
+      const creditScore =
+        this.calculateCreditScore(company);
+
+      const monthsOperating =
+        Number(
+          company.monthsOperating || 0
+        );
+
+      const revenue =
+        Number(
+          company.finance.totalRevenue || 0
+        );
+
+      /*
+       * New business can still borrow,
+       * but with stricter limits.
+       */
+
+      let maxAmount =
+        product.maxAmount;
+
+      if (creditScore < 600) {
+        maxAmount *= 0.25;
+      } else if (creditScore < 650) {
+        maxAmount *= 0.50;
+      } else if (creditScore < 700) {
+        maxAmount *= 0.75;
+      }
+
+      /*
+       * Revenue capacity.
+       */
+
+      if (revenue > 0) {
+        maxAmount =
+          Math.min(
+            maxAmount,
+            Math.max(
+              product.minAmount,
+              revenue * 0.50
+            )
+          );
+      } else {
+        maxAmount =
+          Math.min(
+            maxAmount,
+            product.minAmount
+          );
+      }
+
+      /*
+       * Existing debt.
+       */
+
+      const existingDebt =
+        Number(
+          company.finance.loanPrincipal || 0
+        );
+
+      maxAmount =
+        Math.max(
+          0,
+          maxAmount - existingDebt * 0.50
+        );
+
+      const eligible =
+        creditScore >= 500 &&
+        maxAmount >= product.minAmount;
+
+      let reason = "Eligible";
+
+      if (creditScore < 500) {
+        reason =
+          "Credit score is too low.";
+      }
+
+      if (
+        monthsOperating < 1 &&
+        revenue <= 0
+      ) {
+        reason =
+          "Business needs operating history or demonstrated revenue.";
+      }
+
+      return {
+
+        eligible,
+
+        product:
+          product.name,
+
+        creditScore,
+
+        rating:
+          this.getCreditRating(
+            creditScore
+          ),
+
+        maxAmount:
+          Math.floor(
+            maxAmount
+          ),
+
+        minAmount:
+          product.minAmount,
+
+        baseRate:
+          product.baseRate,
+
+        reason
+      };
+    },
+
+    /* ==========================================================
+       INTEREST RATE
+       ========================================================== */
+
+    getInterestRate(
+      company,
+      productType
+    ) {
+
+      this.ensureCompany(company);
+
+      const product =
+        this.loanProducts[productType];
+
+      if (!product) {
+        return 0;
+      }
+
+      const score =
+        this.calculateCreditScore(
+          company
+        );
+
+      let rate =
+        product.baseRate;
+
+      if (score >= 750) {
+        rate -= 0.025;
+      } else if (score >= 700) {
+        rate -= 0.015;
+      } else if (score >= 650) {
+        rate -= 0.005;
+      } else if (score < 600) {
+        rate += 0.035;
+      }
+
+      return Math.max(
+        0.07,
+        Number(rate.toFixed(4))
+      );
+    },
+
+    /* ==========================================================
+       EMI
+       ========================================================== */
+
+    calculateEMI(
+      principal,
+      annualRate,
+      months
+    ) {
+
+      principal =
+        Number(principal || 0);
+
+      annualRate =
+        Number(annualRate || 0);
+
+      months =
+        Number(months || 0);
+
+      if (
+        principal <= 0 ||
+        months <= 0
+      ) {
+        return 0;
+      }
+
+      const monthlyRate =
+        annualRate / 12;
+
+      if (monthlyRate === 0) {
+        return Math.round(
+          principal / months
+        );
+      }
+
+      const emi =
+        principal *
+        monthlyRate *
+        Math.pow(
+          1 + monthlyRate,
+          months
+        ) /
+        (
+          Math.pow(
+            1 + monthlyRate,
+            months
+          ) - 1
+        );
+
+      return Math.round(emi);
+    },
+
+    /* ==========================================================
+       APPLY FOR LOAN
+       ========================================================== */
+
+    applyForLoan(
+      company,
+      productType,
+      amount,
+      tenureMonths
+    ) {
+
+      this.ensureCompany(company);
+
+      amount =
+        Math.round(
+          Number(amount || 0)
+        );
+
+      tenureMonths =
+        Math.round(
+          Number(tenureMonths || 0)
+        );
+
+      const product =
+        this.loanProducts[productType];
+
+      if (!product) {
+        return {
+          success: false,
+          reason: "Invalid loan product."
+        };
+      }
+
+      if (
+        amount < product.minAmount
+      ) {
+        return {
+          success: false,
+          reason:
+            "Requested amount is below minimum."
+        };
+      }
+
+      if (
+        tenureMonths < product.minTenure ||
+        tenureMonths > product.maxTenure
+      ) {
+        return {
+          success: false,
+          reason:
+            "Invalid loan tenure."
+        };
+      }
+
+      const eligibility =
+        this.getEligibility(
+          company,
+          productType
+        );
+
+      if (!eligibility.eligible) {
+        return {
+          success: false,
+          reason:
+            eligibility.reason,
+          creditScore:
+            eligibility.creditScore
+        };
+      }
+
+      if (
+        amount >
+        eligibility.maxAmount
+      ) {
+        return {
+          success: false,
+          reason:
+            "Requested amount exceeds bank-approved limit.",
+          maximum:
+            eligibility.maxAmount
+        };
+      }
+
+      /*
+       * Small probability of bank rejection
+       * even when technically eligible.
+       */
+
+      const rejectionChance =
+        eligibility.creditScore < 600
+          ? 0.25
+          : eligibility.creditScore < 650
+            ? 0.12
+            : 0.04;
+
+      if (
+        Math.random() <
+        rejectionChance
+      ) {
+
+        company.finance.creditHistory.push({
+
+          type: "Loan Application",
+          result: "Rejected",
+          amount,
+          product: product.name,
+          day:
+            Game.getState()?.world?.day || 1
+
+        });
+
+        Game.save();
+
+        return {
+          success: false,
+          reason:
+            "Bank rejected the application after risk assessment."
+        };
+      }
+
+      const annualRate =
+        this.getInterestRate(
+          company,
+          productType
+        );
+
+      const emi =
+        this.calculateEMI(
+          amount,
+          annualRate,
+          tenureMonths
+        );
+
+      const totalRepayment =
+        emi * tenureMonths;
+
+      const totalInterest =
+        Math.max(
+          0,
+          totalRepayment - amount
+        );
+
+      const loan = {
+
+        id:
+          "LOAN-" +
+          Date.now() +
+          "-" +
+          Math.floor(
+            Math.random() * 10000
+          ),
+
+        productType,
+
+        productName:
+          product.name,
+
+        principal:
+          amount,
+
+        outstandingPrincipal:
+          amount,
+
+        annualInterestRate:
+          annualRate,
+
+        tenureMonths,
+
+        remainingMonths:
+          tenureMonths,
+
+        emi,
+
+        totalRepayment,
+
+        remainingRepayment:
+          totalRepayment,
+
+        totalInterest,
+
+        interestPaid:
+          0,
+
+        status:
+          "Active",
+
+        paymentsMade:
+          0,
+
+        latePayments:
+          0,
+
+        defaulted:
+          false,
+
+        startDay:
+          Game.getState()?.world?.day || 1,
+
+        startMonth:
+          Game.getState()?.world?.month || 1,
+
+        startYear:
+          Game.getState()?.world?.year || 1
+
+      };
+
+      company.finance.loans.push(
+        loan
+      );
+
+      company.finance.loanPrincipal +=
+        amount;
+
+      /*
+       * Loan proceeds go to COMPANY cash.
+       */
+
+      company.finance.cash +=
+        amount;
+
+      company.finance.creditHistory.push({
+
+        type:
+          "Loan Approved",
+
+        amount,
+
+        product:
+          product.name,
+
+        interestRate:
+          annualRate,
+
+        tenureMonths,
+
+        day:
+          Game.getState()?.world?.day || 1
+
+      });
+
+      Game.save();
+
+      window.dispatchEvent(
+        new CustomEvent(
+          "EmpireLoanApproved",
+          {
+            detail: {
+              company,
+              loan
+            }
+          }
+        )
+      );
+
+      return {
+
+        success: true,
+
+        loan,
+
+        creditScore:
+          this.calculateCreditScore(
+            company
+          )
+
+      };
+    },
+
+    /* ==========================================================
+       MONTHLY EMI PAYMENT
+       ========================================================== */
+
+    processLoanPayment(
+      company,
+      loan
+    ) {
+
+      this.ensureCompany(company);
+
+      if (
+        !loan ||
+        loan.status !== "Active"
+      ) {
+        return {
+          success: false,
+          reason:
+            "Loan is not active."
+        };
+      }
+
+      const payment =
+        Math.min(
+          loan.emi,
+          loan.remainingRepayment
+        );
+
+      if (
+        company.finance.cash <
+        payment
+      ) {
+
+        loan.latePayments++;
+
+        loan.latePayments =
+          Number(
+            loan.latePayments || 0
+          );
+
+        company.finance.credit.latePayments++;
+
+        /*
+         * Repeated missed payments can default.
+         */
+
+        if (
+          loan.latePayments >= 3
+        ) {
+
+          loan.defaulted = true;
+          loan.status = "Defaulted";
+
+          company.finance.credit.defaults++;
+
+          company.finance.creditHistory.push({
+
+            type:
+              "Loan Default",
+
+            loanId:
+              loan.id,
+
+            day:
+              Game.getState()?.world?.day || 1
+
+          });
+
+          Game.save();
+
+          return {
+            success: false,
+            defaulted: true,
+            reason:
+              "Loan has defaulted after repeated missed payments."
+          };
+        }
+
+        Game.save();
+
+        return {
+          success: false,
+          late: true,
+          reason:
+            "Insufficient company cash for EMI."
+        };
+      }
+
+      /*
+       * Interest portion.
+       */
+
+      const monthlyRate =
+        loan.annualInterestRate / 12;
+
+      const interest =
+        Math.round(
+          loan.outstandingPrincipal *
+          monthlyRate
+        );
+
+      const principalPayment =
+        Math.max(
+          0,
+          payment - interest
+        );
+
+      company.finance.cash -=
+        payment;
+
+      company.finance.totalExpenses +=
+        interest;
+
+      company.finance.loanInterestPaid +=
+        interest;
+
+      company.finance.loanPrincipal =
+        Math.max(
+          0,
+          company.finance.loanPrincipal -
+          principalPayment
+        );
+
+      loan.outstandingPrincipal =
+        Math.max(
+          0,
+          loan.outstandingPrincipal -
+          principalPayment
+        );
+
+      loan.remainingRepayment =
+        Math.max(
+          0,
+          loan.remainingRepayment -
+          payment
+        );
+
+      loan.remainingMonths =
+        Math.max(
+          0,
+          loan.remainingMonths - 1
+        );
+
+      loan.interestPaid +=
+        interest;
+
+      loan.paymentsMade++;
+
+      company.finance.credit.successfulPayments++;
+
+      /*
+       * Good payment improves score.
+       */
+
+      this.calculateCreditScore(
+        company
+      );
+
+      if (
+        loan.outstandingPrincipal <= 0 ||
+        loan.remainingRepayment <= 0 ||
+        loan.remainingMonths <= 0
+      ) {
+
+        loan.status =
+          "Paid Off";
+
+        loan.outstandingPrincipal =
+          0;
+
+        loan.remainingRepayment =
+          0;
+
+        company.finance.creditHistory.push({
+
+          type:
+            "Loan Paid Off",
+
+          loanId:
+            loan.id,
+
+          day:
+            Game.getState()?.world?.day || 1
+
+        });
+
+      }
+
+      Game.save();
+
+      window.dispatchEvent(
+        new CustomEvent(
+          "EmpireLoanPayment",
+          {
+            detail: {
+              company,
+              loan,
+              payment,
+              interest,
+              principalPayment
+            }
+          }
+        )
+      );
+
+      return {
+
+        success: true,
+
+        payment,
+
+        interest,
+
+        principalPayment,
+
+        remainingPrincipal:
+          loan.outstandingPrincipal,
+
+        remainingMonths:
+          loan.remainingMonths
+
+      };
+    },
+
+    /* ==========================================================
+       PROCESS ALL ACTIVE LOANS
+       ========================================================== */
+
+    processMonthlyLoans(company) {
+
+      this.ensureCompany(company);
+
+      const results = [];
+
+      company.finance.loans.forEach(
+        loan => {
+
+          if (
+            loan.status !== "Active"
+          ) {
+            return;
+          }
+
+          results.push(
+            this.processLoanPayment(
+              company,
+              loan
+            )
+          );
+
+        }
+      );
+
+      this.calculateCreditScore(
+        company
+      );
+
+      Game.save();
+
+      return results;
+    },
+
+    /* ==========================================================
+       ACTIVE DEBT
+       ========================================================== */
+
+    getActiveDebt(company) {
+
+      this.ensureCompany(company);
+
+      return company.finance.loans
+        .filter(
+          loan =>
+            loan.status === "Active"
+        )
+        .reduce(
+          (total, loan) =>
+            total +
+            Number(
+              loan.outstandingPrincipal || 0
+            ),
+          0
+        );
+    },
+
+    /* ==========================================================
+       ACTIVE EMI
+       ========================================================== */
+
+    getMonthlyEMI(company) {
+
+      this.ensureCompany(company);
+
+      return company.finance.loans
+        .filter(
+          loan =>
+            loan.status === "Active"
+        )
+        .reduce(
+          (total, loan) =>
+            total +
+            Number(
+              loan.emi || 0
+            ),
+          0
+        );
+    },
+
+    /* ==========================================================
+       LOAN SUMMARY
+       ========================================================== */
+
+    getSummary(company) {
+
+      this.ensureCompany(company);
+
+      const score =
+        this.calculateCreditScore(
+          company
+        );
+
+      return {
+
+        creditScore:
+          score,
+
+        creditRating:
+          this.getCreditRating(
+            score
+          ),
+
+        activeLoans:
+          company.finance.loans.filter(
+            loan =>
+              loan.status === "Active"
+          ).length,
+
+        activeDebt:
+          this.getActiveDebt(
+            company
+          ),
+
+        monthlyEMI:
+          this.getMonthlyEMI(
+            company
+          ),
+
+        totalInterestPaid:
+          company.finance.loanInterestPaid,
+
+        successfulPayments:
+          company.finance.credit.successfulPayments,
+
+        latePayments:
+          company.finance.credit.latePayments,
+
+        defaults:
+          company.finance.credit.defaults,
+
+        loans:
+          company.finance.loans
+
+      };
+    }
+  };
+
+  /* ============================================================
+     PUBLIC API
+     ============================================================ */
+
+  window.EmpireFinancing =
+    Financing;
+
+  /* ============================================================
+     COMPANY EVENTS
+     ============================================================ */
+
+  window.addEventListener(
+    "EmpireBusinessStarted",
+    function (event) {
+
+      const company =
+        event.detail?.company;
+
+      if (!company) return;
+
+      Financing.ensureCompany(
+        company
+      );
+
+      Financing.calculateCreditScore(
+        company
+      );
+
+      Game.save();
+    }
+  );
+
+  window.addEventListener(
+    "EmpireBusinessLaunched",
+    function (event) {
+
+      const company =
+        event.detail?.company;
+
+      if (!company) return;
+
+      Financing.ensureCompany(
+        company
+      );
+
+      Financing.calculateCreditScore(
+        company
+      );
+
+      Game.save();
+    }
+  );
+
+  /* ============================================================
+     MONTHLY LOAN PROCESSING
+     ============================================================ */
+
+  window.addEventListener(
+    "EmpireMonthAdvanced",
+    function () {
+
+      const state =
+        Game.getState();
+
+      if (
+        !state ||
+        !Array.isArray(state.companies)
+      ) {
+        return;
+      }
+
+      state.companies.forEach(
+        company => {
+
+          if (
+            company.status !== "Operating"
+          ) {
+            return;
+          }
+
+          Financing.processMonthlyLoans(
+            company
+          );
+
+        }
+      );
+
+      Game.save();
+    }
+  );
+
+  console.log(
+    "Empire Rush: Business Financing System loaded."
+  );
+
+})();
