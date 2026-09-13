@@ -1,993 +1,1523 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
+using UnityEngine;
 
 namespace EmpireRush
 {
-    // ============================================================
-    // EMPIRE RUSH
-    // CORE SIMULATION FOUNDATION
-    // ============================================================
+    /*
+     * =========================================================
+     * EMPIRE RUSH — CORE SIMULATION
+     * Phase 1
+     *
+     * This layer contains game logic.
+     *
+     * 3D presentation is intentionally separate.
+     * Later Unity systems can read this state and
+     * visualize it in the world.
+     * =========================================================
+     */
+
+
+    #region ENUMS
 
     public enum SkillType
     {
         Communication,
-        Technical,
-        Sales,
-        Management,
         Finance,
-        Operations,
+        Sales,
         Marketing,
-        Leadership
+        Operations,
+        Management,
+        Technology,
+        Leadership,
+        Product,
+        HumanResources
     }
+
+
+    public enum JobLevel
+    {
+        Entry,
+        Junior,
+        Mid,
+        Senior,
+        Manager,
+        Director,
+        Executive
+    }
+
 
     public enum BusinessType
     {
-        Freelancing,
+        Freelance,
         HomeFood,
-        RetailShop,
-        RepairCenter,
-        CarWash,
+        Retail,
         Restaurant,
+        Service,
+        Manufacturing,
+        Software,
+        Technology,
         Logistics,
-        Clothing,
-        SoftwareCompany,
-        SmallManufacturing,
         Construction,
-        Agriculture,
-        ConsumerProducts,
-        Technology
+        RealEstate,
+        Finance,
+        Education,
+        Healthcare,
+        Automotive
     }
+
 
     public enum BusinessStatus
     {
         Planning,
+        Registration,
         Setup,
         Operating,
-        Expanding,
+        Growing,
+        Distressed,
         Closed
     }
 
-    // ============================================================
-    // SKILL
-    // ============================================================
+
+    public enum EmployeeStatus
+    {
+        Available,
+        Working,
+        Meeting,
+        Training,
+        Break,
+        Sick,
+        Resigned,
+        Fired
+    }
+
+
+    public enum CompanyStatus
+    {
+        Planning,
+        Active,
+        Growing,
+        Distressed,
+        Closed
+    }
+
+
+    #endregion
+
+
+    #region PLAYER
 
     [Serializable]
     public class PlayerSkill
     {
-        public SkillType Type;
-        public float Level;
-        public float Experience;
+        public SkillType type;
 
-        public PlayerSkill(SkillType type, float level = 5f)
-        {
-            Type = type;
-            Level = level;
-            Experience = 0f;
-        }
+        [Range(0, 100)]
+        public float level;
 
-        public void AddExperience(float amount)
-        {
-            if (amount <= 0f)
-                return;
-
-            Experience += amount;
-
-            while (Experience >= 100f && Level < 100f)
-            {
-                Experience -= 100f;
-                Level += 1f;
-            }
-
-            Level = Math.Min(Level, 100f);
-        }
+        public float experience;
     }
 
-    // ============================================================
-    // JOB
-    // ============================================================
-
-    [Serializable]
-    public class JobDefinition
-    {
-        public string Id;
-        public string Title;
-        public float MonthlySalary;
-        public int RequiredExperienceMonths;
-        public SkillType MainSkill;
-
-        public JobDefinition(
-            string id,
-            string title,
-            float monthlySalary,
-            int requiredExperienceMonths,
-            SkillType mainSkill)
-        {
-            Id = id;
-            Title = title;
-            MonthlySalary = monthlySalary;
-            RequiredExperienceMonths = requiredExperienceMonths;
-            MainSkill = mainSkill;
-        }
-    }
-
-    // ============================================================
-    // BUSINESS DEFINITION
-    // ============================================================
-
-    [Serializable]
-    public class BusinessDefinition
-    {
-        public string Id;
-        public BusinessType Type;
-        public string Name;
-
-        public float MinimumCapital;
-        public float RecommendedCapital;
-
-        public float MonthlyFixedCost;
-        public float AverageMonthlyRevenue;
-
-        public int MinimumEmployees;
-
-        // 0 = low risk, 1 = extreme risk
-        public float Risk;
-
-        public SkillType MainSkill;
-
-        public BusinessDefinition(
-            string id,
-            BusinessType type,
-            string name,
-            float minimumCapital,
-            float recommendedCapital,
-            float monthlyFixedCost,
-            float averageMonthlyRevenue,
-            int minimumEmployees,
-            float risk,
-            SkillType mainSkill)
-        {
-            Id = id;
-            Type = type;
-            Name = name;
-            MinimumCapital = minimumCapital;
-            RecommendedCapital = recommendedCapital;
-            MonthlyFixedCost = monthlyFixedCost;
-            AverageMonthlyRevenue = averageMonthlyRevenue;
-            MinimumEmployees = minimumEmployees;
-            Risk = risk;
-            MainSkill = mainSkill;
-        }
-
-        public bool CanStartWith(float capital)
-        {
-            return capital >= MinimumCapital;
-        }
-    }
-
-    // ============================================================
-    // EMPLOYEE
-    // ============================================================
-
-    [Serializable]
-    public class Employee
-    {
-        public string Id;
-        public string Name;
-        public string Role;
-
-        public float MonthlySalary;
-        public float Productivity;
-        public float Morale;
-
-        public Employee(
-            string id,
-            string name,
-            string role,
-            float monthlySalary)
-        {
-            Id = id;
-            Name = name;
-            Role = role;
-            MonthlySalary = monthlySalary;
-
-            Productivity = 1f;
-            Morale = 1f;
-        }
-
-        public float MonthlyCost()
-        {
-            return MonthlySalary;
-        }
-    }
-
-    // ============================================================
-    // BUSINESS
-    // ============================================================
-
-    [Serializable]
-    public class Business
-    {
-        public string Id;
-        public string Name;
-
-        public BusinessDefinition Definition;
-
-        public BusinessStatus Status;
-
-        public string Location;
-
-        public float Cash;
-
-        public float TotalRevenue;
-        public float TotalExpenses;
-        public float TotalProfit;
-
-        public int AgeInMonths;
-
-        public List<Employee> Employees;
-
-        public Business(
-            string id,
-            BusinessDefinition definition,
-            string location,
-            float startingCash)
-        {
-            Id = id;
-            Definition = definition;
-
-            Name = definition.Name;
-
-            Status = BusinessStatus.Setup;
-
-            Location = location;
-
-            Cash = startingCash;
-
-            Employees = new List<Employee>();
-        }
-
-        public float Payroll()
-        {
-            return Employees.Sum(employee => employee.MonthlyCost());
-        }
-
-        public float CalculateRevenue(float marketMultiplier)
-        {
-            marketMultiplier = Math.Max(0.2f, marketMultiplier);
-
-            float employeeFactor =
-                Employees.Count == 0
-                    ? 1f
-                    : 1f + Employees.Count * 0.08f;
-
-            return Definition.AverageMonthlyRevenue
-                   * marketMultiplier
-                   * employeeFactor;
-        }
-
-        public float CalculateExpenses()
-        {
-            return Definition.MonthlyFixedCost + Payroll();
-        }
-
-        public void StartOperations()
-        {
-            if (Status == BusinessStatus.Setup ||
-                Status == BusinessStatus.Planning)
-            {
-                Status = BusinessStatus.Operating;
-            }
-        }
-
-        public void SimulateMonth(float marketMultiplier)
-        {
-            if (Status == BusinessStatus.Closed)
-                return;
-
-            StartOperations();
-
-            float revenue = CalculateRevenue(marketMultiplier);
-            float expenses = CalculateExpenses();
-
-            float profit = revenue - expenses;
-
-            Cash += profit;
-
-            TotalRevenue += revenue;
-            TotalExpenses += expenses;
-            TotalProfit += profit;
-
-            AgeInMonths++;
-        }
-
-        public void HireEmployee(Employee employee)
-        {
-            if (employee == null)
-                return;
-
-            Employees.Add(employee);
-        }
-
-        public void PrintSummary()
-        {
-            Console.WriteLine();
-            Console.WriteLine("------------------------------------------");
-            Console.WriteLine($"BUSINESS: {Name}");
-            Console.WriteLine("------------------------------------------");
-            Console.WriteLine($"Type              : {Definition.Type}");
-            Console.WriteLine($"Status            : {Status}");
-            Console.WriteLine($"Location          : {Location}");
-            Console.WriteLine($"Cash              : ₹{Cash:0}");
-            Console.WriteLine($"Employees         : {Employees.Count}");
-            Console.WriteLine($"Revenue           : ₹{TotalRevenue:0}");
-            Console.WriteLine($"Expenses          : ₹{TotalExpenses:0}");
-            Console.WriteLine($"Profit/Loss       : ₹{TotalProfit:0}");
-            Console.WriteLine($"Age               : {AgeInMonths} months");
-            Console.WriteLine("------------------------------------------");
-        }
-    }
-
-    // ============================================================
-    // PLAYER
-    // ============================================================
 
     [Serializable]
     public class Player
     {
-        public string Name;
+        public string playerName = "Founder";
 
-        public float Cash;
-        public float Savings;
+        public int age = 22;
 
-        public float MonthlyLivingExpenses;
+        public decimal cash = 0;
 
-        public int Age;
-        public int ExperienceMonths;
+        public decimal savings = 0;
 
-        public JobDefinition CurrentJob;
+        public decimal monthlyExpenses = 15000;
 
-        public List<PlayerSkill> Skills;
-        public List<Business> Businesses;
+        public decimal monthlyIncome = 0;
 
-        public Player(
-            string name,
-            float startingCash = 0f)
+        public decimal debt = 0;
+
+        public JobLevel jobLevel =
+            JobLevel.Entry;
+
+        public string currentJob =
+            "Unemployed";
+
+
+        public List<PlayerSkill> skills =
+            new List<PlayerSkill>();
+
+
+        public Player()
         {
-            Name = name;
+            InitializeSkills();
+        }
 
-            Cash = startingCash;
-            Savings = 0f;
 
-            MonthlyLivingExpenses = 12000f;
+        public void InitializeSkills()
+        {
+            if (skills.Count > 0)
+                return;
 
-            Age = 20;
-            ExperienceMonths = 0;
 
-            Skills = new List<PlayerSkill>();
-            Businesses = new List<Business>();
-
-            foreach (SkillType type in Enum.GetValues(typeof(SkillType)))
+            foreach (
+                SkillType skill in
+                Enum.GetValues(
+                    typeof(SkillType)
+                )
+            )
             {
-                Skills.Add(new PlayerSkill(type));
+                skills.Add(
+                    new PlayerSkill
+                    {
+                        type = skill,
+                        level = 10,
+                        experience = 0
+                    }
+                );
             }
         }
 
-        public float TotalCapital()
+
+        public PlayerSkill GetSkill(
+            SkillType type
+        )
         {
-            return Cash + Savings;
+            return skills.Find(
+                x => x.type == type
+            );
         }
 
-        public PlayerSkill GetSkill(SkillType type)
-        {
-            return Skills.FirstOrDefault(skill => skill.Type == type);
-        }
 
-        public float GetSkillLevel(SkillType type)
+        public void AddSkillExperience(
+            SkillType type,
+            float amount
+        )
         {
-            PlayerSkill skill = GetSkill(type);
+            PlayerSkill skill =
+                GetSkill(type);
 
-            return skill == null ? 0f : skill.Level;
-        }
 
-        public void SetJob(JobDefinition job)
-        {
-            CurrentJob = job;
-        }
-
-        public void ReceiveSalary()
-        {
-            if (CurrentJob == null)
+            if (skill == null)
                 return;
 
-            Cash += CurrentJob.MonthlySalary;
+
+            skill.experience += amount;
+
+
+            while (
+                skill.experience >= 100 &&
+                skill.level < 100
+            )
+            {
+                skill.experience -= 100;
+                skill.level += 1;
+            }
         }
 
-        public bool PayLivingExpenses()
-        {
-            if (Cash < MonthlyLivingExpenses)
-                return false;
 
-            Cash -= MonthlyLivingExpenses;
-            return true;
+        public void ReceiveSalary(
+            decimal salary
+        )
+        {
+            monthlyIncome =
+                salary;
+
+            cash += salary;
         }
 
-        public void Save(float amount)
+
+        public bool Spend(
+            decimal amount
+        )
         {
-            if (amount <= 0f)
-                return;
-
-            amount = Math.Min(amount, Cash);
-
-            Cash -= amount;
-            Savings += amount;
-        }
-
-        public bool Spend(float amount)
-        {
-            if (amount <= 0f)
+            if (amount <= 0)
                 return true;
 
-            if (Cash < amount)
+
+            if (cash < amount)
                 return false;
 
-            Cash -= amount;
+
+            cash -= amount;
+
             return true;
         }
 
-        public void GainCareerExperience()
-        {
-            ExperienceMonths++;
 
-            foreach (PlayerSkill skill in Skills)
-            {
-                skill.AddExperience(2f);
-            }
-        }
-
-        public void AddBusiness(Business business)
+        public void SaveMoney()
         {
-            if (business == null)
+            decimal amount =
+                Math.Max(
+                    0,
+                    cash - monthlyExpenses
+                );
+
+
+            if (amount <= 0)
                 return;
 
-            Businesses.Add(business);
+
+            cash -= amount;
+
+            savings += amount;
         }
 
-        public void PrintStatus()
+
+        public decimal AvailableCapital
         {
-            Console.WriteLine();
-            Console.WriteLine("==========================================");
-            Console.WriteLine("PLAYER");
-            Console.WriteLine("==========================================");
-
-            Console.WriteLine($"Name              : {Name}");
-            Console.WriteLine($"Age               : {Age}");
-            Console.WriteLine($"Cash              : ₹{Cash:0}");
-            Console.WriteLine($"Savings           : ₹{Savings:0}");
-            Console.WriteLine($"Total Capital     : ₹{TotalCapital():0}");
-            Console.WriteLine($"Experience        : {ExperienceMonths} months");
-
-            if (CurrentJob != null)
+            get
             {
-                Console.WriteLine($"Job               : {CurrentJob.Title}");
-                Console.WriteLine($"Salary            : ₹{CurrentJob.MonthlySalary:0}/month");
+                return cash + savings;
             }
-            else
-            {
-                Console.WriteLine("Job               : Unemployed");
-            }
-
-            Console.WriteLine($"Businesses        : {Businesses.Count}");
-
-            Console.WriteLine("==========================================");
         }
     }
 
-    // ============================================================
-    // JOB DATABASE
-    // ============================================================
+    #endregion
+
+
+    #region JOBS
+
+    [Serializable]
+    public class JobDefinition
+    {
+        public string title;
+
+        public JobLevel level;
+
+        public decimal monthlySalary;
+
+        public int minimumSkill;
+
+        public int requiredExperience;
+
+        public SkillType primarySkill;
+    }
+
 
     public static class JobDatabase
     {
-        public static List<JobDefinition> GetJobs()
+        public static List<JobDefinition>
+            GetJobs()
         {
             return new List<JobDefinition>
             {
-                new JobDefinition(
-                    "job_office_assistant",
-                    "Office Assistant",
-                    18000f,
-                    0,
-                    SkillType.Communication),
+                new JobDefinition
+                {
+                    title =
+                        "Junior Executive",
 
-                new JobDefinition(
-                    "job_sales_executive",
-                    "Sales Executive",
-                    28000f,
-                    0,
-                    SkillType.Sales),
+                    level =
+                        JobLevel.Junior,
 
-                new JobDefinition(
-                    "job_junior_executive",
-                    "Junior Executive",
-                    30000f,
-                    0,
-                    SkillType.Management),
+                    monthlySalary =
+                        30000,
 
-                new JobDefinition(
-                    "job_technician",
-                    "Technician",
-                    32000f,
-                    0,
-                    SkillType.Technical),
+                    minimumSkill =
+                        10,
 
-                new JobDefinition(
-                    "job_software_developer",
-                    "Junior Software Developer",
-                    45000f,
-                    0,
-                    SkillType.Technical),
+                    requiredExperience =
+                        0,
 
-                new JobDefinition(
-                    "job_manager",
-                    "Business Manager",
-                    80000f,
-                    24,
-                    SkillType.Management),
+                    primarySkill =
+                        SkillType.Communication
+                },
 
-                new JobDefinition(
-                    "job_senior_developer",
-                    "Senior Software Engineer",
-                    120000f,
-                    30,
-                    SkillType.Technical),
+                new JobDefinition
+                {
+                    title =
+                        "Business Analyst",
 
-                new JobDefinition(
-                    "job_finance_manager",
-                    "Finance Manager",
-                    110000f,
-                    36,
-                    SkillType.Finance),
+                    level =
+                        JobLevel.Mid,
 
-                new JobDefinition(
-                    "job_operations_manager",
-                    "Operations Manager",
-                    90000f,
-                    30,
-                    SkillType.Operations)
+                    monthlySalary =
+                        45000,
+
+                    minimumSkill =
+                        20,
+
+                    requiredExperience =
+                        1,
+
+                    primarySkill =
+                        SkillType.Finance
+                },
+
+                new JobDefinition
+                {
+                    title =
+                        "Operations Manager",
+
+                    level =
+                        JobLevel.Manager,
+
+                    monthlySalary =
+                        70000,
+
+                    minimumSkill =
+                        35,
+
+                    requiredExperience =
+                        3,
+
+                    primarySkill =
+                        SkillType.Operations
+                },
+
+                new JobDefinition
+                {
+                    title =
+                        "Product Manager",
+
+                    level =
+                        JobLevel.Manager,
+
+                    monthlySalary =
+                        85000,
+
+                    minimumSkill =
+                        40,
+
+                    requiredExperience =
+                        4,
+
+                    primarySkill =
+                        SkillType.Product
+                },
+
+                new JobDefinition
+                {
+                    title =
+                        "Director",
+
+                    level =
+                        JobLevel.Director,
+
+                    monthlySalary =
+                        140000,
+
+                    minimumSkill =
+                        55,
+
+                    requiredExperience =
+                        7,
+
+                    primarySkill =
+                        SkillType.Leadership
+                },
+
+                new JobDefinition
+                {
+                    title =
+                        "Executive",
+
+                    level =
+                        JobLevel.Executive,
+
+                    monthlySalary =
+                        250000,
+
+                    minimumSkill =
+                        70,
+
+                    requiredExperience =
+                        10,
+
+                    primarySkill =
+                        SkillType.Management
+                }
             };
         }
     }
 
-    // ============================================================
-    // BUSINESS DATABASE
-    // ============================================================
+    #endregion
+
+
+    #region BUSINESS
+
+    [Serializable]
+    public class BusinessDefinition
+    {
+        public string name;
+
+        public BusinessType type;
+
+        public decimal minimumCapital;
+
+        public decimal recommendedCapital;
+
+        public decimal setupCost;
+
+        public decimal monthlyFixedCost;
+
+        public decimal expectedMonthlyRevenue;
+
+        public int minimumSkill;
+
+        public SkillType usefulSkill;
+
+        public bool requiresPremises;
+
+        public bool requiresEmployees;
+    }
+
+
+    [Serializable]
+    public class Business
+    {
+        public string id;
+
+        public string companyName;
+
+        public BusinessDefinition definition;
+
+        public BusinessStatus status =
+            BusinessStatus.Planning;
+
+        public decimal cash;
+
+        public decimal revenue;
+
+        public decimal operatingCost;
+
+        public decimal payroll;
+
+        public decimal taxes;
+
+        public decimal debt;
+
+        public int employees;
+
+        public int reputation = 50;
+
+        public int marketShare = 1;
+
+
+        public decimal MonthlyProfit
+        {
+            get
+            {
+                return
+                    revenue -
+                    operatingCost -
+                    payroll -
+                    taxes;
+            }
+        }
+    }
+
 
     public static class BusinessDatabase
     {
-        public static List<BusinessDefinition> GetBusinesses()
+        public static List<BusinessDefinition>
+            GetBusinesses()
         {
             return new List<BusinessDefinition>
             {
-                new BusinessDefinition(
-                    "business_freelance",
-                    BusinessType.Freelancing,
-                    "Freelance Service",
-                    5000f,
-                    25000f,
-                    2000f,
-                    25000f,
-                    0,
-                    0.20f,
-                    SkillType.Technical),
+                new BusinessDefinition
+                {
+                    name =
+                        "Freelance Services",
 
-                new BusinessDefinition(
-                    "business_home_food",
-                    BusinessType.HomeFood,
-                    "Home Food Business",
-                    15000f,
-                    60000f,
-                    6000f,
-                    40000f,
-                    1,
-                    0.25f,
-                    SkillType.Operations),
+                    type =
+                        BusinessType.Freelance,
 
-                new BusinessDefinition(
-                    "business_retail",
-                    BusinessType.RetailShop,
-                    "Retail Shop",
-                    100000f,
-                    250000f,
-                    30000f,
-                    120000f,
-                    2,
-                    0.35f,
-                    SkillType.Sales),
+                    minimumCapital =
+                        0,
 
-                new BusinessDefinition(
-                    "business_repair",
-                    BusinessType.RepairCenter,
-                    "Repair Center",
-                    120000f,
-                    300000f,
-                    35000f,
-                    150000f,
-                    2,
-                    0.40f,
-                    SkillType.Technical),
+                    recommendedCapital =
+                        10000,
 
-                new BusinessDefinition(
-                    "business_carwash",
-                    BusinessType.CarWash,
-                    "Car Wash",
-                    250000f,
-                    600000f,
-                    50000f,
-                    220000f,
-                    4,
-                    0.35f,
-                    SkillType.Operations),
+                    setupCost =
+                        2000,
 
-                new BusinessDefinition(
-                    "business_clothing",
-                    BusinessType.Clothing,
-                    "Clothing Brand",
-                    300000f,
-                    800000f,
-                    100000f,
-                    400000f,
-                    5,
-                    0.50f,
-                    SkillType.Marketing),
+                    monthlyFixedCost =
+                        1000,
 
-                new BusinessDefinition(
-                    "business_restaurant",
-                    BusinessType.Restaurant,
-                    "Restaurant",
-                    500000f,
-                    1200000f,
-                    150000f,
-                    500000f,
-                    8,
-                    0.55f,
-                    SkillType.Operations),
+                    expectedMonthlyRevenue =
+                        20000,
 
-                new BusinessDefinition(
-                    "business_logistics",
-                    BusinessType.Logistics,
-                    "Logistics Company",
-                    800000f,
-                    2000000f,
-                    250000f,
-                    900000f,
-                    10,
-                    0.60f,
-                    SkillType.Operations),
+                    minimumSkill =
+                        10,
 
-                new BusinessDefinition(
-                    "business_software",
-                    BusinessType.SoftwareCompany,
-                    "Software Company",
-                    200000f,
-                    1000000f,
-                    80000f,
-                    600000f,
-                    4,
-                    0.60f,
-                    SkillType.Technical),
+                    usefulSkill =
+                        SkillType.Communication,
 
-                new BusinessDefinition(
-                    "business_agriculture",
-                    BusinessType.Agriculture,
-                    "Agriculture Business",
-                    200000f,
-                    800000f,
-                    50000f,
-                    300000f,
-                    5,
-                    0.65f,
-                    SkillType.Operations),
+                    requiresPremises =
+                        false,
 
-                new BusinessDefinition(
-                    "business_construction",
-                    BusinessType.Construction,
-                    "Construction Company",
-                    1000000f,
-                    5000000f,
-                    400000f,
-                    2000000f,
-                    15,
-                    0.70f,
-                    SkillType.Management),
+                    requiresEmployees =
+                        false
+                },
 
-                new BusinessDefinition(
-                    "business_manufacturing",
-                    BusinessType.SmallManufacturing,
-                    "Small Manufacturing Unit",
-                    1500000f,
-                    5000000f,
-                    500000f,
-                    1800000f,
-                    20,
-                    0.65f,
-                    SkillType.Operations),
+                new BusinessDefinition
+                {
+                    name =
+                        "Home Food Business",
 
-                new BusinessDefinition(
-                    "business_consumer",
-                    BusinessType.ConsumerProducts,
-                    "Consumer Products Company",
-                    3000000f,
-                    10000000f,
-                    800000f,
-                    4000000f,
-                    30,
-                    0.70f,
-                    SkillType.Marketing),
+                    type =
+                        BusinessType.HomeFood,
 
-                new BusinessDefinition(
-                    "business_technology",
-                    BusinessType.Technology,
-                    "Technology Company",
-                    1000000f,
-                    5000000f,
-                    300000f,
-                    3000000f,
-                    15,
-                    0.75f,
-                    SkillType.Technical)
+                    minimumCapital =
+                        15000,
+
+                    recommendedCapital =
+                        30000,
+
+                    setupCost =
+                        12000,
+
+                    monthlyFixedCost =
+                        5000,
+
+                    expectedMonthlyRevenue =
+                        35000,
+
+                    minimumSkill =
+                        10,
+
+                    usefulSkill =
+                        SkillType.Operations,
+
+                    requiresPremises =
+                        false,
+
+                    requiresEmployees =
+                        false
+                },
+
+                new BusinessDefinition
+                {
+                    name =
+                        "Retail Store",
+
+                    type =
+                        BusinessType.Retail,
+
+                    minimumCapital =
+                        100000,
+
+                    recommendedCapital =
+                        200000,
+
+                    setupCost =
+                        75000,
+
+                    monthlyFixedCost =
+                        25000,
+
+                    expectedMonthlyRevenue =
+                        150000,
+
+                    minimumSkill =
+                        20,
+
+                    usefulSkill =
+                        SkillType.Sales,
+
+                    requiresPremises =
+                        true,
+
+                    requiresEmployees =
+                        true
+                },
+
+                new BusinessDefinition
+                {
+                    name =
+                        "Restaurant",
+
+                    type =
+                        BusinessType.Restaurant,
+
+                    minimumCapital =
+                        500000,
+
+                    recommendedCapital =
+                        1000000,
+
+                    setupCost =
+                        350000,
+
+                    monthlyFixedCost =
+                        100000,
+
+                    expectedMonthlyRevenue =
+                        600000,
+
+                    minimumSkill =
+                        25,
+
+                    usefulSkill =
+                        SkillType.Operations,
+
+                    requiresPremises =
+                        true,
+
+                    requiresEmployees =
+                        true
+                },
+
+                new BusinessDefinition
+                {
+                    name =
+                        "Software Startup",
+
+                    type =
+                        BusinessType.Software,
+
+                    minimumCapital =
+                        100000,
+
+                    recommendedCapital =
+                        300000,
+
+                    setupCost =
+                        60000,
+
+                    monthlyFixedCost =
+                        35000,
+
+                    expectedMonthlyRevenue =
+                        250000,
+
+                    minimumSkill =
+                        30,
+
+                    usefulSkill =
+                        SkillType.Technology,
+
+                    requiresPremises =
+                        false,
+
+                    requiresEmployees =
+                        true
+                },
+
+                new BusinessDefinition
+                {
+                    name =
+                        "Manufacturing Unit",
+
+                    type =
+                        BusinessType.Manufacturing,
+
+                    minimumCapital =
+                        2500000,
+
+                    recommendedCapital =
+                        5000000,
+
+                    setupCost =
+                        1800000,
+
+                    monthlyFixedCost =
+                        450000,
+
+                    expectedMonthlyRevenue =
+                        2500000,
+
+                    minimumSkill =
+                        40,
+
+                    usefulSkill =
+                        SkillType.Operations,
+
+                    requiresPremises =
+                        true,
+
+                    requiresEmployees =
+                        true
+                }
             };
         }
     }
 
-    // ============================================================
-    // BUSINESS SELECTION
-    // ============================================================
+    #endregion
+
+
+    #region BUSINESS SELECTION
 
     public static class BusinessSelectionSystem
     {
-        public static List<BusinessDefinition> GetAffordableBusinesses(
-            float availableCapital)
+        public static List<BusinessDefinition>
+            GetAffordableBusinesses(
+                Player player
+            )
         {
-            return BusinessDatabase
-                .GetBusinesses()
-                .Where(business =>
-                    business.CanStartWith(availableCapital))
-                .OrderBy(business =>
-                    business.MinimumCapital)
-                .ToList();
+            List<BusinessDefinition>
+                result =
+                new List<BusinessDefinition>();
+
+
+            foreach (
+                BusinessDefinition business
+                in BusinessDatabase.GetBusinesses()
+            )
+            {
+                if (
+                    player.AvailableCapital >=
+                    business.minimumCapital
+                )
+                {
+                    result.Add(
+                        business
+                    );
+                }
+            }
+
+
+            return result;
         }
 
-        public static void PrintAffordableBusinesses(
-            float availableCapital)
+
+        public static bool CanStartBusiness(
+            Player player,
+            BusinessDefinition business
+        )
         {
-            List<BusinessDefinition> businesses =
-                GetAffordableBusinesses(availableCapital);
+            if (player == null)
+                return false;
 
-            Console.WriteLine();
-            Console.WriteLine("==========================================");
-            Console.WriteLine("BUSINESSES YOU CAN AFFORD");
-            Console.WriteLine("==========================================");
+            if (business == null)
+                return false;
 
-            if (businesses.Count == 0)
-            {
-                Console.WriteLine("No business currently fits your capital.");
-                return;
-            }
 
-            foreach (BusinessDefinition business in businesses)
-            {
-                Console.WriteLine(
-                    $"{business.Name} | " +
-                    $"Start ₹{business.MinimumCapital:0} | " +
-                    $"Recommended ₹{business.RecommendedCapital:0} | " +
-                    $"Risk {business.Risk * 100:0}%");
-            }
-
-            Console.WriteLine("==========================================");
+            return
+                player.AvailableCapital >=
+                business.setupCost;
         }
     }
 
-    // ============================================================
-    // BUSINESS SETUP
-    // ============================================================
+    #endregion
+
+
+    #region BUSINESS SETUP
 
     public static class BusinessSetupSystem
     {
-        private static int businessCounter = 0;
-
-        public static Business CreateBusiness(
+        public static Business StartBusiness(
             Player player,
             BusinessDefinition definition,
-            string location)
+            string companyName
+        )
         {
-            if (player == null)
-                throw new ArgumentNullException(nameof(player));
-
-            if (definition == null)
-                throw new ArgumentNullException(nameof(definition));
-
-            if (!definition.CanStartWith(player.Cash))
+            if (
+                player == null ||
+                definition == null
+            )
+            {
                 return null;
+            }
 
-            float setupCost = definition.MinimumCapital;
 
-            if (!player.Spend(setupCost))
+            if (
+                player.AvailableCapital <
+                definition.setupCost
+            )
+            {
                 return null;
+            }
 
-            businessCounter++;
 
-            Business business = new Business(
-                "company_" + businessCounter,
-                definition,
-                location,
-                0f);
+            if (
+                player.cash >=
+                definition.setupCost
+            )
+            {
+                player.cash -=
+                    definition.setupCost;
+            }
+            else
+            {
+                decimal remaining =
+                    definition.setupCost -
+                    player.cash;
 
-            business.Status = BusinessStatus.Setup;
+                player.cash = 0;
 
-            player.AddBusiness(business);
+                player.savings -=
+                    remaining;
+            }
+
+
+            Business business =
+                new Business();
+
+
+            business.id =
+                Guid.NewGuid().ToString();
+
+
+            business.companyName =
+                companyName;
+
+
+            business.definition =
+                definition;
+
+
+            business.status =
+                BusinessStatus.Operating;
+
+
+            business.cash =
+                0;
+
 
             return business;
         }
     }
 
-    // ============================================================
-    // MARKET
-    // ============================================================
+    #endregion
 
-    public class MarketSystem
+
+    #region EMPLOYEES
+
+    [Serializable]
+    public class Employee
     {
-        private Random random;
+        public string id;
 
-        public float DemandMultiplier { get; private set; }
+        public string name;
 
-        public MarketSystem(int seed = 0)
+        public string role;
+
+        public string department;
+
+        public decimal monthlySalary;
+
+        public int performance;
+
+        public int morale;
+
+        public int experience;
+
+        public EmployeeStatus status =
+            EmployeeStatus.Available;
+
+
+        public Employee(
+            string employeeName,
+            string employeeRole,
+            string employeeDepartment,
+            decimal salary
+        )
         {
-            random = seed == 0
-                ? new Random()
-                : new Random(seed);
+            id =
+                Guid.NewGuid().ToString();
 
-            DemandMultiplier = 1f;
+            name =
+                employeeName;
+
+            role =
+                employeeRole;
+
+            department =
+                employeeDepartment;
+
+            monthlySalary =
+                salary;
+
+            performance =
+                75;
+
+            morale =
+                75;
+
+            experience =
+                1;
         }
 
-        public void SimulateMonth()
-        {
-            double shock = random.NextDouble();
 
-            if (shock < 0.08)
-            {
-                // Major negative market shock
-                DemandMultiplier = 0.65f;
-            }
-            else if (shock < 0.18)
-            {
-                // Mild slowdown
-                DemandMultiplier = 0.85f;
-            }
-            else if (shock > 0.92)
-            {
-                // Strong market
-                DemandMultiplier = 1.25f;
-            }
-            else
-            {
-                DemandMultiplier = 0.95f + (float)random.NextDouble() * 0.15f;
-            }
+        public void Train()
+        {
+            performance =
+                Math.Min(
+                    100,
+                    performance + 4
+                );
+
+            morale =
+                Math.Min(
+                    100,
+                    morale + 2
+                );
+
+            status =
+                EmployeeStatus.Training;
+        }
+
+
+        public void GiveRaise(
+            decimal amount
+        )
+        {
+            monthlySalary +=
+                amount;
+
+            morale =
+                Math.Min(
+                    100,
+                    morale + 5
+                );
+        }
+
+
+        public void Promote(
+            string newRole,
+            decimal newSalary
+        )
+        {
+            role =
+                newRole;
+
+            monthlySalary =
+                newSalary;
+
+            experience += 1;
+
+            performance =
+                Math.Min(
+                    100,
+                    performance + 3
+                );
+
+            morale =
+                Math.Min(
+                    100,
+                    morale + 3
+                );
         }
     }
 
-    // ============================================================
-    // GAME SIMULATION
-    // ============================================================
+    #endregion
+
+
+    #region COMPANY
+
+    [Serializable]
+    public class Company
+    {
+        public string id;
+
+        public string legalName;
+
+        public CompanyStatus status =
+            CompanyStatus.Planning;
+
+        public Business business;
+
+        public List<Employee> employees =
+            new List<Employee>();
+
+        public List<Company> subsidiaries =
+            new List<Company>();
+
+        public decimal valuation;
+
+        public decimal retainedEarnings;
+
+
+        public decimal MonthlyPayroll
+        {
+            get
+            {
+                decimal total = 0;
+
+                foreach (
+                    Employee employee
+                    in employees
+                )
+                {
+                    if (
+                        employee.status !=
+                        EmployeeStatus.Fired &&
+                        employee.status !=
+                        EmployeeStatus.Resigned
+                    )
+                    {
+                        total +=
+                            employee.monthlySalary;
+                    }
+                }
+
+                return total;
+            }
+        }
+
+
+        public void AddEmployee(
+            Employee employee
+        )
+        {
+            if (employee == null)
+                return;
+
+
+            employees.Add(
+                employee
+            );
+
+
+            if (business != null)
+            {
+                business.employees =
+                    employees.Count;
+
+                business.payroll =
+                    MonthlyPayroll;
+            }
+        }
+
+
+        public void AddSubsidiary(
+            Company subsidiary
+        )
+        {
+            if (subsidiary == null)
+                return;
+
+
+            if (
+                subsidiaries.Contains(
+                    subsidiary
+                )
+            )
+            {
+                return;
+            }
+
+
+            subsidiaries.Add(
+                subsidiary
+            );
+        }
+    }
+
+    #endregion
+
+
+    #region MARKET
+
+    public static class MarketSystem
+    {
+        public static decimal
+            CalculateRevenue(
+                Business business
+            )
+        {
+            if (business == null)
+                return 0;
+
+
+            decimal baseRevenue =
+                business.definition
+                    .expectedMonthlyRevenue;
+
+
+            float reputationFactor =
+                0.7f +
+                (
+                    business.reputation /
+                    100f
+                ) * 0.6f;
+
+
+            float marketFactor =
+                0.8f +
+                (
+                    business.marketShare /
+                    100f
+                );
+
+
+            return
+                baseRevenue *
+                (decimal)reputationFactor *
+                (decimal)marketFactor;
+        }
+
+
+        public static void ApplyMonthlyMarket(
+            Business business
+        )
+        {
+            if (business == null)
+                return;
+
+
+            float shock =
+                UnityEngine.Random.Range(
+                    0.90f,
+                    1.10f
+                );
+
+
+            business.revenue =
+                CalculateRevenue(
+                    business
+                ) *
+                (decimal)shock;
+
+
+            business.operatingCost =
+                business.definition
+                    .monthlyFixedCost;
+
+
+            business.taxes =
+                Math.Max(
+                    0,
+                    business.revenue * 0.10m
+                );
+        }
+    }
+
+    #endregion
+
+
+    #region SIMULATION
 
     public class EmpireSimulation
     {
-        public Player Player { get; private set; }
+        public Player player;
 
-        public MarketSystem Market { get; private set; }
+        public List<Company> companies =
+            new List<Company>();
 
-        public int Month { get; private set; }
+        public int day = 1;
 
-        public EmpireSimulation(string playerName)
+        public int month = 1;
+
+
+        public EmpireSimulation()
         {
-            Player = new Player(playerName);
-            Market = new MarketSystem();
-
-            Month = 0;
+            player =
+                new Player();
         }
 
-        public void StartJob(JobDefinition job)
+
+        public void AdvanceDay()
         {
-            Player.SetJob(job);
+            day++;
+
+
+            if (
+                day % 30 == 0
+            )
+            {
+                AdvanceMonth();
+            }
         }
+
 
         public void AdvanceMonth()
         {
-            Month++;
+            month++;
 
-            Player.ReceiveSalary();
 
-            Player.PayLivingExpenses();
+            player.age =
+                player.age;
 
-            Player.GainCareerExperience();
 
-            Market.SimulateMonth();
-
-            foreach (Business business in Player.Businesses)
+            foreach (
+                Company company
+                in companies
+            )
             {
-                business.SimulateMonth(
-                    Market.DemandMultiplier);
+                ProcessCompanyMonth(
+                    company
+                );
+            }
+
+
+            player.SaveMoney();
+        }
+
+
+        private void ProcessCompanyMonth(
+            Company company
+        )
+        {
+            if (
+                company == null ||
+                company.business == null
+            )
+            {
+                return;
+            }
+
+
+            Business business =
+                company.business;
+
+
+            MarketSystem.ApplyMonthlyMarket(
+                business
+            );
+
+
+            business.payroll =
+                company.MonthlyPayroll;
+
+
+            decimal profit =
+                business.MonthlyProfit;
+
+
+            company.retainedEarnings +=
+                profit;
+
+
+            business.cash +=
+                profit;
+
+
+            if (profit > 0)
+            {
+                business.status =
+                    BusinessStatus.Growing;
+
+                company.status =
+                    CompanyStatus.Growing;
+
+                company.valuation =
+                    Math.Max(
+                        company.valuation,
+                        company.retainedEarnings * 8
+                    );
+            }
+            else
+            {
+                business.status =
+                    BusinessStatus.Distressed;
+
+                company.status =
+                    CompanyStatus.Distressed;
             }
         }
 
-        public void PrintMonthReport()
+
+        public bool StartBusiness(
+            BusinessDefinition definition,
+            string companyName
+        )
         {
-            Console.WriteLine();
-            Console.WriteLine("==========================================");
-            Console.WriteLine($"MONTH {Month}");
-            Console.WriteLine("==========================================");
+            Business business =
+                BusinessSetupSystem.StartBusiness(
+                    player,
+                    definition,
+                    companyName
+                );
 
-            Console.WriteLine(
-                $"Market Demand     : " +
-                $"{Market.DemandMultiplier * 100:0}%");
 
-            Console.WriteLine(
-                $"Personal Cash      : ₹{Player.Cash:0}");
+            if (business == null)
+                return false;
 
-            Console.WriteLine(
-                $"Personal Savings   : ₹{Player.Savings:0}");
 
-            Console.WriteLine(
-                $"Total Capital      : ₹{Player.TotalCapital():0}");
+            Company company =
+                new Company();
 
-            Console.WriteLine(
-                $"Businesses         : {Player.Businesses.Count}");
 
-            Console.WriteLine("==========================================");
+            company.id =
+                Guid.NewGuid().ToString();
+
+
+            company.legalName =
+                companyName;
+
+
+            company.business =
+                business;
+
+
+            company.status =
+                CompanyStatus.Active;
+
+
+            companies.Add(
+                company
+            );
+
+
+            return true;
+        }
+
+
+        public Company CreateSubsidiary(
+            Company parent,
+            BusinessDefinition definition,
+            string name
+        )
+        {
+            if (
+                parent == null ||
+                definition == null
+            )
+            {
+                return null;
+            }
+
+
+            Company subsidiary =
+                new Company();
+
+
+            subsidiary.id =
+                Guid.NewGuid().ToString();
+
+
+            subsidiary.legalName =
+                name;
+
+
+            subsidiary.status =
+                CompanyStatus.Active;
+
+
+            subsidiary.business =
+                new Business
+                {
+                    id =
+                        Guid.NewGuid().ToString(),
+
+                    companyName =
+                        name,
+
+                    definition =
+                        definition,
+
+                    status =
+                        BusinessStatus.Operating
+                };
+
+
+            parent.AddSubsidiary(
+                subsidiary
+            );
+
+
+            companies.Add(
+                subsidiary
+            );
+
+
+            return subsidiary;
         }
     }
 
-    // ============================================================
-    // SIMPLE DEVELOPMENT TEST
-    // ============================================================
+    #endregion
 
-    public static class EmpireRushCoreTest
+
+    #region UNITY BRIDGE
+
+    /*
+     * This MonoBehaviour is the bridge
+     * between the simulation and Unity.
+     *
+     * No Blueprint is required.
+     */
+
+    public class EmpireRushCore :
+        MonoBehaviour
     {
-        public static void Run()
+        public EmpireSimulation simulation;
+
+
+        [Header("Simulation Settings")]
+
+        public bool runSimulation =
+            true;
+
+        public float daysPerSecond =
+            1f;
+
+
+        private float timer;
+
+
+        private void Awake()
         {
-            Console.WriteLine();
-            Console.WriteLine("==========================================");
-            Console.WriteLine("       EMPIRE RUSH CORE ONLINE");
-            Console.WriteLine("==========================================");
+            simulation =
+                new EmpireSimulation();
 
-            EmpireSimulation simulation =
-                new EmpireSimulation("Player");
 
-            List<JobDefinition> jobs =
-                JobDatabase.GetJobs();
+            Debug.Log(
+                "EMPIRE RUSH C# CORE ONLINE"
+            );
+        }
 
-            simulation.StartJob(jobs[2]);
 
-            Console.WriteLine();
-            Console.WriteLine(
-                $"Starting Career: " +
-                $"{simulation.Player.CurrentJob.Title}");
+        private void Update()
+        {
+            if (!runSimulation)
+                return;
 
-            for (int i = 0; i < 6; i++)
+
+            timer +=
+                Time.deltaTime;
+
+
+            if (
+                timer >=
+                daysPerSecond
+            )
             {
-                simulation.AdvanceMonth();
-                simulation.PrintMonthReport();
+                timer = 0;
+
+                simulation.AdvanceDay();
+            }
+        }
+
+
+        public Player GetPlayer()
+        {
+            return simulation.player;
+        }
+
+
+        public List<BusinessDefinition>
+            GetAffordableBusinesses()
+        {
+            return
+                BusinessSelectionSystem
+                    .GetAffordableBusinesses(
+                        simulation.player
+                    );
+        }
+
+
+        public bool StartBusiness(
+            int businessIndex,
+            string companyName
+        )
+        {
+            List<BusinessDefinition>
+                businesses =
+                BusinessDatabase
+                    .GetBusinesses();
+
+
+            if (
+                businessIndex < 0 ||
+                businessIndex >=
+                businesses.Count
+            )
+            {
+                return false;
             }
 
-            BusinessSelectionSystem
-                .PrintAffordableBusinesses(
-                    simulation.Player.TotalCapital());
 
-            simulation.Player.PrintStatus();
-
-            Console.WriteLine();
-            Console.WriteLine("CORE TEST COMPLETE");
-            Console.WriteLine("==========================================");
+            return
+                simulation.StartBusiness(
+                    businesses[
+                        businessIndex
+                    ],
+                    companyName
+                );
         }
     }
+
+    #endregion
 }
