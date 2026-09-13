@@ -3,19 +3,32 @@
 
   /*
    * =========================================================
-   * EMPIRE RUSH — GAME STATE
-   * Phase 1
+   * EMPIRE RUSH — CENTRAL GAME STATE
+   * Integration / Stability Version
    *
-   * Shared browser-side simulation state.
+   * Player
+   *   ↓
+   * Job
+   *   ↓
+   * Salary
+   *   ↓
+   * Personal Cash / Savings
+   *   ↓
+   * Business
+   *   ↓
+   * Company
+   *   ↓
+   * Employees / Operations / Accounting / Market
    *
-   * This mirrors the important concepts of the C# core:
-   * Player → Job → Salary → Savings → Business → Company
-   *
-   * Later this contract can be connected directly to Unity C#.
+   * This is the browser simulation state contract.
+   * Future Unity/C# migration can map onto this contract.
    * =========================================================
    */
 
-  const STORAGE_KEY = "empire_rush_game_state_v1";
+  const STORAGE_KEY =
+    "empire_rush_game_state_v1";
+
+  const STATE_VERSION = 2;
 
 
   /* =========================================================
@@ -24,7 +37,7 @@
 
   const defaultState = {
 
-    version: 1,
+    version: STATE_VERSION,
 
     player: {
 
@@ -48,26 +61,21 @@
 
       experience: 0,
 
+      careerLevel: 1,
+
+      careerXP: 0,
+
       skills: {
 
         Communication: 10,
-
         Finance: 10,
-
         Sales: 10,
-
         Marketing: 10,
-
         Operations: 10,
-
         Management: 10,
-
         Technology: 10,
-
         Leadership: 10,
-
         Product: 10,
-
         HumanResources: 10
 
       }
@@ -85,7 +93,9 @@
 
       timeOfDay: 8,
 
-      weather: "Clear"
+      weather: "Clear",
+
+      totalDays: 1
 
     },
 
@@ -171,6 +181,22 @@
 
 
   /* =========================================================
+     SAFE NUMBER
+  ========================================================= */
+
+  function num(value, fallback = 0) {
+
+    const n =
+      Number(value);
+
+    return Number.isFinite(n)
+      ? n
+      : fallback;
+
+  }
+
+
+  /* =========================================================
      LOAD
   ========================================================= */
 
@@ -183,7 +209,6 @@
           STORAGE_KEY
         );
 
-
       if (!saved) {
 
         return clone(
@@ -192,10 +217,8 @@
 
       }
 
-
       const parsed =
         JSON.parse(saved);
-
 
       return mergeState(
         clone(defaultState),
@@ -209,7 +232,6 @@
         "Empire Rush state load failed:",
         error
       );
-
 
       return clone(
         defaultState
@@ -243,12 +265,25 @@
       function (key) {
 
         if (
+
           incoming[key] &&
-          typeof incoming[key] === "object" &&
-          !Array.isArray(incoming[key]) &&
+
+          typeof incoming[key] ===
+          "object" &&
+
+          !Array.isArray(
+            incoming[key]
+          ) &&
+
           base[key] &&
-          typeof base[key] === "object" &&
-          !Array.isArray(base[key])
+
+          typeof base[key] ===
+          "object" &&
+
+          !Array.isArray(
+            base[key]
+          )
+
         ) {
 
           base[key] =
@@ -272,6 +307,317 @@
     return base;
 
   }
+
+
+  /* =========================================================
+     STATE
+  ========================================================= */
+
+  const state =
+    loadState();
+
+
+  /* =========================================================
+     MIGRATION / NORMALIZATION
+  ========================================================= */
+
+  function normalizeState() {
+
+    state.version =
+      STATE_VERSION;
+
+
+    if (!state.player) {
+
+      state.player =
+        clone(
+          defaultState.player
+        );
+
+    }
+
+
+    if (!state.world) {
+
+      state.world =
+        clone(
+          defaultState.world
+        );
+
+    }
+
+
+    if (
+      !Array.isArray(
+        state.companies
+      )
+    ) {
+
+      state.companies = [];
+
+    }
+
+
+    if (
+      !Array.isArray(
+        state.employees
+      )
+    ) {
+
+      state.employees = [];
+
+    }
+
+
+    if (
+      !Array.isArray(
+        state.businesses
+      )
+    ) {
+
+      state.businesses =
+        clone(
+          defaultState.businesses
+        );
+
+    }
+
+
+    state.player.cash =
+      Math.max(
+        0,
+        num(
+          state.player.cash
+        )
+      );
+
+
+    state.player.savings =
+      Math.max(
+        0,
+        num(
+          state.player.savings
+        )
+      );
+
+
+    state.player.debt =
+      Math.max(
+        0,
+        num(
+          state.player.debt
+        )
+      );
+
+
+    state.player.age =
+      Math.max(
+        18,
+        num(
+          state.player.age,
+          22
+        )
+      );
+
+
+    state.world.day =
+      Math.max(
+        1,
+        num(
+          state.world.day,
+          1
+        )
+      );
+
+
+    state.world.month =
+      Math.max(
+        1,
+        Math.min(
+          12,
+          num(
+            state.world.month,
+            1
+          )
+        )
+      );
+
+
+    state.world.year =
+      Math.max(
+        1,
+        num(
+          state.world.year,
+          1
+        )
+      );
+
+
+    state.world.totalDays =
+      Math.max(
+        1,
+        num(
+          state.world.totalDays,
+          state.world.day
+        )
+      );
+
+
+    state.companies.forEach(
+      normalizeCompany
+    );
+
+  }
+
+
+  function normalizeCompany(
+    company
+  ) {
+
+    if (!company.id) {
+
+      company.id =
+        "company_" +
+        Date.now() +
+        "_" +
+        Math.floor(
+          Math.random() * 10000
+        );
+
+    }
+
+
+    if (
+      !Array.isArray(
+        company.employees
+      )
+    ) {
+
+      company.employees = [];
+
+    }
+
+
+    if (
+      !Array.isArray(
+        company.subsidiaries
+      )
+    ) {
+
+      company.subsidiaries = [];
+
+    }
+
+
+    company.revenue =
+      num(
+        company.revenue
+      );
+
+
+    company.operatingCost =
+      num(
+        company.operatingCost
+      );
+
+
+    company.payroll =
+      num(
+        company.payroll
+      );
+
+
+    company.taxes =
+      num(
+        company.taxes
+      );
+
+
+    company.valuation =
+      num(
+        company.valuation
+      );
+
+
+    /*
+     * Central company finance object.
+     *
+     * Older modules may use:
+     * company.cash
+     *
+     * Newer modules may use:
+     * company.finance.cash
+     *
+     * Both point to the same economic balance.
+     */
+
+    if (
+      !company.finance ||
+      typeof company.finance !==
+      "object"
+    ) {
+
+      company.finance = {};
+
+    }
+
+
+    if (
+      company.finance.cash ===
+      undefined
+    ) {
+
+      company.finance.cash =
+        num(
+          company.cash
+        );
+
+    }
+
+
+    company.cash =
+      num(
+        company.finance.cash
+      );
+
+
+    company.finance.cash =
+      company.cash;
+
+
+    company.finance.totalRevenue =
+      num(
+        company.finance.totalRevenue ||
+        company.revenue
+      );
+
+
+    company.finance.totalExpenses =
+      num(
+        company.finance.totalExpenses
+      );
+
+
+    company.finance.profit =
+      num(
+        company.finance.profit
+      );
+
+
+    company.status =
+      company.status ||
+      "Setup Required";
+
+
+    company.operating =
+      company.operating === true ||
+      company.status === "Operating" ||
+      company.status === "Growing";
+
+  }
+
+
+  normalizeState();
 
 
   /* =========================================================
@@ -308,7 +654,6 @@
         error
       );
 
-
       return false;
 
     }
@@ -317,23 +662,50 @@
 
 
   /* =========================================================
-     STATE
+     EVENT
   ========================================================= */
 
-  const state =
-    loadState();
+  function emitChange(
+    type,
+    detail
+  ) {
+
+    window.dispatchEvent(
+      new CustomEvent(
+        "EmpireGameStateChanged",
+        {
+          detail: {
+
+            type,
+
+            data:
+              detail || state,
+
+            state
+
+          }
+        }
+      )
+    );
+
+  }
 
 
   /* =========================================================
-     MONEY
+     PERSONAL MONEY
   ========================================================= */
 
   function addCash(
-    amount
+    amount,
+    reason = "Income"
   ) {
 
     amount =
-      Number(amount) || 0;
+      num(amount);
+
+    if (amount <= 0) {
+      return true;
+    }
 
 
     state.player.cash +=
@@ -342,27 +714,37 @@
 
     refreshBusinessAvailability();
 
+
     saveState();
 
+
     emitChange(
-      "cash"
+      "cash-added",
+      {
+        amount,
+        reason,
+        cash:
+          state.player.cash
+      }
     );
+
+
+    return true;
 
   }
 
 
   function spendCash(
-    amount
+    amount,
+    reason = "Expense"
   ) {
 
     amount =
-      Number(amount) || 0;
+      num(amount);
 
 
     if (amount <= 0) {
-
       return true;
-
     }
 
 
@@ -382,10 +764,18 @@
 
     refreshBusinessAvailability();
 
+
     saveState();
 
+
     emitChange(
-      "cash"
+      "cash-spent",
+      {
+        amount,
+        reason,
+        cash:
+          state.player.cash
+      }
     );
 
 
@@ -395,128 +785,7 @@
 
 
   /* =========================================================
-     JOB
-  ========================================================= */
-
-  function setJob(
-    job
-  ) {
-
-    if (!job) {
-
-      return false;
-
-    }
-
-
-    state.player.currentJob =
-      job.title ||
-      "Employee";
-
-
-    state.player.jobLevel =
-      job.level ||
-      "Entry";
-
-
-    state.player.monthlyIncome =
-      Number(
-        job.monthlySalary || 0
-      );
-
-
-    saveState();
-
-    emitChange(
-      "job"
-    );
-
-
-    return true;
-
-  }
-
-
-  /* =========================================================
-     SALARY
-  ========================================================= */
-
-  function paySalary() {
-
-    const salary =
-      Number(
-        state.player.monthlyIncome
-      ) || 0;
-
-
-    if (salary <= 0) {
-
-      return;
-
-    }
-
-
-    state.player.cash +=
-      salary;
-
-
-    emitChange(
-      "salary"
-    );
-
-
-    saveState();
-
-  }
-
-
-  /* =========================================================
-     MONTHLY EXPENSE
-  ========================================================= */
-
-  function payLivingExpenses() {
-
-    const expense =
-      Number(
-        state.player.monthlyExpenses
-      ) || 0;
-
-
-    if (
-      state.player.cash >=
-      expense
-    ) {
-
-      state.player.cash -=
-        expense;
-
-    }
-    else {
-
-      const shortage =
-        expense -
-        state.player.cash;
-
-
-      state.player.cash = 0;
-
-      state.player.debt +=
-        shortage;
-
-    }
-
-
-    saveState();
-
-    emitChange(
-      "expenses"
-    );
-
-  }
-
-
-  /* =========================================================
-     SAVE MONEY
+     SAVINGS
   ========================================================= */
 
   function transferToSavings(
@@ -524,7 +793,7 @@
   ) {
 
     amount =
-      Number(amount) || 0;
+      num(amount);
 
 
     if (
@@ -548,8 +817,200 @@
 
     saveState();
 
+
     emitChange(
-      "savings"
+      "savings-deposit",
+      {
+        amount
+      }
+    );
+
+
+    return true;
+
+  }
+
+
+  function withdrawSavings(
+    amount
+  ) {
+
+    amount =
+      num(amount);
+
+
+    if (
+      amount <= 0 ||
+      state.player.savings <
+      amount
+    ) {
+
+      return false;
+
+    }
+
+
+    state.player.savings -=
+      amount;
+
+
+    state.player.cash +=
+      amount;
+
+
+    refreshBusinessAvailability();
+
+
+    saveState();
+
+
+    emitChange(
+      "savings-withdraw",
+      {
+        amount
+      }
+    );
+
+
+    return true;
+
+  }
+
+
+  function getAvailableCapital() {
+
+    return (
+
+      num(
+        state.player.cash
+      ) +
+
+      num(
+        state.player.savings
+      )
+
+    );
+
+  }
+
+
+  function getNetWorth() {
+
+    let companyValue = 0;
+
+    state.companies.forEach(
+      function (company) {
+
+        companyValue +=
+          num(
+            company.valuation
+          );
+
+      }
+    );
+
+
+    return (
+
+      num(
+        state.player.cash
+      ) +
+
+      num(
+        state.player.savings
+      ) +
+
+      companyValue -
+
+      num(
+        state.player.debt
+      )
+
+    );
+
+  }
+
+
+  /* =========================================================
+     JOB
+  ========================================================= */
+
+  function setJob(
+    job
+  ) {
+
+    if (!job) {
+
+      return false;
+
+    }
+
+
+    /*
+     * Supports both:
+     *
+     * setJob(jobObject)
+     *
+     * and older style calls if another module uses them.
+     */
+
+    if (
+      typeof job === "string"
+    ) {
+
+      state.player.currentJob =
+        job;
+
+      saveState();
+
+      emitChange(
+        "job"
+      );
+
+      return true;
+
+    }
+
+
+    state.player.currentJob =
+      job.title ||
+      job.name ||
+      "Employee";
+
+
+    state.player.jobLevel =
+      job.level ||
+      "Entry";
+
+
+    state.player.monthlyIncome =
+      num(
+        job.monthlySalary ??
+        job.salary ??
+        0
+      );
+
+
+    if (
+      job.careerLevel !==
+      undefined
+    ) {
+
+      state.player.careerLevel =
+        num(
+          job.careerLevel,
+          1
+        );
+
+    }
+
+
+    saveState();
+
+
+    emitChange(
+      "job",
+      job
     );
 
 
@@ -559,15 +1020,119 @@
 
 
   /* =========================================================
-     CAPITAL
+     SALARY
   ========================================================= */
 
-  function getAvailableCapital() {
+  function paySalary() {
 
-    return (
-      Number(state.player.cash) +
-      Number(state.player.savings)
+    const salary =
+      num(
+        state.player.monthlyIncome
+      );
+
+
+    if (
+      salary <= 0
+    ) {
+
+      return 0;
+
+    }
+
+
+    state.player.cash +=
+      salary;
+
+
+    emitChange(
+      "salary",
+      {
+        amount:
+          salary
+      }
     );
+
+
+    saveState();
+
+
+    return salary;
+
+  }
+
+
+  /* =========================================================
+     LIVING EXPENSES
+  ========================================================= */
+
+  function payLivingExpenses() {
+
+    const expense =
+      Math.max(
+        0,
+        num(
+          state.player.monthlyExpenses
+        )
+      );
+
+
+    if (
+      expense <= 0
+    ) {
+
+      return 0;
+
+    }
+
+
+    if (
+      state.player.cash >=
+      expense
+    ) {
+
+      state.player.cash -=
+        expense;
+
+    }
+    else {
+
+      const shortage =
+        expense -
+        state.player.cash;
+
+
+      state.player.cash =
+        0;
+
+
+      state.player.debt +=
+        shortage;
+
+
+      emitChange(
+        "living-expense-debt",
+        {
+          expense,
+          shortage
+        }
+      );
+
+    }
+
+
+    saveState();
+
+
+    emitChange(
+      "expenses",
+      {
+        amount:
+          expense
+      }
+    );
+
+
+    return expense;
 
   }
 
@@ -578,6 +1143,17 @@
 
   function refreshBusinessAvailability() {
 
+    if (
+      !Array.isArray(
+        state.businesses
+      )
+    ) {
+
+      return;
+
+    }
+
+
     const capital =
       getAvailableCapital();
 
@@ -586,32 +1162,30 @@
       function (business) {
 
         if (
-          capital >=
-          business.minimumCapital
+          business.status ===
+          "Owned"
         ) {
 
-          if (
-            business.status ===
-            "Locked"
-          ) {
+          return;
 
-            business.status =
-              "Available";
+        }
 
-          }
+
+        if (
+          capital >=
+          num(
+            business.minimumCapital
+          )
+        ) {
+
+          business.status =
+            "Available";
 
         }
         else {
 
-          if (
-            business.status !==
-            "Owned"
-          ) {
-
-            business.status =
-              "Locked";
-
-          }
+          business.status =
+            "Locked";
 
         }
 
@@ -620,10 +1194,6 @@
 
   }
 
-
-  /* =========================================================
-     GET AVAILABLE BUSINESSES
-  ========================================================= */
 
   function getAvailableBusinesses() {
 
@@ -645,7 +1215,7 @@
 
 
   /* =========================================================
-     START BUSINESS
+     BUSINESS START
   ========================================================= */
 
   function startBusiness(
@@ -670,64 +1240,86 @@
 
       return {
         success: false,
-        reason: "Business not found"
+        reason:
+          "Business not found"
       };
 
     }
 
 
     if (
-      getAvailableCapital() <
-      business.setupCost
+      business.status ===
+      "Owned"
     ) {
 
       return {
         success: false,
-        reason: "Insufficient capital"
+        reason:
+          "Business already owned"
+      };
+
+    }
+
+
+    const setupCost =
+      Math.max(
+        0,
+        num(
+          business.setupCost
+        )
+      );
+
+
+    /*
+     * IMPORTANT:
+     * Validate total capital BEFORE
+     * deducting anything.
+     */
+
+    if (
+      getAvailableCapital() <
+      setupCost
+    ) {
+
+      return {
+        success: false,
+        reason:
+          "Insufficient capital"
       };
 
     }
 
 
     let remaining =
-      business.setupCost;
+      setupCost;
 
+
+    /*
+     * Cash first.
+     */
+
+    const cashUsed =
+      Math.min(
+        state.player.cash,
+        remaining
+      );
+
+
+    state.player.cash -=
+      cashUsed;
+
+
+    remaining -=
+      cashUsed;
+
+
+    /*
+     * Then personal savings.
+     */
 
     if (
-      state.player.cash >=
-      remaining
+      remaining > 0
     ) {
-
-      state.player.cash -=
-        remaining;
-
-      remaining = 0;
-
-    }
-    else {
-
-      remaining -=
-        state.player.cash;
-
-      state.player.cash = 0;
-
-    }
-
-
-    if (remaining > 0) {
-
-      if (
-        state.player.savings <
-        remaining
-      ) {
-
-        return {
-          success: false,
-          reason: "Insufficient savings"
-        };
-
-      }
-
 
       state.player.savings -=
         remaining;
@@ -735,13 +1327,25 @@
     }
 
 
+    const companyId =
+      "company_" +
+      Date.now() +
+      "_" +
+      Math.floor(
+        Math.random() * 10000
+      );
+
+
     const company = {
 
       id:
-        "company_" +
-        Date.now(),
+        companyId,
 
       legalName:
+        companyName ||
+        business.name,
+
+      name:
         companyName ||
         business.name,
 
@@ -754,28 +1358,75 @@
       type:
         business.type,
 
+      /*
+       * Company starts in setup.
+       * It becomes Operating only after
+       * business setup + launch.
+       */
+
       status:
-        "Operating",
+        "Setup Required",
 
-      cash: 0,
+      operating:
+        false,
 
-      revenue: 0,
+      setupComplete:
+        false,
 
-      operatingCost: 0,
+      launchDay:
+        null,
 
-      payroll: 0,
+      cash:
+        0,
 
-      taxes: 0,
+      revenue:
+        0,
 
-      employees: [],
+      operatingCost:
+        0,
 
-      reputation: 50,
+      payroll:
+        0,
 
-      marketShare: 1,
+      taxes:
+        0,
 
-      valuation: 0,
+      profit:
+        0,
 
-      subsidiaries: []
+      employees:
+        [],
+
+      reputation:
+        50,
+
+      marketShare:
+        1,
+
+      valuation:
+        0,
+
+      subsidiaries:
+        [],
+
+      finance: {
+
+        cash:
+          0,
+
+        totalRevenue:
+          0,
+
+        totalExpenses:
+          0,
+
+        profit:
+          0,
+
+        totalTaxes:
+          0
+
+      }
 
     };
 
@@ -801,16 +1452,189 @@
     );
 
 
+    window.dispatchEvent(
+      new CustomEvent(
+        "EmpireBusinessStarted",
+        {
+          detail: {
+            company
+          }
+        }
+      )
+    );
+
+
     return {
+
       success: true,
-      company: company
+
+      company
+
     };
 
   }
 
 
   /* =========================================================
-     HIRE EMPLOYEE
+     COMPANY MONEY
+  ========================================================= */
+
+  function getCompany(
+    companyId
+  ) {
+
+    return state.companies.find(
+      function (company) {
+
+        return (
+          String(company.id) ===
+          String(companyId)
+        );
+
+      }
+    ) || null;
+
+  }
+
+
+  function addCompanyCash(
+    companyId,
+    amount,
+    reason = "Company Income"
+  ) {
+
+    const company =
+      getCompany(
+        companyId
+      );
+
+
+    if (!company) {
+
+      return false;
+
+    }
+
+
+    amount =
+      num(amount);
+
+
+    if (
+      amount <= 0
+    ) {
+
+      return true;
+
+    }
+
+
+    normalizeCompany(
+      company
+    );
+
+
+    company.finance.cash +=
+      amount;
+
+
+    company.cash =
+      company.finance.cash;
+
+
+    saveState();
+
+
+    emitChange(
+      "company-cash-added",
+      {
+        companyId,
+        amount,
+        reason
+      }
+    );
+
+
+    return true;
+
+  }
+
+
+  function spendCompanyCash(
+    companyId,
+    amount,
+    reason = "Company Expense"
+  ) {
+
+    const company =
+      getCompany(
+        companyId
+      );
+
+
+    if (!company) {
+
+      return false;
+
+    }
+
+
+    amount =
+      num(amount);
+
+
+    if (
+      amount <= 0
+    ) {
+
+      return true;
+
+    }
+
+
+    normalizeCompany(
+      company
+    );
+
+
+    if (
+      company.finance.cash <
+      amount
+    ) {
+
+      return false;
+
+    }
+
+
+    company.finance.cash -=
+      amount;
+
+
+    company.cash =
+      company.finance.cash;
+
+
+    saveState();
+
+
+    emitChange(
+      "company-cash-spent",
+      {
+        companyId,
+        amount,
+        reason
+      }
+    );
+
+
+    return true;
+
+  }
+
+
+  /* =========================================================
+     EMPLOYEES
   ========================================================= */
 
   function hireEmployee(
@@ -819,15 +1643,8 @@
   ) {
 
     const company =
-      state.companies.find(
-        function (item) {
-
-          return (
-            item.id ===
-            companyId
-          );
-
-        }
+      getCompany(
+        companyId
       );
 
 
@@ -855,6 +1672,9 @@
           Math.random() * 10000
         ),
 
+      companyId:
+        companyId,
+
       name:
         employee.name ||
         "Employee",
@@ -868,23 +1688,27 @@
         "General",
 
       salary:
-        Number(
-          employee.salary || 30000
+        num(
+          employee.salary,
+          30000
         ),
 
       performance:
-        Number(
-          employee.performance || 75
+        num(
+          employee.performance,
+          75
         ),
 
       morale:
-        Number(
-          employee.morale || 75
+        num(
+          employee.morale,
+          75
         ),
 
       experience:
-        Number(
-          employee.experience || 1
+        num(
+          employee.experience,
+          1
         ),
 
       status:
@@ -922,19 +1746,8 @@
       new CustomEvent(
         "EmpireEmployeeHired",
         {
-          detail: {
-            name:
-              newEmployee.name,
-
-            role:
-              newEmployee.role,
-
-            department:
-              newEmployee.department,
-
-            salary:
-              newEmployee.salary
-          }
+          detail:
+            newEmployee
         }
       )
     );
@@ -944,10 +1757,6 @@
 
   }
 
-
-  /* =========================================================
-     PAYROLL
-  ========================================================= */
 
   function calculatePayroll(
     company
@@ -966,11 +1775,15 @@
 
 
     return company.employees.reduce(
-      function (total, employee) {
+      function (
+        total,
+        employee
+      ) {
 
         if (
           employee.status ===
           "Fired" ||
+
           employee.status ===
           "Resigned"
         ) {
@@ -982,8 +1795,8 @@
 
         return (
           total +
-          Number(
-            employee.salary || 0
+          num(
+            employee.salary
           )
         );
 
@@ -995,7 +1808,74 @@
 
 
   /* =========================================================
-     WORLD CLOCK
+     COMPANY LAUNCH
+  ========================================================= */
+
+  function launchCompany(
+    companyId
+  ) {
+
+    const company =
+      getCompany(
+        companyId
+      );
+
+
+    if (!company) {
+
+      return {
+        success: false,
+        reason:
+          "Company not found"
+      };
+
+    }
+
+
+    company.status =
+      "Operating";
+
+    company.operating =
+      true;
+
+    company.setupComplete =
+      true;
+
+    company.launchDay =
+      state.world.totalDays;
+
+
+    saveState();
+
+
+    emitChange(
+      "company-launched",
+      company
+    );
+
+
+    window.dispatchEvent(
+      new CustomEvent(
+        "EmpireBusinessLaunched",
+        {
+          detail: {
+            company
+          }
+        }
+      )
+    );
+
+
+    return {
+      success: true,
+      company
+    };
+
+  }
+
+
+  /* =========================================================
+     DAY
   ========================================================= */
 
   function advanceDay() {
@@ -1003,6 +1883,16 @@
     state.world.day +=
       1;
 
+    state.world.totalDays +=
+      1;
+
+
+    /*
+     * 8 → 8.5 → 9...
+     *
+     * Other systems can modify this
+     * further when needed.
+     */
 
     state.world.timeOfDay +=
       0.5;
@@ -1013,17 +1903,26 @@
       24
     ) {
 
-      state.world.timeOfDay = 0;
+      state.world.timeOfDay -=
+        24;
 
     }
 
 
+    /*
+     * Every 30 simulation days
+     * represents one game month.
+     */
+
     if (
-      state.world.day % 30 ===
-      0
+      state.world.day > 30
     ) {
 
-      advanceMonth();
+      state.world.day = 1;
+
+      advanceMonth(
+        true
+      );
 
     }
 
@@ -1032,13 +1931,142 @@
 
 
     emitChange(
-      "day"
+      "day",
+      {
+        day:
+          state.world.day,
+
+        month:
+          state.world.month,
+
+        year:
+          state.world.year
+      }
+    );
+
+
+    window.dispatchEvent(
+      new CustomEvent(
+        "EmpireDayAdvanced",
+        {
+          detail: {
+            state
+          }
+        }
+      )
     );
 
   }
 
 
-  function advanceMonth() {
+  /* =========================================================
+     MONTH
+  ========================================================= */
+
+  function advanceMonth(
+    fromDay = false
+  ) {
+
+    /*
+     * Salary + living expenses happen
+     * once per month only.
+     */
+
+    paySalary();
+
+    payLivingExpenses();
+
+
+    /*
+     * Central company economics is now
+     * deliberately conservative.
+     *
+     * Specialized modules such as:
+     *
+     * Customer Market
+     * Accounting
+     * Product Market
+     * Business Operations
+     *
+     * can add their own economic effects.
+     */
+
+    state.companies.forEach(
+      function (company) {
+
+        normalizeCompany(
+          company
+        );
+
+
+        if (
+          !company.operating
+        ) {
+
+          return;
+
+        }
+
+
+        const payroll =
+          calculatePayroll(
+            company
+          );
+
+
+        company.payroll =
+          payroll;
+
+
+        /*
+         * Do NOT manufacture a second
+         * large revenue stream here.
+         *
+         * Revenue should primarily come
+         * from business-specific systems.
+         */
+
+        company.finance.totalExpenses +=
+          payroll;
+
+
+        company.operatingCost =
+          payroll;
+
+
+        company.finance.profit =
+          num(
+            company.finance.totalRevenue
+          ) -
+          num(
+            company.finance.totalExpenses
+          );
+
+
+        company.profit =
+          company.finance.profit;
+
+
+        /*
+         * Valuation remains conservative.
+         */
+
+        const annualizedProfit =
+          Math.max(
+            0,
+            company.profit
+          ) * 12;
+
+
+        company.valuation =
+          Math.max(
+            company.finance.cash,
+            annualizedProfit * 5
+          );
+
+      }
+    );
+
 
     state.world.month +=
       1;
@@ -1059,174 +2087,39 @@
     }
 
 
-    paySalary();
-
-    payLivingExpenses();
-
-
-    state.companies.forEach(
-      processCompanyMonth
-    );
-
-
     saveState();
 
 
     emitChange(
-      "month"
+      "month",
+      {
+        fromDay
+      }
+    );
+
+
+    window.dispatchEvent(
+      new CustomEvent(
+        "EmpireMonthAdvanced",
+        {
+          detail: {
+            state
+          }
+        }
+      )
     );
 
   }
 
 
   /* =========================================================
-     COMPANY ECONOMICS
+     MANUAL MONTH
   ========================================================= */
 
-  function processCompanyMonth(
-    company
-  ) {
+  function manualAdvanceMonth() {
 
-    if (!company) {
-
-      return;
-
-    }
-
-
-    const employeeCount =
-      company.employees.length;
-
-
-    const baseRevenue =
-      Math.max(
-        0,
-        employeeCount * 30000
-      );
-
-
-    const reputationFactor =
-      0.7 +
-      (
-        Number(
-          company.reputation
-        ) / 100
-      ) * 0.6;
-
-
-    const marketFactor =
-      0.8 +
-      (
-        Number(
-          company.marketShare
-        ) / 100
-      );
-
-
-    company.revenue =
-      baseRevenue *
-      reputationFactor *
-      marketFactor;
-
-
-    company.payroll =
-      calculatePayroll(
-        company
-      );
-
-
-    company.operatingCost =
-      Math.max(
-        1000,
-        company.revenue *
-        0.25
-      );
-
-
-    company.taxes =
-      Math.max(
-        0,
-        company.revenue *
-        0.10
-      );
-
-
-    const profit =
-      company.revenue -
-      company.payroll -
-      company.operatingCost -
-      company.taxes;
-
-
-    company.cash +=
-      profit;
-
-
-    company.valuation =
-      Math.max(
-        0,
-        company.cash *
-        8
-      );
-
-
-    if (
-      profit > 0
-    ) {
-
-      company.status =
-        "Growing";
-
-      company.reputation =
-        Math.min(
-          100,
-          company.reputation + 1
-        );
-
-    }
-    else {
-
-      company.status =
-        "Distressed";
-
-      company.reputation =
-        Math.max(
-          0,
-          company.reputation - 2
-        );
-
-    }
-
-  }
-
-
-  /* =========================================================
-     EVENT
-  ========================================================= */
-
-  function emitChange(
-    type,
-    detail
-  ) {
-
-    window.dispatchEvent(
-      new CustomEvent(
-        "EmpireGameStateChanged",
-        {
-          detail: {
-
-            type:
-              type,
-
-            data:
-              detail || state,
-
-            state:
-              state
-
-          }
-        }
-      )
+    advanceMonth(
+      false
     );
 
   }
@@ -1242,8 +2135,39 @@
       STORAGE_KEY
     );
 
-
     location.reload();
+
+  }
+
+
+  /* =========================================================
+     SNAPSHOT
+  ========================================================= */
+
+  function getState() {
+
+    return state;
+
+  }
+
+
+  function getPlayer() {
+
+    return state.player;
+
+  }
+
+
+  function getCompanies() {
+
+    return state.companies;
+
+  }
+
+
+  function getWorld() {
+
+    return state.world;
 
   }
 
@@ -1254,7 +2178,16 @@
 
   window.EmpireGameState = {
 
-    state: state,
+    state,
+
+    getState,
+
+    getPlayer,
+
+    getCompanies,
+
+    getWorld,
+
 
     save:
       saveState,
@@ -1272,7 +2205,10 @@
         spendCash,
 
       capital:
-        getAvailableCapital
+        getAvailableCapital,
+
+      netWorth:
+        getNetWorth
 
     },
 
@@ -1289,7 +2225,13 @@
         payLivingExpenses,
 
       saveMoney:
-        transferToSavings
+        transferToSavings,
+
+      withdrawSavings:
+        withdrawSavings,
+
+      netWorth:
+        getNetWorth
 
     },
 
@@ -1300,12 +2242,24 @@
         getAvailableBusinesses,
 
       start:
-        startBusiness
+        startBusiness,
+
+      launch:
+        launchCompany
 
     },
 
 
     company: {
+
+      get:
+        getCompany,
+
+      addCash:
+        addCompanyCash,
+
+      spendCash:
+        spendCompanyCash,
 
       hire:
         hireEmployee,
@@ -1322,7 +2276,7 @@
         advanceDay,
 
       advanceMonth:
-        advanceMonth
+        manualAdvanceMonth
 
     }
 
@@ -1330,7 +2284,7 @@
 
 
   /* =========================================================
-     INITIAL REFRESH
+     INITIALIZATION
   ========================================================= */
 
   refreshBusinessAvailability();
@@ -1339,8 +2293,29 @@
 
 
   console.log(
-    "EMPIRE RUSH GAME STATE ONLINE"
-  );
+    "EMPIRE RUSH — CENTRAL GAME STATE ONLINE",
+    {
+      version:
+        STATE_VERSION,
 
+      day:
+        state.world.day,
+
+      month:
+        state.world.month,
+
+      year:
+        state.world.year,
+
+      cash:
+        state.player.cash,
+
+      savings:
+        state.player.savings,
+
+      companies:
+        state.companies.length
+    }
+  );
 
 })();
