@@ -3,44 +3,52 @@
 
   /*
    * ============================================================
-   * EMPIRE RUSH
-   * CAREER + CAPITAL + BUSINESS GAMEPLAY
+   * EMPIRE RUSH — CAREER + CAPITAL + BUSINESS UI
    *
-   * Flow:
-   * START
+   * CENTRAL STATE VERSION
+   *
+   * Player
    *   ↓
-   * JOB
+   * Job
    *   ↓
-   * WORK DAYS
+   * Work
    *   ↓
-   * SALARY
+   * Salary
    *   ↓
-   * EXPENSES
+   * Living Expenses
    *   ↓
-   * SAVINGS
+   * Savings
    *   ↓
-   * CAPITAL
+   * Capital
    *   ↓
-   * BUSINESS
+   * Business Setup
+   *   ↓
+   * Company
    * ============================================================
    */
 
   function waitForGameState(callback) {
+
     if (window.EmpireGameState) {
       callback(window.EmpireGameState);
       return;
     }
 
-    setTimeout(function () {
-      waitForGameState(callback);
-    }, 100);
+    setTimeout(
+      function () {
+        waitForGameState(callback);
+      },
+      100
+    );
+
   }
+
 
   waitForGameState(function (Game) {
 
-    /* ============================================================
+    /* ==========================================================
        JOB DATABASE
-       ============================================================ */
+    ========================================================== */
 
     const JOBS = [
 
@@ -53,7 +61,7 @@
         skill: "Communication",
         requirement: 0,
         description:
-          "Entry-level job. Easy to enter and provides stable income."
+          "Entry-level job with stable income."
       },
 
       {
@@ -77,7 +85,7 @@
         skill: "Management",
         requirement: 8,
         description:
-          "Corporate career path with stronger promotion opportunities."
+          "Corporate career with stronger management opportunities."
       },
 
       {
@@ -89,7 +97,7 @@
         skill: "Finance",
         requirement: 10,
         description:
-          "Stable finance career with strong business usefulness."
+          "Finance career that builds strong business knowledge."
       },
 
       {
@@ -101,7 +109,7 @@
         skill: "Technology",
         requirement: 12,
         description:
-          "High-income technical career with strong long-term growth."
+          "High-income technical career."
       },
 
       {
@@ -113,15 +121,15 @@
         skill: "Management",
         requirement: 25,
         description:
-          "Experienced corporate position."
+          "Experienced corporate leadership position."
       }
 
     ];
 
 
-    /* ============================================================
+    /* ==========================================================
        BUSINESS DATABASE
-       ============================================================ */
+       ========================================================== */
 
     const BUSINESSES = [
 
@@ -129,7 +137,7 @@
         id: "freelance",
         name: "Freelance Services",
         category: "Services",
-        cost: 5000,
+        cost: 2000,
         monthlyExpense: 2000,
         expectedRevenue: 12000,
         employees: 0,
@@ -139,23 +147,23 @@
       },
 
       {
-        id: "home_food",
+        id: "home-food",
         name: "Home Food Business",
         category: "Food",
-        cost: 25000,
+        cost: 12000,
         monthlyExpense: 9000,
         expectedRevenue: 30000,
         employees: 1,
         risk: "Medium",
         description:
-          "Small food operation that can later become a restaurant chain."
+          "Small food operation that can later become a restaurant."
       },
 
       {
         id: "retail",
-        name: "Small Retail Store",
+        name: "Retail Store",
         category: "Retail",
-        cost: 100000,
+        cost: 75000,
         monthlyExpense: 35000,
         expectedRevenue: 80000,
         employees: 2,
@@ -168,20 +176,20 @@
         id: "software",
         name: "Software Startup",
         category: "Technology",
-        cost: 150000,
+        cost: 60000,
         monthlyExpense: 50000,
         expectedRevenue: 140000,
         employees: 2,
         risk: "High",
         description:
-          "Build and sell software products or digital services."
+          "Build and sell software products and digital services."
       },
 
       {
         id: "restaurant",
-        name: "Small Restaurant",
+        name: "Restaurant",
         category: "Food & Hospitality",
-        cost: 300000,
+        cost: 350000,
         monthlyExpense: 100000,
         expectedRevenue: 220000,
         employees: 4,
@@ -192,9 +200,9 @@
 
       {
         id: "manufacturing",
-        name: "Small Manufacturing Unit",
+        name: "Manufacturing Unit",
         category: "Manufacturing",
-        cost: 750000,
+        cost: 1800000,
         monthlyExpense: 250000,
         expectedRevenue: 500000,
         employees: 8,
@@ -206,20 +214,11 @@
     ];
 
 
-    /* ============================================================
-       UTILITIES
-       ============================================================ */
+    /* ==========================================================
+       HELPERS
+    ========================================================== */
 
-    function money(value) {
-
-      return "₹" +
-        Math.round(Number(value) || 0)
-          .toLocaleString("en-IN");
-
-    }
-
-
-    function state() {
+    function getState() {
 
       return Game.getState
         ? Game.getState()
@@ -228,33 +227,53 @@
     }
 
 
-    function save() {
+    function getPlayer() {
 
-      if (Game.save) {
-        Game.save();
-      }
+      const s = getState();
+
+      return s.player || {};
 
     }
 
 
-    function notify() {
+    function money(value) {
 
-      window.dispatchEvent(
-        new CustomEvent(
-          "EmpireGameStateChanged"
-        )
+      return (
+        "₹" +
+        Math.round(
+          Number(value || 0)
+        ).toLocaleString("en-IN")
       );
+
+    }
+
+
+    function save() {
+
+      if (
+        typeof Game.save ===
+        "function"
+      ) {
+
+        Game.save();
+
+      }
 
     }
 
 
     function capital() {
 
-      const s = state();
+      const player =
+        getPlayer();
 
       return (
-        Number(s.cash) +
-        Number(s.savings)
+        Number(
+          player.cash || 0
+        ) +
+        Number(
+          player.savings || 0
+        )
       );
 
     }
@@ -262,14 +281,16 @@
 
     function averageSkill() {
 
-      const s = state();
+      const player =
+        getPlayer();
 
-      if (!s.skills) {
-        return 10;
-      }
+      const skills =
+        player.skills || {};
 
       const values =
-        Object.values(s.skills);
+        Object.values(
+          skills
+        );
 
       if (!values.length) {
         return 10;
@@ -277,17 +298,46 @@
 
       return Math.round(
         values.reduce(
-          (a, b) => a + Number(b || 0),
+          function (
+            total,
+            value
+          ) {
+
+            return (
+              total +
+              Number(value || 0)
+            );
+
+          },
           0
-        ) / values.length
+        ) /
+        values.length
       );
 
     }
 
 
-    /* ============================================================
+    function notify(
+      type = "career"
+    ) {
+
+      window.dispatchEvent(
+        new CustomEvent(
+          "EmpireGameStateChanged",
+          {
+            detail: {
+              type
+            }
+          }
+        )
+      );
+
+    }
+
+
+    /* ==========================================================
        CSS
-       ============================================================ */
+    ========================================================== */
 
     function installCSS() {
 
@@ -296,14 +346,20 @@
           "empireCareerCSS"
         )
       ) {
+
         return;
+
       }
 
+
       const style =
-        document.createElement("style");
+        document.createElement(
+          "style"
+        );
 
       style.id =
         "empireCareerCSS";
+
 
       style.textContent = `
 
@@ -313,13 +369,12 @@
           inset:0;
           z-index:99999;
           display:none;
+          color:#fff;
 
           font-family:
             Arial,
             Helvetica,
             sans-serif;
-
-          color:#ffffff;
 
         }
 
@@ -330,10 +385,10 @@
           inset:0;
 
           background:
-            rgba(0,0,0,.76);
+            rgba(0,0,0,.78);
 
           backdrop-filter:
-            blur(8px);
+            blur(9px);
 
         }
 
@@ -356,24 +411,26 @@
 
           overflow-y:auto;
 
+          padding:24px;
+
+          border-radius:22px;
+
           background:
             linear-gradient(
               145deg,
-              #0d1420,
-              #182536
+              #0c1420,
+              #182638
             );
 
           border:
             1px solid
-            rgba(255,255,255,.14);
-
-          border-radius:22px;
-
-          padding:24px;
+            rgba(255,255,255,.13);
 
           box-shadow:
             0 30px 100px
-            rgba(0,0,0,.7);
+            rgba(0,0,0,.75);
+
+          box-sizing:border-box;
 
         }
 
@@ -382,18 +439,16 @@
 
           position:absolute;
 
-          right:18px;
+          right:17px;
           top:15px;
 
           width:40px;
           height:40px;
 
           border:0;
-
           border-radius:50%;
 
-          background:#293646;
-
+          background:#293747;
           color:#fff;
 
           font-size:22px;
@@ -405,8 +460,7 @@
 
         #empireCareerUI h1 {
 
-          margin:
-            0 0 5px;
+          margin:0 0 5px;
 
           font-size:28px;
 
@@ -415,9 +469,11 @@
 
         #empireCareerUI .subtitle {
 
-          color:#94a4b8;
+          color:#92a3b8;
 
           margin-bottom:20px;
+
+          line-height:1.4;
 
         }
 
@@ -439,7 +495,7 @@
         #empireCareerUI .stat {
 
           background:
-            rgba(255,255,255,.07);
+            rgba(255,255,255,.065);
 
           border-radius:13px;
 
@@ -461,7 +517,15 @@
 
         #empireCareerUI .stat strong {
 
-          font-size:17px;
+          font-size:16px;
+
+          display:block;
+
+          white-space:nowrap;
+
+          overflow:hidden;
+
+          text-overflow:ellipsis;
 
         }
 
@@ -499,7 +563,7 @@
         #empireCareerUI .card {
 
           background:
-            rgba(255,255,255,.065);
+            rgba(255,255,255,.06);
 
           border:
             1px solid
@@ -548,13 +612,11 @@
 
           display:flex;
 
-          justify-content:
-            space-between;
+          justify-content:space-between;
 
           gap:10px;
 
-          margin:
-            8px 0;
+          margin:8px 0;
 
         }
 
@@ -591,13 +653,6 @@
         }
 
 
-        #empireCareerUI button.action:hover {
-
-          filter:brightness(1.15);
-
-        }
-
-
         #empireCareerUI button.action:disabled {
 
           opacity:.35;
@@ -610,13 +665,6 @@
         #empireCareerUI .success {
 
           background:#267b50 !important;
-
-        }
-
-
-        #empireCareerUI .danger {
-
-          background:#8b3030 !important;
 
         }
 
@@ -641,36 +689,9 @@
 
           padding:14px;
 
-          margin:
-            12px 0;
+          margin:12px 0;
 
-          line-height:1.5;
-
-        }
-
-
-        #empireCareerUI .progress {
-
-          height:8px;
-
-          background:#283544;
-
-          border-radius:10px;
-
-          overflow:hidden;
-
-          margin-top:8px;
-
-        }
-
-
-        #empireCareerUI .progressFill {
-
-          height:100%;
-
-          width:0%;
-
-          background:#4d8cff;
+          line-height:1.6;
 
         }
 
@@ -680,7 +701,6 @@
           position:fixed;
 
           left:20px;
-
           bottom:72px;
 
           z-index:5000;
@@ -702,10 +722,6 @@
           font-weight:bold;
 
           cursor:pointer;
-
-          box-shadow:
-            0 8px 25px
-            rgba(0,0,0,.35);
 
         }
 
@@ -735,14 +751,16 @@
 
       `;
 
-      document.head.appendChild(style);
+      document.head.appendChild(
+        style
+      );
 
     }
 
 
-    /* ============================================================
-       CREATE UI
-       ============================================================ */
+    /* ==========================================================
+       UI
+    ========================================================== */
 
     let overlay = null;
 
@@ -750,6 +768,7 @@
     function createUI() {
 
       installCSS();
+
 
       if (
         document.getElementById(
@@ -768,7 +787,9 @@
 
 
       overlay =
-        document.createElement("div");
+        document.createElement(
+          "div"
+        );
 
       overlay.id =
         "empireCareerUI";
@@ -786,16 +807,14 @@
             ×
           </button>
 
-
           <h1>
             Empire Career & Business
           </h1>
 
           <div class="subtitle">
-            Build your life from zero capital
-            to a business empire.
+            Start from zero. Build skills,
+            earn capital and create your company.
           </div>
-
 
           <div class="stats">
 
@@ -830,12 +849,11 @@
             <div class="stat">
               <small>Day</small>
               <strong id="careerDay">
-                1
+                Day 1
               </strong>
             </div>
 
           </div>
-
 
           <div id="careerContent"></div>
 
@@ -850,7 +868,9 @@
 
 
       const button =
-        document.createElement("button");
+        document.createElement(
+          "button"
+        );
 
       button.id =
         "careerButton";
@@ -885,18 +905,17 @@
     }
 
 
-    /* ============================================================
-       UPDATE HEADER
-       ============================================================ */
+    /* ==========================================================
+       HEADER
+    ========================================================== */
 
     function updateStats() {
 
-      const s = state();
+      const s =
+        getState();
 
-      if (!s) {
-        return;
-      }
-
+      const player =
+        s.player || {};
 
       const cash =
         document.getElementById(
@@ -927,7 +946,9 @@
       if (cash) {
 
         cash.textContent =
-          money(s.cash);
+          money(
+            player.cash
+          );
 
       }
 
@@ -935,7 +956,9 @@
       if (savings) {
 
         savings.textContent =
-          money(s.savings);
+          money(
+            player.savings
+          );
 
       }
 
@@ -943,7 +966,9 @@
       if (total) {
 
         total.textContent =
-          money(capital());
+          money(
+            capital()
+          );
 
       }
 
@@ -951,7 +976,7 @@
       if (job) {
 
         job.textContent =
-          s.currentJob ||
+          player.currentJob ||
           "Unemployed";
 
       }
@@ -959,35 +984,32 @@
 
       if (day) {
 
-        const d =
-          s.world
-            ? s.world.day
-            : 1;
-
         day.textContent =
-          "Day " + d;
+          "Day " +
+          (
+            s.world?.day ||
+            1
+          );
 
       }
 
     }
 
 
-    /* ============================================================
-       WORK / DAY SYSTEM
-       ============================================================ */
+    /* ==========================================================
+       WORK ONE DAY
+    ========================================================== */
 
     function workOneDay() {
 
-      const s = state();
-
-      if (!s) {
-        return;
-      }
+      const player =
+        getPlayer();
 
 
       if (
-        !s.currentJob ||
-        s.currentJob === "Unemployed"
+        !player.currentJob ||
+        player.currentJob ===
+        "Unemployed"
       ) {
 
         alert(
@@ -999,321 +1021,114 @@
       }
 
 
-      let salary =
-        Number(s.salary || 0);
+      /*
+       * Salary and expenses are now
+       * controlled by the central GameState.
+       *
+       * We intentionally DO NOT manually
+       * add salary here.
+       *
+       * Daily work only advances the world.
+       */
+
+      const before =
+        Number(
+          player.experience || 0
+        );
 
 
-      if (salary <= 0) {
+      /*
+       * Experience.
+       */
 
-        const found =
+      player.experience =
+        before + 1;
+
+
+      /*
+       * Skill development.
+       */
+
+      if (player.skills) {
+
+        const job =
           JOBS.find(
-            j =>
-              s.currentJob
-                .toLowerCase()
-                .includes(
-                  j.title.toLowerCase()
-                )
+            function (item) {
+
+              return (
+                item.title ===
+                player.currentJob
+              );
+
+            }
           );
 
-        if (found) {
 
-          salary =
-            found.salary;
-
-        }
-
-      }
+        const skill =
+          job?.skill ||
+          "Communication";
 
 
-      /*
-       * Salary is earned daily
-       * from monthly salary.
-       */
-
-      const dailySalary =
-        Math.round(
-          salary / 30
-        );
-
-
-      const monthlyExpenses =
-        Number(
-          s.monthlyExpenses ||
-          s.monthlyExpense ||
-          15000
-        );
-
-
-      const dailyExpense =
-        Math.round(
-          monthlyExpenses / 30
-        );
-
-
-      s.cash =
-        Number(s.cash || 0)
-        + dailySalary
-        - dailyExpense;
-
-
-      if (s.cash < 0) {
-
-        s.cash = 0;
-
-      }
-
-
-      s.experience =
-        Number(
-          s.experience || 0
-        ) + 1;
-
-
-      /*
-       * Small skill growth.
-       */
-
-      if (s.skills) {
-
-        Object.keys(
-          s.skills
-        ).forEach(function (key) {
-
-          s.skills[key] =
-            Math.min(
-              100,
-              Number(
-                s.skills[key] || 0
-              ) + 0.2
-            );
-
-        });
+        player.skills[skill] =
+          Math.min(
+            100,
+            Number(
+              player.skills[skill] || 0
+            ) + 0.25
+          );
 
       }
 
 
       /*
-       * Advance game day.
+       * Central clock.
+       *
+       * Month-end salary and expenses
+       * are handled by GameState.
        */
 
       if (
-        Game.advanceDay
+        Game.world &&
+        typeof Game.world.advanceDay ===
+        "function"
       ) {
 
-        Game.advanceDay();
-
-      } else {
-
-        if (!s.world) {
-
-          s.world = {
-            day:1,
-            month:1,
-            year:1
-          };
-
-        }
-
-        s.world.day++;
-
-      }
-
-
-      /*
-       * Monthly payday / progression.
-       */
-
-      const currentDay =
-        s.world
-          ? s.world.day
-          : 1;
-
-
-      if (
-        currentDay > 0 &&
-        currentDay % 30 === 0
-      ) {
-
-        monthlyCareerProgression();
+        Game.world.advanceDay();
 
       }
 
 
       save();
 
-      notify();
+      notify(
+        "worked-day"
+      );
 
       refresh();
 
     }
 
 
-    /* ============================================================
-       MONTHLY CAREER PROGRESSION
-       ============================================================ */
+    /* ==========================================================
+       APPLY JOB
+    ========================================================== */
 
-    function monthlyCareerProgression() {
-
-      const s = state();
-
-      if (!s) {
-        return;
-      }
-
-
-      if (
-        !s.currentJob ||
-        s.currentJob === "Unemployed"
-      ) {
-        return;
-      }
-
-
-      const job =
-        JOBS.find(
-          j =>
-            s.currentJob
-              .toLowerCase()
-              .includes(
-                j.title.toLowerCase()
-              )
-        );
-
+    function applyJob(job) {
 
       if (!job) {
         return;
       }
 
 
-      s.salary =
-        Number(
-          s.salary || job.salary
-        );
-
-
-      /*
-       * Every month salary gets
-       * a small increment.
-       */
-
-      s.salary +=
-        Math.round(
-          job.growth * 0.25
-        );
-
-
-      /*
-       * Promotion after enough experience.
-       */
-
-      if (
-        Number(s.experience || 0) >= 90
-      ) {
-
-        promotePlayer();
-
-      }
-
-    }
-
-
-    /* ============================================================
-       PROMOTION
-       ============================================================ */
-
-    function promotePlayer() {
-
-      const s = state();
-
-      if (!s) {
-        return;
-      }
-
-
-      const current =
-        s.currentJob || "";
-
-
-      const index =
-        JOBS.findIndex(
-          j =>
-            current
-              .toLowerCase()
-              .includes(
-                j.title.toLowerCase()
-              )
-        );
-
-
-      if (
-        index < 0 ||
-        index >= JOBS.length - 1
-      ) {
-        return;
-      }
-
-
-      const next =
-        JOBS[index + 1];
-
-
-      const average =
-        averageSkill();
-
-
-      if (
-        average <
-        next.requirement
-      ) {
-
-        return;
-
-      }
-
-
-      s.currentJob =
-        next.title;
-
-      s.salary =
-        next.salary;
-
-
-      alert(
-        "🎉 Promotion!\n\n" +
-        "New Position: " +
-        next.title +
-        "\nSalary: " +
-        money(next.salary)
-      );
-
-
-      save();
-
-      notify();
-
-    }
-
-
-    /* ============================================================
-       APPLY FOR JOB
-       ============================================================ */
-
-    function applyJob(job) {
-
-      const s = state();
-
-      if (!s) {
-        return;
-      }
-
-
       if (
         averageSkill() <
-        job.requirement
+        Number(
+          job.requirement || 0
+        )
       ) {
 
         alert(
-          "You need more skills for this job."
+          "Your skill level is too low for this job."
         );
 
         return;
@@ -1321,60 +1136,81 @@
       }
 
 
-      s.currentJob =
-        job.title;
+      const accepted =
+        Game.player &&
+        typeof Game.player.setJob ===
+        "function"
+          ? Game.player.setJob(
+              {
+                title:
+                  job.title,
 
-      s.salary =
-        job.salary;
+                level:
+                  job.requirement >= 25
+                    ? "Senior"
+                    : job.requirement >= 10
+                      ? "Professional"
+                      : "Entry",
 
-      s.jobCompany =
-        job.company;
+                monthlySalary:
+                  job.salary
+              }
+            )
+          : false;
 
-      s.jobSkill =
-        job.skill;
 
-      s.experience =
-        Number(
-          s.experience || 0
+      if (!accepted) {
+
+        alert(
+          "Unable to apply for this job."
         );
 
-
-      /*
-       * Apply a small starting bonus
-       * so the career system feels alive.
-       */
-
-      if (
-        !s.jobStarted
-      ) {
-
-        s.jobStarted =
-          true;
+        return;
 
       }
+
+
+      const player =
+        getPlayer();
+
+
+      player.jobCompany =
+        job.company;
+
+      player.jobSkill =
+        job.skill;
+
+      player.jobId =
+        job.id;
 
 
       save();
 
-      notify();
+      notify(
+        "job-accepted"
+      );
 
       refresh();
+
+
+      alert(
+        "💼 Job Accepted!\n\n" +
+        job.title +
+        "\n" +
+        money(job.salary) +
+        " / month"
+      );
 
     }
 
 
-    /* ============================================================
+    /* ==========================================================
        SAVE MONEY
-       ============================================================ */
+    ========================================================== */
 
-    function saveMoney(amount) {
-
-      const s = state();
-
-      if (!s) {
-        return;
-      }
-
+    function saveMoney(
+      amount
+    ) {
 
       amount =
         Number(amount || 0);
@@ -1388,9 +1224,23 @@
 
 
       if (
-        Number(s.cash || 0)
-        < amount
+        !Game.player ||
+        typeof Game.player.saveMoney !==
+        "function"
       ) {
+
+        return;
+
+      }
+
+
+      const success =
+        Game.player.saveMoney(
+          amount
+        );
+
+
+      if (!success) {
 
         alert(
           "You don't have enough cash."
@@ -1401,37 +1251,18 @@
       }
 
 
-      s.cash -=
-        amount;
-
-
-      s.savings =
-        Number(
-          s.savings || 0
-        ) + amount;
-
-
-      save();
-
-      notify();
-
       refresh();
 
     }
 
 
-    /* ============================================================
-       WITHDRAW SAVINGS
-       ============================================================ */
+    /* ==========================================================
+       WITHDRAW
+    ========================================================== */
 
-    function withdrawSavings(amount) {
-
-      const s = state();
-
-      if (!s) {
-        return;
-      }
-
+    function withdrawSavings(
+      amount
+    ) {
 
       amount =
         Number(amount || 0);
@@ -1445,9 +1276,23 @@
 
 
       if (
-        Number(s.savings || 0)
-        < amount
+        !Game.player ||
+        typeof Game.player.withdrawSavings !==
+        "function"
       ) {
+
+        return;
+
+      }
+
+
+      const success =
+        Game.player.withdrawSavings(
+          amount
+        );
+
+
+      if (!success) {
 
         alert(
           "Not enough savings."
@@ -1458,32 +1303,20 @@
       }
 
 
-      s.savings -=
-        amount;
-
-      s.cash =
-        Number(s.cash || 0)
-        + amount;
-
-
-      save();
-
-      notify();
-
       refresh();
 
     }
 
 
-    /* ============================================================
+    /* ==========================================================
        START BUSINESS
-       ============================================================ */
+    ========================================================== */
 
-    function startBusiness(business) {
+    function startBusiness(
+      business
+    ) {
 
-      const s = state();
-
-      if (!s) {
+      if (!business) {
         return;
       }
 
@@ -1500,9 +1333,13 @@
         alert(
           "Not enough capital.\n\n" +
           "Required: " +
-          money(business.cost) +
+          money(
+            business.cost
+          ) +
           "\nAvailable: " +
-          money(available)
+          money(
+            available
+          )
         );
 
         return;
@@ -1516,25 +1353,16 @@
           "START BUSINESS\n\n" +
 
           business.name +
-          "\n\n" +
 
-          "Setup Cost: " +
-          money(business.cost) +
-          "\n" +
-
-          "Monthly Expense: " +
+          "\n\nSetup Cost: " +
           money(
-            business.monthlyExpense
+            business.cost
           ) +
-          "\n" +
 
-          "Expected Revenue: " +
-          money(
-            business.expectedRevenue
-          ) +
-          "\n\n" +
+          "\n\nRisk: " +
+          business.risk +
 
-          "Continue?"
+          "\n\nContinue?"
 
         );
 
@@ -1544,164 +1372,66 @@
       }
 
 
-      let remaining =
-        business.cost;
-
-
       /*
-       * Cash first.
+       * Central GameState is now the ONLY
+       * place that creates the company.
        */
 
-      const cash =
-        Number(s.cash || 0);
+      if (
+        !Game.business ||
+        typeof Game.business.start !==
+        "function"
+      ) {
+
+        alert(
+          "Business system unavailable."
+        );
+
+        return;
+
+      }
+
+
+      const result =
+        Game.business.start(
+          business.id,
+          business.name
+        );
 
 
       if (
-        cash >= remaining
+        !result ||
+        result.success !== true
       ) {
 
-        s.cash -=
-          remaining;
+        alert(
+          result?.reason ||
+          "Unable to start business."
+        );
 
-        remaining = 0;
-
-      } else {
-
-        remaining -=
-          cash;
-
-        s.cash = 0;
+        return;
 
       }
 
-
-      /*
-       * Then savings.
-       */
-
-      if (remaining > 0) {
-
-        s.savings =
-          Math.max(
-            0,
-            Number(
-              s.savings || 0
-            ) - remaining
-          );
-
-      }
-
-
-      /*
-       * Create company.
-       */
-
-      if (!s.companies) {
-
-        s.companies = [];
-
-      }
-
-
-      const company = {
-
-        id:
-          "company_" +
-          Date.now(),
-
-        name:
-          business.name,
-
-        category:
-          business.category,
-
-        status:
-          "Operating",
-
-        foundedDay:
-          s.world
-            ? s.world.day
-            : 1,
-
-        setupCost:
-          business.cost,
-
-        monthlyExpense:
-          business.monthlyExpense,
-
-        expectedRevenue:
-          business.expectedRevenue,
-
-        revenue:
-          0,
-
-        expenses:
-          0,
-
-        profit:
-          0,
-
-        employees:
-          [],
-
-        level:
-          1,
-
-        valuation:
-          business.cost
-
-      };
-
-
-      s.companies.push(
-        company
-      );
-
-
-      /*
-       * Active company reference.
-       */
-
-      s.activeCompanyId =
-        company.id;
-
-
-      /*
-       * Start business event.
-       */
-
-      window.dispatchEvent(
-
-        new CustomEvent(
-          "EmpireBusinessStarted",
-          {
-            detail: company
-          }
-        )
-
-      );
-
-
-      save();
-
-      notify();
 
       refresh();
 
 
       alert(
-        "🏢 Business Started!\n\n" +
+        "🏢 Business Created!\n\n" +
         business.name +
         "\n\n" +
-        "You are now a business owner."
+        "Status: Setup Required\n\n" +
+        "Complete registration, tax, banking,\n" +
+        "licenses and other setup tasks before launch."
       );
 
     }
 
 
-    /* ============================================================
-       RENDER CAREER
-       ============================================================ */
+    /* ==========================================================
+       CAREER RENDER
+    ========================================================== */
 
     function renderCareer() {
 
@@ -1710,24 +1440,25 @@
           "careerContent"
         );
 
+
       if (!content) {
         return;
       }
 
 
-      const s = state();
+      const s =
+        getState();
 
-      if (!s) {
-        return;
-      }
+      const player =
+        s.player || {};
 
 
       let html = "";
 
 
-      /* ----------------------------------------------------------
+      /* ========================================================
          CAREER STATUS
-         ---------------------------------------------------------- */
+      ======================================================== */
 
       html += `
 
@@ -1741,14 +1472,19 @@
 
             Current Job:
             <strong>
-              ${s.currentJob || "Unemployed"}
+              ${escapeHTML(
+                player.currentJob ||
+                "Unemployed"
+              )}
             </strong>
 
             <br>
 
             Monthly Salary:
             <strong>
-              ${money(s.salary || 0)}
+              ${money(
+                player.monthlyIncome
+              )}
             </strong>
 
             <br>
@@ -1757,7 +1493,7 @@
             <strong>
               ${Math.round(
                 Number(
-                  s.experience || 0
+                  player.experience || 0
                 )
               )}
             </strong>
@@ -1772,6 +1508,7 @@
             </strong>
 
           </div>
+
 
           <div class="buttonRow">
 
@@ -1798,9 +1535,9 @@
       `;
 
 
-      /* ----------------------------------------------------------
+      /* ========================================================
          JOB MARKET
-         ---------------------------------------------------------- */
+      ======================================================== */
 
       html += `
 
@@ -1819,7 +1556,7 @@
         function (job) {
 
           const current =
-            s.currentJob ===
+            player.currentJob ===
             job.title;
 
 
@@ -1833,21 +1570,29 @@
             <div class="card">
 
               <h3>
-                ${job.title}
+                ${escapeHTML(
+                  job.title
+                )}
               </h3>
 
               <div class="muted">
-                ${job.company}
+                ${escapeHTML(
+                  job.company
+                )}
               </div>
 
               <div class="salary">
-                ${money(job.salary)}
+                ${money(
+                  job.salary
+                )}
                 / month
               </div>
 
               <div class="muted">
                 Skill:
-                ${job.skill}
+                ${escapeHTML(
+                  job.skill
+                )}
               </div>
 
               <div class="muted">
@@ -1856,7 +1601,9 @@
               </div>
 
               <p class="muted">
-                ${job.description}
+                ${escapeHTML(
+                  job.description
+                )}
               </p>
 
               <button
@@ -1867,7 +1614,8 @@
                 }"
                 data-job-id="${job.id}"
                 ${
-                  locked && !current
+                  locked &&
+                  !current
                     ? "disabled"
                     : ""
                 }>
@@ -1896,16 +1644,16 @@
       `;
 
 
-      /* ----------------------------------------------------------
-         SAVINGS
-         ---------------------------------------------------------- */
+      /* ========================================================
+         FINANCE
+      ======================================================== */
 
       html += `
 
         <div class="section">
 
           <div class="sectionTitle">
-            💰 Financial Management
+            💰 Personal Finance
           </div>
 
           <div class="card">
@@ -1913,21 +1661,27 @@
             <div class="row">
               <span>Cash</span>
               <strong>
-                ${money(s.cash)}
+                ${money(
+                  player.cash
+                )}
               </strong>
             </div>
 
             <div class="row">
               <span>Savings</span>
               <strong>
-                ${money(s.savings)}
+                ${money(
+                  player.savings
+                )}
               </strong>
             </div>
 
             <div class="row">
               <span>Total Capital</span>
               <strong>
-                ${money(capital())}
+                ${money(
+                  capital()
+                )}
               </strong>
             </div>
 
@@ -1935,9 +1689,7 @@
               <span>Monthly Expenses</span>
               <strong>
                 ${money(
-                  s.monthlyExpenses ||
-                  s.monthlyExpense ||
-                  15000
+                  player.monthlyExpenses
                 )}
               </strong>
             </div>
@@ -1961,9 +1713,9 @@
       `;
 
 
-      /* ----------------------------------------------------------
+      /* ========================================================
          BUSINESS MARKET
-         ---------------------------------------------------------- */
+      ======================================================== */
 
       html += `
 
@@ -1975,16 +1727,18 @@
 
           <div class="notice">
 
-            Your available capital:
+            Available Capital:
 
             <strong>
-              ${money(capital())}
+              ${money(
+                capital()
+              )}
             </strong>
 
             <br>
 
-            Businesses are unlocked
-            according to your actual capital.
+            Business selection is based on
+            your actual available capital.
 
           </div>
 
@@ -2011,11 +1765,15 @@
             <div class="card">
 
               <h3>
-                ${business.name}
+                ${escapeHTML(
+                  business.name
+                )}
               </h3>
 
               <div class="muted">
-                ${business.category}
+                ${escapeHTML(
+                  business.category
+                )}
               </div>
 
               <div class="salary">
@@ -2027,7 +1785,7 @@
 
               <div class="row">
                 <span>
-                  Monthly Revenue
+                  Expected Revenue
                 </span>
 
                 <strong>
@@ -2039,7 +1797,7 @@
 
               <div class="row">
                 <span>
-                  Monthly Expense
+                  Estimated Expenses
                 </span>
 
                 <strong>
@@ -2051,24 +1809,34 @@
 
               <div class="row">
                 <span>
-                  Estimated Profit
+                  Indicative Profit
                 </span>
 
                 <strong>
-                  ${money(profit)}
+                  ${money(
+                    profit
+                  )}
                 </strong>
               </div>
 
               <div class="muted">
+
                 Employees:
                 ${business.employees}
+
                 <br>
+
                 Risk:
-                ${business.risk}
+                ${escapeHTML(
+                  business.risk
+                )}
+
               </div>
 
               <p class="muted">
-                ${business.description}
+                ${escapeHTML(
+                  business.description
+                )}
               </p>
 
               <button
@@ -2106,14 +1874,15 @@
       `;
 
 
-      /* ----------------------------------------------------------
-         EXISTING COMPANIES
-         ---------------------------------------------------------- */
+      /* ========================================================
+         COMPANIES
+      ======================================================== */
 
-      if (
-        s.companies &&
-        s.companies.length
-      ) {
+      const companies =
+        s.companies || [];
+
+
+      if (companies.length) {
 
         html += `
 
@@ -2128,7 +1897,7 @@
         `;
 
 
-        s.companies.forEach(
+        companies.forEach(
           function (company) {
 
             html += `
@@ -2136,17 +1905,28 @@
               <div class="card">
 
                 <h3>
-                  ${company.name}
+                  ${escapeHTML(
+                    company.name ||
+                    company.legalName ||
+                    "Company"
+                  )}
                 </h3>
 
                 <div class="muted">
-                  ${company.category}
+                  ${escapeHTML(
+                    company.businessName ||
+                    company.type ||
+                    ""
+                  )}
                 </div>
 
                 <div class="row">
                   <span>Status</span>
                   <strong>
-                    ${company.status}
+                    ${escapeHTML(
+                      company.status ||
+                      "Setup Required"
+                    )}
                   </strong>
                 </div>
 
@@ -2158,10 +1938,12 @@
                 </div>
 
                 <div class="row">
-                  <span>Valuation</span>
+                  <span>Company Cash</span>
                   <strong>
                     ${money(
-                      company.valuation
+                      company.finance?.cash ??
+                      company.cash ??
+                      0
                     )}
                   </strong>
                 </div>
@@ -2170,7 +1952,9 @@
                   <span>Employees</span>
                   <strong>
                     ${
-                      company.employees
+                      Array.isArray(
+                        company.employees
+                      )
                         ? company.employees.length
                         : 0
                     }
@@ -2197,22 +1981,18 @@
         html;
 
 
-      /* ==========================================================
-         BUTTON EVENTS
-         ========================================================== */
+      /* ========================================================
+         EVENTS
+      ======================================================== */
 
-
-      const workButton =
+      const work =
         document.getElementById(
           "workDayBtn"
         );
 
-
-      if (workButton) {
-
-        workButton.onclick =
+      if (work) {
+        work.onclick =
           workOneDay;
-
       }
 
 
@@ -2220,7 +2000,6 @@
         document.getElementById(
           "saveMoneyBtn"
         );
-
 
       if (saveButton) {
 
@@ -2236,15 +2015,14 @@
       }
 
 
-      const withdrawButton =
+      const withdraw =
         document.getElementById(
           "withdrawBtn"
         );
 
+      if (withdraw) {
 
-      if (withdrawButton) {
-
-        withdrawButton.onclick =
+        withdraw.onclick =
           function () {
 
             withdrawSavings(
@@ -2256,10 +2034,6 @@
       }
 
 
-      /* ==========================================================
-         JOB BUTTONS
-         ========================================================== */
-
       document
         .querySelectorAll(
           "[data-job-id]"
@@ -2270,30 +2044,27 @@
             button.onclick =
               function () {
 
-                const id =
-                  button.dataset.jobId;
-
                 const job =
                   JOBS.find(
-                    j =>
-                      j.id === id
+                    function (item) {
+
+                      return (
+                        item.id ===
+                        button.dataset.jobId
+                      );
+
+                    }
                   );
 
-                if (!job) {
-                  return;
+                if (job) {
+                  applyJob(job);
                 }
-
-                applyJob(job);
 
               };
 
           }
         );
 
-
-      /* ==========================================================
-         BUSINESS BUTTONS
-         ========================================================== */
 
       document
         .querySelectorAll(
@@ -2305,22 +2076,23 @@
             button.onclick =
               function () {
 
-                const id =
-                  button.dataset.businessId;
-
                 const business =
                   BUSINESSES.find(
-                    b =>
-                      b.id === id
+                    function (item) {
+
+                      return (
+                        item.id ===
+                        button.dataset.businessId
+                      );
+
+                    }
                   );
 
-                if (!business) {
-                  return;
+                if (business) {
+                  startBusiness(
+                    business
+                  );
                 }
-
-                startBusiness(
-                  business
-                );
 
               };
 
@@ -2330,9 +2102,9 @@
     }
 
 
-    /* ============================================================
+    /* ==========================================================
        REFRESH
-       ============================================================ */
+    ========================================================== */
 
     function refresh() {
 
@@ -2343,9 +2115,9 @@
     }
 
 
-    /* ============================================================
+    /* ==========================================================
        OPEN / CLOSE
-       ============================================================ */
+    ========================================================== */
 
     function open() {
 
@@ -2371,9 +2143,44 @@
     }
 
 
-    /* ============================================================
-       GAME STATE EVENTS
-       ============================================================ */
+    /* ==========================================================
+       ESCAPE HTML
+    ========================================================== */
+
+    function escapeHTML(
+      value
+    ) {
+
+      return String(
+        value ?? ""
+      )
+        .replace(
+          /&/g,
+          "&amp;"
+        )
+        .replace(
+          /</g,
+          "&lt;"
+        )
+        .replace(
+          />/g,
+          "&gt;"
+        )
+        .replace(
+          /"/g,
+          "&quot;"
+        )
+        .replace(
+          /'/g,
+          "&#039;"
+        );
+
+    }
+
+
+    /* ==========================================================
+       EVENTS
+    ========================================================== */
 
     window.addEventListener(
       "EmpireGameStateChanged",
@@ -2382,7 +2189,7 @@
         if (
           overlay &&
           overlay.style.display !==
-            "none"
+          "none"
         ) {
 
           refresh();
@@ -2397,35 +2204,46 @@
       "EmpireBusinessStarted",
       function () {
 
-        refresh();
+        if (overlay) {
+          refresh();
+        }
 
       }
     );
 
 
-    /* ============================================================
+    window.addEventListener(
+      "EmpireBusinessLaunched",
+      function () {
+
+        if (overlay) {
+          refresh();
+        }
+
+      }
+    );
+
+
+    /* ==========================================================
        PUBLIC API
-       ============================================================ */
+    ========================================================== */
 
     window.EmpireCareerBusinessUI = {
 
-      open: open,
+      open,
 
-      close: close,
+      close,
 
-      refresh: refresh,
+      refresh,
 
       workDay:
         workOneDay,
 
-      saveMoney:
-        saveMoney,
+      saveMoney,
 
-      withdrawSavings:
-        withdrawSavings,
+      withdrawSavings,
 
-      startBusiness:
-        startBusiness,
+      startBusiness,
 
       jobs:
         JOBS,
@@ -2436,13 +2254,18 @@
     };
 
 
-    /* ============================================================
+    /* ==========================================================
        INITIALIZE
-       ============================================================ */
+    ========================================================== */
 
     createUI();
 
     refresh();
+
+
+    console.log(
+      "Empire Rush: Career Business UI integrated with Central Game State."
+    );
 
   });
 
