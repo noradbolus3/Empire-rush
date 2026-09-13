@@ -2,11 +2,16 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="viewport"
+      content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+
 <title>Empire Rush — Headquarters</title>
 
 <style>
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+*{
+  box-sizing:border-box;
+  -webkit-tap-highlight-color:transparent;
+}
 
 html,body{
   margin:0;
@@ -21,6 +26,7 @@ html,body{
   width:100%;
   height:100%;
   display:block;
+  touch-action:none;
 }
 
 #top{
@@ -34,7 +40,10 @@ html,body{
   pointer-events:none;
 }
 
-.brand,.stat,.tip,#employeePanel{
+.brand,
+.stat,
+.tip,
+#employeePanel{
   background:rgba(16,20,25,.91);
   color:white;
   box-shadow:0 8px 30px rgba(0,0,0,.25);
@@ -113,6 +122,7 @@ html,body{
   border-radius:50%;
   background:#30363e;
   color:#fff;
+  font-size:18px;
 }
 </style>
 </head>
@@ -127,8 +137,15 @@ html,body{
   </div>
 
   <div class="stats">
-    <div class="stat">CASH<strong>₹7.09L</strong></div>
-    <div class="stat">DAY<strong>32</strong></div>
+    <div class="stat">
+      CASH
+      <strong>₹7.09L</strong>
+    </div>
+
+    <div class="stat">
+      DAY
+      <strong>32</strong>
+    </div>
   </div>
 </div>
 
@@ -137,11 +154,15 @@ html,body{
 </div>
 
 <div id="employeePanel">
+
   <button id="close">×</button>
+
   <h2 id="ename">Employee</h2>
+
   <p id="erole"></p>
   <p id="edept"></p>
   <p id="estatus"></p>
+
 </div>
 
 <script type="importmap">
@@ -157,235 +178,469 @@ html,body{
 
 import * as THREE from "three";
 
-import {OrbitControls} from
+import { OrbitControls } from
 "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/controls/OrbitControls.js";
-  
+
+import { GLTFLoader } from
+"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/loaders/GLTFLoader.js";
+
+import * as SkeletonUtils from
+"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/utils/SkeletonUtils.js";
+
 
 /* =====================================================
    ENGINE
 ===================================================== */
 
-const canvas=document.getElementById("game");
+const canvas = document.getElementById("game");
 
-const scene=new THREE.Scene();
+const scene = new THREE.Scene();
 
-scene.background=new THREE.Color(0xc8d5dc);
-scene.fog=new THREE.Fog(0xc8d5dc,55,115);
+scene.background = new THREE.Color(0xc8d5dc);
 
-const camera=new THREE.PerspectiveCamera(
+scene.fog = new THREE.Fog(
+  0xc8d5dc,
+  55,
+  115
+);
+
+
+const camera = new THREE.PerspectiveCamera(
   42,
-  innerWidth/innerHeight,
-  .1,
+  window.innerWidth / window.innerHeight,
+  0.1,
   200
 );
 
-camera.position.set(25,15,27);
+camera.position.set(
+  25,
+  15,
+  27
+);
 
-const renderer=new THREE.WebGLRenderer({
-  canvas,
-  antialias:true,
-  powerPreference:"high-performance"
+
+const renderer = new THREE.WebGLRenderer({
+  canvas: canvas,
+  antialias: true,
+  powerPreference: "high-performance"
 });
 
-renderer.setSize(innerWidth,innerHeight);
-renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));
+renderer.setSize(
+  window.innerWidth,
+  window.innerHeight
+);
 
-renderer.shadowMap.enabled=true;
-renderer.shadowMap.type=THREE.PCFSoftShadowMap;
-renderer.outputColorSpace=THREE.SRGBColorSpace;
+renderer.setPixelRatio(
+  Math.min(window.devicePixelRatio || 1, 1.5)
+);
 
-const controls=new OrbitControls(camera,canvas);
+renderer.shadowMap.enabled = true;
 
-controls.enableDamping=true;
-controls.dampingFactor=.065;
-controls.minDistance=13;
-controls.maxDistance=60;
-controls.maxPolarAngle=Math.PI/2.18;
-controls.minPolarAngle=.35;
-controls.target.set(0,1.8,0);
+renderer.shadowMap.type =
+  THREE.PCFSoftShadowMap;
+
+renderer.outputColorSpace =
+  THREE.SRGBColorSpace;
+
 
 /* =====================================================
-   LIGHT
+   CAMERA CONTROLS
 ===================================================== */
 
-scene.add(
+const controls =
+  new OrbitControls(
+    camera,
+    canvas
+  );
+
+controls.enableDamping = true;
+controls.dampingFactor = 0.065;
+
+controls.minDistance = 13;
+controls.maxDistance = 60;
+
+controls.maxPolarAngle =
+  Math.PI / 2.18;
+
+controls.minPolarAngle = 0.35;
+
+controls.target.set(
+  0,
+  1.8,
+  0
+);
+
+
+/* =====================================================
+   LIGHTING
+===================================================== */
+
+const hemisphere =
   new THREE.HemisphereLight(
     0xf4f8ff,
     0x52616a,
     2.3
-  )
+  );
+
+scene.add(hemisphere);
+
+
+const sun =
+  new THREE.DirectionalLight(
+    0xffffff,
+    3.2
+  );
+
+sun.position.set(
+  25,
+  38,
+  20
 );
 
-const sun=new THREE.DirectionalLight(0xffffff,3.2);
+sun.castShadow = true;
 
-sun.position.set(25,38,20);
-sun.castShadow=true;
+sun.shadow.mapSize.set(
+  2048,
+  2048
+);
 
-sun.shadow.mapSize.set(2048,2048);
-sun.shadow.camera.left=-45;
-sun.shadow.camera.right=45;
-sun.shadow.camera.top=45;
-sun.shadow.camera.bottom=-45;
+sun.shadow.camera.left = -45;
+sun.shadow.camera.right = 45;
+sun.shadow.camera.top = 45;
+sun.shadow.camera.bottom = -45;
 
 scene.add(sun);
+
 
 /* =====================================================
    MATERIALS
 ===================================================== */
 
-function mat(color,rough=.8,metal=0){
+function mat(
+  color,
+  roughness = 0.8,
+  metalness = 0
+){
+
   return new THREE.MeshStandardMaterial({
-    color,
-    roughness:rough,
-    metalness:metal
+    color: color,
+    roughness: roughness,
+    metalness: metalness
   });
+
 }
 
-const grass=mat(0x668657);
-const pavement=mat(0xbcc2c4);
-const road=mat(0x252a30);
-const wall=mat(0xd8ddde);
-const wallDark=mat(0x343a41);
-const floor=mat(0x747b80);
-const wood=mat(0x79583f);
-const metal=mat(0x667079,.35,.7);
-const black=mat(0x20252b);
-const blueGlass=new THREE.MeshStandardMaterial({
-  color:0x69a8bb,
-  transparent:true,
-  opacity:.55,
-  roughness:.12
-});
-const screen=mat(0x1c6974,.2,.1);
-const green=mat(0xb9ef2d,.4,.05);
-const skin=mat(0xd69a73);
-const shirtBlue=mat(0x365c9e);
-const shirtGreen=mat(0x4d8061);
-const pants=mat(0x292e35);
+
+const grass =
+  mat(0x668657);
+
+const pavement =
+  mat(0xbcc2c4);
+
+const road =
+  mat(0x252a30);
+
+const wall =
+  mat(0xd8ddde);
+
+const wallDark =
+  mat(0x343a41);
+
+const floor =
+  mat(0x747b80);
+
+const wood =
+  mat(0x79583f);
+
+const metal =
+  mat(
+    0x667079,
+    0.35,
+    0.7
+  );
+
+const black =
+  mat(0x20252b);
+
+const blueGlass =
+  new THREE.MeshStandardMaterial({
+    color: 0x69a8bb,
+    transparent: true,
+    opacity: 0.55,
+    roughness: 0.12
+  });
+
+const screen =
+  mat(
+    0x1c6974,
+    0.2,
+    0.1
+  );
+
+const green =
+  mat(
+    0xb9ef2d,
+    0.4,
+    0.05
+  );
+
+const skin =
+  mat(0xd69a73);
+
+const shirtBlue =
+  mat(0x365c9e);
+
+const shirtGreen =
+  mat(0x4d8061);
+
+const pants =
+  mat(0x292e35);
+
 
 /* =====================================================
    HELPERS
 ===================================================== */
 
-function cube(w,h,d,m,x=0,y=0,z=0,parent=scene){
+function cube(
+  w,
+  h,
+  d,
+  material,
+  x = 0,
+  y = 0,
+  z = 0,
+  parent = scene
+){
 
-  const mesh=new THREE.Mesh(
-    new THREE.BoxGeometry(w,h,d),
-    m
+  const mesh =
+    new THREE.Mesh(
+      new THREE.BoxGeometry(
+        w,
+        h,
+        d
+      ),
+      material
+    );
+
+  mesh.position.set(
+    x,
+    y,
+    z
   );
 
-  mesh.position.set(x,y,z);
-  mesh.castShadow=true;
-  mesh.receiveShadow=true;
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
 
   parent.add(mesh);
 
   return mesh;
 }
 
-function cyl(r,h,m,x=0,y=0,z=0,parent=scene){
 
-  const mesh=new THREE.Mesh(
-    new THREE.CylinderGeometry(r,r,h,16),
-    m
+function cyl(
+  radius,
+  height,
+  material,
+  x = 0,
+  y = 0,
+  z = 0,
+  parent = scene
+){
+
+  const mesh =
+    new THREE.Mesh(
+      new THREE.CylinderGeometry(
+        radius,
+        radius,
+        height,
+        16
+      ),
+      material
+    );
+
+  mesh.position.set(
+    x,
+    y,
+    z
   );
 
-  mesh.position.set(x,y,z);
-  mesh.castShadow=true;
-  mesh.receiveShadow=true;
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
 
   parent.add(mesh);
 
   return mesh;
 }
+
 
 /* =====================================================
    CAMPUS
 ===================================================== */
 
-cube(110,.4,110,grass,0,-.2,0);
+cube(
+  110,
+  0.4,
+  110,
+  grass,
+  0,
+  -0.2,
+  0
+);
 
-cube(44,.15,32,pavement,0,.03,0);
-
-cube(110,.18,8,road,0,.08,18);
-
-for(let x=-50;x<50;x+=7){
-  cube(4,.03,.18,pavement,x,.19,18);
-}
-
-/* =====================================================
-   HQ FLOOR
-===================================================== */
-
-const HQ=new THREE.Group();
-scene.add(HQ);
-  
 
 cube(
-  31,3.2,.45,
-  wallDark,
-  0,1.8,9.7,
+  44,
+  0.15,
+  32,
+  pavement,
+  0,
+  0.03,
+  0
+);
+
+
+/* Main road */
+
+cube(
+  110,
+  0.18,
+  8,
+  road,
+  0,
+  0.08,
+  18
+);
+
+
+for(
+  let x = -50;
+  x < 50;
+  x += 7
+){
+
+  cube(
+    4,
+    0.03,
+    0.18,
+    pavement,
+    x,
+    0.19,
+    18
+  );
+
+}
+
+
+/* =====================================================
+   HQ
+===================================================== */
+
+const HQ =
+  new THREE.Group();
+
+scene.add(HQ);
+
+
+/* HQ floor */
+
+cube(
+  30.5,
+  0.18,
+  19.5,
+  floor,
+  0,
+  0.12,
+  0,
   HQ
 );
+
 
 /* =====================================================
    EXTERIOR WALLS
-   ROOF INTENTIONALLY REMOVED
 ===================================================== */
 
-/* back wall */
+
+/* Back wall */
 
 cube(
-  31,3.2,.45,
-wallDark,
-0,1.8,9.7,
+  31,
+  3.2,
+  0.45,
+  wallDark,
+  0,
+  1.8,
+  9.7,
   HQ
 );
 
-/* left wall */
+
+/* Left wall */
 
 cube(
-  .45,3.2,20,
+  0.45,
+  3.2,
+  20,
   wall,
-  -15.25,1.8,0,
+  -15.25,
+  1.8,
+  0,
   HQ
 );
 
-/* right wall */
+
+/* Right wall */
 
 cube(
-  .45,3.2,20,
+  0.45,
+  3.2,
+  20,
   wall,
-  15.25,1.8,0,
+  15.25,
+  1.8,
+  0,
   HQ
 );
 
-/* partial front walls */
 
-cube(
-  7,3.2,.45,
-  wall,
-  -12,1.8,-9.7,
-  HQ
-);
+/* Front partial walls */
 
 cube(
-  7,3.2,.45,
+  7,
+  3.2,
+  0.45,
   wall,
-  12,1.8,-9.7,
+  -12,
+  1.8,
+  -9.7,
   HQ
 );
+
+cube(
+  7,
+  3.2,
+  0.45,
+  wall,
+  12,
+  1.8,
+  -9.7,
+  HQ
+);
+
 
 /* =====================================================
    WINDOWS
 ===================================================== */
 
-for(let x=-8;x<=8;x+=4){
+for(
+  let x = -8;
+  x <= 8;
+  x += 4
+){
 
   cube(
     3.1,
     4.4,
-    .08,
+    0.08,
     blueGlass,
     x,
     4,
@@ -395,221 +650,357 @@ for(let x=-8;x<=8;x+=4){
 
 }
 
+
 /* =====================================================
    RECEPTION
 ===================================================== */
 
 cube(
-  5.5,1.15,1.6,
+  5.5,
+  1.15,
+  1.6,
   wood,
-  0,1.05,-7.4,
+  0,
+  1.05,
+  -7.4,
   HQ
 );
 
 cube(
-  4.2,.7,.08,
+  4.2,
+  0.7,
+  0.08,
   screen,
-  0,1.2,-8.23,
+  0,
+  1.2,
+  -8.23,
   HQ
 );
 
-/* reception sign */
+
+/* Reception sign */
 
 cube(
-  5,.7,.12,
+  5,
+  0.7,
+  0.12,
   black,
-  0,4.8,-9.82,
+  0,
+  4.8,
+  -9.82,
   HQ
 );
 
 cube(
-  2.4,.22,.15,
+  2.4,
+  0.22,
+  0.15,
   green,
-  0,4.8,-9.91,
+  0,
+  4.8,
+  -9.91,
   HQ
 );
+
 
 /* =====================================================
    CEO CABIN
 ===================================================== */
 
 cube(
-  8,.12,5,
+  8,
+  0.12,
+  5,
   wood,
-  -9,1.1,4.8,
+  -9,
+  1.1,
+  4.8,
   HQ
 );
 
 cube(
-  8,2.5,.12,
+  8,
+  2.5,
+  0.12,
   blueGlass,
-  -9,2.6,7.25,
+  -9,
+  2.6,
+  7.25,
   HQ
 );
 
 cube(
-  2.5,1.2,1.2,
+  2.5,
+  1.2,
+  1.2,
   wood,
-  -9,1.7,3.2,
+  -9,
+  1.7,
+  3.2,
   HQ
 );
 
 cube(
-  1.8,.8,.08,
+  1.8,
+  0.8,
+  0.08,
   screen,
-  -9,2.15,2.58,
+  -9,
+  2.15,
+  2.58,
   HQ
 );
+
 
 /* CEO chair */
 
 cyl(
-  .55,.15,
+  0.55,
+  0.15,
   black,
-  -9,.9,2.0,
+  -9,
+  0.9,
+  2.0,
   HQ
 );
 
+
 /* =====================================================
-   OPEN OFFICE DESKS
+   DESKS
 ===================================================== */
 
-function desk(x,z){
+function desk(
+  x,
+  z
+){
 
   cube(
-    2.8,.16,1.35,
+    2.8,
+    0.16,
+    1.35,
     wood,
-    x,1.45,z,
+    x,
+    1.45,
+    z,
     HQ
   );
 
-  for(const dx of[-1.1,1.1]){
+
+  for(
+    const dx of [-1.1,1.1]
+  ){
+
     cube(
-      .1,1.35,.1,
+      0.1,
+      1.35,
+      0.1,
       metal,
-      x+dx,.75,z,
+      x + dx,
+      0.75,
+      z,
       HQ
     );
+
   }
 
+
   cube(
-    1.15,.72,.1,
+    1.15,
+    0.72,
+    0.1,
     black,
-    x,1.92,z-.3,
+    x,
+    1.92,
+    z - 0.3,
     HQ
   );
 
+
   cube(
-    .9,.5,.05,
+    0.9,
+    0.5,
+    0.05,
     screen,
-    x,1.95,z-.37,
+    x,
+    1.95,
+    z - 0.37,
     HQ
   );
 
+
   cube(
-    .75,.06,.3,
+    0.75,
+    0.06,
+    0.3,
     black,
-    x,1.61,z-.5,
+    x,
+    1.61,
+    z - 0.5,
     HQ
   );
+
 }
 
-const deskPositions=[
+
+const deskPositions = [
   [-10,-4],
   [-5,-4],
   [4,-4],
   [9,-4],
-  [-10,.5],
-  [-5,.5],
-  [4,.5],
-  [9,.5]
+  [-10,0.5],
+  [-5,0.5],
+  [4,0.5],
+  [9,0.5]
 ];
 
-deskPositions.forEach(p=>desk(p[0],p[1]));
+
+deskPositions.forEach(
+  p => desk(p[0],p[1])
+);
+
 
 /* =====================================================
    CHAIRS
 ===================================================== */
 
-function chair(x,z){
+function chair(
+  x,
+  z
+){
 
-  cyl(.42,.12,black,x,.7,z,HQ);
+  cyl(
+    0.42,
+    0.12,
+    black,
+    x,
+    0.7,
+    z,
+    HQ
+  );
 
-  cube(.1,1,.1,metal,x,.95,z,HQ);
+  cube(
+    0.1,
+    1,
+    0.1,
+    metal,
+    x,
+    0.95,
+    z,
+    HQ
+  );
 
-  cube(.75,.12,.65,black,x,1.05,z,HQ);
+  cube(
+    0.75,
+    0.12,
+    0.65,
+    black,
+    x,
+    1.05,
+    z,
+    HQ
+  );
+
 }
 
+
 [
- [-10,-5.4],
- [-5,-5.4],
- [4,-5.4],
- [9,-5.4],
- [-10,-.9],
- [-5,-.9],
- [4,-.9],
- [9,-.9]
-].forEach(p=>chair(...p));
+  [-10,-5.4],
+  [-5,-5.4],
+  [4,-5.4],
+  [9,-5.4],
+  [-10,-0.9],
+  [-5,-0.9],
+  [4,-0.9],
+  [9,-0.9]
+].forEach(
+  p => chair(p[0],p[1])
+);
+
 
 /* =====================================================
    MEETING ROOM
 ===================================================== */
 
 cube(
-  7,.15,4,
+  7,
+  0.15,
+  4,
   wood,
-  5.5,1.25,6.5,
+  5.5,
+  1.25,
+  6.5,
   HQ
 );
 
-for(let x=3;x<=8;x+=2.5){
+
+for(
+  let x = 3;
+  x <= 8;
+  x += 2.5
+){
+
   chair(x,8.7);
   chair(x,4.3);
+
 }
 
+
 cube(
-  6.5,2.6,.12,
+  6.5,
+  2.6,
+  0.12,
   blueGlass,
-  5.5,3.2,8.5,
+  5.5,
+  3.2,
+  8.5,
   HQ
 );
 
+
 cube(
-  3.6,1.7,.08,
+  3.6,
+  1.7,
+  0.08,
   black,
-  5.5,3.5,8.38,
+  5.5,
+  3.5,
+  8.38,
   HQ
 );
 
+
 cube(
-  3.1,1.25,.05,
+  3.1,
+  1.25,
+  0.05,
   screen,
-  5.5,3.5,8.3,
+  5.5,
+  3.5,
+  8.3,
   HQ
 );
+
 
 /* =====================================================
-   REAL HUMAN NPC SYSTEM
-   =====================================================
-
-   IMPORTANT:
-   No boxes.
-   No spheres.
-   No procedural dummy people.
-
-   Humans are real GLTF/GLB skinned characters.
+   HUMAN SYSTEM
 ===================================================== */
 
-const humanLoader = new GLTFLoader();
+const humanLoader =
+  new GLTFLoader();
+
 
 const HUMAN_MODEL_URL =
   "https://cdn.jsdelivr.net/gh/UMRAM-Bilkent/supine-human-model@main/assets/human.glb";
 
+
 let humanTemplate = null;
+
 let humanAnimations = [];
 
 const workers = [];
+
 const humanMixers = [];
+
 
 const humanLoading = {
   started:false,
@@ -629,7 +1020,7 @@ const data = [
     role:"Operations Manager",
     dept:"Operations",
     x:-5,
-    z:-.4,
+    z:-0.4,
     gender:"male",
     scale:1
   },
@@ -641,7 +1032,7 @@ const data = [
     x:-10,
     z:-3.1,
     gender:"female",
-    scale:.98
+    scale:0.98
   },
 
   {
@@ -669,7 +1060,7 @@ const data = [
     role:"HR Manager",
     dept:"Human Resources",
     x:-5,
-    z:.9,
+    z:0.9,
     gender:"male",
     scale:1.02
   },
@@ -681,7 +1072,7 @@ const data = [
     x:9,
     z:-3.1,
     gender:"female",
-    scale:.98
+    scale:0.98
   },
 
   {
@@ -689,7 +1080,7 @@ const data = [
     role:"R&D Engineer",
     dept:"R&D",
     x:9,
-    z:.9,
+    z:0.9,
     gender:"male",
     scale:1
   },
@@ -701,7 +1092,7 @@ const data = [
     x:-5,
     z:-3.1,
     gender:"female",
-    scale:.98
+    scale:0.98
   }
 
 ];
@@ -713,10 +1104,12 @@ const data = [
 
 function loadHumanModel(){
 
-  if(humanLoading.started)
+  if(humanLoading.started){
     return;
+  }
 
-  humanLoading.started=true;
+  humanLoading.started = true;
+
 
   humanLoader.load(
 
@@ -725,42 +1118,50 @@ function loadHumanModel(){
     function(gltf){
 
       console.log(
-        "REAL HUMAN MODEL LOADED",
-        gltf
+        "REAL HUMAN MODEL LOADED"
       );
+
 
       humanTemplate =
         gltf.scene;
 
+
       humanAnimations =
         gltf.animations || [];
+
 
       humanTemplate.traverse(
         function(object){
 
-          if(!object.isMesh)
+          if(!object.isMesh){
             return;
+          }
 
-          object.castShadow=true;
-          object.receiveShadow=true;
+          object.castShadow = true;
+          object.receiveShadow = true;
+
 
           if(object.material){
 
             object.material.side =
               THREE.FrontSide;
 
-            object.material.needsUpdate=true;
+            object.material.needsUpdate =
+              true;
 
           }
 
         }
       );
 
-      humanLoading.loaded=true;
+
+      humanLoading.loaded = true;
+
 
       spawnAllEmployees();
 
     },
+
 
     function(progress){
 
@@ -772,16 +1173,17 @@ function loadHumanModel(){
             progress.loaded /
             progress.total *
             100
-          )+"%"
+          ) + "%"
         );
 
       }
 
     },
 
+
     function(error){
 
-      humanLoading.failed=true;
+      humanLoading.failed = true;
 
       console.error(
         "REAL HUMAN MODEL FAILED",
@@ -803,22 +1205,25 @@ function findHumanAnimation(
   keywords
 ){
 
-  if(!humanAnimations.length)
+  if(!humanAnimations.length){
     return null;
+  }
+
 
   const lower =
     keywords.map(
-      x=>x.toLowerCase()
+      x => x.toLowerCase()
     );
 
+
   return humanAnimations.find(
-    clip=>{
+    clip => {
 
       const name =
         clip.name.toLowerCase();
 
       return lower.some(
-        key=>name.includes(key)
+        key => name.includes(key)
       );
 
     }
@@ -831,18 +1236,14 @@ function findHumanAnimation(
    CREATE HUMAN
 ===================================================== */
 
-function createRealHuman(employee){
+function createRealHuman(
+  employee
+){
 
-  if(!humanTemplate)
+  if(!humanTemplate){
     return null;
+  }
 
-
-  /*
-     SkeletonUtils.clone is important.
-
-     Normal .clone() is NOT enough for
-     skinned / rigged humans.
-  */
 
   const human =
     SkeletonUtils.clone(
@@ -852,7 +1253,7 @@ function createRealHuman(employee){
 
   human.position.set(
     employee.x,
-    .05,
+    0.05,
     employee.z
   );
 
@@ -862,86 +1263,60 @@ function createRealHuman(employee){
   );
 
 
-  /*
-     Real shadows
-  */
-
   human.traverse(
     function(object){
 
-      if(!object.isMesh)
+      if(!object.isMesh){
         return;
+      }
 
-      object.castShadow=true;
-      object.receiveShadow=true;
+      object.castShadow = true;
+      object.receiveShadow = true;
 
       if(object.material){
-
-        object.material.needsUpdate=true;
-
+        object.material.needsUpdate = true;
       }
 
     }
   );
 
 
-  /*
-     Employee metadata
-  */
-
   human.userData = {
 
-    name:
-      employee.name,
+    name:employee.name,
 
-    role:
-      employee.role,
+    role:employee.role,
 
-    dept:
-      employee.dept,
+    dept:employee.dept,
 
-    gender:
-      employee.gender,
+    gender:employee.gender,
 
-    status:
-      "Working",
+    status:"Working",
 
-    homeX:
-      employee.x,
+    homeX:employee.x,
 
-    homeZ:
-      employee.z,
+    homeZ:employee.z,
 
     targetX:null,
 
     targetZ:null,
 
     speed:
-      .9 +
-      Math.random()*.35
+      0.9 +
+      Math.random() * 0.35
 
   };
 
-
-  /*
-     Animation system
-  */
 
   const mixer =
     new THREE.AnimationMixer(
       human
     );
 
+
   human.userData.mixer =
     mixer;
 
-
-  /*
-     Find clips automatically.
-
-     Different GLBs use different
-     animation names.
-  */
 
   const idleClip =
     findHumanAnimation([
@@ -950,6 +1325,7 @@ function createRealHuman(employee){
       "stand"
     ]);
 
+
   const walkClip =
     findHumanAnimation([
       "walk",
@@ -957,13 +1333,15 @@ function createRealHuman(employee){
       "locomotion"
     ]);
 
+
   const runClip =
     findHumanAnimation([
       "run",
       "running"
     ]);
 
-  const actions={};
+
+  const actions = {};
 
 
   if(idleClip){
@@ -1001,17 +1379,15 @@ function createRealHuman(employee){
   human.userData.actions =
     actions;
 
+
   human.userData.currentAction =
     "idle";
 
 
-  /*
-     Add to world
-  */
-
   scene.add(human);
 
   workers.push(human);
+
   humanMixers.push(mixer);
 
 
@@ -1021,7 +1397,7 @@ function createRealHuman(employee){
 
 
 /* =====================================================
-   PLAY HUMAN ANIMATION
+   HUMAN ANIMATION
 ===================================================== */
 
 function playHumanAnimation(
@@ -1029,20 +1405,28 @@ function playHumanAnimation(
   name
 ){
 
-  if(!human)
+  if(!human){
     return;
+  }
+
 
   const actions =
     human.userData.actions;
 
-  if(!actions)
+
+  if(!actions){
     return;
+  }
+
 
   const next =
     actions[name];
 
-  if(!next)
+
+  if(!next){
     return;
+  }
+
 
   const current =
     actions[
@@ -1050,20 +1434,19 @@ function playHumanAnimation(
     ];
 
 
-  if(current===next)
+  if(current === next){
     return;
+  }
 
 
   if(current){
-
-    current.fadeOut(.25);
-
+    current.fadeOut(0.25);
   }
 
 
   next.reset();
 
-  next.fadeIn(.25);
+  next.fadeIn(0.25);
 
   next.play();
 
@@ -1075,25 +1458,23 @@ function playHumanAnimation(
 
 
 /* =====================================================
-   SPAWN ALL EMPLOYEES
+   SPAWN EMPLOYEES
 ===================================================== */
 
 function spawnAllEmployees(){
 
-  if(!humanTemplate)
+  if(!humanTemplate){
     return;
+  }
 
 
-  /*
-     Prevent duplicate spawning.
-  */
-
-  if(workers.length)
+  if(workers.length){
     return;
+  }
 
 
   data.forEach(
-    function(employee){
+    employee => {
 
       createRealHuman(
         employee
@@ -1119,16 +1500,19 @@ function moveHumanTo(
   human,
   x,
   z,
-  status="Walking"
+  status = "Walking"
 ){
 
-  if(!human)
+  if(!human){
     return;
+  }
 
 
-  human.userData.targetX=x;
-  human.userData.targetZ=z;
-  human.userData.status=status;
+  human.userData.targetX = x;
+
+  human.userData.targetZ = z;
+
+  human.userData.status = status;
 
 
   playHumanAnimation(
@@ -1140,17 +1524,15 @@ function moveHumanTo(
 
 
 /* =====================================================
-   UPDATE HUMAN MOVEMENT
+   UPDATE HUMANS
 ===================================================== */
 
-function updateHumans(delta){
-
-  /*
-     Update animation mixers
-  */
+function updateHumans(
+  delta
+){
 
   humanMixers.forEach(
-    function(mixer){
+    mixer => {
 
       mixer.update(delta);
 
@@ -1158,20 +1540,16 @@ function updateHumans(delta){
   );
 
 
-  /*
-     Move humans
-  */
-
   workers.forEach(
-    function(human){
+    human => {
 
       const d =
         human.userData;
 
 
       if(
-        d.targetX===null ||
-        d.targetZ===null
+        d.targetX === null ||
+        d.targetZ === null
       ){
 
         return;
@@ -1183,6 +1561,7 @@ function updateHumans(delta){
         d.targetX -
         human.position.x;
 
+
       const dz =
         d.targetZ -
         human.position.z;
@@ -1190,16 +1569,12 @@ function updateHumans(delta){
 
       const distance =
         Math.sqrt(
-          dx*dx+
-          dz*dz
+          dx * dx +
+          dz * dz
         );
 
 
-      /*
-         Destination reached
-      */
-
-      if(distance < .15){
+      if(distance < 0.15){
 
         human.position.x =
           d.targetX;
@@ -1207,24 +1582,24 @@ function updateHumans(delta){
         human.position.z =
           d.targetZ;
 
-        d.targetX=null;
-        d.targetZ=null;
 
-        d.status="Working";
+        d.targetX = null;
+
+        d.targetZ = null;
+
+        d.status = "Working";
+
 
         playHumanAnimation(
           human,
           "idle"
         );
 
+
         return;
 
       }
 
-
-      /*
-         Direction
-      */
 
       const targetRotation =
         Math.atan2(
@@ -1239,46 +1614,35 @@ function updateHumans(delta){
 
 
       while(
-        difference >
-        Math.PI
+        difference > Math.PI
       ){
 
         difference -=
-          Math.PI*2;
+          Math.PI * 2;
 
       }
 
 
       while(
-        difference <
-        -Math.PI
+        difference < -Math.PI
       ){
 
         difference +=
-          Math.PI*2;
+          Math.PI * 2;
 
       }
 
 
-      /*
-         Smooth rotation
-      */
-
       human.rotation.y +=
         difference *
         Math.min(
-          delta*8,
+          delta * 8,
           1
         );
 
 
-      /*
-         Walk
-      */
-
       const speed =
-        d.speed *
-        delta;
+        d.speed * delta;
 
 
       human.position.x +=
@@ -1299,24 +1663,21 @@ function updateHumans(delta){
 
 
 /* =====================================================
-   EMPLOYEE HIRING
+   EMPLOYEE HIRING EVENT
 ===================================================== */
 
 window.addEventListener(
   "EmpireEmployeeHired",
-  async function(event){
+  function(event){
 
     const employee =
       event.detail;
 
-    if(!employee)
+
+    if(!employee){
       return;
+    }
 
-
-    /*
-       If model isn't loaded yet,
-       wait for it.
-    */
 
     if(!humanTemplate){
 
@@ -1328,11 +1689,6 @@ window.addEventListener(
 
     }
 
-
-    /*
-       New employee starts
-       outside the gate.
-    */
 
     const human =
       createRealHuman({
@@ -1348,8 +1704,7 @@ window.addEventListener(
           employee.department ||
           "General",
 
-        gender:
-          "male",
+        gender:"male",
 
         x:0,
 
@@ -1360,19 +1715,14 @@ window.addEventListener(
       });
 
 
-    if(!human)
+    if(!human){
       return;
+    }
 
 
     human.userData.status =
       "Entering campus";
 
-
-    /*
-       Gate
-       ↓
-       Reception
-    */
 
     moveHumanTo(
       human,
@@ -1382,14 +1732,10 @@ window.addEventListener(
     );
 
 
-    /*
-       Department destination
-    */
-
     setTimeout(
       function(){
 
-        const positions={
+        const positions = {
 
           Finance:
             [-10,-3],
@@ -1401,16 +1747,16 @@ window.addEventListener(
             [9,-3],
 
           Operations:
-            [-5,.9],
+            [-5,0.9],
 
           "Human Resources":
-            [-5,.9],
+            [-5,0.9],
 
           Product:
-            [4,.9],
+            [4,0.9],
 
           "R&D":
-            [9,.9]
+            [9,0.9]
 
         };
 
@@ -1429,7 +1775,6 @@ window.addEventListener(
           "Going to department"
         );
 
-
       },
       6500
     );
@@ -1439,223 +1784,513 @@ window.addEventListener(
 
 
 /* =====================================================
-   START REAL HUMAN SYSTEM
-===================================================== */
-
-loadHumanModel();
-
-/* =====================================================
    WALKING ASSISTANTS
 ===================================================== */
 
-const walkers=[];
+const walkers = [];
 
-function createWalker(x,z){
 
-  const g=new THREE.Group();
+function createWalker(
+  x,
+  z
+){
 
-  g.position.set(x,.35,z);
+  const group =
+    new THREE.Group();
 
-  const shirt=mat(
-    Math.random()>.5?0x80633d:0x704e83
+
+  group.position.set(
+    x,
+    0.35,
+    z
   );
 
-  cube(.22,.85,.22,pants,-.17,.43,0,g);
-  cube(.22,.85,.22,pants,.17,.43,0,g);
 
-  cube(.68,1.05,.44,shirt,0,1.3,0,g);
+  const shirt =
+    mat(
+      Math.random() > 0.5
+        ? 0x80633d
+        : 0x704e83
+    );
 
-  const head=new THREE.Mesh(
-    new THREE.SphereGeometry(.31,14,10),
-    skin
+
+  cube(
+    0.22,
+    0.85,
+    0.22,
+    pants,
+    -0.17,
+    0.43,
+    0,
+    group
   );
 
-  head.position.y=2.15;
-  g.add(head);
 
-  g.userData={
+  cube(
+    0.22,
+    0.85,
+    0.22,
+    pants,
+    0.17,
+    0.43,
+    0,
+    group
+  );
+
+
+  cube(
+    0.68,
+    1.05,
+    0.44,
+    shirt,
+    0,
+    1.3,
+    0,
+    group
+  );
+
+
+  const head =
+    new THREE.Mesh(
+      new THREE.SphereGeometry(
+        0.31,
+        14,
+        10
+      ),
+      skin
+    );
+
+
+  head.position.y = 2.15;
+
+  group.add(head);
+
+
+  group.userData = {
+
     startX:x,
+
     startZ:z,
-    phase:Math.random()*10
+
+    phase:
+      Math.random() * 10
+
   };
 
-  scene.add(g);
-  walkers.push(g);
+
+  scene.add(group);
+
+  walkers.push(group);
+
 }
+
 
 createWalker(-1,-1.8);
+
 createWalker(2,-2.2);
 
+
 /* =====================================================
-   PARKING
+   PARKING / CARS
 ===================================================== */
 
-function car(x,z,s=1){
+function car(
+  x,
+  z,
+  scale = 1
+){
 
-  const g=new THREE.Group();
+  const group =
+    new THREE.Group();
 
-  g.position.set(x,.4,z);
-  g.scale.setScalar(s);
 
-  cube(2.4,.55,1.2,black,0,.35,0,g);
+  group.position.set(
+    x,
+    0.4,
+    z
+  );
 
-  cube(1.3,.55,1,blueGlass,0,.75,0,g);
 
-  for(const px of[-.85,.85]){
+  group.scale.setScalar(
+    scale
+  );
 
-    const w1=cyl(.3,.18,black,px,.02,-.68,g);
-    w1.rotation.x=Math.PI/2;
 
-    const w2=w1.clone();
-    w2.position.z=.68;
-    g.add(w2);
+  cube(
+    2.4,
+    0.55,
+    1.2,
+    black,
+    0,
+    0.35,
+    0,
+    group
+  );
+
+
+  cube(
+    1.3,
+    0.55,
+    1,
+    blueGlass,
+    0,
+    0.75,
+    0,
+    group
+  );
+
+
+  for(
+    const px of [-0.85,0.85]
+  ){
+
+    const wheel =
+      cyl(
+        0.3,
+        0.18,
+        black,
+        px,
+        0.02,
+        -0.68,
+        group
+      );
+
+
+    wheel.rotation.x =
+      Math.PI / 2;
+
+
+    const wheel2 =
+      wheel.clone();
+
+
+    wheel2.position.z =
+      0.68;
+
+
+    group.add(wheel2);
+
   }
 
-  scene.add(g);
+
+  scene.add(group);
+
 }
 
-car(-6,14,.9);
-car(3,14,.9);
-car(13,14,.8);
+
+car(-6,14,0.9);
+
+car(3,14,0.9);
+
+car(13,14,0.8);
+
 
 /* =====================================================
    TREES
 ===================================================== */
 
-function tree(x,z){
+function tree(
+  x,
+  z
+){
 
   cyl(
-    .25,1.8,
+    0.25,
+    1.8,
     mat(0x67472f),
-    x,.9,z
+    x,
+    0.9,
+    z
   );
 
-  const crown=new THREE.Mesh(
-    new THREE.SphereGeometry(1.2,14,10),
-    mat(0x47773e)
+
+  const crown =
+    new THREE.Mesh(
+      new THREE.SphereGeometry(
+        1.2,
+        14,
+        10
+      ),
+      mat(0x47773e)
+    );
+
+
+  crown.position.set(
+    x,
+    2.4,
+    z
   );
 
-  crown.position.set(x,2.4,z);
-  crown.castShadow=true;
+
+  crown.castShadow = true;
 
   scene.add(crown);
+
 }
 
+
 [
- [-21,-13],
- [-15,-14],
- [20,-13],
- [25,-4],
- [-22,8],
- [22,8],
- [-26,20],
- [27,21]
-].forEach(p=>tree(...p));
+  [-21,-13],
+  [-15,-14],
+  [20,-13],
+  [25,-4],
+  [-22,8],
+  [22,8],
+  [-26,20],
+  [27,21]
+].forEach(
+  p => tree(p[0],p[1])
+);
+
 
 /* =====================================================
    CITY
 ===================================================== */
 
-function city(x,z,w,h,d){
+function city(
+  x,
+  z,
+  w,
+  h,
+  d
+){
 
   cube(
-    w,h,d,
+    w,
+    h,
+    d,
     mat(0x9da7ac),
-    x,h/2,z
+    x,
+    h / 2,
+    z
   );
 
-  for(let y=2;y<h-1;y+=2.5){
+
+  for(
+    let y = 2;
+    y < h - 1;
+    y += 2.5
+  ){
 
     for(
-      let xx=x-w/2+1;
-      xx<x+w/2-1;
-      xx+=2
+      let xx = x - w / 2 + 1;
+      xx < x + w / 2 - 1;
+      xx += 2
     ){
 
       cube(
-        .65,.65,.04,
+        0.65,
+        0.65,
+        0.04,
         blueGlass,
-        xx,y,z-d/2-.03
+        xx,
+        y,
+        z - d / 2 - 0.03
       );
+
     }
+
   }
+
 }
+
 
 city(-34,-4,9,12,8);
+
 city(34,-3,10,16,9);
+
 city(-35,15,8,9,8);
+
 city(35,17,11,14,9);
 
+
 /* =====================================================
-   RAYCAST
+   EMPLOYEE RAYCAST
 ===================================================== */
 
-const ray=new THREE.Raycaster();
-const pointer=new THREE.Vector2();
+const ray =
+  new THREE.Raycaster();
 
-function inspect(x,y){
+const pointer =
+  new THREE.Vector2();
 
-  const r=canvas.getBoundingClientRect();
 
-  pointer.x=((x-r.left)/r.width)*2-1;
-  pointer.y=-((y-r.top)/r.height)*2+1;
+function inspect(
+  x,
+  y
+){
 
-  ray.setFromCamera(pointer,camera);
+  const rect =
+    canvas.getBoundingClientRect();
 
-  const hits=ray.intersectObjects(workers,true);
 
-  if(!hits.length)return;
+  pointer.x =
+    ((x - rect.left) / rect.width) * 2 - 1;
 
-  let obj=hits[0].object;
 
-  while(obj.parent && !obj.userData.name){
-    obj=obj.parent;
+  pointer.y =
+    -((y - rect.top) / rect.height) * 2 + 1;
+
+
+  ray.setFromCamera(
+    pointer,
+    camera
+  );
+
+
+  const hits =
+    ray.intersectObjects(
+      workers,
+      true
+    );
+
+
+  if(!hits.length){
+    return;
   }
 
-  if(!obj.userData.name)return;
 
-  const d=obj.userData;
-window.dispatchEvent(
-  new CustomEvent("EmpireEmployeeSelected", {
-    detail: d
-  })
-);
-  document.getElementById("ename").textContent=d.name;
-  document.getElementById("erole").textContent="Role: "+d.role;
-  document.getElementById("edept").textContent="Department: "+d.dept;
-  document.getElementById("estatus").textContent="Status: Working";
+  let object =
+    hits[0].object;
 
-  document.getElementById("employeePanel").style.display="block";
+
+  while(
+    object.parent &&
+    !object.userData.name
+  ){
+
+    object =
+      object.parent;
+
+  }
+
+
+  if(!object.userData.name){
+    return;
+  }
+
+
+  const employee =
+    object.userData;
+
+
+  window.dispatchEvent(
+    new CustomEvent(
+      "EmpireEmployeeSelected",
+      {
+        detail:employee
+      }
+    )
+  );
+
+
+  document.getElementById(
+    "ename"
+  ).textContent =
+    employee.name;
+
+
+  document.getElementById(
+    "erole"
+  ).textContent =
+    "Role: " + employee.role;
+
+
+  document.getElementById(
+    "edept"
+  ).textContent =
+    "Department: " + employee.dept;
+
+
+  document.getElementById(
+    "estatus"
+  ).textContent =
+    "Status: " +
+    (employee.status || "Working");
+
+
+  document.getElementById(
+    "employeePanel"
+  ).style.display =
+    "block";
+
 }
 
-let downX=0;
-let downY=0;
-
-canvas.addEventListener("pointerdown",e=>{
-  downX=e.clientX;
-  downY=e.clientY;
-});
-
-canvas.addEventListener("pointerup",e=>{
-
-  const dx=e.clientX-downX;
-  const dy=e.clientY-downY;
-
-  if(Math.sqrt(dx*dx+dy*dy)<8){
-    inspect(e.clientX,e.clientY);
-  }
-});
-
-document.getElementById("close").onclick=()=>{
-  document.getElementById("employeePanel").style.display="none";
-};
 
 /* =====================================================
-   ANIMATION
+   TAP DETECTION
 ===================================================== */
 
+let downX = 0;
+
+let downY = 0;
+
+
+canvas.addEventListener(
+  "pointerdown",
+  function(event){
+
+    downX =
+      event.clientX;
+
+    downY =
+      event.clientY;
+
+  }
+);
+
+
+canvas.addEventListener(
+  "pointerup",
+  function(event){
+
+    const dx =
+      event.clientX -
+      downX;
+
+
+    const dy =
+      event.clientY -
+      downY;
+
+
+    if(
+      Math.sqrt(
+        dx * dx +
+        dy * dy
+      ) < 8
+    ){
+
+      inspect(
+        event.clientX,
+        event.clientY
+      );
+
+    }
+
+  }
+);
+
+
 /* =====================================================
-   REAL HUMAN ANIMATION LOOP
+   CLOSE EMPLOYEE PANEL
+===================================================== */
+
+document.getElementById(
+  "close"
+).onclick =
+  function(){
+
+    document.getElementById(
+      "employeePanel"
+    ).style.display =
+      "none";
+
+  };
+
+
+/* =====================================================
+   ANIMATION LOOP
 ===================================================== */
 
 const clock =
@@ -1672,14 +2307,9 @@ function animate(){
   const delta =
     Math.min(
       clock.getDelta(),
-      .05
+      0.05
     );
 
-
-  /*
-     REAL HUMAN
-     animations + walking
-  */
 
   updateHumans(
     delta
@@ -1699,28 +2329,43 @@ function animate(){
 
 animate();
 
+
 /* =====================================================
    WORLD API
 ===================================================== */
 
-window.THREE = THREE;
+window.THREE =
+  THREE;
+
 
 window.EmpireWorld = {
+
   THREE,
+
   scene,
+
   camera,
+
   renderer,
+
   controls,
+
   HQ,
+
   workers,
 
-  focusOn(x=0,z=0){
+
+  focusOn(
+    x = 0,
+    z = 0
+  ){
 
     controls.target.set(
       x,
       1.8,
       z
     );
+
 
     camera.lookAt(
       x,
@@ -1729,10 +2374,18 @@ window.EmpireWorld = {
     );
 
   }
+
 };
 
+
+/* =====================================================
+   WORLD READY
+===================================================== */
+
 window.dispatchEvent(
-  new Event("EmpireWorldReady")
+  new Event(
+    "EmpireWorldReady"
+  )
 );
 
 
@@ -1740,36 +2393,69 @@ window.dispatchEvent(
    RESIZE
 ===================================================== */
 
-addEventListener("resize",()=>{
+window.addEventListener(
+  "resize",
+  function(){
+
+    camera.aspect =
+      window.innerWidth /
+      window.innerHeight;
+
+
+    camera.updateProjectionMatrix();
+
+
+    renderer.setSize(
+      window.innerWidth,
+      window.innerHeight
+    );
+
+
+    renderer.setPixelRatio(
+      Math.min(
+        window.devicePixelRatio || 1,
+        1.5
+      )
+    );
+
+  }
+);
+
 
 /* =====================================================
-   RESIZE
+   START HUMAN MODEL
 ===================================================== */
 
-addEventListener("resize",()=>{
+loadHumanModel();
 
-  camera.aspect=innerWidth/innerHeight;
 
-  camera.updateProjectionMatrix();
+/* =====================================================
+   WORLD ERROR REPORT
+===================================================== */
 
-  renderer.setSize(
-    innerWidth,
-    innerHeight
-  );
+window.addEventListener(
+  "error",
+  function(event){
 
-  renderer.setPixelRatio(
-    Math.min(devicePixelRatio,1.5)
-  );
+    console.error(
+      "Empire Rush World Error:",
+      event.error || event.message
+    );
 
-});
+  }
+);
 
 </script>
+
+
+<!-- EXISTING GAME SYSTEMS -->
 <script src="./world3d.js"></script>
-  <script src="./empire-sim.js"></script>
-  <script src="./business-engine.js"></script>
-  <script src="./business-launcher.js"></script>
-  <script src="./business-economics.js"></script>
-  <script src="./workforce.js"></script>
-  <script src="./workforce-world.js"></script>
+<script src="./empire-sim.js"></script>
+<script src="./business-engine.js"></script>
+<script src="./business-launcher.js"></script>
+<script src="./business-economics.js"></script>
+<script src="./workforce.js"></script>
+<script src="./workforce-world.js"></script>
+
 </body>
 </html>
