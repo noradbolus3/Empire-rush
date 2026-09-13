@@ -684,7 +684,9 @@
 
       return `
 
-        <div style="
+        <div 
+        data-product-detail
+        style="
           margin-top:25px;
           padding:22px;
           border-radius:18px;
