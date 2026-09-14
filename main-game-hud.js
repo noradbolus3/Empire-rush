@@ -3,60 +3,42 @@
 
   /*
    * =========================================================
-   * EMPIRE RUSH
-   * MOBILE COMMAND HUD
+   * EMPIRE RUSH — MOBILE HUD
    *
-   * This file owns the mobile HUD.
+   * Current job:
+   * ONLY remove the old oversized floating module buttons.
    *
-   * Responsibilities:
-   *  - Compact header
-   *  - Career / Business / Finance / More navigation
-   *  - Module drawer
-   *  - Legacy floating-button cleanup
-   *  - Mobile-first viewport protection
-   *
-   * It does NOT render the 3D world.
+   * 3D CAMERA / CITY / BUILDINGS ARE NOT TOUCHED.
    * =========================================================
    */
-
 
   const HUD = {
 
     root: null,
 
-    moreDrawer: null,
-
-    toastTimer: null,
-
     observer: null,
+
+    cleanupTimer: null,
 
     game: null,
 
 
-    /*
-     * -------------------------------------------------------
-     * GAME ACCESS
-     * -------------------------------------------------------
-     */
+    /* =======================================================
+       GAME STATE
+       ======================================================= */
 
     getGame() {
 
-      return (
-        window.EmpireGameState ||
-        null
-      );
+      return window.EmpireGameState || null;
 
     },
 
 
     getState() {
 
-      const game =
-        this.getGame();
+      const game = this.getGame();
 
-      if (
-        !game
-      ) {
+      if (!game) {
         return null;
       }
 
@@ -66,28 +48,30 @@
         return game.getState();
       }
 
-      return (
-        game.state ||
-        null
-      );
+      return game.state || null;
 
     },
 
 
     getPlayer() {
 
-      const state =
-        this.getState();
+      const state = this.getState();
 
       return (
         state &&
         state.player
       ) || {
+
         name: "Founder",
+
         currentJob: "Unemployed",
+
         jobLevel: "Entry",
+
         cash: 0,
+
         savings: 0
+
       };
 
     },
@@ -95,26 +79,27 @@
 
     getWorld() {
 
-      const state =
-        this.getState();
+      const state = this.getState();
 
       return (
         state &&
         state.world
       ) || {
+
         day: 1,
+
         month: 1,
+
         year: 1
+
       };
 
     },
 
 
-    /*
-     * -------------------------------------------------------
-     * NUMBER FORMAT
-     * -------------------------------------------------------
-     */
+    /* =======================================================
+       MONEY FORMAT
+       ======================================================= */
 
     money(value) {
 
@@ -129,8 +114,7 @@
         return (
           "₹" +
           (
-            amount /
-            10000000
+            amount / 10000000
           ).toFixed(2) +
           "Cr"
         );
@@ -145,8 +129,7 @@
         return (
           "₹" +
           (
-            amount /
-            100000
+            amount / 100000
           ).toFixed(2) +
           "L"
         );
@@ -161,8 +144,7 @@
         return (
           "₹" +
           (
-            amount /
-            1000
+            amount / 1000
           ).toFixed(1) +
           "K"
         );
@@ -182,23 +164,21 @@
     },
 
 
-    /*
-     * -------------------------------------------------------
-     * ROOT
-     * -------------------------------------------------------
-     */
+    /* =======================================================
+       CREATE HUD
+       ======================================================= */
 
     createRoot() {
 
-      const old =
+      const existing =
         document.getElementById(
           "empireCleanHUD"
         );
 
 
-      if (old) {
+      if (existing) {
 
-        old.remove();
+        existing.remove();
 
       }
 
@@ -216,8 +196,8 @@
       root.innerHTML = `
 
         <div
-          id="erHeader"
           class="er-header"
+          id="erHeader"
         >
 
           <div
@@ -294,10 +274,10 @@
 
 
           <button
+            type="button"
             class="er-menu-button"
             id="erMenuButton"
-            type="button"
-            aria-label="Open menu"
+            aria-label="Open command menu"
           >
 
             <span></span>
@@ -310,8 +290,8 @@
 
 
         <div
-          id="erObjective"
           class="er-objective"
+          id="erObjective"
         >
 
           <div
@@ -347,14 +327,14 @@
 
 
         <div
-          id="erBottomNav"
           class="er-bottom-nav"
+          id="erBottomNav"
         >
 
           <button
+            type="button"
             class="er-nav active"
             data-action="home"
-            type="button"
           >
 
             <span
@@ -371,9 +351,9 @@
 
 
           <button
+            type="button"
             class="er-nav"
             data-action="career"
-            type="button"
           >
 
             <span
@@ -390,9 +370,9 @@
 
 
           <button
+            type="button"
             class="er-nav"
             data-action="business"
-            type="button"
           >
 
             <span
@@ -409,9 +389,9 @@
 
 
           <button
+            type="button"
             class="er-nav"
             data-action="finance"
-            type="button"
           >
 
             <span
@@ -428,9 +408,9 @@
 
 
           <button
+            type="button"
             class="er-nav"
             data-action="more"
-            type="button"
           >
 
             <span
@@ -449,8 +429,8 @@
 
 
         <div
-          id="erMoreDrawer"
           class="er-more-drawer"
+          id="erMoreDrawer"
         >
 
           <div
@@ -480,118 +460,172 @@
             >
 
               <button
+                type="button"
                 class="er-module"
                 data-module="products"
-                type="button"
               >
 
                 <span>📦</span>
-                <b>Products</b>
-                <small>Develop & manage</small>
+
+                <b>
+                  Products
+                </b>
+
+                <small>
+                  Develop & manage
+                </small>
 
               </button>
 
 
               <button
+                type="button"
                 class="er-module"
                 data-module="news"
-                type="button"
               >
 
                 <span>📰</span>
-                <b>News</b>
-                <small>World events</small>
+
+                <b>
+                  News
+                </b>
+
+                <small>
+                  World events
+                </small>
 
               </button>
 
 
               <button
+                type="button"
                 class="er-module"
                 data-module="corporate"
-                type="button"
               >
 
                 <span>🏢</span>
-                <b>Corporate</b>
-                <small>Group control</small>
+
+                <b>
+                  Corporate
+                </b>
+
+                <small>
+                  Group control
+                </small>
 
               </button>
 
 
               <button
+                type="button"
                 class="er-module"
                 data-module="operations"
-                type="button"
               >
 
                 <span>⚙️</span>
-                <b>Operations</b>
-                <small>Run your company</small>
+
+                <b>
+                  Operations
+                </b>
+
+                <small>
+                  Run company
+                </small>
 
               </button>
 
 
               <button
+                type="button"
                 class="er-module"
                 data-module="workforce"
-                type="button"
               >
 
                 <span>👥</span>
-                <b>Workforce</b>
-                <small>Employees & HR</small>
+
+                <b>
+                  Workforce
+                </b>
+
+                <small>
+                  Employees & HR
+                </small>
 
               </button>
 
 
               <button
+                type="button"
                 class="er-module"
                 data-module="government"
-                type="button"
               >
 
                 <span>🏛️</span>
-                <b>Government</b>
-                <small>Tax & compliance</small>
+
+                <b>
+                  Government
+                </b>
+
+                <small>
+                  Tax & compliance
+                </small>
 
               </button>
 
 
               <button
+                type="button"
                 class="er-module"
                 data-module="market"
-                type="button"
               >
 
                 <span>📈</span>
-                <b>Market</b>
-                <small>Competition</small>
+
+                <b>
+                  Market
+                </b>
+
+                <small>
+                  Competition
+                </small>
 
               </button>
 
 
               <button
+                type="button"
                 class="er-module"
                 data-module="economics"
-                type="button"
               >
 
                 <span>📊</span>
-                <b>Economics</b>
-                <small>Business numbers</small>
+
+                <b>
+                  Economics
+                </b>
+
+                <small>
+                  Business numbers
+                </small>
 
               </button>
 
 
               <button
+                type="button"
                 class="er-module"
                 data-module="save"
-                type="button"
               >
 
                 <span>💾</span>
-                <b>Save Game</b>
-                <small>Save progress</small>
+
+                <b>
+                  Save Game
+                </b>
+
+                <small>
+                  Save progress
+                </small>
 
               </button>
 
@@ -599,9 +633,9 @@
 
 
             <button
+              type="button"
               class="er-close"
               id="erCloseMore"
-              type="button"
             >
               CLOSE
             </button>
@@ -612,8 +646,8 @@
 
 
         <div
-          id="erToast"
           class="er-toast"
+          id="erToast"
         ></div>
 
       `;
@@ -627,30 +661,24 @@
       this.root =
         root;
 
-
-      this.moreDrawer =
-        document.getElementById(
-          "erMoreDrawer"
-        );
-
     },
 
 
-    /*
-     * -------------------------------------------------------
-     * STYLES
-     * -------------------------------------------------------
-     */
+    /* =======================================================
+       STYLES
+       ======================================================= */
 
     injectStyles() {
 
-      if (
+      const old =
         document.getElementById(
           "empireCleanHUDStyles"
-        )
-      ) {
+        );
 
-        return;
+
+      if (old) {
+
+        old.remove();
 
       }
 
@@ -695,38 +723,38 @@
         }
 
 
-        /* ================================================
+        /* =================================================
            HEADER
-           ================================================ */
+           ================================================= */
 
         .er-header {
 
           position: fixed;
 
-          top: 12px;
+          top: 8px;
 
-          left: 14px;
+          left: 10px;
 
-          right: 14px;
+          right: 10px;
 
-          height: 88px;
+          height: 78px;
 
           display: flex;
 
           align-items: center;
 
-          gap: 8px;
+          gap: 7px;
 
-          padding: 8px;
+          padding: 6px;
 
-          border-radius: 28px;
+          border-radius: 23px;
 
           background:
             rgba(
               10,
               17,
               27,
-              0.94
+              0.95
             );
 
           border:
@@ -735,16 +763,16 @@
               255,
               255,
               255,
-              0.16
+              0.15
             );
 
           box-shadow:
-            0 12px 35px
+            0 10px 30px
             rgba(
               0,
               0,
               0,
-              0.32
+              0.30
             );
 
           backdrop-filter:
@@ -769,18 +797,18 @@
 
           align-items: center;
 
-          gap: 9px;
+          gap: 8px;
 
         }
 
 
         .er-logo {
 
-          width: 52px;
+          width: 45px;
 
-          height: 52px;
+          height: 45px;
 
-          flex: 0 0 52px;
+          flex: 0 0 45px;
 
           display: flex;
 
@@ -788,7 +816,7 @@
 
           justify-content: center;
 
-          border-radius: 18px;
+          border-radius: 15px;
 
           background:
             linear-gradient(
@@ -803,10 +831,12 @@
               255,
               255,
               255,
-              0.18
+              0.17
             );
 
-          font-size: 25px;
+          color: #ffffff;
+
+          font-size: 21px;
 
         }
 
@@ -824,11 +854,9 @@
 
           color: #91df45;
 
-          font-size: 22px;
+          font-size: 19px;
 
           font-weight: 900;
-
-          letter-spacing: -0.5px;
 
         }
 
@@ -839,7 +867,7 @@
 
           color: #f4f7fb;
 
-          font-size: 14px;
+          font-size: 12px;
 
           font-weight: 800;
 
@@ -854,11 +882,11 @@
 
         .er-job {
 
-          margin-top: 4px;
+          margin-top: 3px;
 
           color: #8da0b4;
 
-          font-size: 9px;
+          font-size: 8px;
 
           font-weight: 700;
 
@@ -873,11 +901,11 @@
 
         .er-stat {
 
-          width: 86px;
+          width: 72px;
 
-          height: 66px;
+          height: 58px;
 
-          flex: 0 0 86px;
+          flex: 0 0 72px;
 
           display: flex;
 
@@ -885,16 +913,16 @@
 
           justify-content: center;
 
-          padding: 8px 10px;
+          padding: 7px 9px;
 
-          border-radius: 18px;
+          border-radius: 15px;
 
           background:
             rgba(
               28,
               38,
               50,
-              0.9
+              0.92
             );
 
           border:
@@ -903,7 +931,7 @@
               255,
               255,
               255,
-              0.10
+              0.09
             );
 
         }
@@ -913,22 +941,22 @@
 
           color: #718094;
 
-          font-size: 8px;
+          font-size: 7px;
 
           font-weight: 800;
 
-          letter-spacing: 0.7px;
+          letter-spacing: 0.6px;
 
         }
 
 
         .er-stat strong {
 
-          margin-top: 4px;
+          margin-top: 3px;
 
           color: #f4f7fb;
 
-          font-size: 16px;
+          font-size: 14px;
 
           font-weight: 900;
 
@@ -939,31 +967,31 @@
 
         .er-day {
 
-          width: 70px;
+          width: 58px;
 
-          flex-basis: 70px;
+          flex-basis: 58px;
 
         }
 
 
         .er-menu-button {
 
-          width: 56px;
+          width: 48px;
 
-          height: 66px;
+          height: 58px;
 
-          flex: 0 0 56px;
+          flex: 0 0 48px;
 
           border: 0;
 
-          border-radius: 18px;
+          border-radius: 15px;
 
           background:
             rgba(
               29,
               39,
               52,
-              0.95
+              0.96
             );
 
           display: flex;
@@ -985,9 +1013,9 @@
 
           display: block;
 
-          width: 28px;
+          width: 24px;
 
-          height: 4px;
+          height: 3px;
 
           border-radius: 3px;
 
@@ -996,31 +1024,32 @@
         }
 
 
-        /* ================================================
-           OBJECTIVE BAR
-           ================================================ */
+        /* =================================================
+           OBJECTIVE
+           ================================================= */
 
         .er-objective {
 
           position: fixed;
 
-          top: 110px;
+          top: 94px;
 
-          left: 18px;
+          left: 12px;
 
-          right: 18px;
+          right: 12px;
 
-          min-height: 56px;
+          min-height: 48px;
 
           display: flex;
 
           align-items: center;
 
-          gap: 10px;
+          gap: 9px;
 
-          padding: 9px 13px;
+          padding:
+            8px 12px;
 
-          border-radius: 19px;
+          border-radius: 16px;
 
           background:
             rgba(
@@ -1036,7 +1065,7 @@
               255,
               255,
               255,
-              0.10
+              0.09
             );
 
           color: white;
@@ -1048,23 +1077,23 @@
 
         .er-objective-dot {
 
-          width: 13px;
+          width: 12px;
 
-          height: 13px;
+          height: 12px;
 
-          flex: 0 0 13px;
+          flex: 0 0 12px;
 
           border-radius: 50%;
 
           background: #f3c83b;
 
           box-shadow:
-            0 0 10px
+            0 0 9px
             rgba(
               243,
               200,
               59,
-              0.45
+              0.40
             );
 
         }
@@ -1072,7 +1101,7 @@
 
         .er-objective-main {
 
-          font-size: 14px;
+          font-size: 12px;
 
           font-weight: 900;
 
@@ -1085,14 +1114,14 @@
 
           width: 2px;
 
-          height: 24px;
+          height: 22px;
 
           background:
             rgba(
               255,
               255,
               255,
-              0.22
+              0.20
             );
 
         }
@@ -1104,7 +1133,7 @@
 
           color: #8595a8;
 
-          font-size: 10px;
+          font-size: 9px;
 
           font-weight: 700;
 
@@ -1123,7 +1152,7 @@
 
           color: #8999aa;
 
-          font-size: 9px;
+          font-size: 8px;
 
           font-weight: 800;
 
@@ -1132,27 +1161,27 @@
         }
 
 
-        /* ================================================
+        /* =================================================
            BOTTOM NAV
-           ================================================ */
+           ================================================= */
 
         .er-bottom-nav {
 
           position: fixed;
 
-          left: 16px;
+          left: 10px;
 
-          right: 16px;
+          right: 10px;
 
           bottom:
             max(
-              10px,
+              7px,
               env(
                 safe-area-inset-bottom
               )
             );
 
-          height: 74px;
+          height: 68px;
 
           display: grid;
 
@@ -1162,18 +1191,16 @@
               1fr
             );
 
-          align-items: stretch;
-
           padding: 5px;
 
-          border-radius: 27px;
+          border-radius: 23px;
 
           background:
             rgba(
               7,
               14,
               23,
-              0.96
+              0.97
             );
 
           border:
@@ -1186,12 +1213,12 @@
             );
 
           box-shadow:
-            0 -8px 30px
+            0 -8px 28px
             rgba(
               0,
               0,
               0,
-              0.28
+              0.27
             );
 
           backdrop-filter:
@@ -1218,7 +1245,7 @@
 
           color: #8993a0;
 
-          border-radius: 20px;
+          border-radius: 17px;
 
           display: flex;
 
@@ -1232,7 +1259,7 @@
 
           cursor: pointer;
 
-          font-size: 8px;
+          font-size: 7px;
 
           font-weight: 900;
 
@@ -1241,16 +1268,16 @@
 
         .er-nav-icon {
 
-          font-size: 22px;
+          font-size: 19px;
 
-          line-height: 23px;
+          line-height: 21px;
 
         }
 
 
         .er-nav.active {
 
-          color: white;
+          color: #ffffff;
 
           background:
             rgba(
@@ -1269,7 +1296,7 @@
 
           position: absolute;
 
-          bottom: 4px;
+          bottom: 3px;
 
           left: 30%;
 
@@ -1277,16 +1304,16 @@
 
           height: 3px;
 
-          border-radius: 5px;
+          border-radius: 4px;
 
           background: #5eaeff;
 
         }
 
 
-        /* ================================================
+        /* =================================================
            MORE DRAWER
-           ================================================ */
+           ================================================= */
 
         .er-more-drawer {
 
@@ -1301,8 +1328,8 @@
           pointer-events: none;
 
           transition:
-            opacity 0.18s ease,
-            visibility 0.18s ease;
+            opacity .18s ease,
+            visibility .18s ease;
 
         }
 
@@ -1329,7 +1356,7 @@
               0,
               0,
               0,
-              0.46
+              .48
             );
 
         }
@@ -1339,22 +1366,22 @@
 
           position: absolute;
 
-          left: 10px;
+          left: 7px;
 
-          right: 10px;
+          right: 7px;
 
-          bottom: 10px;
+          bottom: 7px;
 
           padding: 12px;
 
-          border-radius: 28px;
+          border-radius: 24px;
 
           background:
             rgba(
               11,
               19,
               29,
-              0.98
+              .99
             );
 
           border:
@@ -1363,7 +1390,7 @@
               255,
               255,
               255,
-              0.14
+              .14
             );
 
           box-shadow:
@@ -1372,7 +1399,7 @@
               0,
               0,
               0,
-              0.45
+              .45
             );
 
         }
@@ -1385,7 +1412,7 @@
           height: 4px;
 
           margin:
-            0 auto 12px;
+            0 auto 11px;
 
           border-radius: 5px;
 
@@ -1394,7 +1421,7 @@
               255,
               255,
               255,
-              0.22
+              .22
             );
 
         }
@@ -1426,33 +1453,34 @@
               1fr
             );
 
-          gap: 7px;
+          gap: 5px;
 
         }
 
 
         .er-module {
 
-          min-height: 70px;
+          min-height: 64px;
 
-          padding: 8px 5px;
+          padding: 7px 4px;
 
-          border: 1px solid
+          border:
+            1px solid
             rgba(
               255,
               255,
               255,
-              0.08
+              .08
             );
 
-          border-radius: 16px;
+          border-radius: 15px;
 
           background:
             rgba(
               25,
               35,
               47,
-              0.95
+              .96
             );
 
           color: white;
@@ -1474,16 +1502,16 @@
 
         .er-module > span {
 
-          font-size: 20px;
+          font-size: 19px;
 
-          line-height: 22px;
+          line-height: 21px;
 
         }
 
 
         .er-module b {
 
-          font-size: 10px;
+          font-size: 9px;
 
           font-weight: 900;
 
@@ -1505,9 +1533,9 @@
 
           width: 100%;
 
-          height: 40px;
+          height: 38px;
 
-          margin-top: 9px;
+          margin-top: 8px;
 
           border: 0;
 
@@ -1518,7 +1546,7 @@
               255,
               255,
               255,
-              0.08
+              .08
             );
 
           color: #b5c0cc;
@@ -1530,9 +1558,9 @@
         }
 
 
-        /* ================================================
+        /* =================================================
            TOAST
-           ================================================ */
+           ================================================= */
 
         .er-toast {
 
@@ -1540,49 +1568,40 @@
 
           left: 50%;
 
-          bottom: 100px;
+          bottom: 88px;
 
           transform:
             translate(
               -50%,
-              15px
+              12px
             );
 
           opacity: 0;
 
           padding:
-            9px 14px;
+            8px 13px;
 
-          border-radius: 12px;
+          border-radius: 11px;
 
           background:
             rgba(
               8,
               15,
               23,
-              0.95
-            );
-
-          border:
-            1px solid
-            rgba(
-              255,
-              255,
-              255,
-              0.12
+              .96
             );
 
           color: white;
 
-          font-size: 11px;
+          font-size: 10px;
 
           font-weight: 800;
 
           pointer-events: none;
 
           transition:
-            opacity 0.18s ease,
-            transform 0.18s ease;
+            opacity .18s ease,
+            transform .18s ease;
 
           white-space: nowrap;
 
@@ -1602,155 +1621,37 @@
         }
 
 
-        /* ================================================
-           LEGACY FLOATING UI
-           ================================================ */
-
-        /*
-         * Old systems created huge standalone buttons.
-         * We hide them because modules now live inside MORE.
-         */
-
-        body.empire-modern-hud
-        .legacy-module-button,
-        body.empire-modern-hud
-        .floating-module-button,
-        body.empire-modern-hud
-        .module-launcher,
-        body.empire-modern-hud
-        .quick-action-button {
-
-          display: none !important;
-
-        }
-
+        /* =================================================
+           SMALL SCREEN
+           ================================================= */
 
         @media (
-          max-width: 430px
+          max-width: 360px
         ){
-
-          .er-header {
-
-            left: 10px;
-
-            right: 10px;
-
-            top: 8px;
-
-            height: 78px;
-
-            padding: 6px;
-
-            border-radius: 23px;
-
-          }
-
-
-          .er-logo {
-
-            width: 45px;
-
-            height: 45px;
-
-            flex-basis: 45px;
-
-            border-radius: 15px;
-
-            font-size: 21px;
-
-          }
-
-
-          .er-title {
-
-            font-size: 19px;
-
-          }
-
-
-          .er-founder {
-
-            font-size: 12px;
-
-          }
-
-
-          .er-job {
-
-            font-size: 8px;
-
-          }
-
 
           .er-stat {
 
-            width: 72px;
+            width: 65px;
 
-            flex-basis: 72px;
-
-            height: 58px;
-
-            border-radius: 15px;
-
-          }
-
-
-          .er-stat strong {
-
-            font-size: 14px;
+            flex-basis: 65px;
 
           }
 
 
           .er-day {
 
-            width: 58px;
+            width: 52px;
 
-            flex-basis: 58px;
+            flex-basis: 52px;
 
           }
 
 
           .er-menu-button {
 
-            width: 48px;
+            width: 44px;
 
-            flex-basis: 48px;
-
-            height: 58px;
-
-            border-radius: 15px;
-
-          }
-
-
-          .er-menu-button span {
-
-            width: 24px;
-
-            height: 3px;
-
-          }
-
-
-          .er-objective {
-
-            top: 94px;
-
-            left: 12px;
-
-            right: 12px;
-
-            min-height: 48px;
-
-            border-radius: 16px;
-
-          }
-
-
-          .er-objective-main {
-
-            font-size: 12px;
+            flex-basis: 44px;
 
           }
 
@@ -1758,131 +1659,6 @@
           .er-objective-sub {
 
             display: none;
-
-          }
-
-
-          .er-date {
-
-            font-size: 8px;
-
-          }
-
-
-          .er-bottom-nav {
-
-            left: 10px;
-
-            right: 10px;
-
-            bottom:
-              max(
-                7px,
-                env(
-                  safe-area-inset-bottom
-                )
-              );
-
-            height: 68px;
-
-            border-radius: 23px;
-
-          }
-
-
-          .er-nav {
-
-            border-radius: 17px;
-
-            font-size: 7px;
-
-          }
-
-
-          .er-nav-icon {
-
-            font-size: 19px;
-
-          }
-
-
-          .er-drawer {
-
-            left: 7px;
-
-            right: 7px;
-
-            bottom: 7px;
-
-            border-radius: 24px;
-
-          }
-
-
-          .er-drawer-grid {
-
-            gap: 5px;
-
-          }
-
-
-          .er-module {
-
-            min-height: 64px;
-
-          }
-
-        }
-
-
-        @media (
-          max-height: 650px
-        ){
-
-          .er-header {
-
-            height: 68px;
-
-          }
-
-
-          .er-logo {
-
-            width: 42px;
-
-            height: 42px;
-
-            flex-basis: 42px;
-
-          }
-
-
-          .er-stat {
-
-            height: 52px;
-
-          }
-
-
-          .er-menu-button {
-
-            height: 52px;
-
-          }
-
-
-          .er-objective {
-
-            top: 82px;
-
-            min-height: 43px;
-
-          }
-
-
-          .er-bottom-nav {
-
-            height: 62px;
 
           }
 
@@ -1898,19 +1674,89 @@
     },
 
 
-    /*
-     * -------------------------------------------------------
-     * LEGACY UI CLEANER
-     * -------------------------------------------------------
-     */
+    /* =======================================================
+       LEGACY BUTTON DETECTION
+       ======================================================= */
+
+    legacyLabels: [
+
+      "PRODUCTS",
+
+      "NEWS",
+
+      "CORPORATE",
+
+      "OPERATIONS",
+
+      "WORKFORCE",
+
+      "GOVERNMENT",
+
+      "ECONOMICS",
+
+      "BUSINESS"
+
+    ],
+
+
+    isLegacyLabel(
+      text
+    ) {
+
+      const value =
+        String(
+          text || ""
+        )
+          .replace(
+            /\s+/g,
+            " "
+          )
+          .trim()
+          .toUpperCase();
+
+
+      if (!value) {
+        return false;
+      }
+
+
+      return this.legacyLabels.some(
+        label => {
+
+          return (
+            value === label ||
+            value.includes(
+              label
+            )
+          );
+
+        }
+      );
+
+    },
+
+
+    /* =======================================================
+       FIND LEGACY UI
+       ======================================================= */
 
     cleanLegacyUI() {
 
       /*
-       * Old world3d.html header
+       * IMPORTANT:
+       * We NEVER touch anything inside
+       * the new HUD.
        */
 
-      const oldSelectors = [
+      const hud =
+        this.root;
+
+
+      /*
+       * First hide known legacy containers.
+       */
+
+      const selectors = [
 
         "#top",
 
@@ -1920,9 +1766,9 @@
 
         "#oldHUD",
 
-        ".old-hud",
-
         ".legacy-hud",
+
+        ".legacyHUD",
 
         ".legacy-module-button",
 
@@ -1930,12 +1776,20 @@
 
         ".module-launcher",
 
-        ".quick-action-button"
+        ".quick-action-button",
+
+        ".quick-actions",
+
+        ".floating-actions",
+
+        ".floating-buttons",
+
+        ".action-buttons"
 
       ];
 
 
-      oldSelectors.forEach(
+      selectors.forEach(
         selector => {
 
           document
@@ -1944,6 +1798,18 @@
             )
             .forEach(
               element => {
+
+                if (
+                  hud &&
+                  hud.contains(
+                    element
+                  )
+                ) {
+
+                  return;
+
+                }
+
 
                 element.style
                   .setProperty(
@@ -1960,39 +1826,8 @@
 
 
       /*
-       * Activate modern HUD mode.
+       * Then inspect every button.
        */
-
-      document.body
-        .classList
-        .add(
-          "empire-modern-hud"
-        );
-
-
-      /*
-       * Search visible buttons by
-       * their displayed labels.
-       */
-
-      const blockedLabels = [
-
-        "PRODUCTS",
-
-        "NEWS",
-
-        "CORPORATE",
-
-        "OPERATIONS",
-
-        "WORKFORCE",
-
-        "GOVERNMENT",
-
-        "ECONOMICS"
-
-      ];
-
 
       document
         .querySelectorAll(
@@ -2002,9 +1837,96 @@
           button => {
 
             if (
-              this.root &&
-              this.root.contains(
+              hud &&
+              hud.contains(
                 button
+              )
+            ) {
+
+              return;
+
+            }
+
+
+            if (
+              this.isLegacyLabel(
+                button.innerText ||
+                button.textContent
+              )
+            ) {
+
+              this.hideLegacyElement(
+                button
+              );
+
+            }
+
+          }
+        );
+
+
+      /*
+       * Inspect clickable elements
+       * that are NOT buttons.
+       *
+       * This is the important fix for
+       * the current screenshot.
+       */
+
+      document
+        .querySelectorAll(
+          "[role='button'], [onclick]"
+        )
+        .forEach(
+          element => {
+
+            if (
+              hud &&
+              hud.contains(
+                element
+              )
+            ) {
+
+              return;
+
+            }
+
+
+            if (
+              this.isLegacyLabel(
+                element.innerText ||
+                element.textContent
+              )
+            ) {
+
+              this.hideLegacyElement(
+                element
+              );
+
+            }
+
+          }
+        );
+
+
+      /*
+       * Inspect common div/span containers.
+       * We only hide an element when its
+       * visible text is EXACTLY one of the
+       * old module names.
+       */
+
+      document
+        .querySelectorAll(
+          "div, span"
+        )
+        .forEach(
+          element => {
+
+            if (
+              hud &&
+              hud.contains(
+                element
               )
             ) {
 
@@ -2015,51 +1937,175 @@
 
             const text =
               (
-                button.innerText ||
-                button.textContent ||
+                element.innerText ||
                 ""
               )
+                .replace(
+                  /\s+/g,
+                  " "
+                )
                 .trim()
                 .toUpperCase();
 
 
             if (
-              blockedLabels.includes(
+              !this.legacyLabels.includes(
                 text
               )
             ) {
 
-              button.style
-                .setProperty(
-                  "display",
-                  "none",
-                  "important"
-                );
+              return;
 
             }
 
+
+            /*
+             * Prefer hiding the nearest
+             * useful visual container.
+             */
+
+            this.hideLegacyElement(
+              element
+            );
+
           }
+        );
+
+
+      /*
+       * Modern mode.
+       */
+
+      document.body
+        .classList
+        .add(
+          "empire-modern-hud"
         );
 
     },
 
 
-    /*
-     * -------------------------------------------------------
-     * CONTINUOUS LEGACY CLEANUP
-     * -------------------------------------------------------
-     */
+    /* =======================================================
+       HIDE LEGACY ELEMENT
+       ======================================================= */
 
-    startLegacyObserver() {
+    hideLegacyElement(
+      element
+    ) {
 
       if (
-        this.observer
+        !element ||
+        element === this.root
       ) {
 
         return;
 
       }
 
+
+      /*
+       * Don't remove it from the DOM.
+       * Other game systems may still have
+       * event listeners attached.
+       *
+       * We simply make the legacy visual
+       * unavailable.
+       */
+
+      element.style
+        .setProperty(
+          "display",
+          "none",
+          "important"
+        );
+
+
+      element.style
+        .setProperty(
+          "visibility",
+          "hidden",
+          "important"
+        );
+
+
+      element.style
+        .setProperty(
+          "pointer-events",
+          "none",
+          "important"
+        );
+
+
+      /*
+       * If its immediate parent is a
+       * dedicated floating action wrapper,
+       * hide that wrapper too.
+       */
+
+      const parent =
+        element.parentElement;
+
+
+      if (
+        parent &&
+        parent !== document.body &&
+        parent !== document.documentElement &&
+        !(
+          this.root &&
+          this.root.contains(
+            parent
+          )
+        )
+      ) {
+
+        const parentText =
+          (
+            parent.innerText ||
+            ""
+          )
+            .replace(
+              /\s+/g,
+              " "
+            )
+            .trim()
+            .toUpperCase();
+
+
+        if (
+          this.isLegacyLabel(
+            parentText
+          )
+        ) {
+
+          parent.style
+            .setProperty(
+              "display",
+              "none",
+              "important"
+            );
+
+        }
+
+      }
+
+    },
+    /* =======================================================
+       LEGACY OBSERVER
+       ======================================================= */
+
+    startLegacyObserver() {
+
+      if (this.observer) {
+        return;
+      }
+
+
+      /*
+       * New/old systems kabhi bhi DOM mein
+       * floating buttons inject kar sakte hain.
+       *
+       * Observer unhe turant clean karega.
+       */
 
       this.observer =
         new MutationObserver(
@@ -2081,37 +2127,30 @@
 
 
       /*
-       * Also perform periodic cleanup.
-       * This catches systems that change
-       * their styles after rendering.
+       * Safety cleanup.
        */
 
-      setInterval(
-        () => {
+      this.cleanupTimer =
+        setInterval(
+          () => {
 
-          this.cleanLegacyUI();
+            this.cleanLegacyUI();
 
-        },
-        1200
-      );
+          },
+          1000
+        );
 
     },
 
 
-    /*
-     * -------------------------------------------------------
-     * STATE RENDER
-     * -------------------------------------------------------
-     */
+    /* =======================================================
+       RENDER
+       ======================================================= */
 
     render() {
 
-      if (
-        !this.root
-      ) {
-
+      if (!this.root) {
         return;
-
       }
 
 
@@ -2153,7 +2192,7 @@
         );
 
 
-      if(founder){
+      if (founder) {
 
         founder.textContent =
           player.name ||
@@ -2162,7 +2201,7 @@
       }
 
 
-      if(job){
+      if (job) {
 
         job.textContent =
           (
@@ -2178,7 +2217,7 @@
       }
 
 
-      if(cash){
+      if (cash) {
 
         cash.textContent =
           this.money(
@@ -2188,7 +2227,7 @@
       }
 
 
-      if(day){
+      if (day) {
 
         day.textContent =
           world.day ||
@@ -2197,7 +2236,7 @@
       }
 
 
-      if(date){
+      if (date) {
 
         date.textContent =
           "Y" +
@@ -2224,11 +2263,9 @@
     },
 
 
-    /*
-     * -------------------------------------------------------
-     * OBJECTIVE
-     * -------------------------------------------------------
-     */
+    /* =======================================================
+       OBJECTIVE
+       ======================================================= */
 
     updateObjective() {
 
@@ -2275,9 +2312,11 @@
       }
 
 
-      if (
-        !this.getGameCompany()
-      ) {
+      const company =
+        this.getFirstCompany();
+
+
+      if (!company) {
 
         main.textContent =
           "Grow your capital";
@@ -2299,18 +2338,14 @@
     },
 
 
-    getGameCompany() {
+    getFirstCompany() {
 
       const game =
         this.getGame();
 
 
-      if (
-        !game
-      ) {
-
+      if (!game) {
         return null;
-
       }
 
 
@@ -2327,7 +2362,7 @@
           Array.isArray(
             companies
           ) &&
-          companies.length
+          companies.length > 0
         ) {
 
           return companies[0];
@@ -2337,25 +2372,36 @@
       }
 
 
+      const state =
+        this.getState();
+
+
+      if (
+        state &&
+        Array.isArray(
+          state.companies
+        ) &&
+        state.companies.length > 0
+      ) {
+
+        return state.companies[0];
+
+      }
+
+
       return null;
 
     },
 
 
-    /*
-     * -------------------------------------------------------
-     * DRAWER
-     * -------------------------------------------------------
-     */
+    /* =======================================================
+       DRAWER
+       ======================================================= */
 
     openMore() {
 
-      if (
-        !this.moreDrawer
-      ) {
-
+      if (!this.moreDrawer) {
         return;
-
       }
 
 
@@ -2370,12 +2416,8 @@
 
     closeMore() {
 
-      if (
-        !this.moreDrawer
-      ) {
-
+      if (!this.moreDrawer) {
         return;
-
       }
 
 
@@ -2390,12 +2432,8 @@
 
     toggleMore() {
 
-      if (
-        !this.moreDrawer
-      ) {
-
+      if (!this.moreDrawer) {
         return;
-
       }
 
 
@@ -2408,36 +2446,30 @@
     },
 
 
-    /*
-     * -------------------------------------------------------
-     * TOAST
-     * -------------------------------------------------------
-     */
+    /* =======================================================
+       TOAST
+       ======================================================= */
 
     toast(
       message
     ) {
 
-      const element =
+      const toast =
         document.getElementById(
           "erToast"
         );
 
 
-      if (
-        !element
-      ) {
-
+      if (!toast) {
         return;
-
       }
 
 
-      element.textContent =
+      toast.textContent =
         message;
 
 
-      element.classList
+      toast.classList
         .add(
           "show"
         );
@@ -2452,7 +2484,7 @@
         setTimeout(
           () => {
 
-            element.classList
+            toast.classList
               .remove(
                 "show"
               );
@@ -2464,11 +2496,9 @@
     },
 
 
-    /*
-     * -------------------------------------------------------
-     * MODULE INVOCATION
-     * -------------------------------------------------------
-     */
+    /* =======================================================
+       MODULE OPEN
+       ======================================================= */
 
     invoke(
       module
@@ -2477,14 +2507,14 @@
       const mapping = {
 
         products: [
-          "EmpireProducts",
           "EmpireProductUI",
+          "EmpireProducts",
           "EmpireProductManagement"
         ],
 
         news: [
-          "EmpireNewsUI",
-          "EmpireNewsDecisionUI"
+          "EmpireNewsDecisionUI",
+          "EmpireNewsUI"
         ],
 
         corporate: [
@@ -2522,8 +2552,7 @@
 
 
       const candidates =
-        mapping[module] ||
-        [];
+        mapping[module] || [];
 
 
       for (
@@ -2534,12 +2563,8 @@
           window[name];
 
 
-        if (
-          !object
-        ) {
-
+        if (!object) {
           continue;
-
         }
 
 
@@ -2565,36 +2590,40 @@
         ) {
 
           if (
-            typeof object[method] ===
+            typeof object[method] !==
             "function"
           ) {
 
-            try {
+            continue;
 
-              object[method]();
+          }
 
-              this.closeMore();
 
-              return true;
+          try {
 
-            } catch (
+            object[method]();
+
+            this.closeMore();
+
+            return true;
+
+          } catch (error) {
+
+            console.warn(
+              "Empire Rush module error:",
+              name,
+              method,
               error
-            ) {
-
-              console.warn(
-                "Empire Rush HUD module error:",
-                name,
-                method,
-                error
-              );
-
-            }
+            );
 
           }
 
         }
 
       }
+
+
+      this.closeMore();
 
 
       this.toast(
@@ -2607,409 +2636,268 @@
 
       return false;
 
-    }
-
-  };
-  /*
-   * =========================================================
-   * EVENT HANDLERS
-   * =========================================================
-   */
-
-  HUD.bindEvents = function () {
-
-    if (!this.root) {
-      return;
-    }
+    },
 
 
-    /*
-     * Header menu
-     */
+    /* =======================================================
+       SAVE
+       ======================================================= */
 
-    const menuButton =
-      document.getElementById(
-        "erMenuButton"
-      );
+    saveGame() {
 
-
-    if (menuButton) {
-
-      menuButton.addEventListener(
-        "click",
-        () => {
-
-          this.toggleMore();
-
-        }
-      );
-
-    }
+      const game =
+        this.getGame();
 
 
-    /*
-     * Close button
-     */
+      if (!game) {
 
-    const closeButton =
-      document.getElementById(
-        "erCloseMore"
-      );
+        this.toast(
+          "Game state unavailable"
+        );
 
-
-    if (closeButton) {
-
-      closeButton.addEventListener(
-        "click",
-        () => {
-
-          this.closeMore();
-
-        }
-      );
-
-    }
-
-
-    /*
-     * Backdrop
-     */
-
-    this.root
-      .querySelectorAll(
-        "[data-close-more='true']"
-      )
-      .forEach(
-        element => {
-
-          element.addEventListener(
-            "click",
-            () => {
-
-              this.closeMore();
-
-            }
-          );
-
-        }
-      );
-
-
-    /*
-     * Bottom navigation
-     */
-
-    this.root
-      .querySelectorAll(
-        ".er-nav"
-      )
-      .forEach(
-        button => {
-
-          button.addEventListener(
-            "click",
-            () => {
-
-              const action =
-                button.dataset.action;
-
-
-              this.setActiveNav(
-                action
-              );
-
-
-              this.handleNavigation(
-                action
-              );
-
-            }
-          );
-
-        }
-      );
-
-
-    /*
-     * More drawer modules
-     */
-
-    this.root
-      .querySelectorAll(
-        ".er-module"
-      )
-      .forEach(
-        button => {
-
-          button.addEventListener(
-            "click",
-            () => {
-
-              const module =
-                button.dataset.module;
-
-
-              if (
-                module === "save"
-              ) {
-
-                this.saveGame();
-
-                return;
-
-              }
-
-
-              this.invoke(
-                module
-              );
-
-            }
-          );
-
-        }
-      );
-
-
-    /*
-     * Escape closes drawer
-     */
-
-    document.addEventListener(
-      "keydown",
-      event => {
-
-        if (
-          event.key === "Escape"
-        ) {
-
-          this.closeMore();
-
-        }
+        return;
 
       }
-    );
 
 
-    /*
-     * Game-state changes
-     */
+      try {
 
-    const stateEvents = [
+        if (
+          typeof game.save ===
+          "function"
+        ) {
 
-      "EmpireGameStateChanged",
+          game.save();
 
-      "EmpireStateChanged",
+          this.closeMore();
 
-      "EmpireMoneyChanged",
+          this.toast(
+            "Game saved"
+          );
 
-      "EmpireDayChanged",
+          return;
 
-      "EmpireJobChanged",
-
-      "EmpireBusinessChanged",
-
-      "EmpireCompanyChanged",
-
-      "EmpireEmployeeUpdated"
-
-    ];
+        }
 
 
-    stateEvents.forEach(
-      eventName => {
+        if (
+          typeof game.saveGame ===
+          "function"
+        ) {
 
-        window.addEventListener(
-          eventName,
-          () => {
+          game.saveGame();
 
-            this.render();
+          this.closeMore();
+
+          this.toast(
+            "Game saved"
+          );
+
+          return;
+
+        }
+
+
+        this.toast(
+          "Save system unavailable"
+        );
+
+      } catch (error) {
+
+        console.warn(
+          "Empire Rush save error:",
+          error
+        );
+
+
+        this.toast(
+          "Unable to save"
+        );
+
+      }
+
+    },
+
+
+    /* =======================================================
+       NAVIGATION
+       ======================================================= */
+
+    setActiveNav(
+      action
+    ) {
+
+      if (!this.root) {
+        return;
+      }
+
+
+      this.root
+        .querySelectorAll(
+          ".er-nav"
+        )
+        .forEach(
+          button => {
+
+            button.classList.toggle(
+              "active",
+              button.dataset.action ===
+              action
+            );
 
           }
         );
 
-      }
-    );
-
-  };
+    },
 
 
-  /*
-   * =========================================================
-   * NAVIGATION
-   * =========================================================
-   */
-
-  HUD.setActiveNav = function (
-    action
-  ) {
-
-    if (!this.root) {
-      return;
-    }
-
-
-    this.root
-      .querySelectorAll(
-        ".er-nav"
-      )
-      .forEach(
-        button => {
-
-          button.classList.toggle(
-            "active",
-            button.dataset.action ===
-            action
-          );
-
-        }
-      );
-
-  };
-
-
-  HUD.handleNavigation = function (
-    action
-  ) {
-
-    switch (
+    handleNavigation(
       action
     ) {
 
-      case "home":
-
-        this.closeMore();
-
-        this.focusWorld();
-
-        break;
-
-
-      case "career":
-
-        this.closeMore();
-
-        this.openCareer();
-
-        break;
-
-
-      case "business":
-
-        this.closeMore();
-
-        this.openBusiness();
-
-        break;
-
-
-      case "finance":
-
-        this.closeMore();
-
-        this.openFinance();
-
-        break;
-
-
-      case "more":
-
-        this.openMore();
-
-        break;
-
-    }
-
-  };
-
-
-  /*
-   * =========================================================
-   * WORLD
-   * =========================================================
-   */
-
-  HUD.focusWorld = function () {
-
-    const world =
-      window.EmpireWorld;
-
-
-    if (
-      world &&
-      typeof world.focusOn ===
-      "function"
-    ) {
-
-      world.focusOn(
-        0,
-        18
-      );
-
-    }
-
-  };
-
-
-  /*
-   * =========================================================
-   * CAREER
-   * =========================================================
-   */
-
-  HUD.openCareer = function () {
-
-    const candidates = [
-
-      "EmpireCareerBusinessUI",
-
-      "EmpireCareerUI",
-
-      "EmpireCareer"
-
-    ];
-
-
-    for (
-      const name of candidates
-    ) {
-
-      const object =
-        window[name];
-
-
-      if (
-        !object
+      switch (
+        action
       ) {
 
-        continue;
+        case "home":
+
+          this.closeMore();
+
+          this.focusWorld();
+
+          break;
+
+
+        case "career":
+
+          this.closeMore();
+
+          this.openCareer();
+
+          break;
+
+
+        case "business":
+
+          this.closeMore();
+
+          this.openBusiness();
+
+          break;
+
+
+        case "finance":
+
+          this.closeMore();
+
+          this.openFinance();
+
+          break;
+
+
+        case "more":
+
+          this.openMore();
+
+          break;
 
       }
 
+    },
 
-      const methods = [
 
-        "open",
+    /* =======================================================
+       HOME / WORLD
+       ======================================================= */
 
-        "show",
+    focusWorld() {
 
-        "openPanel",
+      const world =
+        window.EmpireWorld;
 
-        "openCareer",
 
-        "openDashboard"
+      if (
+        world &&
+        typeof world.focusOn ===
+        "function"
+      ) {
+
+        /*
+         * IMPORTANT:
+         * Camera position is NOT modified here.
+         *
+         * This only uses the existing
+         * world focus API.
+         */
+
+        world.focusOn(
+          0,
+          18
+        );
+
+      }
+
+    },
+
+
+    /* =======================================================
+       CAREER
+       ======================================================= */
+
+    openCareer() {
+
+      const candidates = [
+
+        "EmpireCareerBusinessUI",
+
+        "EmpireCareerUI",
+
+        "EmpireCareer"
 
       ];
 
 
       for (
-        const method of methods
+        const name of candidates
       ) {
 
-        if (
-          typeof object[method] ===
-          "function"
+        const object =
+          window[name];
+
+
+        if (!object) {
+          continue;
+        }
+
+
+        const methods = [
+
+          "open",
+
+          "show",
+
+          "openPanel",
+
+          "openCareer",
+
+          "openDashboard"
+
+        ];
+
+
+        for (
+          const method of methods
         ) {
+
+          if (
+            typeof object[method] !==
+            "function"
+          ) {
+
+            continue;
+
+          }
+
 
           try {
 
@@ -3017,9 +2905,7 @@
 
             return;
 
-          } catch (
-            error
-          ) {
+          } catch (error) {
 
             console.warn(
               "Career UI error:",
@@ -3032,85 +2918,78 @@
 
       }
 
-    }
+
+      window.dispatchEvent(
+        new CustomEvent(
+          "EmpireOpenCareer"
+        )
+      );
+
+    },
 
 
-    /*
-     * Fallback event.
-     */
+    /* =======================================================
+       BUSINESS
+       ======================================================= */
 
-    window.dispatchEvent(
-      new CustomEvent(
-        "EmpireOpenCareer"
-      )
-    );
+    openBusiness() {
 
-  };
+      const candidates = [
 
+        "EmpireCareerBusinessUI",
 
-  /*
-   * =========================================================
-   * BUSINESS
-   * =========================================================
-   */
+        "EmpireBusinessSetupUI",
 
-  HUD.openBusiness = function () {
+        "EmpireBusinessOperationsUI",
 
-    const candidates = [
-
-      "EmpireCareerBusinessUI",
-
-      "EmpireBusinessSetupUI",
-
-      "EmpireBusinessOperationsUI",
-
-      "EmpireBusinessLauncher"
-
-    ];
-
-
-    for (
-      const name of candidates
-    ) {
-
-      const object =
-        window[name];
-
-
-      if (
-        !object
-      ) {
-
-        continue;
-
-      }
-
-
-      const methods = [
-
-        "open",
-
-        "show",
-
-        "openPanel",
-
-        "openBusiness",
-
-        "openDashboard",
-
-        "launch"
+        "EmpireBusinessLauncher"
 
       ];
 
 
       for (
-        const method of methods
+        const name of candidates
       ) {
 
-        if (
-          typeof object[method] ===
-          "function"
+        const object =
+          window[name];
+
+
+        if (!object) {
+          continue;
+        }
+
+
+        const methods = [
+
+          "open",
+
+          "show",
+
+          "openPanel",
+
+          "openBusiness",
+
+          "openDashboard",
+
+          "launch"
+
+        ];
+
+
+        for (
+          const method of methods
         ) {
+
+          if (
+            typeof object[method] !==
+            "function"
+          ) {
+
+            continue;
+
+          }
+
 
           try {
 
@@ -3118,9 +2997,7 @@
 
             return;
 
-          } catch (
-            error
-          ) {
+          } catch (error) {
 
             console.warn(
               "Business UI error:",
@@ -3133,79 +3010,76 @@
 
       }
 
-    }
+
+      window.dispatchEvent(
+        new CustomEvent(
+          "EmpireOpenBusiness"
+        )
+      );
+
+    },
 
 
-    window.dispatchEvent(
-      new CustomEvent(
-        "EmpireOpenBusiness"
-      )
-    );
+    /* =======================================================
+       FINANCE
+       ======================================================= */
 
-  };
+    openFinance() {
 
+      const candidates = [
 
-  /*
-   * =========================================================
-   * FINANCE
-   * =========================================================
-   */
+        "EmpireBankingUI",
 
-  HUD.openFinance = function () {
+        "EmpireFinanceUI",
 
-    const candidates = [
+        "EmpireAccountingUI",
 
-      "EmpireBankingUI",
-
-      "EmpireFinanceUI",
-
-      "EmpireAccountingUI",
-
-      "EmpireBankingInvestment"
-
-    ];
-
-
-    for (
-      const name of candidates
-    ) {
-
-      const object =
-        window[name];
-
-
-      if (
-        !object
-      ) {
-
-        continue;
-
-      }
-
-
-      const methods = [
-
-        "open",
-
-        "show",
-
-        "openPanel",
-
-        "openDashboard",
-
-        "openFinance"
+        "EmpireBankingInvestment"
 
       ];
 
 
       for (
-        const method of methods
+        const name of candidates
       ) {
 
-        if (
-          typeof object[method] ===
-          "function"
+        const object =
+          window[name];
+
+
+        if (!object) {
+          continue;
+        }
+
+
+        const methods = [
+
+          "open",
+
+          "show",
+
+          "openPanel",
+
+          "openDashboard",
+
+          "openFinance"
+
+        ];
+
+
+        for (
+          const method of methods
         ) {
+
+          if (
+            typeof object[method] !==
+            "function"
+          ) {
+
+            continue;
+
+          }
+
 
           try {
 
@@ -3213,9 +3087,7 @@
 
             return;
 
-          } catch (
-            error
-          ) {
+          } catch (error) {
 
             console.warn(
               "Finance UI error:",
@@ -3228,199 +3100,300 @@
 
       }
 
-    }
+
+      window.dispatchEvent(
+        new CustomEvent(
+          "EmpireOpenFinance"
+        )
+      );
+
+    },
 
 
-    window.dispatchEvent(
-      new CustomEvent(
-        "EmpireOpenFinance"
-      )
-    );
+    /* =======================================================
+       EVENTS
+       ======================================================= */
 
-  };
+    bindEvents() {
 
-
-  /*
-   * =========================================================
-   * SAVE GAME
-   * =========================================================
-   */
-
-  HUD.saveGame = function () {
-
-    const game =
-      this.getGame();
+      if (!this.root) {
+        return;
+      }
 
 
-    if (
-      game &&
-      typeof game.save ===
-      "function"
-    ) {
-
-      try {
-
-        game.save();
-
-        this.closeMore();
-
-        this.toast(
-          "Game saved"
+      const menu =
+        document.getElementById(
+          "erMenuButton"
         );
 
-        return;
 
-      } catch (
-        error
-      ) {
+      if (menu) {
 
-        console.warn(
-          "Save error:",
-          error
+        menu.addEventListener(
+          "click",
+          () => {
+
+            this.toggleMore();
+
+          }
         );
 
       }
 
-    }
 
-
-    /*
-     * Compatibility with systems
-     * that expose saveGame().
-     */
-
-    if (
-      game &&
-      typeof game.saveGame ===
-      "function"
-    ) {
-
-      try {
-
-        game.saveGame();
-
-        this.closeMore();
-
-        this.toast(
-          "Game saved"
+      const close =
+        document.getElementById(
+          "erCloseMore"
         );
 
-        return;
 
-      } catch (
-        error
-      ) {
+      if (close) {
 
-        console.warn(
-          "SaveGame error:",
-          error
+        close.addEventListener(
+          "click",
+          () => {
+
+            this.closeMore();
+
+          }
         );
 
       }
 
+
+      this.root
+        .querySelectorAll(
+          "[data-close-more='true']"
+        )
+        .forEach(
+          element => {
+
+            element.addEventListener(
+              "click",
+              () => {
+
+                this.closeMore();
+
+              }
+            );
+
+          }
+        );
+
+
+      this.root
+        .querySelectorAll(
+          ".er-nav"
+        )
+        .forEach(
+          button => {
+
+            button.addEventListener(
+              "click",
+              () => {
+
+                const action =
+                  button.dataset.action;
+
+
+                this.setActiveNav(
+                  action
+                );
+
+
+                this.handleNavigation(
+                  action
+                );
+
+              }
+            );
+
+          }
+        );
+
+
+      this.root
+        .querySelectorAll(
+          ".er-module"
+        )
+        .forEach(
+          button => {
+
+            button.addEventListener(
+              "click",
+              () => {
+
+                const module =
+                  button.dataset.module;
+
+
+                if (
+                  module === "save"
+                ) {
+
+                  this.saveGame();
+
+                  return;
+
+                }
+
+
+                this.invoke(
+                  module
+                );
+
+              }
+            );
+
+          }
+        );
+
+
+      document.addEventListener(
+        "keydown",
+        event => {
+
+          if (
+            event.key === "Escape"
+          ) {
+
+            this.closeMore();
+
+          }
+
+        }
+      );
+
+
+      const stateEvents = [
+
+        "EmpireGameStateChanged",
+
+        "EmpireStateChanged",
+
+        "EmpireMoneyChanged",
+
+        "EmpireDayChanged",
+
+        "EmpireJobChanged",
+
+        "EmpireBusinessChanged",
+
+        "EmpireCompanyChanged",
+
+        "EmpireEmployeeUpdated"
+
+      ];
+
+
+      stateEvents.forEach(
+        eventName => {
+
+          window.addEventListener(
+            eventName,
+            () => {
+
+              this.render();
+
+            }
+          );
+
+        }
+      );
+
+    },
+
+
+    /* =======================================================
+       START
+       ======================================================= */
+
+    start() {
+
+      if (
+        document.getElementById(
+          "empireCleanHUD"
+        )
+      ) {
+
+        return;
+
+      }
+
+
+      this.game =
+        this.getGame();
+
+
+      this.createRoot();
+
+      this.injectStyles();
+
+      this.bindEvents();
+
+      this.render();
+
+      this.cleanLegacyUI();
+
+      this.startLegacyObserver();
+
+
+      /*
+       * Legacy systems ko DOM render karne
+       * ka thoda time dete hain, phir cleanup.
+       */
+
+      setTimeout(
+        () => {
+
+          this.cleanLegacyUI();
+
+          this.render();
+
+        },
+        100
+      );
+
+
+      setTimeout(
+        () => {
+
+          this.cleanLegacyUI();
+
+          this.render();
+
+        },
+        500
+      );
+
+
+      setTimeout(
+        () => {
+
+          this.cleanLegacyUI();
+
+          this.render();
+
+        },
+        1500
+      );
+
     }
-
-
-    this.toast(
-      "Save system unavailable"
-    );
 
   };
 
 
-  /*
-   * =========================================================
-   * BOOT
-   * =========================================================
-   */
+  /* =========================================================
+     PUBLIC API
+     ========================================================= */
 
-  HUD.start = function () {
-
-    /*
-     * Prevent duplicate HUD.
-     */
-
-    if (
-      document.getElementById(
-        "empireCleanHUD"
-      )
-    ) {
-
-      return;
-
-    }
+  window.EmpireMainHUD =
+    HUD;
 
 
-    this.game =
-      this.getGame();
-
-
-    this.createRoot();
-
-    this.injectStyles();
-
-    this.bindEvents();
-
-    this.render();
-
-    this.cleanLegacyUI();
-
-    this.startLegacyObserver();
-
-
-    /*
-     * Run cleanup several times during
-     * initial boot because legacy game
-     * systems may render after this HUD.
-     */
-
-    setTimeout(
-      () => {
-
-        this.cleanLegacyUI();
-
-        this.render();
-
-      },
-      100
-    );
-
-
-    setTimeout(
-      () => {
-
-        this.cleanLegacyUI();
-
-        this.render();
-
-      },
-      500
-    );
-
-
-    setTimeout(
-      () => {
-
-        this.cleanLegacyUI();
-
-        this.render();
-
-      },
-      1500
-    );
-
-  };
-
-
-  /*
-   * =========================================================
-   * SAFE BOOT
-   *
-   * empire-game-state.js may load before
-   * or after this script depending on the
-   * page/system sequence.
-   * =========================================================
-   */
+  /* =========================================================
+     BOOT
+     ========================================================= */
 
   function boot() {
 
@@ -3437,7 +3410,7 @@
 
         },
         {
-          once:true
+          once: true
         }
       );
 
@@ -3452,8 +3425,7 @@
 
 
   /*
-   * If another system replaces the DOM,
-   * make sure the HUD comes back.
+   * World ready hone par HUD ensure karo.
    */
 
   window.addEventListener(
@@ -3477,14 +3449,6 @@
 
     }
   );
-
-
-  /*
-   * Public API
-   */
-
-  window.EmpireMainHUD =
-    HUD;
 
 
   boot();
