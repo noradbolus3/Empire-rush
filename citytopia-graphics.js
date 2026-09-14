@@ -2,23 +2,23 @@
   "use strict";
 
   /* =========================================================
-   * CITYTOPIA GRAPHICS OVERLAY V2 (CLEANER & POLISHER)
-   * - Hides old flat grey buildings automatically
-   * - Keeps office, employees & gameplay logic 100% intact
-   * - Places compact floating badges away from camera
-   * - Adds vibrant skyscrapers, overpass, and highway traffic
+   * CITYTOPIA REALISTIC URBAN ENGINE (PERIMETER BYPASS EDITION)
+   * - Flyover moved to distant outer ring (Zero building clipping)
+   * - Hides old flat grey buildings completely
+   * - Office HQ remains 100% open & unobstructed
+   * - Realistic skyline with vibrant towers & distant flowing traffic
    * ========================================================= */
 
   let initialized = false;
   let animId = null;
-  const overlayCars = [];
-  const floatingBadges = [];
-  let flyoverCurve = null;
+  const highwayCars = [];
+  const skyBadges = [];
+  let outerFlyoverCurve = null;
 
-  function cleanupOldGreyBuildings(scene) {
-    // Old world3d.js creates plain grey boxes named EmpireCityBuilding & EmpireCityRoad
+  function purgeOldGreyBackdrop(scene) {
     scene.traverse(function (obj) {
-      if (!obj || !obj.name) return;
+      if (!obj || !obj.isMesh) return;
+      // Target the dull grey procedural boxes from original generator
       if (
         obj.name === "EmpireCityBuilding" ||
         obj.name === "EmpireCentralPark" ||
@@ -26,13 +26,20 @@
       ) {
         obj.visible = false;
       }
+      // If any mesh has the old washed-out grey material color (0x9ca7ae)
+      if (obj.material && obj.material.color) {
+        const hex = obj.material.color.getHex();
+        if (hex === 0x9ca7ae || hex === 0x71806d) {
+          obj.visible = false;
+        }
+      }
     });
   }
 
-  function injectCitytopiaVisuals() {
+  function initCityVisuals() {
     if (initialized) return;
     if (!window.EmpireWorld || !window.EmpireWorld.scene || !window.EmpireWorld.THREE) {
-      setTimeout(injectCitytopiaVisuals, 300);
+      setTimeout(initCityVisuals, 300);
       return;
     }
 
@@ -43,31 +50,31 @@
 
     initialized = true;
 
-    // 1. Clean old grey backdrop
-    cleanupOldGreyBuildings(scene);
+    // 1. Clean existing dull elements
+    purgeOldGreyBackdrop(scene);
 
-    // 2. Lighting & Tonemapping (Vibrant mobile game style)
+    // 2. High-Saturation Lighting Setup
     if (renderer) {
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 1.15;
+      renderer.toneMappingExposure = 1.25;
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     }
 
     scene.background = new THREE.Color(0x7ed6df);
-    scene.fog = new THREE.FogExp2(0xa0e7e5, 0.003);
+    scene.fog = new THREE.FogExp2(0xa0e7e5, 0.0028);
 
-    const sun = new THREE.DirectionalLight(0xfffae0, 1.4);
-    sun.position.set(120, 160, 90);
+    const sun = new THREE.DirectionalLight(0xfffae0, 1.45);
+    sun.position.set(130, 180, 110);
     sun.castShadow = true;
     sun.shadow.mapSize.width = 2048;
     sun.shadow.mapSize.height = 2048;
     scene.add(sun);
 
-    const hemi = new THREE.HemisphereLight(0xffffff, 0x48bb78, 0.65);
-    scene.add(hemi);
+    const ambient = new THREE.HemisphereLight(0xffffff, 0x48bb78, 0.65);
+    scene.add(ambient);
 
-    // 3. Materials
+    // 3. Vibrant Citytopia Materials Palette
     const palette = {
       asphalt: new THREE.MeshLambertMaterial({ color: 0x2c3437 }),
       concrete: new THREE.MeshLambertMaterial({ color: 0xecf0f1 }),
@@ -82,23 +89,23 @@
     };
 
     const visualRoot = new THREE.Group();
-    visualRoot.name = "CitytopiaEnhancedLayer";
+    visualRoot.name = "CitytopiaOuterLayer";
     scene.add(visualRoot);
 
-    // 4. Ground Turf & Water Bay
-    const baseGround = new THREE.Mesh(new THREE.PlaneGeometry(650, 650), palette.grass);
-    baseGround.rotation.x = -Math.PI / 2;
-    baseGround.position.y = -0.15;
-    baseGround.receiveShadow = true;
-    visualRoot.add(baseGround);
+    // 4. Ground Turf & Distant Coastline
+    const grassPlate = new THREE.Mesh(new THREE.PlaneGeometry(700, 700), palette.grass);
+    grassPlate.rotation.x = -Math.PI / 2;
+    grassPlate.position.y = -0.15;
+    grassPlate.receiveShadow = true;
+    visualRoot.add(grassPlate);
 
-    const river = new THREE.Mesh(new THREE.PlaneGeometry(80, 650), palette.water);
+    const river = new THREE.Mesh(new THREE.PlaneGeometry(90, 700), palette.water);
     river.rotation.x = -Math.PI / 2;
-    river.position.set(-160, -0.05, 0);
+    river.position.set(-180, -0.05, 0);
     visualRoot.add(river);
 
-    // 5. Stylized High-Rise Skylines (Arranged outside the office footprint)
-    function addSkyscraper(x, z, w, d, h, wallMat, helipad) {
+    // 5. Stylized Skylines (Only in far background; office radius > 55)
+    function buildSkyscraper(x, z, w, d, h, wallMat, helipad) {
       const b = new THREE.Group();
       b.position.set(x, 0, z);
 
@@ -137,28 +144,28 @@
       visualRoot.add(b);
     }
 
-    // Outer City Skyline Coordinates
+    // Positions placed strictly outside the central playable zone
     const skyscrapers = [
-      [-70, -75, 18, 18, 42, palette.towerYellow, false],
-      [-35, -80, 20, 18, 54, palette.towerWhite, true],
-      [35, -80, 22, 18, 58, palette.towerBlue, true],
-      [75, -70, 18, 18, 45, palette.towerOrange, false],
-      [-75, 75, 20, 18, 48, palette.towerWhite, false],
-      [-35, 80, 18, 18, 38, palette.towerYellow, false],
-      [35, 80, 22, 22, 62, palette.towerBlue, true],
-      [78, 70, 18, 18, 50, palette.towerWhite, false],
-      [-85, 0, 20, 20, 44, palette.towerOrange, false],
-      [85, 0, 24, 22, 56, palette.towerWhite, true]
+      [-75, -85, 18, 18, 45, palette.towerYellow, false],
+      [-35, -95, 20, 18, 56, palette.towerWhite, true],
+      [35, -95, 22, 18, 60, palette.towerBlue, true],
+      [80, -80, 18, 18, 48, palette.towerOrange, false],
+      [-80, 85, 20, 18, 50, palette.towerWhite, false],
+      [-35, 95, 18, 18, 42, palette.towerYellow, false],
+      [35, 95, 22, 22, 65, palette.towerBlue, true],
+      [85, 80, 18, 18, 52, palette.towerWhite, false],
+      [-95, 0, 22, 22, 48, palette.towerOrange, false],
+      [95, 0, 24, 22, 58, palette.towerWhite, true]
     ];
-    skyscrapers.forEach(s => addSkyscraper(s[0], s[1], s[2], s[3], s[4], s[5], s[6]));
+    skyscrapers.forEach(s => buildSkyscraper(s[0], s[1], s[2], s[3], s[4], s[5], s[6]));
 
-    // 6. Overpass Highway (Smooth curved flyover outside the office)
-    flyoverCurve = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(55, 7, -130),
-      new THREE.Vector3(55, 13, -50),
-      new THREE.Vector3(20, 14, 0),
-      new THREE.Vector3(-32, 11, 60),
-      new THREE.Vector3(-32, 6, 130)
+    // 6. Realistic Outer Flyover Ring (Far behind the office, not on top)
+    outerFlyoverCurve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(75, 8, -160),
+      new THREE.Vector3(80, 14, -60),
+      new THREE.Vector3(75, 15, 60),
+      new THREE.Vector3(50, 11, 140),
+      new THREE.Vector3(10, 6, 180)
     ]);
 
     const bridgeShape = new THREE.Shape();
@@ -168,26 +175,32 @@
     bridgeShape.lineTo(-5, 0.6);
     bridgeShape.closePath();
 
-    const bridgeGeom = new THREE.ExtrudeGeometry(bridgeShape, { steps: 80, bevelEnabled: false, extrudePath: flyoverCurve });
+    const bridgeGeom = new THREE.ExtrudeGeometry(bridgeShape, { steps: 90, bevelEnabled: false, extrudePath: outerFlyoverCurve });
     const bridgeMesh = new THREE.Mesh(bridgeGeom, palette.asphalt);
     bridgeMesh.castShadow = true;
     bridgeMesh.receiveShadow = true;
     visualRoot.add(bridgeMesh);
 
-    // Support Pillars
-    const pilGeom = new THREE.CylinderGeometry(1.2, 1.2, 14, 12);
-    [-80, -20, 25, 85].forEach(pos => {
-      const u = (pos + 130) / 260;
-      const pt = flyoverCurve.getPointAt(Math.max(0, Math.min(1, u)));
+    // Support Pillars for outer flyover
+    const pilGeom = new THREE.CylinderGeometry(1.2, 1.2, 16, 12);
+    [0.1, 0.35, 0.65, 0.9].forEach(t => {
+      const pt = outerFlyoverCurve.getPointAt(t);
       const pil = new THREE.Mesh(pilGeom, palette.concrete);
       pil.position.set(pt.x, pt.y / 2, pt.z);
       pil.castShadow = true;
       visualRoot.add(pil);
     });
 
-    // 7. Dynamic Moving Vehicles
+    // Distant Ground Highway Avenue
+    const groundHighway = new THREE.Mesh(new THREE.PlaneGeometry(16, 400), palette.asphalt);
+    groundHighway.rotation.x = -Math.PI / 2;
+    groundHighway.position.set(85, 0.05, 0);
+    groundHighway.receiveShadow = true;
+    visualRoot.add(groundHighway);
+
+    // 7. Dynamic Moving Highway Vehicles
     const carColors = [0xe74c3c, 0xf1c40f, 0x3498db, 0x2ecc71, 0xffffff, 0xe67e22];
-    for (let i = 0; i < 18; i++) {
+    for (let i = 0; i < 16; i++) {
       const car = new THREE.Group();
       const col = carColors[i % carColors.length];
       const body = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1, 4.4), new THREE.MeshLambertMaterial({ color: col }));
@@ -203,17 +216,16 @@
       car.userData = {
         isFlyover,
         progress: Math.random(),
-        speed: 0.0013 + Math.random() * 0.0008,
-        laneZ: i % 4 === 0 ? -42 : 42,
-        laneOffset: (Math.random() - 0.5) * 4
+        speed: 0.0012 + Math.random() * 0.0008,
+        laneOffset: (Math.random() - 0.5) * 3
       };
 
       visualRoot.add(car);
-      overlayCars.push(car);
+      highwayCars.push(car);
     }
 
-    // 8. Compact Floating Badges (Properly scaled & positioned)
-    function createCompactBadge(txt, x, y, z, bgCol) {
+    // 8. Distant Bobbing Tycoon Sprites (Placed on skyline towers)
+    function addSkylineBadge(txt, x, y, z, bgCol) {
       const canvas = document.createElement("canvas");
       canvas.width = 256;
       canvas.height = 128;
@@ -243,58 +255,57 @@
       ctx.fillText(txt, 142, 64);
 
       const tex = new THREE.CanvasTexture(canvas);
-      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: true }));
-      // Scaled down from 16 to 8 so it looks neat
-      sprite.scale.set(8.5, 4.25, 1);
+      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true }));
+      sprite.scale.set(10, 5, 1);
       sprite.position.set(x, y, z);
       visualRoot.add(sprite);
 
-      floatingBadges.push({ sprite, baseY: y, phase: Math.random() * Math.PI * 2 });
+      skyBadges.push({ sprite, baseY: y, phase: Math.random() * Math.PI * 2 });
     }
 
-    // Placed higher up and outside the center camera line
-    createCompactBadge("+2.8K", 0, 16, 0, "#2ecc71");
-    createCompactBadge("+15K", 35, 38, -80, "#f1c40f");
-    createCompactBadge("Tier 2", 35, 42, 80, "#3498db");
+    // Placed high atop distant skyscrapers
+    addSkylineBadge("+15K", 35, 66, -95, "#f1c40f");
+    addSkylineBadge("Tier 2", 35, 72, 95, "#3498db");
 
-    // 9. Frame Animation Loop
-    function onVisualTick() {
-      // Periodic sweep to ensure old grey buildings stay hidden
-      if (Math.random() < 0.02) cleanupOldGreyBuildings(scene);
+    // 9. Render Loop
+    function onTick() {
+      // Periodically remove old dull meshes if dynamically recreated
+      if (Math.random() < 0.03) purgeOldGreyBackdrop(scene);
 
-      overlayCars.forEach(c => {
+      highwayCars.forEach(c => {
         const u = c.userData;
         u.progress += u.speed;
         if (u.progress > 1) u.progress = 0;
 
-        if (u.isFlyover && flyoverCurve) {
-          const pt = flyoverCurve.getPointAt(u.progress);
-          const tan = flyoverCurve.getTangentAt(u.progress).normalize();
+        if (u.isFlyover && outerFlyoverCurve) {
+          const pt = outerFlyoverCurve.getPointAt(u.progress);
+          const tan = outerFlyoverCurve.getTangentAt(u.progress).normalize();
           c.position.copy(pt);
           c.position.y += 0.6;
           c.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), tan);
         } else {
-          const startX = -140;
-          const endX = 140;
-          c.position.set(startX + u.progress * (endX - startX), 0.5, u.laneZ + u.laneOffset);
-          c.rotation.set(0, Math.PI / 2, 0);
+          // Distant Highway Straight Lane
+          const startZ = -180;
+          const endZ = 180;
+          c.position.set(85 + u.laneOffset, 0.5, startZ + u.progress * (endZ - startZ));
+          c.rotation.set(0, 0, 0);
         }
       });
 
       const time = performance.now() * 0.003;
-      floatingBadges.forEach(b => {
+      skyBadges.forEach(b => {
         b.sprite.position.y = b.baseY + Math.sin(time + b.phase) * 0.8;
       });
 
-      animId = requestAnimationFrame(onVisualTick);
+      animId = requestAnimationFrame(onTick);
     }
-    onVisualTick();
+    onTick();
 
-    console.log("🏙️ CITYTOPIA ENHANCED VISUAL LAYER ACTIVE");
+    console.log("🏙️ REALISTIC OUTER CITYTOPIA GRID ENGAGED");
   }
 
-  window.addEventListener("EmpireWorldReady", injectCitytopiaVisuals);
-  setTimeout(injectCitytopiaVisuals, 1000);
+  window.addEventListener("EmpireWorldReady", initCityVisuals);
+  setTimeout(initCityVisuals, 1000);
 
   window.addEventListener("beforeunload", () => {
     if (animId) cancelAnimationFrame(animId);
