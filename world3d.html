@@ -2148,3 +2148,3134 @@ console.log(
 /* =========================================================
    END OFFICE-01
    ========================================================= */
+/* =========================================================
+   EMPIRE RUSH — OFFICE-02
+   PREMIUM HQ ARCHITECTURE
+   PART 1/4 — OLD EXTERIOR CLEANUP + MASSING
+   ========================================================= */
+
+
+/* =========================================================
+   OFFICE-02 ROOT
+   ========================================================= */
+
+const OFFICE02 =
+  new THREE.Group();
+
+OFFICE02.name =
+  "OFFICE_02_PremiumArchitecture";
+
+HQ.add(
+  OFFICE02
+);
+
+
+/* =========================================================
+   ARCHITECTURE MATERIALS
+   ========================================================= */
+
+const OFFICE02_MATERIALS = {
+
+  facade:
+    material(
+      0x26333a,
+      0.62,
+      0.08
+    ),
+
+  facadeLight:
+    material(
+      0x56636a,
+      0.68,
+      0.05
+    ),
+
+  stone:
+    material(
+      0x8b9294,
+      0.82,
+      0
+    ),
+
+  concrete:
+    material(
+      0xb7bdbe,
+      0.88,
+      0
+    ),
+
+  frame:
+    material(
+      0x1b2329,
+      0.42,
+      0.65
+    ),
+
+  glass:
+    new THREE.MeshPhysicalMaterial({
+
+      color:
+        0x6fa9bd,
+
+      transparent:
+        true,
+
+      opacity:
+        0.48,
+
+      roughness:
+        0.12,
+
+      metalness:
+        0.28,
+
+      transmission:
+        0.08
+
+    }),
+
+  glassDark:
+    new THREE.MeshPhysicalMaterial({
+
+      color:
+        0x294b59,
+
+      transparent:
+        true,
+
+      opacity:
+        0.68,
+
+      roughness:
+        0.10,
+
+      metalness:
+        0.32,
+
+      transmission:
+        0.04
+
+    }),
+
+  accent:
+    material(
+      0xb8e92b,
+      0.35,
+      0.15
+    ),
+
+  entranceFloor:
+    material(
+      0x424b50,
+      0.48,
+      0.28
+    )
+
+};
+
+
+/* =========================================================
+   OLD EXTERIOR CLEANUP
+   ========================================================= */
+
+
+/*
+ * OFFICE-01 created the first structural shell.
+ *
+ * We preserve:
+ *
+ * - CEO / interior
+ * - desks
+ * - meeting table
+ * - employee positions
+ * - HQ property
+ * - driveway
+ * - parking
+ * - landscaping
+ *
+ * Only old exterior visual groups are hidden.
+ */
+
+const oldExteriorNames = [
+
+  "HQ_Building",
+
+  "HQ_BuildingShell",
+
+  "HQ_FrontGlass",
+
+  "HQ_SideWindows",
+
+  "HQ_Roof",
+
+  "HQ_SignBand",
+
+  "HQ_GlassFront",
+
+  "HQ_GlassFrontFacade",
+
+  "HQ_FrontFacade",
+
+  "HQ_Exterior",
+
+  "HQ_ExteriorWalls"
+
+];
+
+
+oldExteriorNames.forEach(
+  name => {
+
+    const object =
+      HQ.getObjectByName(
+        name
+      );
+
+    if(object){
+
+      object.visible =
+        false;
+
+      object.userData.office02Hidden =
+        true;
+
+    }
+
+  }
+);
+
+
+/*
+ * Hide old direct child meshes that
+ * were part of the original exterior.
+ *
+ * We do NOT blindly hide all HQ children,
+ * because interior gameplay must remain.
+ */
+
+
+/* =========================================================
+   OFFICE-02 ARCHITECTURAL FOOTPRINT
+   ========================================================= */
+
+
+/*
+ * Building local coordinates:
+ *
+ * X = -15 ... +15
+ * Z = -2  ... +12
+ *
+ * Front = negative Z
+ * Rear  = positive Z
+ *
+ * This architecture remains inside
+ * the already validated property.
+ */
+
+const OFFICE02_DIMENSIONS = {
+
+  width:
+    30,
+
+  depth:
+    14,
+
+  height:
+    5.2,
+
+  frontZ:
+    -2,
+
+  rearZ:
+    12
+
+};
+
+
+/* =========================================================
+   FOUNDATION PLINTH
+   ========================================================= */
+
+const OFFICE02_PLINTH =
+  new THREE.Group();
+
+OFFICE02_PLINTH.name =
+  "OFFICE02_FoundationPlinth";
+
+OFFICE02.add(
+  OFFICE02_PLINTH
+);
+
+
+/* Main raised plinth */
+
+box(
+  30.8,
+  0.30,
+  14.8,
+  OFFICE02_MATERIALS.stone,
+  0,
+  0.62,
+  5,
+  OFFICE02_PLINTH
+);
+
+
+/* Dark perimeter strip */
+
+box(
+  30.5,
+  0.14,
+  0.32,
+  OFFICE02_MATERIALS.frame,
+  0,
+  0.84,
+  -2.10,
+  OFFICE02_PLINTH
+);
+
+
+/* Rear perimeter strip */
+
+box(
+  30.5,
+  0.14,
+  0.32,
+  OFFICE02_MATERIALS.frame,
+  0,
+  0.84,
+  12.10,
+  OFFICE02_PLINTH
+);
+
+
+/* =========================================================
+   MAIN ARCHITECTURAL MASS
+   ========================================================= */
+
+const OFFICE02_MASS =
+  new THREE.Group();
+
+OFFICE02_MASS.name =
+  "OFFICE02_MainMass";
+
+OFFICE02.add(
+  OFFICE02_MASS
+);
+
+
+/*
+ * Rear structural wall.
+ */
+
+box(
+  30,
+  4.2,
+  0.42,
+  OFFICE02_MATERIALS.facade,
+  0,
+  2.75,
+  11.82,
+  OFFICE02_MASS
+);
+
+
+/*
+ * Left structural wall.
+ */
+
+box(
+  0.42,
+  4.2,
+  14,
+  OFFICE02_MATERIALS.facadeLight,
+  -14.82,
+  2.75,
+  5,
+  OFFICE02_MASS
+);
+
+
+/*
+ * Right structural wall.
+ */
+
+box(
+  0.42,
+  4.2,
+  14,
+  OFFICE02_MATERIALS.facadeLight,
+  14.82,
+  2.75,
+  5,
+  OFFICE02_MASS
+);
+
+
+/* =========================================================
+   FRONT MASSING
+   ========================================================= */
+
+
+/*
+ * The front is deliberately divided
+ * into architectural sections.
+ *
+ * Centre:
+ * MAIN ENTRANCE
+ *
+ * Left + right:
+ * GLASS OFFICE WINGS
+ */
+
+
+/* Left solid structural pier */
+
+box(
+  3.8,
+  4.2,
+  0.42,
+  OFFICE02_MATERIALS.facade,
+  -13.0,
+  2.75,
+  -2.0,
+  OFFICE02_MASS
+);
+
+
+/* Right solid structural pier */
+
+box(
+  3.8,
+  4.2,
+  0.42,
+  OFFICE02_MATERIALS.facade,
+  13.0,
+  2.75,
+  -2.0,
+  OFFICE02_MASS
+);
+
+
+/* Left entrance-side mass */
+
+box(
+  5.2,
+  4.2,
+  0.42,
+  OFFICE02_MATERIALS.facadeLight,
+  -9.0,
+  2.75,
+  -2.0,
+  OFFICE02_MASS
+);
+
+
+/* Right entrance-side mass */
+
+box(
+  5.2,
+  4.2,
+  0.42,
+  OFFICE02_MATERIALS.facadeLight,
+  9.0,
+  2.75,
+  -2.0,
+  OFFICE02_MASS
+);
+
+
+/* =========================================================
+   FRONT GLASS WINGS
+   ========================================================= */
+
+const OFFICE02_GLASS_WINGS =
+  new THREE.Group();
+
+OFFICE02_GLASS_WINGS.name =
+  "OFFICE02_GlassWings";
+
+OFFICE02.add(
+  OFFICE02_GLASS_WINGS
+);
+
+
+/* Left glass wall */
+
+box(
+  7.2,
+  3.55,
+  0.10,
+  OFFICE02_MATERIALS.glass,
+  -6.8,
+  2.65,
+  -2.23,
+  OFFICE02_GLASS_WINGS
+);
+
+
+/* Right glass wall */
+
+box(
+  7.2,
+  3.55,
+  0.10,
+  OFFICE02_MATERIALS.glass,
+  6.8,
+  2.65,
+  -2.23,
+  OFFICE02_GLASS_WINGS
+);
+
+
+/* =========================================================
+   VERTICAL FAÇADE FRAMES
+   ========================================================= */
+
+const framePositions = [
+
+  -13.6,
+  -11.8,
+  -9.9,
+  -8.0,
+  -5.6,
+  -3.8,
+
+  3.8,
+  5.6,
+  8.0,
+  9.9,
+  11.8,
+  13.6
+
+];
+
+
+framePositions.forEach(
+  x => {
+
+    box(
+      0.12,
+      3.75,
+      0.16,
+      OFFICE02_MATERIALS.frame,
+      x,
+      2.65,
+      -2.29,
+      OFFICE02_GLASS_WINGS
+    );
+
+  }
+);
+
+
+/* =========================================================
+   HORIZONTAL FAÇADE BAND
+   ========================================================= */
+
+box(
+  26,
+  0.18,
+  0.18,
+  OFFICE02_MATERIALS.frame,
+  0,
+  4.45,
+  -2.31,
+  OFFICE02_GLASS_WINGS
+);
+
+
+/* Lower façade band */
+
+box(
+  26,
+  0.16,
+  0.18,
+  OFFICE02_MATERIALS.frame,
+  0,
+  0.95,
+  -2.31,
+  OFFICE02_GLASS_WINGS
+);
+
+
+/* =========================================================
+   ENTRANCE ARCHITECTURAL CORE
+   ========================================================= */
+
+const OFFICE02_ENTRANCE_CORE =
+  new THREE.Group();
+
+OFFICE02_ENTRANCE_CORE.name =
+  "OFFICE02_EntranceCore";
+
+OFFICE02.add(
+  OFFICE02_ENTRANCE_CORE
+);
+
+
+/*
+ * Entrance recessed into the building.
+ */
+
+box(
+  6.2,
+  4.25,
+  0.55,
+  OFFICE02_MATERIALS.facade,
+  0,
+  2.72,
+  -2.02,
+  OFFICE02_ENTRANCE_CORE
+);
+
+
+/*
+ * Recessed dark portal.
+ */
+
+box(
+  5.15,
+  3.45,
+  0.12,
+  OFFICE02_MATERIALS.glassDark,
+  0,
+  2.38,
+  -2.36,
+  OFFICE02_ENTRANCE_CORE
+);
+
+
+/*
+ * Entrance left column.
+ */
+
+box(
+  0.34,
+  4.0,
+  0.48,
+  OFFICE02_MATERIALS.frame,
+  -3.05,
+  2.72,
+  -2.18,
+  OFFICE02_ENTRANCE_CORE
+);
+
+
+/*
+ * Entrance right column.
+ */
+
+box(
+  0.34,
+  4.0,
+  0.48,
+  OFFICE02_MATERIALS.frame,
+  3.05,
+  2.72,
+  -2.18,
+  OFFICE02_ENTRANCE_CORE
+);
+
+
+/* =========================================================
+   ENTRANCE FLOOR
+   ========================================================= */
+
+box(
+  6.4,
+  0.08,
+  2.2,
+  OFFICE02_MATERIALS.entranceFloor,
+  0,
+  0.88,
+  -3.15,
+  OFFICE02_ENTRANCE_CORE
+);
+
+
+/* =========================================================
+   ENTRANCE CANOPY
+   ========================================================= */
+
+box(
+  8.0,
+  0.24,
+  3.1,
+  OFFICE02_MATERIALS.facade,
+  0,
+  4.72,
+  -3.20,
+  OFFICE02_ENTRANCE_CORE
+);
+
+
+/*
+ * Thin metallic canopy edge.
+ */
+
+box(
+  7.7,
+  0.08,
+  0.16,
+  OFFICE02_MATERIALS.accent,
+  0,
+  4.55,
+  -4.76,
+  OFFICE02_ENTRANCE_CORE
+);
+
+
+/* =========================================================
+   ENTRANCE GLASS DOORS
+   ========================================================= */
+
+box(
+  2.25,
+  2.95,
+  0.08,
+  OFFICE02_MATERIALS.glass,
+  -1.18,
+  2.30,
+  -2.44,
+  OFFICE02_ENTRANCE_CORE
+);
+
+
+box(
+  2.25,
+  2.95,
+  0.08,
+  OFFICE02_MATERIALS.glass,
+  1.18,
+  2.30,
+  -2.44,
+  OFFICE02_ENTRANCE_CORE
+);
+
+
+/* Centre door divider */
+
+box(
+  0.08,
+  3.0,
+  0.12,
+  OFFICE02_MATERIALS.frame,
+  0,
+  2.30,
+  -2.48,
+  OFFICE02_ENTRANCE_CORE
+);
+
+
+/* =========================================================
+   ARCHITECTURAL CORNER COLUMNS
+   ========================================================= */
+
+box(
+  0.52,
+  4.55,
+  0.52,
+  OFFICE02_MATERIALS.frame,
+  -14.55,
+  2.80,
+  -1.82,
+  OFFICE02_MASS
+);
+
+
+box(
+  0.52,
+  4.55,
+  0.52,
+  OFFICE02_MATERIALS.frame,
+  14.55,
+  2.80,
+  -1.82,
+  OFFICE02_MASS
+);
+
+
+/* =========================================================
+   ROOF MASSING
+   ========================================================= */
+
+const OFFICE02_ROOF =
+  new THREE.Group();
+
+OFFICE02_ROOF.name =
+  "OFFICE02_RoofArchitecture";
+
+OFFICE02.add(
+  OFFICE02_ROOF
+);
+
+
+/* Main roof slab */
+
+box(
+  31.0,
+  0.32,
+  15.2,
+  OFFICE02_MATERIALS.facade,
+  0,
+  4.92,
+  5,
+  OFFICE02_ROOF
+);
+
+
+/* Roof overhang */
+
+box(
+  31.8,
+  0.12,
+  15.8,
+  OFFICE02_MATERIALS.frame,
+  0,
+  5.12,
+  5,
+  OFFICE02_ROOF
+);
+
+
+/* Raised rear roof element */
+
+box(
+  20,
+  0.45,
+  2.2,
+  OFFICE02_MATERIALS.facadeLight,
+  0,
+  5.38,
+  10.0,
+  OFFICE02_ROOF
+);
+
+
+/* =========================================================
+   SIDE ARCHITECTURAL WINDOW BANDS
+   ========================================================= */
+
+const OFFICE02_SIDE_WINDOWS =
+  new THREE.Group();
+
+OFFICE02_SIDE_WINDOWS.name =
+  "OFFICE02_SideWindowBands";
+
+OFFICE02.add(
+  OFFICE02_SIDE_WINDOWS
+);
+
+
+/* Left side */
+
+for(
+  let z = 0;
+  z <= 10;
+  z += 2.5
+){
+
+  box(
+    0.08,
+    1.55,
+    1.55,
+    OFFICE02_MATERIALS.glassDark,
+    -15.04,
+    2.55,
+    z,
+    OFFICE02_SIDE_WINDOWS
+  );
+
+}
+
+
+/* Right side */
+
+for(
+  let z = 0;
+  z <= 10;
+  z += 2.5
+){
+
+  box(
+    0.08,
+    1.55,
+    1.55,
+    OFFICE02_MATERIALS.glassDark,
+    15.04,
+    2.55,
+    z,
+    OFFICE02_SIDE_WINDOWS
+  );
+
+}
+
+
+/* =========================================================
+   OFFICE-02 DATA
+   ========================================================= */
+
+HQ.userData.office02 = {
+
+  stage:
+    "ARCHITECTURAL_MASSING",
+
+  dimensions:
+    OFFICE02_DIMENSIONS,
+
+  oldExteriorHidden:
+    true,
+
+  premiumFacade:
+    true,
+
+  recessedEntrance:
+    true,
+
+  glassWings:
+    true,
+
+  roofArchitecture:
+    true,
+
+  interiorPreserved:
+    true
+
+};
+
+
+console.log(
+  "Empire Rush OFFICE-02 Part 1/4 loaded."
+);
+
+
+/* =========================================================
+   DO NOT SAVE YET
+   PART 2/4 CONTINUES BELOW
+   ========================================================= */
+/* =========================================================
+   EMPIRE RUSH — OFFICE-02
+   PART 2/4 — PREMIUM GLASS FACADE + ENTRANCE DETAILING
+   ========================================================= */
+
+
+/* =========================================================
+   FACADE ROOT
+   ========================================================= */
+
+const OFFICE02_FACADE =
+  new THREE.Group();
+
+OFFICE02_FACADE.name =
+  "OFFICE02_PremiumFacade";
+
+OFFICE02.add(
+  OFFICE02_FACADE
+);
+
+
+/* =========================================================
+   FRONT FACADE GLASS SYSTEM
+   ========================================================= */
+
+const facadeGlass =
+  new THREE.MeshPhysicalMaterial({
+
+    color:
+      0x75b4c9,
+
+    transparent:
+      true,
+
+    opacity:
+      0.44,
+
+    roughness:
+      0.10,
+
+    metalness:
+      0.30,
+
+    transmission:
+      0.06
+
+  });
+
+
+const facadeGlassDark =
+  new THREE.MeshPhysicalMaterial({
+
+    color:
+      0x244b5b,
+
+    transparent:
+      true,
+
+    opacity:
+      0.64,
+
+    roughness:
+      0.08,
+
+    metalness:
+      0.38,
+
+    transmission:
+      0.04
+
+  });
+
+
+/* =========================================================
+   LEFT FRONT GLASS MODULES
+   ========================================================= */
+
+const leftFacadeX = [
+
+  -12.8,
+  -10.8,
+  -8.8,
+  -6.8,
+  -4.8
+];
+
+
+leftFacadeX.forEach(
+  x => {
+
+    box(
+      1.72,
+      3.15,
+      0.07,
+      facadeGlass,
+      x,
+      2.60,
+      -2.39,
+      OFFICE02_FACADE
+    );
+
+  }
+);
+
+
+/* =========================================================
+   RIGHT FRONT GLASS MODULES
+   ========================================================= */
+
+const rightFacadeX = [
+
+  4.8,
+  6.8,
+  8.8,
+  10.8,
+  12.8
+];
+
+
+rightFacadeX.forEach(
+  x => {
+
+    box(
+      1.72,
+      3.15,
+      0.07,
+      facadeGlass,
+      x,
+      2.60,
+      -2.39,
+      OFFICE02_FACADE
+    );
+
+  }
+);
+
+
+/* =========================================================
+   GLASS VERTICAL MULLIONS
+   ========================================================= */
+
+const mullionX = [
+
+  -13.75,
+  -11.85,
+  -9.85,
+  -7.85,
+  -5.85,
+  -3.75,
+
+  3.75,
+  5.85,
+  7.85,
+  9.85,
+  11.85,
+  13.75
+
+];
+
+
+mullionX.forEach(
+  x => {
+
+    box(
+      0.12,
+      3.45,
+      0.15,
+      OFFICE02_MATERIALS.frame,
+      x,
+      2.62,
+      -2.43,
+      OFFICE02_FACADE
+    );
+
+  }
+);
+
+
+/* =========================================================
+   GLASS HORIZONTAL TRANSOMS
+   ========================================================= */
+
+box(
+  26.5,
+  0.11,
+  0.16,
+  OFFICE02_MATERIALS.frame,
+  0,
+  1.05,
+  -2.44,
+  OFFICE02_FACADE
+);
+
+
+box(
+  26.5,
+  0.11,
+  0.16,
+  OFFICE02_MATERIALS.frame,
+  0,
+  4.18,
+  -2.44,
+  OFFICE02_FACADE
+);
+
+
+/* =========================================================
+   DARK ENTRANCE PORTAL
+   ========================================================= */
+
+const OFFICE02_PORTAL =
+  new THREE.Group();
+
+OFFICE02_PORTAL.name =
+  "OFFICE02_EntrancePortal";
+
+OFFICE02.add(
+  OFFICE02_PORTAL
+);
+
+
+/* Outer portal */
+
+box(
+  6.65,
+  4.35,
+  0.22,
+  OFFICE02_MATERIALS.frame,
+  0,
+  2.72,
+  -2.56,
+  OFFICE02_PORTAL
+);
+
+
+/* Inner recessed portal */
+
+box(
+  5.75,
+  3.85,
+  0.08,
+  facadeGlassDark,
+  0,
+  2.55,
+  -2.69,
+  OFFICE02_PORTAL
+);
+
+
+/* =========================================================
+   ENTRANCE SIDE PILASTERS
+   ========================================================= */
+
+box(
+  0.34,
+  4.05,
+  0.32,
+  OFFICE02_MATERIALS.stone,
+  -3.15,
+  2.65,
+  -2.62,
+  OFFICE02_PORTAL
+);
+
+
+box(
+  0.34,
+  4.05,
+  0.32,
+  OFFICE02_MATERIALS.stone,
+  3.15,
+  2.65,
+  -2.62,
+  OFFICE02_PORTAL
+);
+
+
+/* =========================================================
+   AUTOMATIC GLASS DOOR SYSTEM
+   ========================================================= */
+
+const doorGlass =
+  new THREE.MeshPhysicalMaterial({
+
+    color:
+      0x8bc9d7,
+
+    transparent:
+      true,
+
+    opacity:
+      0.38,
+
+    roughness:
+      0.07,
+
+    metalness:
+      0.30,
+
+    transmission:
+      0.08
+
+  });
+
+
+/* Left sliding door */
+
+box(
+  2.35,
+  3.15,
+  0.06,
+  doorGlass,
+  -1.18,
+  2.35,
+  -2.76,
+  OFFICE02_PORTAL
+);
+
+
+/* Right sliding door */
+
+box(
+  2.35,
+  3.15,
+  0.06,
+  doorGlass,
+  1.18,
+  2.35,
+  -2.76,
+  OFFICE02_PORTAL
+);
+
+
+/* Door divider */
+
+box(
+  0.07,
+  3.15,
+  0.10,
+  OFFICE02_MATERIALS.frame,
+  0,
+  2.35,
+  -2.80,
+  OFFICE02_PORTAL
+);
+
+
+/* =========================================================
+   DOOR HANDLES
+   ========================================================= */
+
+box(
+  0.06,
+  0.75,
+  0.08,
+  OFFICE02_MATERIALS.metal,
+  -0.30,
+  2.35,
+  -2.84,
+  OFFICE02_PORTAL
+);
+
+
+box(
+  0.06,
+  0.75,
+  0.08,
+  OFFICE02_MATERIALS.metal,
+  0.30,
+  2.35,
+  -2.84,
+  OFFICE02_PORTAL
+);
+
+
+/* =========================================================
+   ENTRANCE STEP
+   ========================================================= */
+
+box(
+  6.8,
+  0.14,
+  1.05,
+  OFFICE02_MATERIALS.stone,
+  0,
+  0.94,
+  -3.35,
+  OFFICE02_PORTAL
+);
+
+
+/* =========================================================
+   ENTRANCE MAT
+   ========================================================= */
+
+box(
+  4.8,
+  0.025,
+  1.15,
+  OFFICE02_MATERIALS.frame,
+  0,
+  1.03,
+  -3.42,
+  OFFICE02_PORTAL
+);
+
+
+/* =========================================================
+   CANOPY SUPPORTS
+   ========================================================= */
+
+box(
+  0.16,
+  3.55,
+  0.16,
+  OFFICE02_MATERIALS.metal,
+  -3.45,
+  2.85,
+  -3.85,
+  OFFICE02_PORTAL
+);
+
+
+box(
+  0.16,
+  3.55,
+  0.16,
+  OFFICE02_MATERIALS.metal,
+  3.45,
+  2.85,
+  -3.85,
+  OFFICE02_PORTAL
+);
+
+
+/* =========================================================
+   PREMIUM ENTRANCE CANOPY
+   ========================================================= */
+
+box(
+  8.0,
+  0.22,
+  3.15,
+  OFFICE02_MATERIALS.facade,
+  0,
+  4.72,
+  -3.85,
+  OFFICE02_PORTAL
+);
+
+
+/* Canopy glass underside */
+
+box(
+  7.5,
+  0.06,
+  2.65,
+  facadeGlassDark,
+  0,
+  4.57,
+  -3.84,
+  OFFICE02_PORTAL
+);
+
+
+/* Canopy front edge */
+
+box(
+  7.9,
+  0.10,
+  0.15,
+  OFFICE02_MATERIALS.accent,
+  0,
+  4.57,
+  -5.40,
+  OFFICE02_PORTAL
+);
+
+
+/* =========================================================
+   ENTRANCE CEILING LIGHTS
+   ========================================================= */
+
+const entranceLightMaterial =
+  new THREE.MeshStandardMaterial({
+
+    color:
+      0xfff2c7,
+
+    emissive:
+      0xffd979,
+
+    emissiveIntensity:
+      1.4,
+
+    roughness:
+      0.25
+
+  });
+
+
+[
+  -2.4,
+  -0.8,
+  0.8,
+  2.4
+
+].forEach(
+  x => {
+
+    const light =
+      new THREE.Mesh(
+        new THREE.CylinderGeometry(
+          0.10,
+          0.10,
+          0.04,
+          12
+        ),
+        entranceLightMaterial
+      );
+
+
+    light.rotation.x =
+      Math.PI / 2;
+
+
+    light.position.set(
+      x,
+      4.54,
+      -3.85
+    );
+
+
+    OFFICE02_PORTAL.add(
+      light
+    );
+
+  }
+);
+
+
+/* =========================================================
+   FRONT STONE BASE
+   ========================================================= */
+
+box(
+  26.0,
+  0.45,
+  0.28,
+  OFFICE02_MATERIALS.stone,
+  0,
+  0.78,
+  -2.42,
+  OFFICE02_FACADE
+);
+
+
+/* =========================================================
+   PREMIUM CORNER CLADDING
+   ========================================================= */
+
+box(
+  0.34,
+  3.75,
+  0.32,
+  OFFICE02_MATERIALS.stone,
+  -14.45,
+  2.65,
+  -2.42,
+  OFFICE02_FACADE
+);
+
+
+box(
+  0.34,
+  3.75,
+  0.32,
+  OFFICE02_MATERIALS.stone,
+  14.45,
+  2.65,
+  -2.42,
+  OFFICE02_FACADE
+);
+
+
+/* =========================================================
+   ARCHITECTURAL ACCENT BAND
+   ========================================================= */
+
+box(
+  27.0,
+  0.16,
+  0.20,
+  OFFICE02_MATERIALS.accent,
+  0,
+  4.48,
+  -2.52,
+  OFFICE02_FACADE
+);
+
+
+/* =========================================================
+   UPPER FACADE FRAME
+   ========================================================= */
+
+box(
+  29.4,
+  0.18,
+  0.30,
+  OFFICE02_MATERIALS.frame,
+  0,
+  4.72,
+  -2.38,
+  OFFICE02_FACADE
+);
+
+
+/* =========================================================
+   SIDE CORNER GLASS
+   ========================================================= */
+
+box(
+  0.08,
+  3.2,
+  1.55,
+  facadeGlassDark,
+  -15.08,
+  2.65,
+  -0.20,
+  OFFICE02_FACADE
+);
+
+
+box(
+  0.08,
+  3.2,
+  1.55,
+  facadeGlassDark,
+  15.08,
+  2.65,
+  -0.20,
+  OFFICE02_FACADE
+);
+
+
+/* =========================================================
+   ENTRANCE LIGHT FIXTURES
+   ========================================================= */
+
+function officeWallLight(
+  x
+){
+
+  const fixture =
+    new THREE.Group();
+
+  fixture.name =
+    "OFFICE02_WallLight";
+
+  fixture.position.set(
+    x,
+    2.75,
+    -2.91
+  );
+
+  OFFICE02_PORTAL.add(
+    fixture
+  );
+
+
+  box(
+    0.20,
+    0.42,
+    0.08,
+    OFFICE02_MATERIALS.metal,
+    0,
+    0,
+    0,
+    fixture
+  );
+
+
+  const glow =
+    new THREE.Mesh(
+      new THREE.SphereGeometry(
+        0.08,
+        10,
+        8
+      ),
+      entranceLightMaterial
+    );
+
+
+  glow.position.z =
+    -0.06;
+
+
+  fixture.add(
+    glow
+  );
+
+}
+
+
+officeWallLight(
+  -3.85
+);
+
+officeWallLight(
+  3.85
+);
+
+
+/* =========================================================
+   OFFICE-02 FACADE DATA
+   ========================================================= */
+
+HQ.userData.office02.facade = {
+
+  glassCurtainWalls:
+    true,
+
+  recessedEntrance:
+    true,
+
+  automaticGlassDoors:
+    true,
+
+  premiumCanopy:
+    true,
+
+  stoneCladding:
+    true,
+
+  architecturalFrames:
+    true,
+
+  entranceLighting:
+    true,
+
+  accentBand:
+    true
+
+};
+
+
+console.log(
+  "Empire Rush OFFICE-02 Part 2/4 loaded."
+);
+
+
+/* =========================================================
+   DO NOT SAVE YET
+   PART 3/4 CONTINUES BELOW
+   ========================================================= */
+/* =========================================================
+   EMPIRE RUSH — OFFICE-02
+   PART 3/4 — WINDOWS + ROOF DETAILS + CORPORATE SIGNAGE
+   ========================================================= */
+
+
+/* =========================================================
+   UPPER WINDOW SYSTEM
+   ========================================================= */
+
+const OFFICE02_UPPER =
+  new THREE.Group();
+
+OFFICE02_UPPER.name =
+  "OFFICE02_UpperArchitecture";
+
+OFFICE02.add(
+  OFFICE02_UPPER
+);
+
+
+/* =========================================================
+   UPPER FRONT WINDOW MATERIAL
+   ========================================================= */
+
+const upperGlass =
+  new THREE.MeshPhysicalMaterial({
+
+    color:
+      0x477b8d,
+
+    transparent:
+      true,
+
+    opacity:
+      0.55,
+
+    roughness:
+      0.10,
+
+    metalness:
+      0.34,
+
+    transmission:
+      0.04
+
+  });
+
+
+/* =========================================================
+   UPPER FRONT WINDOW BAND
+   ========================================================= */
+
+for(
+  let x = -12;
+  x <= 12;
+  x += 2.4
+){
+
+  /*
+   * Leave central architectural
+   * entrance zone visually dominant.
+   */
+
+  if(
+    Math.abs(x) < 3.6
+  ){
+    continue;
+  }
+
+
+  box(
+    1.65,
+    1.20,
+    0.07,
+    upperGlass,
+    x,
+    4.15,
+    -2.34,
+    OFFICE02_UPPER
+  );
+
+}
+
+
+/* =========================================================
+   UPPER WINDOW FRAMES
+   ========================================================= */
+
+for(
+  let x = -13.2;
+  x <= 13.2;
+  x += 2.4
+){
+
+  if(
+    Math.abs(x) < 3.6
+  ){
+    continue;
+  }
+
+
+  box(
+    0.10,
+    1.40,
+    0.14,
+    OFFICE02_MATERIALS.frame,
+    x,
+    4.15,
+    -2.40,
+    OFFICE02_UPPER
+  );
+
+}
+
+
+/* Upper horizontal frame */
+
+box(
+  26.8,
+  0.10,
+  0.15,
+  OFFICE02_MATERIALS.frame,
+  0,
+  4.82,
+  -2.40,
+  OFFICE02_UPPER
+);
+
+
+/* =========================================================
+   SIDE WINDOW DETAIL
+   ========================================================= */
+
+const sideGlass =
+  new THREE.MeshPhysicalMaterial({
+
+    color:
+      0x3f7181,
+
+    transparent:
+      true,
+
+    opacity:
+      0.56,
+
+    roughness:
+      0.10,
+
+    metalness:
+      0.34
+
+  });
+
+
+for(
+  let z = -0.2;
+  z <= 10.2;
+  z += 2.6
+){
+
+  box(
+    0.07,
+    1.35,
+    1.65,
+    sideGlass,
+    -15.07,
+    2.65,
+    z,
+    OFFICE02_UPPER
+  );
+
+
+  box(
+    0.07,
+    1.35,
+    1.65,
+    sideGlass,
+    15.07,
+    2.65,
+    z,
+    OFFICE02_UPPER
+
+  );
+
+}
+
+
+/* =========================================================
+   SIDE WINDOW MULLIONS
+   ========================================================= */
+
+for(
+  let z = 1.05;
+  z <= 9.4;
+  z += 2.6
+){
+
+  box(
+    0.12,
+    1.50,
+    0.10,
+    OFFICE02_MATERIALS.frame,
+    -15.12,
+    2.65,
+    z,
+    OFFICE02_UPPER
+  );
+
+
+  box(
+    0.12,
+    1.50,
+    0.10,
+    OFFICE02_MATERIALS.frame,
+    15.12,
+    2.65,
+    z,
+    OFFICE02_UPPER
+  );
+
+}
+
+
+/* =========================================================
+   ROOF PARAPET
+   ========================================================= */
+
+const OFFICE02_PARAPET =
+  new THREE.Group();
+
+OFFICE02_PARAPET.name =
+  "OFFICE02_RoofParapet";
+
+OFFICE02.add(
+  OFFICE02_PARAPET
+);
+
+
+/* Front parapet */
+
+box(
+  31.2,
+  0.72,
+  0.28,
+  OFFICE02_MATERIALS.frame,
+  0,
+  5.45,
+  -2.15,
+  OFFICE02_PARAPET
+);
+
+
+/* Rear parapet */
+
+box(
+  31.2,
+  0.72,
+  0.28,
+  OFFICE02_MATERIALS.frame,
+  0,
+  5.45,
+  12.15,
+  OFFICE02_PARAPET
+);
+
+
+/* Left parapet */
+
+box(
+  0.28,
+  0.72,
+  14.3,
+  OFFICE02_MATERIALS.frame,
+  -15.45,
+  5.45,
+  5,
+  OFFICE02_PARAPET
+);
+
+
+/* Right parapet */
+
+box(
+  0.28,
+  0.72,
+  14.3,
+  OFFICE02_MATERIALS.frame,
+  15.45,
+  5.45,
+  5,
+  OFFICE02_PARAPET
+);
+
+
+/* =========================================================
+   ROOFTOP SERVICE STRUCTURE
+   ========================================================= */
+
+const OFFICE02_ROOF_SERVICE =
+  new THREE.Group();
+
+OFFICE02_ROOF_SERVICE.name =
+  "OFFICE02_RooftopService";
+
+OFFICE02.add(
+  OFFICE02_ROOF_SERVICE
+);
+
+
+/* Main rooftop equipment enclosure */
+
+box(
+  7.0,
+  1.15,
+  3.0,
+  OFFICE02_MATERIALS.facadeLight,
+  0,
+  5.85,
+  8.5,
+  OFFICE02_ROOF_SERVICE
+);
+
+
+/* Dark service top */
+
+box(
+  7.3,
+  0.16,
+  3.3,
+  OFFICE02_MATERIALS.frame,
+  0,
+  6.48,
+  8.5,
+  OFFICE02_ROOF_SERVICE
+);
+
+
+/* =========================================================
+   HVAC UNITS
+   ========================================================= */
+
+function rooftopUnit(
+  x,
+  z
+){
+
+  const unit =
+    new THREE.Group();
+
+  unit.name =
+    "OFFICE02_HVAC";
+
+  unit.position.set(
+    x,
+    0,
+    z
+  );
+
+  OFFICE02_ROOF_SERVICE.add(
+    unit
+  );
+
+
+  box(
+    1.25,
+    0.75,
+    1.0,
+    OFFICE02_MATERIALS.stone,
+    0,
+    0.40,
+    0,
+    unit
+  );
+
+
+  box(
+    0.72,
+    0.08,
+    0.58,
+    OFFICE02_MATERIALS.frame,
+    0,
+    0.82,
+    0,
+    unit
+  );
+
+}
+
+
+rooftopUnit(
+  -4.0,
+  4.5
+);
+
+rooftopUnit(
+  4.0,
+  4.5
+);
+
+rooftopUnit(
+  -4.0,
+  11
+);
+
+rooftopUnit(
+  4.0,
+  11
+);
+
+
+/* =========================================================
+   CORPORATE SIGNAGE
+   ========================================================= */
+
+const OFFICE02_SIGN =
+  new THREE.Group();
+
+OFFICE02_SIGN.name =
+  "OFFICE02_CorporateSign";
+
+OFFICE02.add(
+  OFFICE02_SIGN
+);
+
+
+/* Main sign backing */
+
+box(
+  8.8,
+  1.05,
+  0.14,
+  OFFICE02_MATERIALS.frame,
+  0,
+  4.28,
+  -2.73,
+  OFFICE02_SIGN
+);
+
+
+/* Inner illuminated panel */
+
+box(
+  7.8,
+  0.72,
+  0.06,
+  OFFICE02_MATERIALS.dark,
+  0,
+  4.28,
+  -2.82,
+  OFFICE02_SIGN
+);
+
+
+/* =========================================================
+   SIGN LETTER BLOCKS
+   ========================================================= */
+
+
+/*
+ * Temporary geometric lettering.
+ *
+ * Actual company name/logo system
+ * will be connected to game state later.
+ */
+
+function signLetter(
+  x,
+  width = 0.34
+){
+
+  box(
+    width,
+    0.42,
+    0.045,
+    OFFICE02_MATERIALS.accent,
+    x,
+    4.28,
+    -2.87,
+    OFFICE02_SIGN
+  );
+
+}
+
+
+[
+  -2.8,
+  -2.1,
+  -1.4,
+  -0.7,
+  0,
+  0.7,
+  1.4,
+  2.1,
+  2.8
+
+].forEach(
+  x =>
+    signLetter(
+      x
+    )
+);
+
+
+/* =========================================================
+   ENTRANCE SIGN GLOW
+   ========================================================= */
+
+const signGlow =
+  new THREE.MeshStandardMaterial({
+
+    color:
+      0xb8ef3a,
+
+    emissive:
+      0xb8ef3a,
+
+    emissiveIntensity:
+      1.7,
+
+    roughness:
+      0.25
+
+  });
+
+
+box(
+  5.8,
+  0.06,
+  0.04,
+  signGlow,
+  0,
+  3.76,
+  -2.88,
+  OFFICE02_SIGN
+);
+
+
+/* =========================================================
+   ENTRANCE ADDRESS PANEL
+   ========================================================= */
+
+box(
+  2.6,
+  0.42,
+  0.08,
+  OFFICE02_MATERIALS.frame,
+  0,
+  1.35,
+  -2.88,
+  OFFICE02_SIGN
+);
+
+
+box(
+  1.8,
+  0.18,
+  0.04,
+  signGlow,
+  0,
+  1.35,
+  -2.94,
+  OFFICE02_SIGN
+);
+
+
+/* =========================================================
+   FACADE VERTICAL LIGHT STRIPS
+   ========================================================= */
+
+const facadeLightMaterial =
+  new THREE.MeshStandardMaterial({
+
+    color:
+      0xb8ef3a,
+
+    emissive:
+      0xb8ef3a,
+
+    emissiveIntensity:
+      1.25,
+
+    roughness:
+      0.25
+
+  });
+
+
+[
+  -14.2,
+  14.2
+
+].forEach(
+  x => {
+
+    box(
+      0.07,
+      3.0,
+      0.05,
+      facadeLightMaterial,
+      x,
+      2.65,
+      -2.72,
+      OFFICE02_SIGN
+    );
+
+  }
+);
+
+
+/* =========================================================
+   ROOF EDGE ACCENT
+   ========================================================= */
+
+box(
+  29.0,
+  0.08,
+  0.08,
+  facadeLightMaterial,
+  0,
+  5.17,
+  -2.45,
+  OFFICE02_ROOF
+);
+
+
+/* =========================================================
+   ENTRANCE PAVING DETAILS
+   ========================================================= */
+
+const OFFICE02_ENTRY_PAVING =
+  new THREE.Group();
+
+OFFICE02_ENTRY_PAVING.name =
+  "OFFICE02_EntrancePaving";
+
+OFFICE02.add(
+  OFFICE02_ENTRY_PAVING
+);
+
+
+/* Large stone slabs */
+
+for(
+  let x = -6;
+  x <= 6;
+  x += 2
+){
+
+  box(
+    1.65,
+    0.045,
+    1.35,
+    OFFICE02_MATERIALS.stone,
+    x,
+    0.98,
+    -3.45,
+    OFFICE02_ENTRY_PAVING
+  );
+
+}
+
+
+/* =========================================================
+   SMALL FACADE PLANTERS
+   ========================================================= */
+
+function facadePlanter(
+  x
+){
+
+  const planter =
+    new THREE.Group();
+
+  planter.position.set(
+    x,
+    0,
+    -2.95
+  );
+
+  OFFICE02.add(
+    planter
+  );
+
+
+  box(
+    1.15,
+    0.45,
+    0.65,
+    OFFICE02_MATERIALS.stone,
+    0,
+    0.45,
+    0,
+    planter
+  );
+
+
+  cylinder(
+    0.28,
+    0.55,
+    MATERIALS.treeLeaf,
+    0,
+    0.88,
+    0,
+    planter,
+    12
+  );
+
+}
+
+
+facadePlanter(
+  -5.0
+);
+
+facadePlanter(
+  5.0
+);
+
+
+/* =========================================================
+   OFFICE-02 ARCHITECTURAL IDENTITY DATA
+   ========================================================= */
+
+HQ.userData.office02.architecture = {
+
+  upperWindows:
+    true,
+
+  sideWindows:
+    true,
+
+  roofParapet:
+    true,
+
+  rooftopServices:
+    true,
+
+  corporateSignage:
+    true,
+
+  entranceLighting:
+    true,
+
+  facadeAccent:
+    true,
+
+  entrancePaving:
+    true,
+
+  planters:
+    true
+
+};
+
+
+console.log(
+  "Empire Rush OFFICE-02 Part 3/4 loaded."
+);
+
+
+/* =========================================================
+   DO NOT SAVE YET
+   PART 4/4 CONTINUES BELOW
+   ========================================================= */
+/* =========================================================
+   EMPIRE RUSH — OFFICE-02
+   PART 4/4 — FINAL EXTERIOR FINISHING + SITE VALIDATION
+   ========================================================= */
+
+
+/* =========================================================
+   OFFICE-02 PROPERTY LANDSCAPE
+   ========================================================= */
+
+const OFFICE02_LANDSCAPE =
+  new THREE.Group();
+
+OFFICE02_LANDSCAPE.name =
+  "OFFICE02_PropertyLandscape";
+
+OFFICE02.add(
+  OFFICE02_LANDSCAPE
+);
+
+
+/* =========================================================
+   FRONT LAWN
+   ========================================================= */
+
+box(
+  6.0,
+  0.06,
+  2.4,
+  MATERIALS.grassDark,
+  -9.5,
+  0.08,
+  -7.2,
+  OFFICE02_LANDSCAPE
+);
+
+box(
+  6.0,
+  0.06,
+  2.4,
+  MATERIALS.grassDark,
+  9.5,
+  0.08,
+  -7.2,
+  OFFICE02_LANDSCAPE
+);
+
+
+/* =========================================================
+   SIDE LANDSCAPING
+   ========================================================= */
+
+box(
+  1.4,
+  0.06,
+  12.0,
+  MATERIALS.grassDark,
+  -15.7,
+  0.08,
+  5.0,
+  OFFICE02_LANDSCAPE
+);
+
+box(
+  1.4,
+  0.06,
+  12.0,
+  MATERIALS.grassDark,
+  15.7,
+  0.08,
+  5.0,
+  OFFICE02_LANDSCAPE
+);
+
+
+/* =========================================================
+   LANDSCAPE TREE
+   ========================================================= */
+
+function office02Tree(
+  x,
+  z,
+  scale = 1
+){
+
+  const tree =
+    new THREE.Group();
+
+  tree.name =
+    "OFFICE02_LandscapeTree";
+
+  tree.position.set(
+    x,
+    0,
+    z
+  );
+
+  tree.scale.setScalar(
+    scale
+  );
+
+  OFFICE02_LANDSCAPE.add(
+    tree
+  );
+
+
+  /* trunk */
+
+  cylinder(
+    0.16,
+    1.25,
+    MATERIALS.treeTrunk,
+    0,
+    0.68,
+    0,
+    tree,
+    10
+  );
+
+
+  /* lower crown */
+
+  const crown =
+    new THREE.Mesh(
+      new THREE.SphereGeometry(
+        0.72,
+        12,
+        10
+      ),
+      MATERIALS.treeLeaf
+    );
+
+  crown.position.y =
+    1.45;
+
+  crown.castShadow =
+    true;
+
+  tree.add(
+    crown
+  );
+
+
+  /* upper crown */
+
+  const crownTop =
+    new THREE.Mesh(
+      new THREE.SphereGeometry(
+        0.48,
+        12,
+        10
+      ),
+      MATERIALS.treeLeaf
+    );
+
+  crownTop.position.set(
+    0,
+    2.05,
+    0
+  );
+
+  crownTop.castShadow =
+    true;
+
+  tree.add(
+    crownTop
+  );
+
+
+  return tree;
+
+}
+
+
+/* Front landscaping */
+
+office02Tree(
+  -13.0,
+  -7.0,
+  0.9
+);
+
+office02Tree(
+  13.0,
+  -7.0,
+  0.9
+);
+
+office02Tree(
+  -14.5,
+  2.0,
+  0.75
+);
+
+office02Tree(
+  14.5,
+  2.0,
+  0.75
+);
+
+
+/* =========================================================
+   PROPERTY BOLLARDS
+   ========================================================= */
+
+function office02Bollard(
+  x,
+  z
+){
+
+  cylinder(
+    0.075,
+    0.62,
+    MATERIALS.metal,
+    x,
+    0.31,
+    z,
+    OFFICE02_LANDSCAPE,
+    10
+  );
+
+}
+
+
+office02Bollard(
+  -6.0,
+  -5.8
+);
+
+office02Bollard(
+  -4.5,
+  -5.8
+);
+
+office02Bollard(
+  4.5,
+  -5.8
+);
+
+office02Bollard(
+  6.0,
+  -5.8
+);
+
+
+/* =========================================================
+   PARKING BAY MARKERS
+   ========================================================= */
+
+const OFFICE02_PARKING_MARKERS =
+  new THREE.Group();
+
+OFFICE02_PARKING_MARKERS.name =
+  "OFFICE02_ParkingMarkers";
+
+OFFICE02.add(
+  OFFICE02_PARKING_MARKERS
+);
+
+
+for(
+  let x = -9;
+  x <= 9;
+  x += 3
+){
+
+  box(
+    1.65,
+    0.025,
+    0.055,
+    MATERIALS.concrete,
+    x,
+    0.12,
+    -8.5,
+    OFFICE02_PARKING_MARKERS
+  );
+
+}
+
+
+/* =========================================================
+   PARKING SAFETY EDGE
+   ========================================================= */
+
+box(
+  22.5,
+  0.12,
+  0.12,
+  MATERIALS.curb,
+  0,
+  0.14,
+  -9.2,
+  OFFICE02_PARKING_MARKERS
+);
+
+
+/* =========================================================
+   PEDESTRIAN WALKWAY
+   ========================================================= */
+
+const OFFICE02_WALKWAY =
+  new THREE.Group();
+
+OFFICE02_WALKWAY.name =
+  "OFFICE02_PedestrianWalkway";
+
+OFFICE02.add(
+  OFFICE02_WALKWAY
+);
+
+
+/*
+ * Parking → Entrance
+ *
+ * This is explicitly a WALKWAY,
+ * never a vehicle road.
+ */
+
+box(
+  6.0,
+  0.07,
+  2.6,
+  MATERIALS.sidewalk,
+  0,
+  0.16,
+  -5.3,
+  OFFICE02_WALKWAY
+);
+
+
+/* walkway edge */
+
+box(
+  6.1,
+  0.035,
+  0.08,
+  MATERIALS.curb,
+  0,
+  0.22,
+  -6.62,
+  OFFICE02_WALKWAY
+);
+
+
+/* =========================================================
+   PEDESTRIAN CROSSING AT PROPERTY FRONT
+   ========================================================= */
+
+const OFFICE02_CROSSING =
+  new THREE.Group();
+
+OFFICE02_CROSSING.name =
+  "OFFICE02_PedestrianCrossing";
+
+OFFICE02.add(
+  OFFICE02_CROSSING
+);
+
+
+for(
+  let x = -3;
+  x <= 3;
+  x += 1.2
+){
+
+  box(
+    0.65,
+    0.025,
+    1.7,
+    MATERIALS.concrete,
+    x,
+    0.24,
+    -9.8,
+    OFFICE02_CROSSING
+  );
+
+}
+
+
+/* =========================================================
+   PUBLIC SIDEWALK CONNECTION
+   ========================================================= */
+
+const OFFICE02_CITY_CONNECTION =
+  new THREE.Group();
+
+OFFICE02_CITY_CONNECTION.name =
+  "OFFICE02_CityConnection";
+
+OFFICE02.add(
+  OFFICE02_CITY_CONNECTION
+);
+
+
+/*
+ * Important:
+ * This connects the property to the
+ * city pedestrian network.
+ */
+
+box(
+  30,
+  0.10,
+  2.4,
+  MATERIALS.sidewalk,
+  0,
+  0.18,
+  -10.8,
+  OFFICE02_CITY_CONNECTION
+);
+
+
+/* sidewalk curb */
+
+box(
+  30,
+  0.14,
+  0.18,
+  MATERIALS.curb,
+  0,
+  0.24,
+  -12.0,
+  OFFICE02_CITY_CONNECTION
+);
+
+
+/* =========================================================
+   OFFICE IDENTIFICATION / PROPERTY DATA
+   ========================================================= */
+
+HQ.userData.office02Site = {
+
+  officeId:
+    "OFFICE-02",
+
+  type:
+    "corporate-office",
+
+  propertyWidth:
+    34,
+
+  propertyDepth:
+    26,
+
+  buildingWidth:
+    30,
+
+  buildingDepth:
+    14,
+
+  publicRoad:
+    true,
+
+  publicSidewalk:
+    true,
+
+  privateDriveway:
+    true,
+
+  parking:
+    true,
+
+  pedestrianWalkway:
+    true,
+
+  entrance:
+    true,
+
+  landscaping:
+    true,
+
+  signage:
+    true,
+
+  rooftopServices:
+    true,
+
+  roadInsideBuilding:
+    false,
+
+  roadInsideParking:
+    false,
+
+  drivewayInsideBuilding:
+    false
+
+};
+
+
+/* =========================================================
+   FINAL BUILDING FOOTPRINT
+   ========================================================= */
+
+HQ.userData.office02BuildingFootprint = {
+
+  xMin:
+    -15,
+
+  xMax:
+    15,
+
+  zMin:
+    -2,
+
+  zMax:
+    12,
+
+  width:
+    30,
+
+  depth:
+    14
+
+};
+
+
+/* =========================================================
+   FINAL PROPERTY BOUNDARY
+   ========================================================= */
+
+HQ.userData.office02PropertyBoundary = {
+
+  xMin:
+    -17,
+
+  xMax:
+    17,
+
+  zMin:
+    -13,
+
+  zMax:
+    14
+
+};
+
+
+/* =========================================================
+   GEOMETRY VALIDATION
+   ========================================================= */
+
+function validateOffice02(){
+
+  const site =
+    HQ.userData.office02Site;
+
+  const building =
+    HQ.userData.office02BuildingFootprint;
+
+  const property =
+    HQ.userData.office02PropertyBoundary;
+
+
+  const result = {
+
+    office:
+      "OFFICE-02",
+
+    propertyValid:
+      property.xMin < building.xMin &&
+      property.xMax > building.xMax &&
+      property.zMin < building.zMin &&
+      property.zMax > building.zMax,
+
+    buildingInsideProperty:
+      building.xMin >= property.xMin &&
+      building.xMax <= property.xMax &&
+      building.zMin >= property.zMin &&
+      building.zMax <= property.zMax,
+
+    roadInsideBuilding:
+      site.roadInsideBuilding,
+
+    roadInsideParking:
+      site.roadInsideParking,
+
+    drivewayInsideBuilding:
+      site.drivewayInsideBuilding,
+
+    hasDriveway:
+      site.privateDriveway,
+
+    hasParking:
+      site.parking,
+
+    hasWalkway:
+      site.pedestrianWalkway,
+
+    hasEntrance:
+      site.entrance,
+
+    hasLandscaping:
+      site.landscaping,
+
+    hasSignage:
+      site.signage
+
+  };
+
+
+  result.passed =
+    result.propertyValid &&
+    result.buildingInsideProperty &&
+    result.roadInsideBuilding === false &&
+    result.roadInsideParking === false &&
+    result.drivewayInsideBuilding === false &&
+    result.hasDriveway &&
+    result.hasParking &&
+    result.hasWalkway &&
+    result.hasEntrance &&
+    result.hasLandscaping &&
+    result.hasSignage;
+
+
+  HQ.userData.office02Validation =
+    result;
+
+
+  console.log(
+    "========================================"
+  );
+
+  console.log(
+    "EMPIRE RUSH — OFFICE-02 VALIDATION"
+  );
+
+  console.table(
+    result
+  );
+
+  console.log(
+    result.passed
+      ? "OFFICE-02 PASS"
+      : "OFFICE-02 NEEDS REVIEW"
+  );
+
+  console.log(
+    "========================================"
+  );
+
+
+  return result;
+
+}
+
+
+/* =========================================================
+   PUBLIC OFFICE-02 API
+   ========================================================= */
+
+window.EmpireOffice02 =
+  window.EmpireOffice02 || {};
+
+
+window.EmpireOffice02.stage =
+  "OFFICE-02";
+
+
+window.EmpireOffice02.HQ =
+  HQ;
+
+
+window.EmpireOffice02.site =
+  HQ.userData.office02Site;
+
+
+window.EmpireOffice02.building =
+  HQ.userData.office02BuildingFootprint;
+
+
+window.EmpireOffice02.property =
+  HQ.userData.office02PropertyBoundary;
+
+
+window.EmpireOffice02.validate =
+  validateOffice02;
+
+
+/* =========================================================
+   RUN FINAL VALIDATION
+   ========================================================= */
+
+const OFFICE02_VALIDATION =
+  validateOffice02();
+
+
+/* =========================================================
+   FINAL STATUS
+   ========================================================= */
+
+HQ.userData.office02Status =
+  OFFICE02_VALIDATION.passed
+    ? "COMPLETE"
+    : "REVIEW";
+
+
+console.log(
+  "Empire Rush OFFICE-02:",
+  HQ.userData.office02Status
+);
+
+
+/* =========================================================
+   END OFFICE-02
+   ========================================================= */
