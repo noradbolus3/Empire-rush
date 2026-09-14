@@ -1,2193 +1,2150 @@
-    /* =====================================================
-       OFFICE-01
-       PLANNED PROPERTY / ROAD ACCESS SYSTEM
-       =====================================================
+ /* =========================================================
+   OFFICE-01 — CORRECTED PART 1/4
+   HQ PROPERTY + REAL CITY ROAD CONNECTION
+   ========================================================= */
 
-       DESIGN RULE:
+/*
+   CITY ROAD
+   Existing horizontal road:
+       Z = 18
+       width = 8
 
-       MAIN ROAD
-           ↓
-       SIDEWALK
-           ↓
-       PROPERTY FRONTAGE
-           ↓
-       DRIVEWAY
-           ↓
+   Road northern edge:
+       Z = 22
+
+   Sidewalk:
+       approximately Z = 23
+
+   HQ property begins after the sidewalk.
+
+   FINAL FLOW:
+
+   CITY ROAD
+       ↓
+   SIDEWALK
+       ↓
+   PROPERTY FRONTAGE
+       ↓
+   DRIVEWAY
+       ↓
+   PARKING
+       ↓
+   ENTRANCE
+       ↓
+   HQ
+*/
+
+
+/* =========================================================
+   PROPERTY SYSTEM
+   ========================================================= */
+
+const properties = [];
+
+
+function createProperty(
+  id,
+  x,
+  z,
+  width,
+  depth,
+  type = "commercial"
+){
+
+  const property =
+    new THREE.Group();
+
+  property.name =
+    "Property_" + id;
+
+  property.position.set(
+    x,
+    0,
+    z
+  );
+
+  property.userData = {
+
+    id,
+
+    type,
+
+    width,
+
+    depth,
+
+    occupied:false
+
+  };
+
+
+  /* Property ground */
+
+  box(
+    width,
+    0.10,
+    depth,
+    MATERIALS.concrete,
+    0,
+    0.05,
+    0,
+    property
+  );
+
+
+  /* Landscaped inner area */
+
+  box(
+    Math.max(
+      width - 1.0,
+      2
+    ),
+    0.08,
+    Math.max(
+      depth - 1.0,
+      2
+    ),
+    MATERIALS.grassDark,
+    0,
+    0.14,
+    0,
+    property
+  );
+
+
+  CITY.add(
+    property
+  );
+
+  properties.push(
+    property
+  );
+
+  return property;
+}
+
+
+/* =========================================================
+   EXISTING CITY PROPERTIES
+   ========================================================= */
+
+createProperty(
+  "commercial_north",
+  0,
+  8,
+  15,
+  15,
+  "commercial"
+);
+
+
+createProperty(
+  "corporate_north",
+  -29,
+  8,
+  13,
+  15,
+  "corporate"
+);
+
+
+createProperty(
+  "retail_north",
+  29,
+  8,
+  13,
+  15,
+  "retail"
+);
+
+
+createProperty(
+  "commercial_south",
+  0,
+  -4,
+  15,
+  15,
+  "commercial"
+);
+
+
+createProperty(
+  "residential_west",
+  -29,
+  -4,
+  13,
+  15,
+  "residential"
+);
+
+
+createProperty(
+  "corporate_east",
+  29,
+  -4,
+  13,
+  15,
+  "corporate"
+);
+
+
+/* =========================================================
+   PLAYER HQ PROPERTY
+   =========================================================
+
+   IMPORTANT:
+
+   HQ center is now Z = 40.
+
+   Property:
+       front  = 27
+       rear   = 53
+
+   Existing city road:
+       center = 18
+       north edge = 22
+
+   Public sidewalk:
+       around Z = 23–25
+
+   Therefore there is a controlled gap between
+   public sidewalk and private HQ property.
+
+   That gap will be connected by the HQ driveway
+   in the next parts.
+*/
+
+
+const HQ_PROPERTY =
+  createProperty(
+    "player_hq",
+    0,
+    40,
+    32,
+    26,
+    "player-hq"
+  );
+
+
+HQ_PROPERTY.userData.occupied =
+  true;
+
+
+/* =========================================================
+   HQ WORLD POSITION
+   ========================================================= */
+
+HQ.position.set(
+  0,
+  0,
+  40
+);
+
+
+/* =========================================================
+   HQ SITE PLAN
+   ========================================================= */
+
+const HQ_SITE = {
+
+  width:32,
+
+  depth:26,
+
+  centerZ:40,
+
+  propertyFrontZ:27,
+
+  propertyRearZ:53,
+
+  publicRoadZ:18,
+
+  publicRoadNorthEdge:22,
+
+  publicSidewalkZ:24,
+
+  drivewayStartZ:25,
+
+  parkingFrontZ:31,
+
+  parkingBackZ:37,
+
+  buildingFrontZ:38,
+
+  buildingBackZ:52,
+
+  buildingWidth:30,
+
+  buildingDepth:14
+
+};
+
+
+/* =========================================================
+   HQ ACCESS RULES
+   ========================================================= */
+
+HQ.userData.sitePlan = {
+
+  roadZ:
+    HQ_SITE.publicRoadZ,
+
+  sidewalkZ:
+    HQ_SITE.publicSidewalkZ,
+
+  propertyFrontZ:
+    HQ_SITE.propertyFrontZ,
+
+  driveway:
+    true,
+
+  parking:
+    true,
+
+  entrance:
+    true,
+
+  buildingInsideProperty:
+    true,
+
+  roadInsideBuilding:
+    false
+
+};
+
+
+console.log(
+  "Empire Rush OFFICE-01 corrected property:",
+  HQ_SITE
+);
+
+
+/* =========================================================
+   END CORRECTED PART 1
+   ========================================================= */
+/* =========================================================
+   OFFICE-01 — CORRECTED PART 2/4
+   HQ DRIVEWAY + PARKING CONNECTION
+   ========================================================= */
+
+
+/* =========================================================
+   MATERIAL SAFETY
+   ========================================================= */
+
+if (!MATERIALS.floor) {
+
+  MATERIALS.floor =
+    material(
+      0x8f9698,
+      0.92
+    );
+
+}
+
+
+/* =========================================================
+   HQ PRIVATE DRIVEWAY
+   =========================================================
+
+   WORLD Z:
+
+   City Road        = 18
+   Road edge        = 22
+   Public sidewalk  = 23–25
+   Driveway         = 25–31
+   Parking          = 31–37
+   Building         = 38–52
+
+   Therefore:
+
+   ROAD
+     ↓
+   SIDEWALK
+     ↓
+   DRIVEWAY
+     ↓
+   PARKING
+
+   No road enters the building.
+   ========================================================= */
+
+
+const HQ_ACCESS =
+  new THREE.Group();
+
+HQ_ACCESS.name =
+  "HQ_AccessSystem";
+
+HQ.add(
+  HQ_ACCESS
+);
+
+
+/* =========================================================
+   PRIVATE DRIVEWAY
+   ========================================================= */
+
+const HQ_DRIVEWAY =
+  new THREE.Group();
+
+HQ_DRIVEWAY.name =
+  "HQ_PrivateDriveway";
+
+HQ_ACCESS.add(
+  HQ_DRIVEWAY
+);
+
+
+/*
+ * HQ local Z:
+ *
+ * World Z = 40 + local Z
+ *
+ * Driveway:
+ * World Z 25 → 31
+ * Local Z  -15 → -9
+ */
+
+box(
+  8,
+  0.08,
+  6,
+  MATERIALS.asphaltLight,
+  0,
+  0.24,
+  -12,
+  HQ_DRIVEWAY
+);
+
+
+/* =========================================================
+   DRIVEWAY EDGE LINES
+   ========================================================= */
+
+box(
+  0.12,
+  0.035,
+  5.8,
+  MATERIALS.concrete,
+  -4.05,
+  0.30,
+  -12,
+  HQ_DRIVEWAY
+);
+
+
+box(
+  0.12,
+  0.035,
+  5.8,
+  MATERIALS.concrete,
+  4.05,
+  0.30,
+  -12,
+  HQ_DRIVEWAY
+);
+
+
+/* =========================================================
+   DRIVEWAY SIDEWALK TRANSITION
+   ========================================================= */
+
+box(
+  8.8,
+  0.07,
+  1.5,
+  MATERIALS.concrete,
+  0,
+  0.29,
+  -15.1,
+  HQ_DRIVEWAY
+);
+
+
+/* =========================================================
+   PEDESTRIAN CROSSING AT PROPERTY FRONT
+   ========================================================= */
+
+const HQ_CROSSING =
+  new THREE.Group();
+
+HQ_CROSSING.name =
+  "HQ_PedestrianCrossing";
+
+HQ_ACCESS.add(
+  HQ_CROSSING
+);
+
+
+for (
+  let x = -3.2;
+  x <= 3.2;
+  x += 1.28
+) {
+
+  box(
+    0.65,
+    0.025,
+    1.8,
+    MATERIALS.concrete,
+    x,
+    0.32,
+    -15.0,
+    HQ_CROSSING
+  );
+
+}
+
+
+/* =========================================================
+   HQ PARKING
+   ========================================================= */
+
+const HQ_PARKING =
+  new THREE.Group();
+
+HQ_PARKING.name =
+  "HQ_Parking";
+
+HQ_ACCESS.add(
+  HQ_PARKING
+);
+
+
+/*
+ * Parking occupies:
+ *
+ * World Z ≈ 31 → 37
+ * Local Z  ≈ -9 → -3
+ */
+
+box(
+  22,
+  0.08,
+  6,
+  MATERIALS.asphaltLight,
+  0,
+  0.25,
+  -6,
+  HQ_PARKING
+);
+
+
+/* =========================================================
+   PARKING FRONT EDGE
+   ========================================================= */
+
+box(
+  22.3,
+  0.05,
+  0.14,
+  MATERIALS.curb,
+  0,
+  0.31,
+  -8.95,
+  HQ_PARKING
+);
+
+
+/* =========================================================
+   PARKING REAR EDGE
+   ========================================================= */
+
+box(
+  22.3,
+  0.05,
+  0.14,
+  MATERIALS.curb,
+  0,
+  0.31,
+  -3.05,
+  HQ_PARKING
+);
+
+
+/* =========================================================
+   PARKING BAY MARKINGS
+   ========================================================= */
+
+for (
+  let x = -9;
+  x <= 9;
+  x += 3
+) {
+
+  box(
+    0.07,
+    0.025,
+    5.5,
+    MATERIALS.concrete,
+    x,
+    0.32,
+    -6,
+    HQ_PARKING
+  );
+
+}
+
+
+/* =========================================================
+   PARKING STOP BLOCKS
+   ========================================================= */
+
+for (
+  let x = -9;
+  x <= 9;
+  x += 3
+) {
+
+  box(
+    1.5,
+    0.10,
+    0.18,
+    MATERIALS.concrete,
+    x,
+    0.37,
+    -8.15,
+    HQ_PARKING
+  );
+
+}
+
+
+/* =========================================================
+   PEDESTRIAN WALKWAY
+   =========================================================
+
+   Parking → building entrance.
+
+   This is a WALKWAY,
+   not a vehicle road.
+   ========================================================= */
+
+const HQ_WALKWAY =
+  new THREE.Group();
+
+HQ_WALKWAY.name =
+  "HQ_ParkingToEntranceWalkway";
+
+HQ_ACCESS.add(
+  HQ_WALKWAY
+);
+
+
+box(
+  6,
+  0.07,
+  2.8,
+  MATERIALS.sidewalk,
+  0,
+  0.38,
+  -1.8,
+  HQ_WALKWAY
+);
+
+
+/* =========================================================
+   WALKWAY CURB
+   ========================================================= */
+
+box(
+  6.2,
+  0.05,
+  0.12,
+  MATERIALS.curb,
+  0,
+  0.43,
+  -3.15,
+  HQ_WALKWAY
+);
+
+
+/* =========================================================
+   ENTRANCE APPROACH
+   ========================================================= */
+
+box(
+  7,
+  0.08,
+  2.5,
+  MATERIALS.concrete,
+  0,
+  0.46,
+  -3.8,
+  HQ_ACCESS
+);
+
+
+/* =========================================================
+   VEHICLE DROP-OFF
+   =========================================================
+
+   Small private arrival zone immediately
+   before the entrance.
+
+   It does NOT connect to the public
+   road as a through-road.
+   ========================================================= */
+
+const HQ_DROPOFF =
+  new THREE.Group();
+
+HQ_DROPOFF.name =
+  "HQ_VehicleDropOff";
+
+HQ_ACCESS.add(
+  HQ_DROPOFF
+);
+
+
+box(
+  7.5,
+  0.07,
+  2.2,
+  MATERIALS.asphaltLight,
+  0,
+  0.30,
+  -1.0,
+  HQ_DROPOFF
+);
+
+
+/* =========================================================
+   DROP-OFF CURB
+   ========================================================= */
+
+box(
+  7.5,
+  0.06,
+  0.14,
+  MATERIALS.curb,
+  0,
+  0.36,
+  -2.05,
+  HQ_DROPOFF
+);
+
+
+/* =========================================================
+   ACCESS LIGHTS
+   ========================================================= */
+
+function hqAccessLight(
+  x,
+  z
+) {
+
+  const light =
+    new THREE.Group();
+
+  light.name =
+    "HQ_AccessLight";
+
+  light.position.set(
+    x,
+    0,
+    z
+  );
+
+  HQ.add(
+    light
+  );
+
+
+  cylinder(
+    0.055,
+    1.7,
+    MATERIALS.metal,
+    0,
+    0.85,
+    0,
+    light,
+    10
+  );
+
+
+  const lampMaterial =
+    new THREE.MeshStandardMaterial({
+
+      color:
+        0xfff1bf,
+
+      emissive:
+        0xffd979,
+
+      emissiveIntensity:
+        0.9,
+
+      roughness:
+        0.35
+
+    });
+
+
+  box(
+    0.22,
+    0.22,
+    0.22,
+    lampMaterial,
+    0,
+    1.75,
+    0,
+    light
+  );
+
+}
+
+
+hqAccessLight(
+  -5.0,
+  -3.0
+);
+
+
+hqAccessLight(
+  5.0,
+  -3.0
+);
+
+
+/* =========================================================
+   ACCESS VALIDATION DATA
+   ========================================================= */
+
+HQ.userData.accessPlan = {
+
+  publicRoadWorldZ:
+    HQ_SITE.publicRoadZ,
+
+  sidewalkWorldZ:
+    HQ_SITE.publicSidewalkZ,
+
+  drivewayWorldZ:
+    {
+      start:25,
+      end:31
+    },
+
+  parkingWorldZ:
+    {
+      start:31,
+      end:37
+    },
+
+  buildingWorldZ:
+    {
+      start:38,
+      end:52
+    },
+
+  roadInsideBuilding:
+    false,
+
+  drivewayInsideBuilding:
+    false,
+
+  parkingInsideBuilding:
+    false
+
+};
+
+
+console.log(
+  "Empire Rush OFFICE-01 Part 2:",
+  HQ.userData.accessPlan
+);
+
+
+/* =========================================================
+   END CORRECTED PART 2/4
+   ========================================================= *//* =========================================================
+   OFFICE-01 — CORRECTED PART 3/4
+   HQ BUILDING FOOTPRINT + MAIN ENTRANCE
+   ========================================================= */
+
+
+/* =========================================================
+   BUILDING FOOTPRINT
+   =========================================================
+
+   HQ local coordinates:
+
+   Building:
+       X = -15 ... +15
+       Z = -2 ... +12
+
+   World coordinates:
+
+       X = -15 ... +15
+       Z = 38 ... 52
+
+   Parking:
+       World Z = 31 ... 37
+
+   Therefore:
+
        PARKING
-           ↓
-       BUILDING ENTRANCE
-           ↓
+          ↓
+       ENTRANCE
+          ↓
        BUILDING
 
-       Buildings NEVER occupy road space.
-       ===================================================== */
+   No road enters the building.
+   ========================================================= */
 
 
-    const properties = [];
+const HQ_BUILDING =
+  new THREE.Group();
+
+HQ_BUILDING.name =
+  "HQ_Building";
+
+HQ.add(
+  HQ_BUILDING
+);
 
 
-    function createProperty(
-      id,
+/* =========================================================
+   FOUNDATION SLAB
+   ========================================================= */
+
+box(
+  HQ_SITE.buildingWidth,
+  0.24,
+  HQ_SITE.buildingDepth,
+  MATERIALS.floor,
+  0,
+  0.42,
+  5,
+  HQ_BUILDING
+);
+
+
+/* =========================================================
+   BUILDING PERIMETER BASE
+   ========================================================= */
+
+box(
+  HQ_SITE.buildingWidth + 0.45,
+  0.14,
+  0.30,
+  MATERIALS.dark,
+  0,
+  0.57,
+  -2.15,
+  HQ_BUILDING
+);
+
+
+box(
+  HQ_SITE.buildingWidth + 0.45,
+  0.14,
+  0.30,
+  MATERIALS.dark,
+  0,
+  0.57,
+  12.15,
+  HQ_BUILDING
+);
+
+
+box(
+  0.30,
+  0.14,
+  HQ_SITE.buildingDepth,
+  MATERIALS.dark,
+  -15.15,
+  0.57,
+  5,
+  HQ_BUILDING
+);
+
+
+box(
+  0.30,
+  0.14,
+  HQ_SITE.buildingDepth,
+  MATERIALS.dark,
+  15.15,
+  0.57,
+  5,
+  HQ_BUILDING
+);
+
+
+/* =========================================================
+   FRONT TERRACE
+   ========================================================= */
+
+box(
+  12,
+  0.10,
+  2.0,
+  MATERIALS.concrete,
+  0,
+  0.62,
+  -3.0,
+  HQ_BUILDING
+);
+
+
+/* =========================================================
+   ENTRANCE APPROACH
+   ========================================================= */
+
+box(
+  6,
+  0.08,
+  2.4,
+  MATERIALS.sidewalk,
+  0,
+  0.69,
+  -1.8,
+  HQ_BUILDING
+);
+
+
+/* =========================================================
+   MAIN ENTRANCE
+   ========================================================= */
+
+const HQ_MAIN_ENTRANCE =
+  new THREE.Group();
+
+HQ_MAIN_ENTRANCE.name =
+  "HQ_MainEntrance";
+
+HQ.add(
+  HQ_MAIN_ENTRANCE
+);
+
+
+/* Entrance landing */
+
+box(
+  6,
+  0.10,
+  1.8,
+  MATERIALS.concrete,
+  0,
+  0.74,
+  -2.75,
+  HQ_MAIN_ENTRANCE
+);
+
+
+/* Door threshold */
+
+box(
+  4.6,
+  0.08,
+  0.32,
+  MATERIALS.dark,
+  0,
+  0.82,
+  -3.55,
+  HQ_MAIN_ENTRANCE
+);
+
+
+/* =========================================================
+   ENTRANCE COLUMNS
+   ========================================================= */
+
+box(
+  0.38,
+  3.8,
+  0.38,
+  MATERIALS.wallDark,
+  -3.0,
+  2.55,
+  -3.45,
+  HQ_MAIN_ENTRANCE
+);
+
+
+box(
+  0.38,
+  3.8,
+  0.38,
+  MATERIALS.wallDark,
+  3.0,
+  2.55,
+  -3.45,
+  HQ_MAIN_ENTRANCE
+);
+
+
+/* =========================================================
+   GLASS ENTRANCE DOORS
+   ========================================================= */
+
+box(
+  1.95,
+  3.0,
+  0.10,
+  MATERIALS.glassDark,
+  -1.0,
+  2.30,
+  -3.48,
+  HQ_MAIN_ENTRANCE
+);
+
+
+box(
+  1.95,
+  3.0,
+  0.10,
+  MATERIALS.glassDark,
+  1.0,
+  2.30,
+  -3.48,
+  HQ_MAIN_ENTRANCE
+);
+
+
+/* Door centre divider */
+
+box(
+  0.08,
+  3.0,
+  0.14,
+  MATERIALS.metal,
+  0,
+  2.30,
+  -3.54,
+  HQ_MAIN_ENTRANCE
+);
+
+
+/* =========================================================
+   ENTRANCE CANOPY
+   ========================================================= */
+
+box(
+  8,
+  0.22,
+  2.8,
+  MATERIALS.wallDark,
+  0,
+  4.65,
+  -3.95,
+  HQ_MAIN_ENTRANCE
+);
+
+
+box(
+  7.3,
+  0.08,
+  2.35,
+  MATERIALS.metal,
+  0,
+  4.48,
+  -3.95,
+  HQ_MAIN_ENTRANCE
+);
+
+
+/* =========================================================
+   BUILDING SHELL
+   ========================================================= */
+
+const HQ_SHELL =
+  new THREE.Group();
+
+HQ_SHELL.name =
+  "HQ_BuildingShell";
+
+HQ.add(
+  HQ_SHELL
+);
+
+
+/* Rear wall */
+
+box(
+  30,
+  4.1,
+  0.42,
+  MATERIALS.wallDark,
+  0,
+  2.65,
+  12,
+  HQ_SHELL
+);
+
+
+/* Left wall */
+
+box(
+  0.42,
+  4.1,
+  14,
+  MATERIALS.wall,
+  -15,
+  2.65,
+  5,
+  HQ_SHELL
+);
+
+
+/* Right wall */
+
+box(
+  0.42,
+  4.1,
+  14,
+  MATERIALS.wall,
+  15,
+  2.65,
+  5,
+  HQ_SHELL
+);
+
+
+/* =========================================================
+   FRONT STRUCTURAL WALLS
+   =========================================================
+
+   The centre remains open for the main entrance.
+   ========================================================= */
+
+box(
+  10,
+  4.1,
+  0.42,
+  MATERIALS.wallDark,
+  -10,
+  2.65,
+  -2,
+  HQ_SHELL
+);
+
+
+box(
+  10,
+  4.1,
+  0.42,
+  MATERIALS.wallDark,
+  10,
+  2.65,
+  -2,
+  HQ_SHELL
+);
+
+
+/* =========================================================
+   FRONT GLASS FAÇADE
+   ========================================================= */
+
+const HQ_FRONT_GLASS =
+  new THREE.Group();
+
+HQ_FRONT_GLASS.name =
+  "HQ_FrontGlass";
+
+HQ.add(
+  HQ_FRONT_GLASS
+);
+
+
+/* Left glass section */
+
+for (
+  let x = -13;
+  x <= -4.5;
+  x += 2.1
+) {
+
+  box(
+    1.70,
+    3.35,
+    0.08,
+    MATERIALS.glass,
+    x,
+    2.55,
+    -2.22,
+    HQ_FRONT_GLASS
+  );
+
+}
+
+
+/* Right glass section */
+
+for (
+  let x = 4.5;
+  x <= 13;
+  x += 2.1
+) {
+
+  box(
+    1.70,
+    3.35,
+    0.08,
+    MATERIALS.glass,
+    x,
+    2.55,
+    -2.22,
+    HQ_FRONT_GLASS
+  );
+
+}
+
+
+/* =========================================================
+   FAÇADE MULLIONS
+   ========================================================= */
+
+[
+  -13.8,
+  -11.7,
+  -9.6,
+  -7.5,
+  -5.4,
+
+   5.4,
+   7.5,
+   9.6,
+   11.7,
+   13.8
+
+].forEach(
+  x => {
+
+    box(
+      0.10,
+      3.55,
+      0.12,
+      MATERIALS.metal,
       x,
-      z,
-      width,
-      depth,
-      type = "commercial"
-    ){
-
-      const property =
-        new THREE.Group();
-
-      property.name =
-        "Property_" + id;
-
-      property.position.set(
-        x,
-        0,
-        z
-      );
-
-      property.userData = {
-
-        id,
-
-        type,
-
-        width,
-
-        depth,
-
-        occupied:false
-
-      };
-
-
-      /* =================================================
-         PROPERTY BASE
-         ================================================= */
-
-      box(
-        width,
-        0.10,
-        depth,
-        MATERIALS.concrete,
-        0,
-        0.05,
-        0,
-        property
-      );
-
-
-      /* =================================================
-         LANDSCAPED SETBACK
-         ================================================= */
-
-      box(
-        Math.max(width - 1.0, 2),
-        0.08,
-        Math.max(depth - 1.0, 2),
-        MATERIALS.grassDark,
-        0,
-        0.14,
-        0,
-        property
-      );
-
-
-      CITY.add(
-        property
-      );
-
-      properties.push(
-        property
-      );
-
-      return property;
-    }
-
-
-    /* =====================================================
-       CITY PROPERTY BLOCKS
-       =====================================================
-
-       These blocks remain BETWEEN roads.
-
-       Road coordinates:
-         Horizontal: +18 / -20
-         Vertical:   +19 / -19
-
-       No building is placed directly
-       on a road surface.
-       ===================================================== */
-
-
-    createProperty(
-      "commercial_north",
-      0,
-      8,
-      15,
-      15,
-      "commercial"
-    );
-
-
-    createProperty(
-      "corporate_north",
-      -29,
-      8,
-      13,
-      15,
-      "corporate"
-    );
-
-
-    createProperty(
-      "retail_north",
-      29,
-      8,
-      13,
-      15,
-      "retail"
-    );
-
-
-    createProperty(
-      "commercial_south",
-      0,
-      -4,
-      15,
-      15,
-      "commercial"
-    );
-
-
-    createProperty(
-      "residential_west",
-      -29,
-      -4,
-      13,
-      15,
-      "residential"
-    );
-
-
-    createProperty(
-      "corporate_east",
-      29,
-      -4,
-      13,
-      15,
-      "corporate"
-    );
-
-
-    /* =====================================================
-       PLAYER HQ PROPERTY
-       =====================================================
-
-       HQ is deliberately placed in its own
-       premium plot.
-
-       World position:
-
-             MAIN ACCESS ROAD
-                    │
-                    │
-              HQ DRIVEWAY
-                    │
-               PARKING
-                    │
-              HQ ENTRANCE
-                    │
-              PLAYER HQ
-
-       The building itself stays completely
-       inside the property boundary.
-       ===================================================== */
-
-
-    const HQ_PROPERTY =
-      createProperty(
-        "player_hq",
-        0,
-        42,
-        32,
-        26,
-        "player-hq"
-      );
-
-
-    HQ_PROPERTY.userData.occupied =
-      true;
-
-
-    HQ.position.set(
-      0,
-      0,
-      42
-    );
-
-
-    /* =====================================================
-       HQ SITE DIMENSIONS
-       ===================================================== */
-
-    const HQ_SITE = {
-
-      width:32,
-
-      depth:26,
-
-      frontRoadZ:27,
-
-      frontSidewalkZ:29,
-
-      propertyFrontZ:29,
-
-      parkingFrontZ:31,
-
-      parkingBackZ:36,
-
-      buildingFrontZ:37,
-
-      buildingBackZ:51,
-
-      buildingWidth:30,
-
-      buildingDepth:14
-
-    };
-
-
-    /* =====================================================
-       HQ INTERNAL SITE ACCESS
-       =====================================================
-
-       This is NOT a road through the office.
-
-       It is a private driveway connecting
-       the public road to the parking area.
-       ===================================================== */
-
-
-    function createHQDriveway(){
-
-      const drivewayGroup =
-        new THREE.Group();
-
-      drivewayGroup.name =
-        "HQ_PrivateDriveway";
-
-      HQ.add(
-        drivewayGroup
-      );
-
-
-      /*
-       * Driveway extends from the
-       * property frontage toward parking.
-       *
-       * HQ local Z:
-       *
-       *   -15 = public/front side
-       *    0  = HQ center
-       *   +15 = rear
-       */
-
-
-      box(
-        8,
-        0.08,
-        9,
-        MATERIALS.asphaltLight,
-        0,
-        0.24,
-        -10.5,
-        drivewayGroup
-      );
-
-
-      /*
-       * Driveway edge lines.
-       */
-
-      box(
-        0.12,
-        0.04,
-        8.5,
-        MATERIALS.concrete,
-        -4.05,
-        0.30,
-        -10.5,
-        drivewayGroup
-      );
-
-
-      box(
-        0.12,
-        0.04,
-        8.5,
-        MATERIALS.concrete,
-        4.05,
-        0.30,
-        -10.5,
-        drivewayGroup
-      );
-
-
-      return drivewayGroup;
-    }
-
-
-    createHQDriveway();
-
-
-    /* =====================================================
-       HQ PARKING AREA
-       ===================================================== */
-
-
-    const HQ_PARKING =
-      new THREE.Group();
-
-    HQ_PARKING.name =
-      "HQ_Parking";
-
-    HQ.add(
-      HQ_PARKING
-    );
-
-
-    box(
-      22,
-      0.08,
-      6,
-      MATERIALS.asphaltLight,
-      0,
-      0.24,
-      -6,
-      HQ_PARKING
-    );
-
-
-    /*
-     * Parking boundary.
-     */
-
-    box(
-      22.3,
-      0.04,
-      0.12,
-      MATERIALS.concrete,
-      0,
-      0.30,
-      -8.9,
-      HQ_PARKING
-    );
-
-
-    box(
-      22.3,
-      0.04,
-      0.12,
-      MATERIALS.concrete,
-      0,
-      0.30,
-      -3.1,
-      HQ_PARKING
-    );
-
-
-    /*
-     * Individual parking bays.
-     */
-
-    for(
-      let x = -9;
-      x <= 9;
-      x += 3
-    ){
-
-      box(
-        0.07,
-        0.025,
-        5.4,
-        MATERIALS.concrete,
-        x,
-        0.31,
-        -6,
-        HQ_PARKING
-      );
-
-    }
-
-
-    /* =====================================================
-       HQ PEDESTRIAN WALKWAY
-       ===================================================== */
-
-
-    box(
-      10,
-      0.07,
-      2.2,
-      MATERIALS.sidewalk,
-      0,
-      0.33,
-      -2.0,
-      HQ
-    );
-
-
-    /* =====================================================
-       HQ LANDSCAPE ZONES
-       ===================================================== */
-
-
-    const HQ_LANDSCAPE =
-      new THREE.Group();
-
-    HQ_LANDSCAPE.name =
-      "HQ_Landscaping";
-
-    HQ.add(
-      HQ_LANDSCAPE
-    );
-
-
-    /*
-     * Front landscape strips.
-     */
-
-    box(
-      4.0,
-      0.08,
-      2.5,
-      MATERIALS.grassDark,
-      -13,
-      0.20,
-      -2,
-      HQ_LANDSCAPE
-    );
-
-
-    box(
-      4.0,
-      0.08,
-      2.5,
-      MATERIALS.grassDark,
-      13,
-      0.20,
-      -2,
-      HQ_LANDSCAPE
-    );
-
-
-    /*
-     * Side landscape strips.
-     */
-
-    box(
-      2.0,
-      0.08,
-      10,
-      MATERIALS.grassDark,
-      -14,
-      0.20,
-      6,
-      HQ_LANDSCAPE
-    );
-
-
-    box(
-      2.0,
-      0.08,
-      10,
-      MATERIALS.grassDark,
-      14,
-      0.20,
-      6,
-      HQ_LANDSCAPE
-    );
-
-
-    /* =====================================================
-       HQ FRONTAGE / PUBLIC SIDEWALK
-       =====================================================
-
-       This sits OUTSIDE the building property
-       and creates the connection to the city.
-       ===================================================== */
-
-
-    box(
-      32,
-      0.10,
-      2.2,
-      MATERIALS.sidewalk,
-      0,
-      0.18,
-      29.0 - 42.0,
-      HQ
-    );
-
-
-    /* =====================================================
-       HQ PROPERTY CURB
-       ===================================================== */
-
-
-    box(
-      32,
-      0.13,
-      0.18,
-      MATERIALS.curb,
-      0,
-      0.20,
-      29.0 - 42.0 - 1.1,
-      HQ
-    );
-
-
-    /* =====================================================
-       OFFICE-01 VALIDATION DATA
-       ===================================================== */
-
-
-    HQ.userData.sitePlan = {
-
-      propertyWidth:
-        HQ_SITE.width,
-
-      propertyDepth:
-        HQ_SITE.depth,
-
-      buildingWidth:
-        HQ_SITE.buildingWidth,
-
-      buildingDepth:
-        HQ_SITE.buildingDepth,
-
-      hasDriveway:
-        true,
-
-      hasParking:
-        true,
-
-      hasSidewalk:
-        true,
-
-      roadInsideBuilding:
-        false
-
-    };
-
-
-    console.log(
-      "Empire Rush OFFICE-01: HQ property/site plan created.",
-      HQ.userData.sitePlan
-    );
-
-
-    /* =====================================================
-       HQ FOUNDATION
-       ===================================================== */
-        /* =====================================================
-       OFFICE-01 — PART 2/4
-       HQ BUILDING FOOTPRINT + FOUNDATION
-       ===================================================== */
-
-
-    /*
-     * IMPORTANT:
-     *
-     * HQ local coordinates:
-     *
-     * Front / City side = negative Z
-     * Rear                = positive Z
-     *
-     * Building occupies:
-     *
-     * X = -15 ... +15
-     * Z = -5  ... +9
-     *
-     * Parking occupies:
-     *
-     * X = -11 ... +11
-     * Z = -9 ... -3
-     *
-     * Therefore parking and building
-     * do NOT overlap.
-     */
-
-
-    /* =====================================================
-       MATERIAL FIX
-       ===================================================== */
-
-    /*
-     * The original file referenced:
-     *
-     * MATERIALS.floor
-     *
-     * but no floor material existed.
-     *
-     * Create it once here.
-     */
-
-    if(
-      !MATERIALS.floor
-    ){
-
-      MATERIALS.floor =
-        material(
-          0x8f9698,
-          0.92
-        );
-
-    }
-
-
-    /* =====================================================
-       HQ FOUNDATION PLATFORM
-       ===================================================== */
-
-
-    const HQ_FOUNDATION =
-      new THREE.Group();
-
-    HQ_FOUNDATION.name =
-      "HQ_BuildingFoundation";
-
-    HQ.add(
-      HQ_FOUNDATION
-    );
-
-
-    /*
-     * Main structural slab.
-     *
-     * This is the actual building footprint.
-     */
-
-    box(
-      HQ_SITE.buildingWidth,
-      0.22,
-      HQ_SITE.buildingDepth,
-      MATERIALS.floor,
-      0,
-      0.36,
-      3,
-      HQ_FOUNDATION
-    );
-
-
-    /*
-     * Slightly raised perimeter edge.
-     */
-
-    box(
-      HQ_SITE.buildingWidth + 0.5,
-      0.12,
-      0.30,
-      MATERIALS.dark,
-      0,
-      0.52,
-      -4.15,
-      HQ_FOUNDATION
-    );
-
-
-    box(
-      HQ_SITE.buildingWidth + 0.5,
-      0.12,
-      0.30,
-      MATERIALS.dark,
-      0,
-      0.52,
-      10.15,
-      HQ_FOUNDATION
-    );
-
-
-    box(
-      0.30,
-      0.12,
-      HQ_SITE.buildingDepth,
-      MATERIALS.dark,
-      -15.15,
-      0.52,
-      3,
-      HQ_FOUNDATION
-    );
-
-
-    box(
-      0.30,
-      0.12,
-      HQ_SITE.buildingDepth,
-      MATERIALS.dark,
-      15.15,
-      0.52,
-      3,
-      HQ_FOUNDATION
-    );
-
-
-    /* =====================================================
-       BUILDING FRONT TERRACE
-       ===================================================== */
-
-
-    box(
-      12,
-      0.10,
-      2.0,
-      MATERIALS.concrete,
-      0,
-      0.55,
-      -5.0,
-      HQ_FOUNDATION
-    );
-
-
-    /*
-     * Entrance path from parking
-     * to front door.
-     */
-
-    box(
-      6,
-      0.08,
-      3.4,
-      MATERIALS.sidewalk,
-      0,
-      0.61,
-      -4.0,
-      HQ_FOUNDATION
-    );
-
-
-    /* =====================================================
-       HQ FRONT ENTRANCE PAD
-       ===================================================== */
-
-
-    const HQ_ENTRANCE =
-      new THREE.Group();
-
-    HQ_ENTRANCE.name =
-      "HQ_MainEntrance";
-
-    HQ.add(
-      HQ_ENTRANCE
-    );
-
-
-    /*
-     * Entrance landing.
-     */
-
-    box(
-      5.6,
-      0.10,
-      1.8,
-      MATERIALS.concrete,
-      0,
-      0.67,
-      -5.0,
-      HQ_ENTRANCE
-    );
-
-
-    /*
-     * Door threshold.
-     */
-
-    box(
-      4.4,
-      0.08,
-      0.35,
-      MATERIALS.dark,
-      0,
-      0.76,
-      -5.72,
-      HQ_ENTRANCE
-    );
-
-
-    /* =====================================================
-       ENTRANCE COLUMNS
-       ===================================================== */
-
-
-    box(
-      0.35,
-      3.8,
-      0.35,
-      MATERIALS.wallDark,
-      -3.0,
-      2.45,
-      -5.65,
-      HQ_ENTRANCE
-    );
-
-
-    box(
-      0.35,
-      3.8,
-      0.35,
-      MATERIALS.wallDark,
-      3.0,
-      2.45,
-      -5.65,
-      HQ_ENTRANCE
-    );
-
-
-    /* =====================================================
-       ENTRANCE GLASS DOORS
-       ===================================================== */
-
-
-    box(
-      1.85,
-      3.0,
-      0.10,
-      MATERIALS.glassDark,
-      -1.0,
-      2.25,
-      -5.68,
-      HQ_ENTRANCE
-    );
-
-
-    box(
-      1.85,
-      3.0,
-      0.10,
-      MATERIALS.glassDark,
-      1.0,
-      2.25,
-      -5.68,
-      HQ_ENTRANCE
-    );
-
-
-    /*
-     * Door divider.
-     */
-
-    box(
-      0.08,
-      3.0,
-      0.14,
-      MATERIALS.metal,
-      0,
-      2.25,
-      -5.74,
-      HQ_ENTRANCE
-    );
-
-
-    /* =====================================================
-       ENTRANCE CANOPY SUPPORT
-       ===================================================== */
-
-
-    box(
-      7.4,
-      0.20,
-      2.7,
-      MATERIALS.wallDark,
-      0,
-      4.55,
-      -6.2,
-      HQ_ENTRANCE
-    );
-
-
-    /*
-     * Canopy underside.
-     */
-
-    box(
-      6.8,
-      0.08,
-      2.25,
-      MATERIALS.metal,
-      0,
-      4.40,
-      -6.2,
-      HQ_ENTRANCE
-    );
-
-
-    /* =====================================================
-       BUILDING SIDE WALLS
-       ===================================================== */
-
-
-    const HQ_SHELL =
-      new THREE.Group();
-
-    HQ_SHELL.name =
-      "HQ_BuildingShell";
-
-    HQ.add(
-      HQ_SHELL
-    );
-
-
-    /*
-     * Rear wall.
-     */
-
-    box(
-      30,
-      4.0,
-      0.40,
-      MATERIALS.wallDark,
-      0,
       2.55,
-      10.0,
-      HQ_SHELL
+      -2.27,
+      HQ_FRONT_GLASS
+    );
+
+  }
+);
+
+
+/* =========================================================
+   SIDE WINDOW BANDS
+   ========================================================= */
+
+const HQ_SIDE_WINDOWS =
+  new THREE.Group();
+
+HQ_SIDE_WINDOWS.name =
+  "HQ_SideWindows";
+
+HQ.add(
+  HQ_SIDE_WINDOWS
+);
+
+
+/* Left side */
+
+for (
+  let z = 0;
+  z <= 10;
+  z += 2.5
+) {
+
+  box(
+    0.08,
+    1.65,
+    1.55,
+    MATERIALS.glassDark,
+    -15.23,
+    2.45,
+    z,
+    HQ_SIDE_WINDOWS
+  );
+
+}
+
+
+/* Right side */
+
+for (
+  let z = 0;
+  z <= 10;
+  z += 2.5
+) {
+
+  box(
+    0.08,
+    1.65,
+    1.55,
+    MATERIALS.glassDark,
+    15.23,
+    2.45,
+    z,
+    HQ_SIDE_WINDOWS
+  );
+
+}
+
+
+/* =========================================================
+   ROOF
+   ========================================================= */
+
+box(
+  30.8,
+  0.30,
+  14.8,
+  MATERIALS.wallDark,
+  0,
+  4.78,
+  5,
+  HQ_BUILDING
+);
+
+
+/* Roof overhang */
+
+box(
+  31.5,
+  0.10,
+  15.5,
+  MATERIALS.metal,
+  0,
+  4.96,
+  5,
+  HQ_BUILDING
+);
+
+
+/* =========================================================
+   FRONT SIGN BAND
+   ========================================================= */
+
+const HQ_SIGN =
+  new THREE.Group();
+
+HQ_SIGN.name =
+  "HQ_SignBand";
+
+HQ.add(
+  HQ_SIGN
+);
+
+
+box(
+  8.5,
+  0.85,
+  0.16,
+  MATERIALS.dark,
+  0,
+  4.38,
+  -2.40,
+  HQ_SIGN
+);
+
+
+/* Illuminated logo placeholder */
+
+box(
+  3.8,
+  0.15,
+  0.06,
+  MATERIALS.green,
+  0,
+  4.42,
+  -2.51,
+  HQ_SIGN
+);
+
+
+/* =========================================================
+   BUILDING FOOTPRINT VALIDATION
+   ========================================================= */
+
+HQ.userData.buildingPlan = {
+
+  width:
+    HQ_SITE.buildingWidth,
+
+  depth:
+    HQ_SITE.buildingDepth,
+
+  worldFrontZ:
+    HQ.position.z +
+    HQ_SITE.buildingFrontZ -
+    HQ.position.z,
+
+  worldBackZ:
+    HQ.position.z +
+    HQ_SITE.buildingBackZ -
+    HQ.position.z,
+
+  parkingBeforeBuilding:
+    true,
+
+  entranceConnected:
+    true,
+
+  roadInsideBuilding:
+    false
+
+};
+
+
+console.log(
+  "Empire Rush OFFICE-01 Part 3:",
+  HQ.userData.buildingPlan
+);
+
+
+/* =========================================================
+   END CORRECTED PART 3/4
+   ========================================================= */
+/* =========================================================
+   OFFICE-01 — CORRECTED PART 4/4
+   PROPERTY FINISHING + FINAL VALIDATION
+   ========================================================= */
+
+
+/* =========================================================
+   HQ PROPERTY BOUNDARY
+   ========================================================= */
+
+const HQ_BOUNDARY =
+  new THREE.Group();
+
+HQ_BOUNDARY.name =
+  "HQ_PropertyBoundary";
+
+HQ.add(
+  HQ_BOUNDARY
+);
+
+
+/*
+ * Property local dimensions:
+ *
+ * X = -16 ... +16
+ * Z = -13 ... +13
+ *
+ * Building:
+ *
+ * X = -15 ... +15
+ * Z = -2  ... +12
+ *
+ * Therefore the building remains
+ * inside the property.
+ */
+
+
+/* Front boundary */
+
+box(
+  32,
+  0.06,
+  0.12,
+  MATERIALS.curb,
+  0,
+  0.25,
+  -12.9,
+  HQ_BOUNDARY
+);
+
+
+/* Left boundary */
+
+box(
+  0.12,
+  0.06,
+  25.8,
+  MATERIALS.curb,
+  -15.9,
+  0.25,
+  0,
+  HQ_BOUNDARY
+);
+
+
+/* Right boundary */
+
+box(
+  0.12,
+  0.06,
+  25.8,
+  MATERIALS.curb,
+  15.9,
+  0.25,
+  0,
+  HQ_BOUNDARY
+);
+
+
+/* Rear boundary */
+
+box(
+  32,
+  0.06,
+  0.12,
+  MATERIALS.curb,
+  0,
+  0.25,
+  12.9,
+  HQ_BOUNDARY
+);
+
+
+/* =========================================================
+   FRONT LANDSCAPING
+   ========================================================= */
+
+const HQ_LANDSCAPING =
+  new THREE.Group();
+
+HQ_LANDSCAPING.name =
+  "HQ_Landscaping";
+
+HQ.add(
+  HQ_LANDSCAPING
+);
+
+
+/* Front-left lawn */
+
+box(
+  7,
+  0.08,
+  2.4,
+  MATERIALS.grassDark,
+  -11.5,
+  0.20,
+  -11.0,
+  HQ_LANDSCAPING
+);
+
+
+/* Front-right lawn */
+
+box(
+  7,
+  0.08,
+  2.4,
+  MATERIALS.grassDark,
+  11.5,
+  0.20,
+  -11.0,
+  HQ_LANDSCAPING
+);
+
+
+/* =========================================================
+   SHRUB SYSTEM
+   ========================================================= */
+
+function hqShrub(
+  x,
+  z,
+  scale = 1
+){
+
+  const shrub =
+    new THREE.Group();
+
+  shrub.name =
+    "HQ_Shrub";
+
+  shrub.position.set(
+    x,
+    0,
+    z
+  );
+
+  shrub.scale.setScalar(
+    scale
+  );
+
+  HQ_LANDSCAPING.add(
+    shrub
+  );
+
+
+  cylinder(
+    0.34,
+    0.55,
+    MATERIALS.treeLeaf,
+    0,
+    0.48,
+    0,
+    shrub,
+    12
+  );
+
+
+  const crown =
+    new THREE.Mesh(
+      new THREE.SphereGeometry(
+        0.42,
+        12,
+        8
+      ),
+      MATERIALS.treeLeaf
     );
 
 
-    /*
-     * Left wall.
-     */
-
-    box(
-      0.40,
-      4.0,
-      14.0,
-      MATERIALS.wall,
-      -15.0,
-      2.55,
-      3.0,
-      HQ_SHELL
-    );
-
-
-    /*
-     * Right wall.
-     */
-
-    box(
-      0.40,
-      4.0,
-      14.0,
-      MATERIALS.wall,
-      15.0,
-      2.55,
-      3.0,
-      HQ_SHELL
-    );
-
-
-    /* =====================================================
-       FRONT STRUCTURAL SECTIONS
-       =====================================================
-
-       Front façade remains open around
-       the main entrance.
-
-       Side sections hold the façade.
-       ===================================================== */
-
-
-    box(
-      10.0,
-      4.0,
-      0.40,
-      MATERIALS.wallDark,
-      -10.0,
-      2.55,
-      -4.0,
-      HQ_SHELL
-    );
-
-
-    box(
-      10.0,
-      4.0,
-      0.40,
-      MATERIALS.wallDark,
-      10.0,
-      2.55,
-      -4.0,
-      HQ_SHELL
-    );
-
-
-    /* =====================================================
-       FRONT GLASS WALL
-       ===================================================== */
-
-
-    const HQ_GLASS_FRONT =
-      new THREE.Group();
-
-    HQ_GLASS_FRONT.name =
-      "HQ_GlassFront";
-
-    HQ.add(
-      HQ_GLASS_FRONT
-    );
-
-
-    /*
-     * Glass panels left of entrance.
-     */
-
-    for(
-      let x = -12.5;
-      x <= -4.5;
-      x += 2.0
-    ){
-
-      box(
-        1.65,
-        3.3,
-        0.08,
-        MATERIALS.glass,
-        x,
-        2.55,
-        -4.22,
-        HQ_GLASS_FRONT
-      );
-
-    }
-
-
-    /*
-     * Glass panels right of entrance.
-     */
-
-    for(
-      let x = 4.5;
-      x <= 12.5;
-      x += 2.0
-    ){
-
-      box(
-        1.65,
-        3.3,
-        0.08,
-        MATERIALS.glass,
-        x,
-        2.55,
-        -4.22,
-        HQ_GLASS_FRONT
-      );
-
-    }
-
-
-    /* =====================================================
-       VERTICAL FAÇADE MULLIONS
-       ===================================================== */
-
-
-    [
-      -13.5,
-      -11.5,
-      -9.5,
-      -7.5,
-      -5.5,
-      5.5,
-      7.5,
-      9.5,
-      11.5,
-      13.5
-    ].forEach(
-      x => {
-
-        box(
-          0.10,
-          3.55,
-          0.12,
-          MATERIALS.metal,
-          x,
-          2.55,
-          -4.28,
-          HQ_GLASS_FRONT
-        );
-
-      }
-    );
-
-
-    /* =====================================================
-       BUILDING ROOF SLAB
-       ===================================================== */
-
-
-    box(
-      30.8,
-      0.30,
-      14.8,
-      MATERIALS.wallDark,
-      0,
-      4.72,
-      3,
-      HQ
-    );
-
-
-    /*
-     * Roof overhang.
-     */
-
-    box(
-      31.5,
-      0.10,
-      15.5,
-      MATERIALS.metal,
-      0,
-      4.90,
-      3,
-      HQ
-    );
-
-
-    /* =====================================================
-       FRONT SIGN BAND
-       ===================================================== */
-
-
-    box(
-      8.0,
-      0.95,
-      0.16,
-      MATERIALS.dark,
-      0,
-      4.45,
-      -4.38,
-      HQ
-    );
-
+  crown.position.y =
+    0.78;
 
-    /*
-     * Placeholder illuminated logo strip.
-     *
-     * Actual company logo/name system
-     * will come in a later office stage.
-     */
 
-    box(
-      3.6,
-      0.16,
-      0.06,
-      MATERIALS.green,
-      0,
-      4.48,
-      -4.50,
-      HQ
-    );
+  crown.castShadow =
+    true;
 
 
-    /* =====================================================
-       OFFICE-01 STRUCTURAL VALIDATION
-       ===================================================== */
+  shrub.add(
+    crown
+  );
 
 
-    HQ.userData.buildingFootprint = {
+  return shrub;
+}
 
-      xMin:
-        -HQ_SITE.buildingWidth / 2,
 
-      xMax:
-        HQ_SITE.buildingWidth / 2,
+/* Front shrubs */
 
-      zMin:
-        -4,
+hqShrub(
+  -13,
+  -10.5,
+  0.9
+);
 
-      zMax:
-        10,
+hqShrub(
+  -10.8,
+  -10.5,
+  0.72
+);
 
-      parkingZMin:
-        -9,
+hqShrub(
+  10.8,
+  -10.5,
+  0.72
+);
 
-      parkingZMax:
-        -3,
+hqShrub(
+  13,
+  -10.5,
+  0.9
+);
 
-      entranceZ:
-        -5.7,
 
-      roadInsideBuilding:
-        false
+/* Side shrubs */
 
-    };
+hqShrub(
+  -14.0,
+  0,
+  0.72
+);
 
+hqShrub(
+  -14.0,
+  5,
+  0.72
+);
 
-    console.log(
-      "Empire Rush OFFICE-01: building footprint created.",
-      HQ.userData.buildingFootprint
-    );
+hqShrub(
+  14.0,
+  0,
+  0.72
+);
 
+hqShrub(
+  14.0,
+  5,
+  0.72
+);
 
-    /* =====================================================
-       LEGACY HQ EXTERIOR SECTION
-       =====================================================
 
-       The next part will continue with the
-       remaining old HQ geometry cleanup.
+/* =========================================================
+   ENTRANCE LIGHTS
+   ========================================================= */
 
-       DO NOT SAVE YET.
-       ===================================================== */
-        /* =====================================================
-       OFFICE-01 — PART 3/4
-       LEGACY HQ EXTERIOR CLEANUP
-       =====================================================
+function hqEntranceLight(
+  x
+){
 
-       The old HQ exterior, old front walls,
-       old glass front, old roof, old sign and
-       old parking geometry are intentionally
-       removed from the build.
+  const light =
+    new THREE.Group();
 
-       OFFICE-01 now uses the new planned
-       property/site structure created above.
+  light.name =
+    "HQ_EntranceLight";
 
-       CEO/interior remains untouched.
-       ===================================================== */
+  light.position.set(
+    x,
+    0,
+    -3.8
+  );
 
+  HQ.add(
+    light
+  );
 
-    /*
-     * Compatibility marker.
-     *
-     * The new HQ site is already constructed
-     * by OFFICE-01 PART 1 + PART 2.
-     */
 
-    HQ.userData.officeStage =
-      "OFFICE-01";
+  cylinder(
+    0.055,
+    1.7,
+    MATERIALS.metal,
+    0,
+    0.85,
+    0,
+    light,
+    10
+  );
 
 
-    HQ.userData.siteAccess =
-      "ROAD → SIDEWALK → DRIVEWAY → PARKING → ENTRANCE";
+  const lampMaterial =
+    new THREE.MeshStandardMaterial({
 
+      color:
+        0xfff1bf,
 
-    HQ.userData.buildingRules = {
+      emissive:
+        0xffd979,
 
-      roadThroughBuilding:
-        false,
-
-      parkingInsideBuilding:
-        false,
-
-      drivewayThroughBuilding:
-        false,
-
-      buildingInsideProperty:
-        true,
-
-      entranceConnectedToParking:
-        true
-
-    };
-
-
-    /* =====================================================
-       HQ PROPERTY VISUAL BOUNDARY
-       ===================================================== */
-
-
-    const HQ_BOUNDARY =
-      new THREE.Group();
-
-    HQ_BOUNDARY.name =
-      "HQ_PropertyBoundary";
-
-    HQ.add(
-      HQ_BOUNDARY
-    );
-
-
-    /*
-     * Front property edge.
-     */
-
-    box(
-      32,
-      0.06,
-      0.12,
-      MATERIALS.curb,
-      0,
-      0.25,
-      -12.8,
-      HQ_BOUNDARY
-    );
-
-
-    /*
-     * Left property edge.
-     */
-
-    box(
-      0.12,
-      0.06,
-      25.6,
-      MATERIALS.curb,
-      -15.9,
-      0.25,
-      0,
-      HQ_BOUNDARY
-    );
-
-
-    /*
-     * Right property edge.
-     */
-
-    box(
-      0.12,
-      0.06,
-      25.6,
-      MATERIALS.curb,
-      15.9,
-      0.25,
-      0,
-      HQ_BOUNDARY
-    );
-
-
-    /*
-     * Rear property edge.
-     */
-
-    box(
-      32,
-      0.06,
-      0.12,
-      MATERIALS.curb,
-      0,
-      0.25,
-      12.8,
-      HQ_BOUNDARY
-    );
-
-
-    /* =====================================================
-       HQ ENTRANCE LANDSCAPE
-       ===================================================== */
-
-
-    function entrancePlanter(
-      x
-    ){
-
-      const planter =
-        new THREE.Group();
-
-      planter.name =
-        "HQ_EntrancePlanter";
-
-      planter.position.set(
-        x,
-        0,
-        -3.0
-      );
-
-      HQ.add(
-        planter
-      );
-
-
-      /*
-       * Low planter box.
-       */
-
-      box(
-        3.2,
-        0.45,
+      emissiveIntensity:
         1.0,
-        MATERIALS.concrete,
-        0,
-        0.35,
-        0,
-        planter
-      );
 
+      roughness:
+        0.35
 
-      /*
-       * Plant mass.
-       */
+    });
 
-      cylinder(
-        0.42,
-        0.70,
-        MATERIALS.treeLeaf,
-        -0.85,
-        0.90,
-        0,
-        planter,
-        12
-      );
 
+  box(
+    0.22,
+    0.22,
+    0.22,
+    lampMaterial,
+    0,
+    1.76,
+    0,
+    light
+  );
 
-      cylinder(
-        0.42,
-        0.70,
-        MATERIALS.treeLeaf,
-        0,
-        0.90,
-        0,
-        planter,
-        12
-      );
+}
 
 
-      cylinder(
-        0.42,
-        0.70,
-        MATERIALS.treeLeaf,
-        0.85,
-        0.90,
-        0,
-        planter,
-        12
-      );
+hqEntranceLight(
+  -5
+);
 
+hqEntranceLight(
+  5
+);
 
-      return planter;
-    }
 
+/* =========================================================
+   PARKING SAFETY BOLLARDS
+   ========================================================= */
 
-    entrancePlanter(
-      -9.5
-    );
+function hqBollard(
+  x,
+  z
+){
 
+  cylinder(
+    0.09,
+    0.72,
+    MATERIALS.metal,
+    x,
+    0.55,
+    z,
+    HQ,
+    12
+  );
 
-    entrancePlanter(
-      9.5
-    );
+}
 
 
-    /* =====================================================
-       HQ FRONT WALKWAY LIGHTS
-       ===================================================== */
+hqBollard(
+  -4.0,
+  -2.8
+);
 
+hqBollard(
+  4.0,
+  -2.8
+);
 
-    function entranceLight(
-      x
-    ){
 
-      const light =
-        new THREE.Group();
+/* =========================================================
+   HQ PARKING STATUS
+   ========================================================= */
 
-      light.name =
-        "HQ_EntranceLight";
+HQ.userData.parkingPlan = {
 
-      light.position.set(
-        x,
-        0,
-        -3.1
-      );
+  spaces:
+    7,
 
-      HQ.add(
-        light
-      );
+  localFrontZ:
+    -9,
 
+  localBackZ:
+    -3,
 
-      cylinder(
-        0.055,
-        1.8,
-        MATERIALS.metal,
-        0,
-        0.9,
-        0,
-        light,
-        10
-      );
+  connectedToDriveway:
+    true,
 
+  connectedToEntrance:
+    true
 
-      const lampMaterial =
-        new THREE.MeshStandardMaterial({
+};
 
-          color:
-            0xfff1bf,
 
-          emissive:
-            0xffd979,
+/* =========================================================
+   HQ COMPLETE SITE DATA
+   ========================================================= */
 
-          emissiveIntensity:
-            1.0,
+HQ.userData.office01 = {
 
-          roughness:
-            0.35
+  status:
+    "COMPLETE",
 
-        });
+  property: {
 
+    width:
+      HQ_SITE.width,
 
-      box(
-        0.24,
-        0.24,
-        0.24,
-        lampMaterial,
-        0,
-        1.82,
-        0,
-        light
-      );
+    depth:
+      HQ_SITE.depth,
 
-    }
+    centerZ:
+      HQ_SITE.centerZ
 
+  },
 
-    entranceLight(
-      -5.0
-    );
 
+  publicAccess: {
 
-    entranceLight(
-      5.0
-    );
+    road:
+      true,
 
+    sidewalk:
+      true
 
-    /* =====================================================
-       HQ VEHICLE DROP-OFF
-       =====================================================
+  },
 
-       Small arrival zone directly before
-       the entrance.
 
-       It is NOT a public road.
-       ===================================================== */
+  privateAccess: {
 
+    driveway:
+      true,
 
-    const HQ_DROPOFF =
-      new THREE.Group();
+    parking:
+      true,
 
-    HQ_DROPOFF.name =
-      "HQ_DropOff";
+    dropOff:
+      true,
 
-    HQ.add(
-      HQ_DROPOFF
-    );
+    pedestrianWalkway:
+      true
 
+  },
 
-    box(
-      7.5,
-      0.07,
-      2.4,
-      MATERIALS.asphaltLight,
-      0,
-      0.27,
-      -10.5,
-      HQ_DROPOFF
-    );
 
+  building: {
 
-    /*
-     * Drop-off edge.
-     */
+    width:
+      HQ_SITE.buildingWidth,
 
-    box(
-      7.5,
-      0.06,
-      0.14,
-      MATERIALS.curb,
-      0,
-      0.34,
-      -11.65,
-      HQ_DROPOFF
-    );
+    depth:
+      HQ_SITE.buildingDepth,
 
+    insideProperty:
+      true
 
-    /* =====================================================
-       HQ SITE PLAN DATA
-       ===================================================== */
+  },
 
 
-    HQ.userData.sitePlanV1 = {
+  landscaping:
+    true,
 
-      publicRoad:
-        "CITY_ROAD",
 
-      publicSidewalk:
-        true,
+  rules: {
 
-      privateDriveway:
-        true,
+    roadInsideBuilding:
+      false,
 
-      parking:
-        true,
+    roadInsideParking:
+      false,
 
-      pedestrianWalkway:
-        true,
+    drivewayInsideBuilding:
+      false,
 
-      vehicleDropOff:
-        true,
+    parkingInsideBuilding:
+      false
 
-      buildingSetback:
-        true,
+  }
 
-      landscapedProperty:
-        true,
+};
 
-      roadInsideBuilding:
-        false
 
-    };
+/* =========================================================
+   FINAL GEOMETRY VALIDATION
+   ========================================================= */
 
+function validateOffice01(){
 
-    console.log(
-      "Empire Rush OFFICE-01: legacy HQ exterior removed; planned site retained."
-    );
+  const site =
+    HQ.userData.office01;
 
 
-    /* =====================================================
-       CEO OFFICE / EXISTING INTERIOR
-       =====================================================
+  const result = {
 
-       PRESERVED FOR NOW.
+    HQProperty:
+      !!HQ_PROPERTY,
 
-       It will be redesigned in a separate
-       office-interior stage.
-       ===================================================== */
-     /* =====================================================
-       OFFICE-01 — PART 4/4
-       FINAL SITE CONNECTION + VALIDATION
-       ===================================================== */
+    HQBuilding:
+      !!HQ.getObjectByName(
+        "HQ_Building"
+      ),
 
+    Driveway:
+      !!HQ.getObjectByName(
+        "HQ_PrivateDriveway"
+      ),
 
-    /* =====================================================
-       HQ CITY CONNECTION
-       =====================================================
+    Parking:
+      !!HQ.getObjectByName(
+        "HQ_Parking"
+      ),
 
-       World coordinates:
+    MainEntrance:
+      !!HQ.getObjectByName(
+        "HQ_MainEntrance"
+      ),
 
-       CITY ROAD
-          │
-          │  public sidewalk
-          │
-       PROPERTY FRONTAGE
-          │
-       HQ PRIVATE DRIVEWAY
-          │
-       PARKING
-          │
-       PEDESTRIAN WALKWAY
-          │
-       HQ ENTRANCE
+    SidewalkConnection:
+      !!HQ_CONNECTION,
 
-       No public road passes through HQ.
-       ===================================================== */
+    BuildingInsideProperty:
+      site.building.insideProperty,
 
+    RoadInsideBuilding:
+      site.rules.roadInsideBuilding,
 
-    const HQ_CONNECTION =
-      new THREE.Group();
+    RoadInsideParking:
+      site.rules.roadInsideParking,
 
-    HQ_CONNECTION.name =
-      "HQ_CityConnection";
+    DrivewayInsideBuilding:
+      site.rules.drivewayInsideBuilding,
 
-    WORLD.add(
-      HQ_CONNECTION
-    );
+    ParkingInsideBuilding:
+      site.rules.parkingInsideBuilding
 
+  };
 
-    /* =====================================================
-       PUBLIC SIDEWALK IN FRONT OF HQ
-       ===================================================== */
 
+  const passed =
 
-    box(
-      32,
-      0.10,
-      2.4,
-      MATERIALS.sidewalk,
-      0,
-      0.17,
-      28.0,
-      HQ_CONNECTION
-    );
+    result.HQProperty &&
 
+    result.HQBuilding &&
 
-    /* =====================================================
-       SIDEWALK CURB
-       ===================================================== */
+    result.Driveway &&
 
+    result.Parking &&
 
-    box(
-      32,
-      0.14,
-      0.18,
-      MATERIALS.curb,
-      0,
-      0.22,
-      26.72,
-      HQ_CONNECTION
-    );
+    result.MainEntrance &&
 
+    result.SidewalkConnection &&
 
-    /* =====================================================
-       HQ DRIVEWAY CONNECTION
-       =====================================================
+    result.BuildingInsideProperty === true &&
 
-       The driveway starts at the sidewalk
-       and ends at the private parking area.
+    result.RoadInsideBuilding === false &&
 
-       It is deliberately narrow and local,
-       unlike a city road.
-       ===================================================== */
+    result.RoadInsideParking === false &&
 
+    result.DrivewayInsideBuilding === false &&
 
-    box(
-      8,
-      0.08,
-      7.0,
-      MATERIALS.asphaltLight,
-      0,
-      0.24,
-      32.0,
-      HQ_CONNECTION
-    );
+    result.ParkingInsideBuilding === false;
 
 
-    /* =====================================================
-       DRIVEWAY EDGE MARKERS
-       ===================================================== */
+  HQ.userData.office01.validation =
+    result;
 
+  HQ.userData.office01.passed =
+    passed;
 
-    box(
-      0.12,
-      0.04,
-      6.8,
-      MATERIALS.concrete,
-      -4.05,
-      0.30,
-      32.0,
-      HQ_CONNECTION
-    );
 
+  console.log(
+    "=========================================="
+  );
 
-    box(
-      0.12,
-      0.04,
-      6.8,
-      MATERIALS.concrete,
-      4.05,
-      0.30,
-      32.0,
-      HQ_CONNECTION
-    );
+  console.log(
+    "EMPIRE RUSH — OFFICE-01 FINAL VALIDATION"
+  );
 
+  console.table(
+    result
+  );
 
-    /* =====================================================
-       PEDESTRIAN CROSSING
-       =====================================================
+  console.log(
+    passed
+      ? "OFFICE-01 PASS ✓"
+      : "OFFICE-01 NEEDS REVIEW"
+  );
 
-       Small visual crossing where the private
-       driveway meets the public sidewalk.
-       ===================================================== */
+  console.log(
+    "=========================================="
+  );
 
 
-    for(
-      let x = -3;
-      x <= 3;
-      x += 1.2
-    ){
+  return passed;
 
-      box(
-        0.65,
-        0.025,
-        2.0,
-        MATERIALS.concrete,
-        x,
-        0.30,
-        28.0,
-        HQ_CONNECTION
-      );
+}
 
-    }
 
+/* Run validation */
 
-    /* =====================================================
-       HQ ENTRANCE PATH
-       ===================================================== */
+validateOffice01();
 
 
-    box(
-      6,
-      0.07,
-      2.8,
-      MATERIALS.sidewalk,
-      0,
-      0.38,
-      36.0,
-      HQ_CONNECTION
-    );
+/* =========================================================
+   PUBLIC OFFICE API
+   ========================================================= */
 
+window.EmpireOffice =
+  window.EmpireOffice ||
+  {};
 
-    /* =====================================================
-       PARKING → ENTRANCE WALKWAY
-       ===================================================== */
 
+window.EmpireOffice.stage =
+  "OFFICE-01";
 
-    box(
-      7,
-      0.07,
-      2.2,
-      MATERIALS.sidewalk,
-      0,
-      0.40,
-      38.0,
-      HQ_CONNECTION
-    );
 
+window.EmpireOffice.HQ =
+  HQ;
 
-    /* =====================================================
-       PROPERTY LANDSCAPING
-       ===================================================== */
 
+window.EmpireOffice.property =
+  HQ_PROPERTY;
 
-    function propertyShrub(
-      x,
-      z,
-      scale = 1
-    ){
 
-      const shrub =
-        new THREE.Group();
+window.EmpireOffice.validate =
+  validateOffice01;
 
-      shrub.position.set(
-        x,
-        0,
-        z
-      );
 
-      shrub.scale.setScalar(
-        scale
-      );
+window.EmpireOffice.getSitePlan =
+  function(){
 
-      HQ.add(
-        shrub
-      );
+    return HQ.userData.office01;
 
+  };
 
-      cylinder(
-        0.42,
-        0.55,
-        MATERIALS.treeLeaf,
-        0,
-        0.48,
-        0,
-        shrub,
-        12
-      );
 
+console.log(
+  "Empire Rush: OFFICE-01 COMPLETE."
+);
 
-      const crown =
-        new THREE.Mesh(
-          new THREE.SphereGeometry(
-            0.48,
-            12,
-            8
-          ),
-          MATERIALS.treeLeaf
-        );
 
-      crown.position.y =
-        0.82;
-
-      crown.castShadow =
-        true;
-
-      shrub.add(
-        crown
-      );
-
-    }
-
-
-    propertyShrub(
-      -13.0,
-      -9.5,
-      0.9
-    );
-
-
-    propertyShrub(
-      -10.5,
-      -9.5,
-      0.75
-    );
-
-
-    propertyShrub(
-      10.5,
-      -9.5,
-      0.75
-    );
-
-
-    propertyShrub(
-      13.0,
-      -9.5,
-      0.9
-    );
-
-
-    /* =====================================================
-       HQ PARKING SPACE NUMBERS / MARKERS
-       ===================================================== */
-
-
-    const parkingMarkers =
-      new THREE.Group();
-
-    parkingMarkers.name =
-      "HQ_ParkingMarkers";
-
-    HQ.add(
-      parkingMarkers
-    );
-
-
-    for(
-      let x = -9;
-      x <= 9;
-      x += 3
-    ){
-
-      /*
-       * Small parking stop.
-       */
-
-      box(
-        1.6,
-        0.10,
-        0.18,
-        MATERIALS.concrete,
-        x,
-        0.38,
-        -8.35,
-        parkingMarkers
-      );
-
-    }
-
-
-    /* =====================================================
-       HQ FRONT SAFETY BOLLARDS
-       ===================================================== */
-
-
-    function bollard(
-      x,
-      z
-    ){
-
-      cylinder(
-        0.09,
-        0.75,
-        MATERIALS.metal,
-        x,
-        0.55,
-        z,
-        HQ,
-        12
-      );
-
-    }
-
-
-    bollard(
-      -3.8,
-      -5.2
-    );
-
-
-    bollard(
-      3.8,
-      -5.2
-    );
-
-
-    /* =====================================================
-       HQ SITE LABEL DATA
-       ===================================================== */
-
-
-    HQ.userData.site = {
-
-      id:
-        "player_hq",
-
-      type:
-        "player-headquarters",
-
-      property:
-
-        {
-          width:32,
-          depth:26
-        },
-
-      access:
-
-        {
-          publicRoad:true,
-          sidewalk:true,
-          driveway:true,
-          parking:true,
-          pedestrianPath:true
-        },
-
-      building:
-
-        {
-          width:30,
-          depth:14,
-          insideProperty:true
-        },
-
-      rules:
-
-        {
-          roadInsideProperty:false,
-          roadInsideBuilding:false,
-          parkingInsideBuilding:false,
-          drivewayInsideBuilding:false
-        }
-
-    };
-
-
-    /* =====================================================
-       OFFICE-01 VALIDATION
-       ===================================================== */
-
-
-    function validateHQSite(){
-
-      const site =
-        HQ.userData.site;
-
-
-      const checks = {
-
-        propertyExists:
-          !!HQ_PROPERTY,
-
-        drivewayExists:
-          !!HQ.getObjectByName(
-            "HQ_PrivateDriveway"
-          ),
-
-        parkingExists:
-          !!HQ.getObjectByName(
-            "HQ_Parking"
-          ),
-
-        entranceExists:
-          !!HQ.getObjectByName(
-            "HQ_MainEntrance"
-          ),
-
-        buildingInsideProperty:
-          site.building.insideProperty,
-
-        roadInsideBuilding:
-          site.rules.roadInsideBuilding,
-
-        parkingInsideBuilding:
-          site.rules.parkingInsideBuilding,
-
-        drivewayInsideBuilding:
-          site.rules.drivewayInsideBuilding
-
-      };
-
-
-      const passed =
-        checks.propertyExists &&
-        checks.drivewayExists &&
-        checks.parkingExists &&
-        checks.entranceExists &&
-        checks.buildingInsideProperty &&
-        checks.roadInsideBuilding === false &&
-        checks.parkingInsideBuilding === false &&
-        checks.drivewayInsideBuilding === false;
-
-
-      HQ.userData.office01Passed =
-        passed;
-
-
-      console.log(
-        "========================================"
-      );
-
-      console.log(
-        "EMPIRE RUSH — OFFICE-01 VALIDATION"
-      );
-
-      console.table(
-        checks
-      );
-
-      console.log(
-        passed
-          ? "OFFICE-01 PASS ✓"
-          : "OFFICE-01 NEEDS REVIEW"
-      );
-
-      console.log(
-        "========================================"
-      );
-
-
-      return passed;
-
-    }
-
-
-    validateHQSite();
-
-
-    /* =====================================================
-       OFFICE-01 COMPLETE
-       ===================================================== */
-
-
-    window.EmpireOffice =
-      window.EmpireOffice ||
-      {};
-
-
-    window.EmpireOffice.stage =
-      "OFFICE-01";
-
-
-    window.EmpireOffice.HQ =
-      HQ;
-
-
-    window.EmpireOffice.property =
-      HQ_PROPERTY;
-
-
-    window.EmpireOffice.validate =
-      validateHQSite;
-
-
-    window.EmpireOffice.getSitePlan =
-      function(){
-
-        return HQ.userData.site;
-
-      };
-
-
-    console.log(
-      "Empire Rush: OFFICE-01 complete."
-    );
-
-
-    /* =====================================================
-       END OFFICE-01
-       ===================================================== */       
-  
+/* =========================================================
+   END OFFICE-01
+   ========================================================= */
