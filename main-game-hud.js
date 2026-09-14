@@ -12,6 +12,11 @@
     root: null,
     moreMenu: null,
     companyId: null,
+    refreshTimer: null,
+
+    /* =========================================================
+       MONEY / DATA HELPERS
+       ========================================================= */
 
     money(value) {
       const n = Number(value || 0);
@@ -24,13 +29,23 @@
         return "₹" + (n / 100000).toFixed(1) + "L";
       }
 
+      if (Math.abs(n) >= 1000) {
+        return "₹" + Math.round(n / 1000) + "K";
+      }
+
       return "₹" + Math.round(n).toLocaleString("en-IN");
+    },
+
+    number(value) {
+      return Math.round(Number(value || 0))
+        .toLocaleString("en-IN");
     },
 
     getState() {
       try {
         return Game.getState() || {};
-      } catch {
+      } catch (error) {
+        console.warn("HUD state read failed:", error);
         return {};
       }
     },
@@ -50,21 +65,39 @@
     getCompany() {
       const companies = this.getCompanies();
 
-      if (!companies.length) return null;
+      if (!companies.length) {
+        return null;
+      }
 
       if (this.companyId) {
         const found = companies.find(
-          c => String(c.id) === String(this.companyId)
+          company =>
+            String(company.id) ===
+            String(this.companyId)
         );
 
-        if (found) return found;
+        if (found) {
+          return found;
+        }
       }
 
       return companies[0];
     },
 
-    number(value) {
-      return Math.round(Number(value || 0)).toLocaleString("en-IN");
+    getPersonalWealth() {
+      const state = this.getState();
+      const player = state.player || {};
+      const bank = state.bank || {};
+
+      const cash = Number(player.cash || 0);
+      const savings = Number(player.savings || 0);
+      const bankSavings = Number(bank.savings || 0);
+
+      return {
+        cash,
+        savings: savings + bankSavings,
+        total: cash + savings + bankSavings
+      };
     },
 
     /* =========================================================
@@ -72,13 +105,19 @@
        ========================================================= */
 
     createRoot() {
-      if (document.getElementById("empireMainHUD")) {
-        this.root = document.getElementById("empireMainHUD");
+      const existing =
+        document.getElementById("empireMainHUD");
+
+      if (existing) {
+        this.root = existing;
         return;
       }
 
-      this.root = document.createElement("div");
-      this.root.id = "empireMainHUD";
+      this.root =
+        document.createElement("div");
+
+      this.root.id =
+        "empireMainHUD";
 
       this.root.innerHTML = `
         <div id="empireHUDTop"></div>
@@ -93,29 +132,48 @@
     },
 
     /* =========================================================
-       STYLE
+       MODERN GAME HUD STYLE
        ========================================================= */
 
     injectStyles() {
-      if (document.getElementById("empireHUDStyles")) return;
+      if (
+        document.getElementById(
+          "empireHUDStyles"
+        )
+      ) {
+        return;
+      }
 
-      const style = document.createElement("style");
-      style.id = "empireHUDStyles";
+      const style =
+        document.createElement("style");
+
+      style.id =
+        "empireHUDStyles";
 
       style.textContent = `
+        /* =====================================================
+           ROOT
+           ===================================================== */
+
         #empireMainHUD {
           position:fixed;
           inset:0;
           z-index:8000;
           pointer-events:none;
+          color:#ffffff;
+
           font-family:
             Inter,
             -apple-system,
             BlinkMacSystemFont,
             "Segoe UI",
+            Roboto,
+            Helvetica,
             Arial,
             sans-serif;
-          color:#fff;
+
+          -webkit-font-smoothing:antialiased;
+          text-rendering:optimizeLegibility;
         }
 
         #empireHUDTop,
@@ -125,162 +183,539 @@
           pointer-events:none;
         }
 
-        .er-hud-top {
+        /* =====================================================
+           TOP HEADER
+           ===================================================== */
+
+        .er-topbar {
           position:absolute;
-          top:10px;
-          left:10px;
-          right:10px;
-          display:flex;
-          align-items:flex-start;
-          justify-content:space-between;
-          gap:10px;
-        }
 
-        .er-player-card,
-        .er-money-card,
-        .er-company-card {
-          background:rgba(10,15,25,.88);
-          border:1px solid rgba(255,255,255,.10);
-          box-shadow:
-            0 10px 30px rgba(0,0,0,.30),
-            inset 0 1px 0 rgba(255,255,255,.05);
-          backdrop-filter:blur(14px);
-          -webkit-backdrop-filter:blur(14px);
-        }
+          top:
+            max(8px, env(safe-area-inset-top));
 
-        .er-player-card {
-          min-width:180px;
-          max-width:250px;
-          padding:10px 12px;
-          border-radius:17px;
-        }
+          left:8px;
+          right:8px;
 
-        .er-money-card {
-          padding:9px 12px;
-          border-radius:16px;
-          min-width:155px;
-        }
+          height:54px;
 
-        .er-company-card {
-          position:absolute;
-          top:74px;
-          left:10px;
-          right:10px;
-          max-width:440px;
-          padding:10px 12px;
-          border-radius:16px;
-        }
-
-        .er-label {
-          font-size:8px;
-          font-weight:800;
-          letter-spacing:1.2px;
-          opacity:.48;
-          text-transform:uppercase;
-        }
-
-        .er-name {
-          font-size:14px;
-          font-weight:900;
-          margin-top:2px;
-        }
-
-        .er-job {
-          font-size:10px;
-          opacity:.65;
-          margin-top:2px;
-        }
-
-        .er-money {
-          font-size:17px;
-          font-weight:950;
-          margin-top:2px;
-        }
-
-        .er-date {
-          font-size:9px;
-          opacity:.55;
-          margin-top:3px;
-        }
-
-        .er-row {
           display:flex;
           align-items:center;
-          justify-content:space-between;
-          gap:8px;
+
+          padding:5px 7px;
+
+          border-radius:17px;
+
+          background:
+            linear-gradient(
+              180deg,
+              rgba(15,21,31,.94),
+              rgba(8,12,19,.91)
+            );
+
+          border:1px solid
+            rgba(255,255,255,.12);
+
+          box-shadow:
+            0 8px 28px rgba(0,0,0,.30),
+            inset 0 1px 0
+              rgba(255,255,255,.07);
+
+          backdrop-filter:blur(18px);
+          -webkit-backdrop-filter:blur(18px);
+
+          overflow:hidden;
+
+          pointer-events:auto;
         }
 
-        .er-stats {
-          display:grid;
-          grid-template-columns:
-            repeat(4,1fr);
+        .er-topbar::after {
+          content:"";
+
+          position:absolute;
+          left:0;
+          right:0;
+          bottom:0;
+
+          height:1px;
+
+          background:
+            linear-gradient(
+              90deg,
+              transparent,
+              rgba(255,255,255,.16),
+              transparent
+            );
+
+          pointer-events:none;
+        }
+
+        /* =====================================================
+           BRAND
+           ===================================================== */
+
+        .er-brand {
+          width:96px;
+          min-width:96px;
+
+          display:flex;
+          align-items:center;
           gap:7px;
-          margin-top:8px;
+
+          padding-left:5px;
+
+          overflow:hidden;
         }
 
-        .er-stat {
+        .er-brand-mark {
+          width:29px;
+          height:29px;
+
+          flex:0 0 29px;
+
+          display:flex;
+          align-items:center;
+          justify-content:center;
+
+          border-radius:9px;
+
+          background:
+            linear-gradient(
+              135deg,
+              rgba(255,255,255,.18),
+              rgba(255,255,255,.05)
+            );
+
+          border:1px solid
+            rgba(255,255,255,.13);
+
+          font-size:13px;
+          font-weight:950;
+
+          letter-spacing:-1px;
+        }
+
+        .er-brand-text {
           min-width:0;
-          padding:7px 8px;
-          border-radius:11px;
-          background:rgba(255,255,255,.055);
+          line-height:1;
         }
 
-        .er-stat-title {
-          font-size:7px;
+        .er-brand-main {
+          font-size:12px;
+          font-weight:950;
+          letter-spacing:1.4px;
+          white-space:nowrap;
+        }
+
+        .er-brand-sub {
+          margin-top:3px;
+
+          font-size:6px;
+          font-weight:800;
+
+          letter-spacing:1.15px;
+
           opacity:.45;
-          text-transform:uppercase;
-          letter-spacing:.5px;
+
+          white-space:nowrap;
         }
 
-        .er-stat-value {
+        /* =====================================================
+           PLAYER MINI CARD
+           ===================================================== */
+
+        .er-player-mini {
+          min-width:0;
+          flex:1;
+
+          display:flex;
+          align-items:center;
+
+          padding:0 8px;
+
+          overflow:hidden;
+        }
+
+        .er-avatar {
+          width:29px;
+          height:29px;
+
+          flex:0 0 29px;
+
+          border-radius:50%;
+
+          display:flex;
+          align-items:center;
+          justify-content:center;
+
+          background:
+            rgba(255,255,255,.09);
+
+          border:1px solid
+            rgba(255,255,255,.13);
+
+          font-size:13px;
+        }
+
+        .er-player-info {
+          min-width:0;
+          margin-left:7px;
+        }
+
+        .er-player-name {
           font-size:11px;
           font-weight:900;
-          margin-top:3px;
+
           white-space:nowrap;
           overflow:hidden;
           text-overflow:ellipsis;
         }
 
-        .er-status {
-          display:inline-flex;
-          align-items:center;
-          gap:5px;
-          padding:4px 7px;
-          border-radius:8px;
-          background:rgba(255,255,255,.07);
-          font-size:8px;
-          font-weight:800;
+        .er-player-role {
+          margin-top:2px;
+
+          font-size:7px;
+          font-weight:700;
+
+          opacity:.48;
+
+          white-space:nowrap;
+          overflow:hidden;
+          text-overflow:ellipsis;
         }
 
-        .er-dot {
+        /* =====================================================
+           CENTER COMPANY MINI STATUS
+           ===================================================== */
+
+        .er-company-mini {
+          display:none;
+
+          align-items:center;
+          gap:7px;
+
+          min-width:0;
+
+          max-width:180px;
+
+          padding:
+            6px 9px;
+
+          border-radius:11px;
+
+          background:
+            rgba(255,255,255,.055);
+
+          border:1px solid
+            rgba(255,255,255,.07);
+        }
+
+        .er-company-mini-info {
+          min-width:0;
+        }
+
+        .er-company-mini-name {
+          font-size:8px;
+          font-weight:900;
+
+          white-space:nowrap;
+          overflow:hidden;
+          text-overflow:ellipsis;
+        }
+
+        .er-company-mini-type {
+          margin-top:2px;
+
+          font-size:6px;
+          font-weight:700;
+
+          opacity:.42;
+        }
+
+        /* =====================================================
+           MONEY
+           ===================================================== */
+
+        .er-money-mini {
+          display:flex;
+          align-items:center;
+          gap:6px;
+
+          padding:
+            6px 9px;
+
+          border-radius:11px;
+
+          background:
+            rgba(255,255,255,.055);
+
+          border:1px solid
+            rgba(255,255,255,.07);
+
+          white-space:nowrap;
+        }
+
+        .er-money-icon {
+          width:21px;
+          height:21px;
+
+          display:flex;
+          align-items:center;
+          justify-content:center;
+
+          border-radius:7px;
+
+          background:
+            rgba(255,255,255,.08);
+
+          font-size:10px;
+          font-weight:900;
+        }
+
+        .er-money-info {
+          line-height:1;
+        }
+
+        .er-money-label {
+          font-size:5.5px;
+          font-weight:800;
+
+          letter-spacing:.8px;
+
+          opacity:.42;
+        }
+
+        .er-money-value {
+          margin-top:3px;
+
+          font-size:11px;
+          font-weight:950;
+        }
+
+        /* =====================================================
+           DAY
+           ===================================================== */
+
+        .er-day-mini {
+          min-width:43px;
+
+          padding:
+            5px 7px;
+
+          text-align:center;
+
+          border-radius:11px;
+
+          background:
+            rgba(255,255,255,.055);
+
+          border:1px solid
+            rgba(255,255,255,.07);
+        }
+
+        .er-day-label {
+          font-size:5.5px;
+          font-weight:800;
+
+          letter-spacing:.7px;
+
+          opacity:.42;
+        }
+
+        .er-day-value {
+          margin-top:2px;
+
+          font-size:10px;
+          font-weight:950;
+        }
+
+        /* =====================================================
+           MORE BUTTON
+           ===================================================== */
+
+        .er-header-more {
+          width:31px;
+          height:31px;
+
+          margin-left:5px;
+
+          flex:0 0 31px;
+
+          border:0;
+
+          border-radius:9px;
+
+          background:
+            rgba(255,255,255,.075);
+
+          color:#fff;
+
+          font-size:15px;
+          font-weight:900;
+
+          display:flex;
+          align-items:center;
+          justify-content:center;
+
+          touch-action:manipulation;
+          cursor:pointer;
+        }
+
+        .er-header-more:active {
+          transform:scale(.94);
+        }
+
+        /* =====================================================
+           COMPANY STATUS STRIP
+           ===================================================== */
+
+        .er-company-strip {
+          position:absolute;
+
+          top:
+            calc(
+              max(8px, env(safe-area-inset-top))
+              + 61px
+            );
+
+          left:10px;
+          right:10px;
+
+          min-height:31px;
+
+          display:flex;
+          align-items:center;
+
+          padding:
+            5px 9px;
+
+          border-radius:11px;
+
+          background:
+            rgba(8,13,21,.78);
+
+          border:1px solid
+            rgba(255,255,255,.08);
+
+          box-shadow:
+            0 6px 18px
+              rgba(0,0,0,.18);
+
+          backdrop-filter:blur(12px);
+          -webkit-backdrop-filter:blur(12px);
+
+          pointer-events:none;
+        }
+
+        .er-company-strip-left {
+          min-width:0;
+          flex:1;
+
+          display:flex;
+          align-items:center;
+          gap:6px;
+        }
+
+        .er-company-dot {
           width:6px;
           height:6px;
+
+          flex:0 0 6px;
+
           border-radius:50%;
+
           background:#55d68a;
-          box-shadow:0 0 8px rgba(85,214,138,.7);
+
+          box-shadow:
+            0 0 8px
+              rgba(85,214,138,.7);
         }
+
+        .er-company-name {
+          max-width:150px;
+
+          font-size:8px;
+          font-weight:900;
+
+          white-space:nowrap;
+          overflow:hidden;
+          text-overflow:ellipsis;
+        }
+
+        .er-company-status {
+          font-size:6px;
+          font-weight:800;
+
+          opacity:.45;
+
+          text-transform:uppercase;
+          letter-spacing:.5px;
+        }
+
+        .er-company-metrics {
+          display:flex;
+          align-items:center;
+          gap:8px;
+
+          font-size:6px;
+          font-weight:800;
+
+          opacity:.58;
+        }
+
+        .er-company-metric b {
+          font-size:7px;
+          opacity:1;
+        }
+
+        /* =====================================================
+           CONTENT / TOAST
+           ===================================================== */
 
         .er-content {
           position:absolute;
+
           left:10px;
           right:10px;
-          bottom:82px;
+
+          bottom:
+            calc(
+              72px
+              + env(safe-area-inset-bottom)
+            );
+
           display:flex;
           justify-content:center;
+
+          pointer-events:none;
         }
 
         .er-alert {
-          max-width:420px;
-          padding:9px 12px;
-          border-radius:12px;
-          background:rgba(12,18,29,.88);
-          border:1px solid rgba(255,255,255,.09);
-          box-shadow:0 8px 25px rgba(0,0,0,.25);
-          font-size:10px;
-          font-weight:700;
+          max-width:360px;
+
+          padding:
+            8px 12px;
+
+          border-radius:11px;
+
+          background:
+            rgba(9,14,22,.92);
+
+          border:1px solid
+            rgba(255,255,255,.10);
+
+          box-shadow:
+            0 10px 30px
+              rgba(0,0,0,.28);
+
+          font-size:9px;
+          font-weight:800;
+
           opacity:0;
-          transform:translateY(8px);
-          transition:.25s ease;
+          transform:translateY(7px);
+
+          transition:
+            opacity .22s ease,
+            transform .22s ease;
         }
 
         .er-alert.show {
@@ -288,138 +723,499 @@
           transform:translateY(0);
         }
 
+        /* =====================================================
+           BOTTOM NAV
+           ===================================================== */
+
         .er-bottom {
           position:absolute;
+
           left:8px;
           right:8px;
+
           bottom:
-            max(8px, env(safe-area-inset-bottom));
-          padding:7px;
-          border-radius:20px;
-          background:rgba(7,11,19,.93);
-          border:1px solid rgba(255,255,255,.10);
-          box-shadow:0 -10px 35px rgba(0,0,0,.35);
+            max(7px, env(safe-area-inset-bottom));
+
+          height:57px;
+
+          padding:5px;
+
+          border-radius:17px;
+
+          background:
+            rgba(7,11,18,.94);
+
+          border:1px solid
+            rgba(255,255,255,.10);
+
+          box-shadow:
+            0 -8px 30px
+              rgba(0,0,0,.28),
+            inset 0 1px 0
+              rgba(255,255,255,.05);
+
           backdrop-filter:blur(18px);
           -webkit-backdrop-filter:blur(18px);
+
           display:grid;
+
           grid-template-columns:
             repeat(5,1fr);
-          gap:5px;
+
+          gap:4px;
+
           pointer-events:auto;
         }
 
         .er-nav {
-          min-height:49px;
+          position:relative;
+
+          min-width:0;
+          min-height:46px;
+
           border:0;
-          border-radius:14px;
+          border-radius:12px;
+
           background:transparent;
+
           color:#fff;
-          opacity:.55;
-          font-size:8px;
+
+          opacity:.46;
+
+          font-size:7px;
           font-weight:900;
+
+          letter-spacing:.45px;
+
           display:flex;
           flex-direction:column;
           align-items:center;
           justify-content:center;
+
           gap:3px;
+
           touch-action:manipulation;
+          cursor:pointer;
+
+          transition:
+            background .16s ease,
+            opacity .16s ease,
+            transform .12s ease;
         }
 
-        .er-nav-icon {
-          font-size:18px;
-          line-height:18px;
+        .er-nav:hover {
+          opacity:.75;
+        }
+
+        .er-nav:active {
+          transform:scale(.95);
         }
 
         .er-nav.active {
           opacity:1;
-          background:rgba(255,255,255,.08);
+
+          background:
+            rgba(255,255,255,.09);
         }
 
-        .er-more {
+        .er-nav.active::before {
+          content:"";
+
           position:absolute;
+
+          top:2px;
+          left:50%;
+
+          width:18px;
+          height:2px;
+
+          border-radius:10px;
+
+          transform:translateX(-50%);
+
+          background:
+            rgba(255,255,255,.9);
+        }
+
+        .er-nav-icon {
+          width:22px;
+          height:20px;
+
+          display:flex;
+          align-items:center;
+          justify-content:center;
+
+          font-size:15px;
+          line-height:20px;
+        }
+
+        .er-nav-label {
+          font-size:6.5px;
+          font-weight:900;
+
+          letter-spacing:.5px;
+        }
+
+        /* =====================================================
+           MORE MENU
+           ===================================================== */
+
+        .er-more-panel {
+          position:absolute;
+
           left:8px;
           right:8px;
-          bottom:78px;
+
+          bottom:
+            calc(
+              70px
+              + env(safe-area-inset-bottom)
+            );
+
+          padding:9px;
+
+          border-radius:16px;
+
+          background:
+            rgba(7,11,18,.97);
+
+          border:1px solid
+            rgba(255,255,255,.11);
+
+          box-shadow:
+            0 15px 45px
+              rgba(0,0,0,.42);
+
+          backdrop-filter:blur(20px);
+          -webkit-backdrop-filter:blur(20px);
+
           display:none;
+
           grid-template-columns:
-            repeat(3,1fr);
-          gap:8px;
-          padding:10px;
-          border-radius:18px;
-          background:rgba(7,11,19,.96);
-          border:1px solid rgba(255,255,255,.10);
-          box-shadow:0 15px 45px rgba(0,0,0,.45);
+            repeat(4,1fr);
+
+          gap:6px;
+
           pointer-events:auto;
-          backdrop-filter:blur(18px);
         }
 
-        .er-more.open {
+        .er-more-panel.open {
           display:grid;
+          animation:
+            erMenuIn .16s ease-out;
+        }
+
+        @keyframes erMenuIn {
+          from {
+            opacity:0;
+            transform:translateY(8px);
+          }
+
+          to {
+            opacity:1;
+            transform:translateY(0);
+          }
         }
 
         .er-more-button {
-          min-height:54px;
+          min-width:0;
+          min-height:50px;
+
           border:0;
-          border-radius:13px;
-          background:rgba(255,255,255,.06);
+
+          border-radius:11px;
+
+          background:
+            rgba(255,255,255,.055);
+
           color:#fff;
-          font-size:9px;
+
+          font-size:6.5px;
           font-weight:850;
+
+          display:flex;
+          flex-direction:column;
+          align-items:center;
+          justify-content:center;
+
+          gap:3px;
+
           touch-action:manipulation;
+          cursor:pointer;
+        }
+
+        .er-more-button:active {
+          transform:scale(.96);
+          background:
+            rgba(255,255,255,.10);
         }
 
         .er-more-icon {
-          display:block;
-          font-size:20px;
-          margin-bottom:4px;
+          display:flex;
+          align-items:center;
+          justify-content:center;
+
+          width:22px;
+          height:21px;
+
+          font-size:15px;
         }
 
+        /* =====================================================
+           DESKTOP / IPAD LANDSCAPE
+           ===================================================== */
+
         @media (min-width:700px) {
-          .er-hud-top {
-            left:18px;
-            right:18px;
-            top:16px;
+
+          .er-topbar {
+            left:14px;
+            right:14px;
+
+            top:
+              max(12px, env(safe-area-inset-top));
+
+            height:58px;
+
+            padding:6px 9px;
+
+            border-radius:18px;
           }
 
-          .er-company-card {
-            left:18px;
-            top:82px;
+          .er-brand {
+            width:130px;
+            min-width:130px;
+          }
+
+          .er-brand-mark {
+            width:32px;
+            height:32px;
+            flex-basis:32px;
+          }
+
+          .er-brand-main {
+            font-size:13px;
+          }
+
+          .er-brand-sub {
+            font-size:6.5px;
+          }
+
+          .er-player-mini {
+            justify-content:center;
+            flex:none;
+            width:210px;
+          }
+
+          .er-company-mini {
+            display:flex;
+          }
+
+          .er-money-mini {
+            margin-left:auto;
+          }
+
+          .er-company-strip {
+            left:16px;
+            right:auto;
+
+            top:
+              calc(
+                max(12px, env(safe-area-inset-top))
+                + 67px
+              );
+
+            width:
+              min(430px, calc(100% - 32px));
           }
 
           .er-bottom {
             left:50%;
             right:auto;
-            width:min(600px,calc(100% - 30px));
-            transform:translateX(-50%);
+
+            width:
+              min(620px, calc(100% - 32px));
+
+            transform:
+              translateX(-50%);
+
+            bottom:
+              max(10px, env(safe-area-inset-bottom));
+
+            height:61px;
           }
 
-          .er-more {
+          .er-nav {
+            min-height:50px;
+          }
+
+          .er-nav-icon {
+            font-size:17px;
+          }
+
+          .er-nav-label {
+            font-size:7px;
+          }
+
+          .er-more-panel {
             left:50%;
             right:auto;
-            width:min(600px,calc(100% - 30px));
-            transform:translateX(-50%);
+
+            width:
+              min(620px, calc(100% - 32px));
+
+            transform:
+              translateX(-50%);
+
+            bottom:
+              calc(
+                78px
+                + env(safe-area-inset-bottom)
+              );
           }
         }
 
+        /* =====================================================
+           SMALL PHONES
+           ===================================================== */
+
         @media (max-width:420px) {
-          .er-player-card {
-            min-width:145px;
+
+          .er-topbar {
+            left:5px;
+            right:5px;
+
+            height:51px;
+
+            padding:4px 5px;
+
+            border-radius:15px;
           }
 
-          .er-money-card {
-            min-width:125px;
+          .er-brand {
+            width:72px;
+            min-width:72px;
           }
 
-          .er-stats {
-            gap:4px;
+          .er-brand-mark {
+            width:27px;
+            height:27px;
+            flex-basis:27px;
           }
 
-          .er-stat {
-            padding:6px;
-          }
-
-          .er-stat-value {
+          .er-brand-main {
             font-size:10px;
+            letter-spacing:1px;
+          }
+
+          .er-brand-sub {
+            display:none;
+          }
+
+          .er-avatar {
+            display:none;
+          }
+
+          .er-player-mini {
+            padding:0 4px;
+          }
+
+          .er-player-name {
+            font-size:9px;
+          }
+
+          .er-player-role {
+            font-size:6px;
+          }
+
+          .er-money-mini {
+            padding:
+              5px 7px;
+          }
+
+          .er-money-icon {
+            display:none;
+          }
+
+          .er-money-value {
+            font-size:10px;
+          }
+
+          .er-day-mini {
+            min-width:37px;
+            padding:5px;
+          }
+
+          .er-company-strip {
+            left:6px;
+            right:6px;
+          }
+
+          .er-company-metrics {
+            gap:5px;
+          }
+
+          .er-bottom {
+            left:5px;
+            right:5px;
+            bottom:
+              max(5px, env(safe-area-inset-bottom));
+
+            height:54px;
+
+            border-radius:15px;
+          }
+
+          .er-nav {
+            min-height:43px;
+            border-radius:10px;
+          }
+
+          .er-nav-icon {
+            font-size:14px;
+          }
+
+          .er-nav-label {
+            font-size:5.8px;
+          }
+
+          .er-more-panel {
+            left:5px;
+            right:5px;
+
+            grid-template-columns:
+              repeat(4,1fr);
+          }
+
+          .er-more-button {
+            min-height:47px;
+            font-size:6px;
+          }
+
+          .er-more-icon {
+            font-size:14px;
+          }
+        }
+
+        /* =====================================================
+           VERY SHORT SCREENS
+           ===================================================== */
+
+        @media (max-height:500px) {
+
+          .er-topbar {
+            height:48px;
+          }
+
+          .er-company-strip {
+            display:none;
+          }
+
+          .er-bottom {
+            height:50px;
+          }
+
+          .er-nav {
+            min-height:40px;
           }
         }
       `;
@@ -428,138 +1224,250 @@
     },
 
     /* =========================================================
-       TOP HUD
+       TOP BAR
        ========================================================= */
 
     renderTop() {
       const top =
-        document.getElementById("empireHUDTop");
+        document.getElementById(
+          "empireHUDTop"
+        );
 
-      const player = this.getPlayer();
-      const world = this.getWorld();
+      if (!top) {
+        return;
+      }
 
-      const cash =
-        Number(player.cash || 0);
+      const player =
+        this.getPlayer();
 
-      const savings =
-        Number(player.savings || 0);
+      const world =
+        this.getWorld();
 
-      const bank =
-        this.getState().bank || {};
+      const wealth =
+        this.getPersonalWealth();
 
-      const bankSavings =
-        Number(bank.savings || 0);
-
-      const netWorth =
-        cash +
-        savings +
-        bankSavings;
+      const company =
+        this.getCompany();
 
       const day =
-        world.day || 1;
+        Number(world.day || 1);
 
       const month =
-        world.month || 1;
+        Number(world.month || 1);
 
       const year =
-        world.year || 1;
+        Number(world.year || 1);
+
+      const playerName =
+        player.name || "Founder";
+
+      const job =
+        player.currentJob ||
+        "Unemployed";
+
+      const companyName =
+        company?.name ||
+        "No Company";
+
+      const companyType =
+        company?.type ||
+        company?.businessType ||
+        "";
 
       top.innerHTML = `
-        <div class="er-player-card">
+        <div class="er-topbar">
 
-          <div class="er-label">
-            FOUNDER
-          </div>
+          <!-- BRAND -->
 
-          <div class="er-name">
-            ${this.escape(player.name || "Founder")}
-          </div>
+          <div class="er-brand">
 
-          <div class="er-job">
-            ${this.escape(
-              player.currentJob ||
-              "Unemployed"
-            )}
-          </div>
+            <div class="er-brand-mark">
+              R
+            </div>
 
-          <div style="
-            margin-top:7px;
-            display:flex;
-            justify-content:space-between;
-            gap:6px;
-            align-items:center;
-          ">
+            <div class="er-brand-text">
 
-            <span class="er-status">
-              <span class="er-dot"></span>
-              ${
-                this.escape(
-                  player.jobLevel ||
-                  "Entry"
-                )
-              }
-            </span>
+              <div class="er-brand-main">
+                RUSH
+              </div>
 
-            <span style="
-              font-size:8px;
-              opacity:.5;
-            ">
-              AGE ${Number(player.age || 22)}
-            </span>
+              <div class="er-brand-sub">
+                BUSINESS EMPIRE
+              </div>
+
+            </div>
 
           </div>
 
-        </div>
 
-        <div class="er-money-card">
+          <!-- PLAYER -->
 
-          <div class="er-label">
-            PERSONAL WEALTH
+          <div class="er-player-mini">
+
+            <div class="er-avatar">
+              👤
+            </div>
+
+            <div class="er-player-info">
+
+              <div class="er-player-name">
+                ${this.escape(playerName)}
+              </div>
+
+              <div class="er-player-role">
+                ${this.escape(job)}
+                ·
+                ${this.escape(
+                  player.jobLevel || "Entry"
+                )}
+              </div>
+
+            </div>
+
           </div>
 
-          <div class="er-money">
-            ${this.money(netWorth)}
+
+          <!-- COMPANY -->
+
+          <div class="er-company-mini">
+
+            <span class="er-company-dot"></span>
+
+            <div class="er-company-mini-info">
+
+              <div class="er-company-mini-name">
+                ${this.escape(companyName)}
+              </div>
+
+              <div class="er-company-mini-type">
+                ${this.escape(
+                  companyType || "Founder"
+                )}
+              </div>
+
+            </div>
+
           </div>
 
-          <div class="er-date">
-            Cash ${this.money(cash)}
-            · Savings ${this.money(
-              savings + bankSavings
-            )}
+
+          <!-- MONEY -->
+
+          <div class="er-money-mini">
+
+            <div class="er-money-icon">
+              ₹
+            </div>
+
+            <div class="er-money-info">
+
+              <div class="er-money-label">
+                CASH
+              </div>
+
+              <div class="er-money-value">
+                ${this.money(wealth.cash)}
+              </div>
+
+            </div>
+
           </div>
 
-          <div class="er-date">
-            Year ${year}
-            · Month ${month}
-            · Day ${day}
+
+          <!-- DAY -->
+
+          <div class="er-day-mini">
+
+            <div class="er-day-label">
+              DAY
+            </div>
+
+            <div class="er-day-value">
+              ${day}
+            </div>
+
           </div>
+
+
+          <!-- MORE -->
+
+          <button
+            class="er-header-more"
+            type="button"
+            aria-label="Open menu"
+            onclick="
+              EmpireMainHUD.toggleMore()
+            "
+          >
+            ☰
+          </button>
 
         </div>
       `;
+
+      this.renderCompanyStrip(
+        company,
+        year,
+        month,
+        day
+      );
     },
 
     /* =========================================================
-       COMPANY HUD
+       COMPANY STRIP
        ========================================================= */
 
-    renderCompany() {
+    renderCompanyStrip(
+      company,
+      year,
+      month,
+      day
+    ) {
       const content =
         document.getElementById(
           "empireHUDContent"
         );
 
-      const company =
-        this.getCompany();
+      if (!content) {
+        return;
+      }
 
       if (!company) {
         content.innerHTML = `
-          <div class="er-content">
-            <div class="er-alert show">
-              💼 Get a job and build your capital to
-              start your first business.
+          <div class="er-company-strip">
+
+            <div class="er-company-strip-left">
+
+              <span
+                class="er-company-dot"
+                style="
+                  background:#f0b84b;
+                  box-shadow:
+                    0 0 8px
+                    rgba(240,184,75,.6);
+                "
+              ></span>
+
+              <span class="er-company-name">
+                Build your career
+              </span>
+
+              <span class="er-company-status">
+                Start from zero
+              </span>
+
             </div>
+
+            <div class="er-company-metrics">
+              Y${year}
+              ·
+              M${month}
+              ·
+              D${day}
+            </div>
+
           </div>
         `;
+
         return;
       }
 
@@ -568,17 +1476,9 @@
 
       const revenue =
         Number(
-          finance.totalRevenue ||
-          finance.revenue ||
-          company.revenue ||
-          0
-        );
-
-      const expenses =
-        Number(
-          finance.totalExpenses ||
-          finance.expenses ||
-          company.expenses ||
+          finance.totalRevenue ??
+          finance.revenue ??
+          company.revenue ??
           0
         );
 
@@ -586,91 +1486,66 @@
         Number(
           finance.profit ??
           company.profit ??
-          (revenue - expenses)
-        );
-
-      const valuation =
-        Number(
-          company.valuation ||
-          finance.valuation ||
           0
         );
 
       const employees =
-        (company.employees || []).length;
+        Array.isArray(company.employees)
+          ? company.employees.length
+          : Number(
+              company.employeeCount || 0
+            );
 
       const status =
         company.status ||
-        "Operating";
+        (
+          company.operating
+            ? "Operating"
+            : "Setup"
+        );
 
       content.innerHTML = `
-        <div class="er-company-card">
+        <div class="er-company-strip">
 
-          <div class="er-row">
+          <div class="er-company-strip-left">
 
-            <div style="min-width:0">
+            <span class="er-company-dot"></span>
 
-              <div class="er-label">
-                COMPANY
-              </div>
+            <span class="er-company-name">
+              ${this.escape(
+                company.name ||
+                "My Company"
+              )}
+            </span>
 
-              <div class="er-name" style="
-                white-space:nowrap;
-                overflow:hidden;
-                text-overflow:ellipsis;
-              ">
-                ${this.escape(
-                  company.name ||
-                  "My Company"
-                )}
-              </div>
-
-            </div>
-
-            <span class="er-status">
-              <span class="er-dot"></span>
+            <span class="er-company-status">
               ${this.escape(status)}
             </span>
 
           </div>
 
-          <div class="er-stats">
+          <div class="er-company-metrics">
 
-            <div class="er-stat">
-              <div class="er-stat-title">
-                Revenue
-              </div>
-              <div class="er-stat-value">
+            <span class="er-company-metric">
+              REV
+              <b>
                 ${this.money(revenue)}
-              </div>
-            </div>
+              </b>
+            </span>
 
-            <div class="er-stat">
-              <div class="er-stat-title">
-                Profit
-              </div>
-              <div class="er-stat-value">
+            <span class="er-company-metric">
+              PROF
+              <b>
                 ${this.money(profit)}
-              </div>
-            </div>
+              </b>
+            </span>
 
-            <div class="er-stat">
-              <div class="er-stat-title">
-                Employees
-              </div>
-              <div class="er-stat-value">
+            <span class="er-company-metric">
+              EMP
+              <b>
                 ${this.number(employees)}
-              </div>
-            </div>
-
-            <div class="er-stat">
-              <div class="er-stat-title">
-                Valuation
-              </div>
-              <div class="er-stat-value">
-                ${this.money(valuation)}
-              </div>
-            </div>
+              </b>
+            </span>
 
           </div>
 
@@ -688,57 +1563,100 @@
           "empireHUDBottom"
         );
 
+      if (!bottom) {
+        return;
+      }
+
       bottom.innerHTML = `
         <div class="er-bottom">
 
           <button
             class="er-nav active"
+            type="button"
+            data-nav="home"
             onclick="
               EmpireMainHUD.home()
             "
           >
-            <span class="er-nav-icon">⌂</span>
-            HOME
+            <span class="er-nav-icon">
+              ⌂
+            </span>
+
+            <span class="er-nav-label">
+              HOME
+            </span>
           </button>
+
 
           <button
             class="er-nav"
+            type="button"
+            data-nav="career"
             onclick="
               EmpireMainHUD.openCareer()
             "
           >
-            <span class="er-nav-icon">💼</span>
-            CAREER
+            <span class="er-nav-icon">
+              💼
+            </span>
+
+            <span class="er-nav-label">
+              CAREER
+            </span>
           </button>
+
 
           <button
             class="er-nav"
+            type="button"
+            data-nav="business"
             onclick="
               EmpireMainHUD.openBusiness()
             "
           >
-            <span class="er-nav-icon">🏢</span>
-            BUSINESS
+            <span class="er-nav-icon">
+              🏢
+            </span>
+
+            <span class="er-nav-label">
+              BUSINESS
+            </span>
           </button>
+
 
           <button
             class="er-nav"
+            type="button"
+            data-nav="finance"
             onclick="
               EmpireMainHUD.openFinance()
             "
           >
-            <span class="er-nav-icon">₹</span>
-            FINANCE
+            <span class="er-nav-icon">
+              ₹
+            </span>
+
+            <span class="er-nav-label">
+              FINANCE
+            </span>
           </button>
+
 
           <button
             class="er-nav"
+            type="button"
+            data-nav="more"
             onclick="
               EmpireMainHUD.toggleMore()
             "
           >
-            <span class="er-nav-icon">☰</span>
-            MORE
+            <span class="er-nav-icon">
+              ⋯
+            </span>
+
+            <span class="er-nav-label">
+              MORE
+            </span>
           </button>
 
         </div>
@@ -755,94 +1673,136 @@
           "empireHUDMore"
         );
 
+      if (!menu) {
+        return;
+      }
+
       menu.innerHTML = `
-        <div class="er-more">
+        <div class="er-more-panel">
 
           <button
             class="er-more-button"
+            type="button"
             onclick="
               EmpireMainHUD.openProducts()
             "
           >
-            <span class="er-more-icon">📦</span>
+            <span class="er-more-icon">
+              📦
+            </span>
+
             PRODUCTS
           </button>
 
+
           <button
             class="er-more-button"
+            type="button"
             onclick="
               EmpireMainHUD.openHR()
             "
           >
-            <span class="er-more-icon">👥</span>
+            <span class="er-more-icon">
+              👥
+            </span>
+
             HR
           </button>
 
+
           <button
             class="er-more-button"
+            type="button"
             onclick="
               EmpireMainHUD.openGovernment()
             "
           >
-            <span class="er-more-icon">🏛️</span>
+            <span class="er-more-icon">
+              🏛️
+            </span>
+
             GOVERNMENT
           </button>
 
+
           <button
             class="er-more-button"
+            type="button"
             onclick="
               EmpireMainHUD.openMarket()
             "
           >
-            <span class="er-more-icon">📈</span>
+            <span class="er-more-icon">
+              📈
+            </span>
+
             MARKET
           </button>
 
+
           <button
             class="er-more-button"
+            type="button"
             onclick="
               EmpireMainHUD.openNews()
             "
           >
-            <span class="er-more-icon">📰</span>
+            <span class="er-more-icon">
+              📰
+            </span>
+
             NEWS
           </button>
 
+
           <button
             class="er-more-button"
+            type="button"
             onclick="
               EmpireMainHUD.openCorporate()
             "
           >
-            <span class="er-more-icon">🏙️</span>
+            <span class="er-more-icon">
+              🏙️
+            </span>
+
             CORPORATE
           </button>
 
+
           <button
             class="er-more-button"
+            type="button"
             onclick="
               EmpireMainHUD.saveGame()
             "
           >
-            <span class="er-more-icon">💾</span>
+            <span class="er-more-icon">
+              💾
+            </span>
+
             SAVE
           </button>
 
+
           <button
             class="er-more-button"
+            type="button"
             onclick="
               EmpireMainHUD.closeMore()
             "
           >
-            <span class="er-more-icon">×</span>
+            <span class="er-more-icon">
+              ×
+            </span>
+
             CLOSE
           </button>
 
         </div>
       `;
     },
-
-    /* =========================================================
+        /* =========================================================
        MODULE OPENERS
        ========================================================= */
 
@@ -855,8 +1815,7 @@
             .split(".")
             .reduce(
               (obj, key) =>
-                obj &&
-                obj[key],
+                obj && obj[key],
               window
             );
 
@@ -878,13 +1837,17 @@
     },
 
     openCareer() {
+      this.setActive("career");
+
       if (
         this.invoke([
           "EmpireCareerBusinessUI.open",
           "EmpireCareerUI.open",
           "EmpireCareerBusiness.open"
         ])
-      ) return;
+      ) {
+        return;
+      }
 
       this.toast(
         "Career dashboard unavailable."
@@ -892,13 +1855,17 @@
     },
 
     openBusiness() {
+      this.setActive("business");
+
       if (
         this.invoke([
           "EmpireBusinessOperationsUI.open",
           "EmpireBusinessUI.open",
           "EmpireBusinessOperations.open"
         ])
-      ) return;
+      ) {
+        return;
+      }
 
       this.toast(
         "Business dashboard unavailable."
@@ -906,6 +1873,8 @@
     },
 
     openFinance() {
+      this.setActive("finance");
+
       if (
         this.invoke([
           "EmpireBanking.open",
@@ -913,7 +1882,9 @@
           "EmpireFinanceUI.open",
           "EmpireFinancingUI.open"
         ])
-      ) return;
+      ) {
+        return;
+      }
 
       this.toast(
         "Finance dashboard unavailable."
@@ -927,7 +1898,9 @@
           "EmpireProductManagementUI.open",
           "EmpireProductsUI.open"
         ])
-      ) return;
+      ) {
+        return;
+      }
 
       this.toast(
         "Product dashboard unavailable."
@@ -941,7 +1914,9 @@
           "EmpireHR.open",
           "EmpireHumanResourcesUI.open"
         ])
-      ) return;
+      ) {
+        return;
+      }
 
       this.toast(
         "HR dashboard unavailable."
@@ -954,7 +1929,9 @@
           "EmpireGovernmentUI.open",
           "EmpireComplianceUI.open"
         ])
-      ) return;
+      ) {
+        return;
+      }
 
       this.toast(
         "Government dashboard unavailable."
@@ -967,7 +1944,9 @@
           "EmpireCompetitionMarketUI.open",
           "EmpireMarketUI.open"
         ])
-      ) return;
+      ) {
+        return;
+      }
 
       this.toast(
         "Market dashboard unavailable."
@@ -980,7 +1959,9 @@
           "EmpireNewsDecisionUI.open",
           "EmpireNewsUI.open"
         ])
-      ) return;
+      ) {
+        return;
+      }
 
       this.toast(
         "News dashboard unavailable."
@@ -994,7 +1975,9 @@
           "EmpireCorporateUI.open",
           "EmpireGroupUI.open"
         ])
-      ) return;
+      ) {
+        return;
+      }
 
       this.toast(
         "Corporate dashboard unavailable."
@@ -1002,10 +1985,24 @@
     },
 
     /* =========================================================
-       NAV ACTIONS
+       NAVIGATION
        ========================================================= */
 
+    setActive(name) {
+      document
+        .querySelectorAll(
+          "#empireHUDBottom .er-nav"
+        )
+        .forEach(button => {
+          button.classList.toggle(
+            "active",
+            button.dataset.nav === name
+          );
+        });
+    },
+
     home() {
+      this.setActive("home");
       this.closeMore();
       this.render();
 
@@ -1017,37 +2014,72 @@
     toggleMore() {
       const menu =
         document.querySelector(
-          ".er-more"
+          "#empireHUDMore .er-more-panel"
         );
 
-      if (!menu) return;
+      if (!menu) {
+        return;
+      }
 
       menu.classList.toggle("open");
+
+      const nav =
+        document.querySelector(
+          '[data-nav="more"]'
+        );
+
+      if (nav) {
+        nav.classList.toggle(
+          "active",
+          menu.classList.contains("open")
+        );
+      }
     },
 
     closeMore() {
       const menu =
         document.querySelector(
-          ".er-more"
+          "#empireHUDMore .er-more-panel"
         );
 
       if (menu) {
         menu.classList.remove("open");
       }
+
+      const nav =
+        document.querySelector(
+          '[data-nav="more"]'
+        );
+
+      if (nav) {
+        nav.classList.remove("active");
+      }
     },
+
+    /* =========================================================
+       SAVE
+       ========================================================= */
 
     saveGame() {
       this.closeMore();
 
       try {
-        if (typeof Game.save === "function") {
+        if (
+          typeof Game.save ===
+          "function"
+        ) {
           Game.save();
         }
 
         this.toast(
           "Game saved."
         );
-      } catch {
+      } catch (error) {
+        console.warn(
+          "HUD save failed:",
+          error
+        );
+
         this.toast(
           "Save failed."
         );
@@ -1055,7 +2087,7 @@
     },
 
     /* =========================================================
-       ALERT
+       TOAST
        ========================================================= */
 
     toast(message) {
@@ -1064,7 +2096,9 @@
           "empireHUDToast"
         );
 
-      if (old) old.remove();
+      if (old) {
+        old.remove();
+      }
 
       const alert =
         document.createElement("div");
@@ -1076,21 +2110,27 @@
         "er-alert show";
 
       alert.textContent =
-        message;
+        String(message || "");
 
-      document
-        .getElementById(
+      const content =
+        document.getElementById(
           "empireHUDContent"
-        )
-        ?.appendChild(alert);
+        );
+
+      if (content) {
+        content.appendChild(alert);
+      }
 
       setTimeout(() => {
-        alert.classList.remove("show");
-
-        setTimeout(
-          () => alert.remove(),
-          250
+        alert.classList.remove(
+          "show"
         );
+
+        setTimeout(() => {
+          if (alert.parentNode) {
+            alert.remove();
+          }
+        }, 250);
       }, 1800);
     },
 
@@ -1102,35 +2142,78 @@
       this.createRoot();
 
       this.renderTop();
-      this.renderCompany();
       this.renderBottom();
       this.renderMore();
     },
 
+    refresh() {
+      this.renderTop();
+
+      /*
+       * Do not rebuild the bottom navigation
+       * every second. This prevents unnecessary
+       * button recreation and preserves UI state.
+       */
+    },
+
     /* =========================================================
-       UTILS
+       UTILITIES
        ========================================================= */
 
     escape(value) {
       return String(value ?? "")
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
+        .replace(
+          /&/g,
+          "&amp;"
+        )
+        .replace(
+          /</g,
+          "&lt;"
+        )
+        .replace(
+          />/g,
+          "&gt;"
+        )
+        .replace(
+          /"/g,
+          "&quot;"
+        )
+        .replace(
+          /'/g,
+          "&#039;"
+        );
     },
+
+    /* =========================================================
+       START
+       ========================================================= */
 
     start() {
       this.render();
 
-      setInterval(() => {
-        this.renderTop();
-        this.renderCompany();
-      }, 1000);
+      if (this.refreshTimer) {
+        clearInterval(
+          this.refreshTimer
+        );
+      }
+
+      this.refreshTimer =
+        setInterval(() => {
+          this.refresh();
+        }, 1000);
     }
   };
 
+  /* ===========================================================
+     PUBLIC API
+     =========================================================== */
+
   window.EmpireMainHUD = HUD;
+
+
+  /* ===========================================================
+     BOOT
+     =========================================================== */
 
   function boot() {
     HUD.start();
@@ -1142,11 +2225,17 @@
   ) {
     document.addEventListener(
       "DOMContentLoaded",
-      boot
+      boot,
+      { once: true }
     );
   } else {
     boot();
   }
+
+
+  /* ===========================================================
+     GAME EVENTS
+     =========================================================== */
 
   [
     "EmpireGameStateChanged",
@@ -1157,16 +2246,84 @@
     "EmpireEmployeeHired",
     "EmpireEmployeePromoted"
   ].forEach(eventName => {
+
     window.addEventListener(
       eventName,
       () => {
-        HUD.render();
+        if (
+          window.EmpireMainHUD
+        ) {
+          HUD.refresh();
+        }
       }
     );
+
   });
 
+
+  /* ===========================================================
+     CLOSE MORE WHEN TAPPING OUTSIDE
+     =========================================================== */
+
+  document.addEventListener(
+    "pointerdown",
+    event => {
+
+      const panel =
+        document.querySelector(
+          "#empireHUDMore .er-more-panel"
+        );
+
+      const moreButton =
+        event.target.closest(
+          ".er-header-more, [data-nav='more']"
+        );
+
+      if (
+        panel &&
+        panel.classList.contains("open") &&
+        !panel.contains(event.target) &&
+        !moreButton
+      ) {
+        HUD.closeMore();
+      }
+
+    },
+    true
+  );
+
+
+  /* ===========================================================
+     PREVENT HUD FROM BLOCKING THE 3D WORLD
+     =========================================================== */
+
+  const worldPassthrough =
+    document.getElementById(
+      "empireMainHUD"
+    );
+
+  if (worldPassthrough) {
+    worldPassthrough.addEventListener(
+      "pointerdown",
+      event => {
+
+        const interactive =
+          event.target.closest(
+            "button, .er-more-panel"
+          );
+
+        if (!interactive) {
+          event.stopPropagation();
+        }
+
+      },
+      true
+    );
+  }
+
+
   console.log(
-    "Empire Rush: Main Game HUD loaded."
+    "Empire Rush: Compact Game HUD loaded."
   );
 
 })();
