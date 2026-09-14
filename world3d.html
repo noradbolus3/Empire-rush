@@ -1,2408 +1,397 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport"
-      content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 
-<title>Empire Rush — Headquarters</title>
+  <meta charset="UTF-8">
 
-<style>
-*{
-  box-sizing:border-box;
-  -webkit-tap-highlight-color:transparent;
-}
+  <meta
+    name="viewport"
+    content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"
+  >
 
-html,body{
-  margin:0;
-  width:100%;
-  height:100%;
-  overflow:hidden;
-  background:#b9c9d5;
-  font-family:Arial,sans-serif;
-}
+  <title>Empire Rush — Headquarters</title>
 
-#game{
-  width:100%;
-  height:100%;
-  display:block;
-  touch-action:none;
-}
 
-#top{
-  position:fixed;
-  top:12px;
-  left:12px;
-  right:12px;
-  z-index:10;
-  display:flex;
-  justify-content:space-between;
-  pointer-events:none;
-}
+  <style>
 
-.brand,
-.stat,
-.tip,
-#employeePanel{
-  background:rgba(16,20,25,.91);
-  color:white;
-  box-shadow:0 8px 30px rgba(0,0,0,.25);
-}
+    /* =====================================================
+       BASE
+       ===================================================== */
 
-.brand{
-  padding:10px 14px;
-  border-radius:13px;
-  font-weight:800;
-  font-size:14px;
-}
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
 
-.brand span{
-  color:#baf02c;
-}
 
-.stats{
-  display:flex;
-  gap:6px;
-}
+    html,
+    body {
 
-.stat{
-  padding:7px 10px;
-  border-radius:11px;
-  font-size:9px;
-}
+      width: 100%;
+      height: 100%;
 
-.stat strong{
-  display:block;
-  font-size:12px;
-  margin-top:2px;
-}
+      margin: 0;
+      padding: 0;
 
-.tip{
-  position:fixed;
-  bottom:14px;
-  left:50%;
-  transform:translateX(-50%);
-  padding:8px 13px;
-  border-radius:18px;
-  font-size:10px;
-  white-space:nowrap;
-  z-index:10;
-  pointer-events:none;
-}
+      overflow: hidden;
 
-#employeePanel{
-  display:none;
-  position:fixed;
-  right:14px;
-  bottom:48px;
-  width:245px;
-  padding:16px;
-  border-radius:17px;
-  z-index:20;
-}
+      background: #b9c9d5;
 
-#employeePanel h2{
-  margin:0 0 5px;
-  font-size:18px;
-}
+      font-family:
+        Inter,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        Roboto,
+        Arial,
+        sans-serif;
+    }
 
-#employeePanel p{
-  margin:5px 0;
-  color:#b9c0c8;
-  font-size:12px;
-}
 
-#close{
-  position:absolute;
-  right:9px;
-  top:9px;
-  width:26px;
-  height:26px;
-  border:0;
-  border-radius:50%;
-  background:#30363e;
-  color:#fff;
-  font-size:18px;
-}
-</style>
+    body {
+
+      position: relative;
+
+      touch-action: none;
+
+      overscroll-behavior: none;
+    }
+
+
+    /* =====================================================
+       THREE.JS CANVAS
+       ===================================================== */
+
+    #game {
+
+      position: fixed;
+
+      inset: 0;
+
+      width: 100%;
+      height: 100%;
+
+      display: block;
+
+      outline: none;
+
+      touch-action: none;
+
+      z-index: 1;
+    }
+
+
+    /* =====================================================
+       OLD HUD REMOVAL
+       =====================================================
+
+       The previous world3d.html contained its own:
+
+       #top
+       .brand
+       .stats
+       .stat
+       .tip
+
+       Those elements are intentionally NOT recreated.
+
+       HUD ownership now belongs exclusively to:
+
+       main-game-hud.js
+       ===================================================== */
+
+
+    #top,
+    .brand,
+    .stats,
+    .stat,
+    .tip {
+
+      display: none !important;
+    }
+
+
+    /* =====================================================
+       EMPLOYEE PANEL
+       ===================================================== */
+
+    #employeePanel {
+
+      display: none;
+
+      position: fixed;
+
+      right: 14px;
+
+      bottom:
+        calc(
+          82px +
+          env(safe-area-inset-bottom)
+        );
+
+      width: min(
+        270px,
+        calc(100vw - 28px)
+      );
+
+      padding: 16px;
+
+      border-radius: 18px;
+
+      background:
+        rgba(10,16,25,.96);
+
+      border:
+        1px solid
+        rgba(255,255,255,.12);
+
+      color: #fff;
+
+      box-shadow:
+        0 18px 50px
+        rgba(0,0,0,.42);
+
+      backdrop-filter:
+        blur(18px);
+
+      -webkit-backdrop-filter:
+        blur(18px);
+
+      z-index: 7000;
+
+      pointer-events: auto;
+    }
+
+
+    #employeePanel h2 {
+
+      margin:
+        0 0 6px;
+
+      font-size: 18px;
+
+      font-weight: 900;
+    }
+
+
+    #employeePanel p {
+
+      margin: 6px 0;
+
+      color:
+        rgba(255,255,255,.62);
+
+      font-size: 12px;
+
+      line-height: 1.35;
+    }
+
+
+    #close {
+
+      position: absolute;
+
+      right: 9px;
+      top: 9px;
+
+      width: 30px;
+      height: 30px;
+
+      border: 0;
+
+      border-radius: 50%;
+
+      background:
+        rgba(255,255,255,.09);
+
+      color: #fff;
+
+      font-size: 19px;
+
+      line-height: 30px;
+
+      padding: 0;
+
+      cursor: pointer;
+    }
+
+
+    #close:active {
+
+      transform: scale(.94);
+    }
+
+
+    /* =====================================================
+       DESKTOP EMPLOYEE PANEL
+       ===================================================== */
+
+    @media (min-width: 700px) {
+
+      #employeePanel {
+
+        right: 20px;
+
+        bottom: 95px;
+
+        width: 290px;
+      }
+
+    }
+
+
+    /* =====================================================
+       VERY SMALL MOBILE
+       ===================================================== */
+
+    @media (max-width: 360px) {
+
+      #employeePanel {
+
+        right: 8px;
+
+        width:
+          calc(100vw - 16px);
+
+        padding: 14px;
+      }
+
+    }
+
+  </style>
+
 </head>
+
 
 <body>
 
-<canvas id="game"></canvas>
 
-<div id="top">
-  <div class="brand">
-    EMPIRE <span>RUSH</span> · HQ
+  <!-- ===================================================
+       THREE.JS WORLD
+       =================================================== -->
+
+  <canvas id="game"></canvas>
+
+
+  <!-- ===================================================
+       EMPLOYEE INFORMATION PANEL
+       =================================================== -->
+
+  <div id="employeePanel">
+
+    <button
+      id="close"
+      type="button"
+      aria-label="Close employee"
+    >
+      ×
+    </button>
+
+
+    <h2 id="ename">
+      Employee
+    </h2>
+
+
+    <p id="erole"></p>
+
+    <p id="edept"></p>
+
+    <p id="estatus"></p>
+
   </div>
 
-  <div class="stats">
-    <div class="stat">
-      CASH
-      <strong>₹7.09L</strong>
-    </div>
 
-    <div class="stat">
-      DAY
-      <strong>32</strong>
-    </div>
-  </div>
-</div>
+  <!-- ===================================================
+       THREE.JS IMPORT MAP
+       =================================================== -->
 
-<div class="tip">
-  Drag = rotate · Pinch = zoom · Tap employee
-</div>
-
-<div id="employeePanel">
-
-  <button id="close">×</button>
-
-  <h2 id="ename">Employee</h2>
-
-  <p id="erole"></p>
-  <p id="edept"></p>
-  <p id="estatus"></p>
-
-</div>
-
-<script type="importmap">
-{
-  "imports":{
-    "three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
-    "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
-  }
-}
-</script>
-
-<script type="module">
-
-import * as THREE from "three";
-
-import { OrbitControls } from
-"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/controls/OrbitControls.js";
-
-import { GLTFLoader } from
-"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/loaders/GLTFLoader.js";
-
-import * as SkeletonUtils from
-"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/utils/SkeletonUtils.js";
-
-
-/* =====================================================
-   ENGINE
-===================================================== */
-
-const canvas = document.getElementById("game");
-
-const scene = new THREE.Scene();
-
-scene.background = new THREE.Color(0xc8d5dc);
-
-scene.fog = new THREE.Fog(
-  0xc8d5dc,
-  55,
-  115
-);
-
-
-const camera = new THREE.PerspectiveCamera(
-  42,
-  window.innerWidth / window.innerHeight,
-  0.1,
-  200
-);
-
-camera.position.set(
-  25,
-  15,
-  27
-);
-
-
-const renderer = new THREE.WebGLRenderer({
-  canvas: canvas,
-  antialias: true,
-  powerPreference: "high-performance"
-});
-
-renderer.setSize(
-  window.innerWidth,
-  window.innerHeight
-);
-
-renderer.setPixelRatio(
-  Math.min(window.devicePixelRatio || 1, 1.5)
-);
-
-renderer.shadowMap.enabled = true;
-
-renderer.shadowMap.type =
-  THREE.PCFSoftShadowMap;
-
-renderer.outputColorSpace =
-  THREE.SRGBColorSpace;
-
-
-/* =====================================================
-   CAMERA CONTROLS
-===================================================== */
-
-const controls =
-  new OrbitControls(
-    camera,
-    canvas
-  );
-
-controls.enableDamping = true;
-controls.dampingFactor = 0.065;
-
-controls.minDistance = 13;
-controls.maxDistance = 60;
-
-controls.maxPolarAngle =
-  Math.PI / 2.18;
-
-controls.minPolarAngle = 0.35;
-
-controls.target.set(
-  0,
-  1.8,
-  0
-);
-
-
-/* =====================================================
-   LIGHTING
-===================================================== */
-
-const hemisphere =
-  new THREE.HemisphereLight(
-    0xf4f8ff,
-    0x52616a,
-    2.3
-  );
-
-scene.add(hemisphere);
-
-
-const sun =
-  new THREE.DirectionalLight(
-    0xffffff,
-    3.2
-  );
-
-sun.position.set(
-  25,
-  38,
-  20
-);
-
-sun.castShadow = true;
-
-sun.shadow.mapSize.set(
-  2048,
-  2048
-);
-
-sun.shadow.camera.left = -45;
-sun.shadow.camera.right = 45;
-sun.shadow.camera.top = 45;
-sun.shadow.camera.bottom = -45;
-
-scene.add(sun);
-
-
-/* =====================================================
-   MATERIALS
-===================================================== */
-
-function mat(
-  color,
-  roughness = 0.8,
-  metalness = 0
-){
-
-  return new THREE.MeshStandardMaterial({
-    color: color,
-    roughness: roughness,
-    metalness: metalness
-  });
-
-}
-
-
-const grass =
-  mat(0x668657);
-
-const pavement =
-  mat(0xbcc2c4);
-
-const road =
-  mat(0x252a30);
-
-const wall =
-  mat(0xd8ddde);
-
-const wallDark =
-  mat(0x343a41);
-
-const floor =
-  mat(0x747b80);
-
-const wood =
-  mat(0x79583f);
-
-const metal =
-  mat(
-    0x667079,
-    0.35,
-    0.7
-  );
-
-const black =
-  mat(0x20252b);
-
-const blueGlass =
-  new THREE.MeshStandardMaterial({
-    color: 0x69a8bb,
-    transparent: true,
-    opacity: 0.55,
-    roughness: 0.12
-  });
-
-const screen =
-  mat(
-    0x1c6974,
-    0.2,
-    0.1
-  );
-
-const green =
-  mat(
-    0xb9ef2d,
-    0.4,
-    0.05
-  );
-
-const skin =
-  mat(0xd69a73);
-
-const shirtBlue =
-  mat(0x365c9e);
-
-const shirtGreen =
-  mat(0x4d8061);
-
-const pants =
-  mat(0x292e35);
-
-
-/* =====================================================
-   HELPERS
-===================================================== */
-
-function cube(
-  w,
-  h,
-  d,
-  material,
-  x = 0,
-  y = 0,
-  z = 0,
-  parent = scene
-){
-
-  const mesh =
-    new THREE.Mesh(
-      new THREE.BoxGeometry(
-        w,
-        h,
-        d
-      ),
-      material
-    );
-
-  mesh.position.set(
-    x,
-    y,
-    z
-  );
-
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
-
-  parent.add(mesh);
-
-  return mesh;
-}
-
-
-function cyl(
-  radius,
-  height,
-  material,
-  x = 0,
-  y = 0,
-  z = 0,
-  parent = scene
-){
-
-  const mesh =
-    new THREE.Mesh(
-      new THREE.CylinderGeometry(
-        radius,
-        radius,
-        height,
-        16
-      ),
-      material
-    );
-
-  mesh.position.set(
-    x,
-    y,
-    z
-  );
-
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
-
-  parent.add(mesh);
-
-  return mesh;
-}
-
-
-/* =====================================================
-   CAMPUS
-===================================================== */
-
-cube(
-  110,
-  0.4,
-  110,
-  grass,
-  0,
-  -0.2,
-  0
-);
-
-
-cube(
-  44,
-  0.15,
-  32,
-  pavement,
-  0,
-  0.03,
-  0
-);
-
-
-/* Main road */
-
-cube(
-  110,
-  0.18,
-  8,
-  road,
-  0,
-  0.08,
-  18
-);
-
-
-for(
-  let x = -50;
-  x < 50;
-  x += 7
-){
-
-  cube(
-    4,
-    0.03,
-    0.18,
-    pavement,
-    x,
-    0.19,
-    18
-  );
-
-}
-
-
-/* =====================================================
-   HQ
-===================================================== */
-
-const HQ =
-  new THREE.Group();
-
-scene.add(HQ);
-
-
-/* HQ floor */
-
-cube(
-  30.5,
-  0.18,
-  19.5,
-  floor,
-  0,
-  0.12,
-  0,
-  HQ
-);
-
-
-/* =====================================================
-   EXTERIOR WALLS
-===================================================== */
-
-
-/* Back wall */
-
-cube(
-  31,
-  3.2,
-  0.45,
-  wallDark,
-  0,
-  1.8,
-  9.7,
-  HQ
-);
-
-
-/* Left wall */
-
-cube(
-  0.45,
-  3.2,
-  20,
-  wall,
-  -15.25,
-  1.8,
-  0,
-  HQ
-);
-
-
-/* Right wall */
-
-cube(
-  0.45,
-  3.2,
-  20,
-  wall,
-  15.25,
-  1.8,
-  0,
-  HQ
-);
-
-
-/* Front partial walls */
-
-cube(
-  7,
-  3.2,
-  0.45,
-  wall,
-  -12,
-  1.8,
-  -9.7,
-  HQ
-);
-
-cube(
-  7,
-  3.2,
-  0.45,
-  wall,
-  12,
-  1.8,
-  -9.7,
-  HQ
-);
-
-
-/* =====================================================
-   WINDOWS
-===================================================== */
-
-for(
-  let x = -8;
-  x <= 8;
-  x += 4
-){
-
-  cube(
-    3.1,
-    4.4,
-    0.08,
-    blueGlass,
-    x,
-    4,
-    -9.76,
-    HQ
-  );
-
-}
-
-
-/* =====================================================
-   RECEPTION
-===================================================== */
-
-cube(
-  5.5,
-  1.15,
-  1.6,
-  wood,
-  0,
-  1.05,
-  -7.4,
-  HQ
-);
-
-cube(
-  4.2,
-  0.7,
-  0.08,
-  screen,
-  0,
-  1.2,
-  -8.23,
-  HQ
-);
-
-
-/* Reception sign */
-
-cube(
-  5,
-  0.7,
-  0.12,
-  black,
-  0,
-  4.8,
-  -9.82,
-  HQ
-);
-
-cube(
-  2.4,
-  0.22,
-  0.15,
-  green,
-  0,
-  4.8,
-  -9.91,
-  HQ
-);
-
-
-/* =====================================================
-   CEO CABIN
-===================================================== */
-
-cube(
-  8,
-  0.12,
-  5,
-  wood,
-  -9,
-  1.1,
-  4.8,
-  HQ
-);
-
-cube(
-  8,
-  2.5,
-  0.12,
-  blueGlass,
-  -9,
-  2.6,
-  7.25,
-  HQ
-);
-
-cube(
-  2.5,
-  1.2,
-  1.2,
-  wood,
-  -9,
-  1.7,
-  3.2,
-  HQ
-);
-
-cube(
-  1.8,
-  0.8,
-  0.08,
-  screen,
-  -9,
-  2.15,
-  2.58,
-  HQ
-);
-
-
-/* CEO chair */
-
-cyl(
-  0.55,
-  0.15,
-  black,
-  -9,
-  0.9,
-  2.0,
-  HQ
-);
-
-
-/* =====================================================
-   DESKS
-===================================================== */
-
-function desk(
-  x,
-  z
-){
-
-  cube(
-    2.8,
-    0.16,
-    1.35,
-    wood,
-    x,
-    1.45,
-    z,
-    HQ
-  );
-
-
-  for(
-    const dx of [-1.1,1.1]
-  ){
-
-    cube(
-      0.1,
-      1.35,
-      0.1,
-      metal,
-      x + dx,
-      0.75,
-      z,
-      HQ
-    );
-
-  }
-
-
-  cube(
-    1.15,
-    0.72,
-    0.1,
-    black,
-    x,
-    1.92,
-    z - 0.3,
-    HQ
-  );
-
-
-  cube(
-    0.9,
-    0.5,
-    0.05,
-    screen,
-    x,
-    1.95,
-    z - 0.37,
-    HQ
-  );
-
-
-  cube(
-    0.75,
-    0.06,
-    0.3,
-    black,
-    x,
-    1.61,
-    z - 0.5,
-    HQ
-  );
-
-}
-
-
-const deskPositions = [
-  [-10,-4],
-  [-5,-4],
-  [4,-4],
-  [9,-4],
-  [-10,0.5],
-  [-5,0.5],
-  [4,0.5],
-  [9,0.5]
-];
-
-
-deskPositions.forEach(
-  p => desk(p[0],p[1])
-);
-
-
-/* =====================================================
-   CHAIRS
-===================================================== */
-
-function chair(
-  x,
-  z
-){
-
-  cyl(
-    0.42,
-    0.12,
-    black,
-    x,
-    0.7,
-    z,
-    HQ
-  );
-
-  cube(
-    0.1,
-    1,
-    0.1,
-    metal,
-    x,
-    0.95,
-    z,
-    HQ
-  );
-
-  cube(
-    0.75,
-    0.12,
-    0.65,
-    black,
-    x,
-    1.05,
-    z,
-    HQ
-  );
-
-}
-
-
-[
-  [-10,-5.4],
-  [-5,-5.4],
-  [4,-5.4],
-  [9,-5.4],
-  [-10,-0.9],
-  [-5,-0.9],
-  [4,-0.9],
-  [9,-0.9]
-].forEach(
-  p => chair(p[0],p[1])
-);
-
-
-/* =====================================================
-   MEETING ROOM
-===================================================== */
-
-cube(
-  7,
-  0.15,
-  4,
-  wood,
-  5.5,
-  1.25,
-  6.5,
-  HQ
-);
-
-
-for(
-  let x = 3;
-  x <= 8;
-  x += 2.5
-){
-
-  chair(x,8.7);
-  chair(x,4.3);
-
-}
-
-
-cube(
-  6.5,
-  2.6,
-  0.12,
-  blueGlass,
-  5.5,
-  3.2,
-  8.5,
-  HQ
-);
-
-
-cube(
-  3.6,
-  1.7,
-  0.08,
-  black,
-  5.5,
-  3.5,
-  8.38,
-  HQ
-);
-
-
-cube(
-  3.1,
-  1.25,
-  0.05,
-  screen,
-  5.5,
-  3.5,
-  8.3,
-  HQ
-);
-
-
-/* =====================================================
-   HUMAN SYSTEM
-===================================================== */
-
-const humanLoader =
-  new GLTFLoader();
-
-
-const HUMAN_MODEL_URL =
-  "https://cdn.jsdelivr.net/gh/UMRAM-Bilkent/supine-human-model@main/assets/human.glb";
-
-
-let humanTemplate = null;
-
-let humanAnimations = [];
-
-const workers = [];
-
-const humanMixers = [];
-
-
-const humanLoading = {
-  started:false,
-  loaded:false,
-  failed:false
-};
-
-
-/* =====================================================
-   EMPLOYEE DATA
-===================================================== */
-
-const data = [
-
+  <script type="importmap">
   {
-    name:"Aarav",
-    role:"Operations Manager",
-    dept:"Operations",
-    x:-5,
-    z:-0.4,
-    gender:"male",
-    scale:1
-  },
+    "imports": {
+      "three":
+        "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
 
-  {
-    name:"Riya",
-    role:"Finance Analyst",
-    dept:"Finance",
-    x:-10,
-    z:-3.1,
-    gender:"female",
-    scale:0.98
-  },
-
-  {
-    name:"Kabir",
-    role:"Marketing Executive",
-    dept:"Marketing",
-    x:9,
-    z:-3.1,
-    gender:"male",
-    scale:1
-  },
-
-  {
-    name:"Anaya",
-    role:"Product Manager",
-    dept:"Product",
-    x:4,
-    z:-3.1,
-    gender:"female",
-    scale:1
-  },
-
-  {
-    name:"Vivaan",
-    role:"HR Manager",
-    dept:"Human Resources",
-    x:-5,
-    z:0.9,
-    gender:"male",
-    scale:1.02
-  },
-
-  {
-    name:"Meera",
-    role:"Sales Executive",
-    dept:"Sales",
-    x:9,
-    z:-3.1,
-    gender:"female",
-    scale:0.98
-  },
-
-  {
-    name:"Arjun",
-    role:"R&D Engineer",
-    dept:"R&D",
-    x:9,
-    z:0.9,
-    gender:"male",
-    scale:1
-  },
-
-  {
-    name:"Ishita",
-    role:"Accountant",
-    dept:"Finance",
-    x:-5,
-    z:-3.1,
-    gender:"female",
-    scale:0.98
-  }
-
-];
-
-
-/* =====================================================
-   LOAD HUMAN MODEL
-===================================================== */
-
-function loadHumanModel(){
-
-  if(humanLoading.started){
-    return;
-  }
-
-  humanLoading.started = true;
-
-
-  humanLoader.load(
-
-    HUMAN_MODEL_URL,
-
-    function(gltf){
-
-      console.log(
-        "REAL HUMAN MODEL LOADED"
-      );
-
-
-      humanTemplate =
-        gltf.scene;
-
-
-      humanAnimations =
-        gltf.animations || [];
-
-
-      humanTemplate.traverse(
-        function(object){
-
-          if(!object.isMesh){
-            return;
-          }
-
-          object.castShadow = true;
-          object.receiveShadow = true;
-
-
-          if(object.material){
-
-            object.material.side =
-              THREE.FrontSide;
-
-            object.material.needsUpdate =
-              true;
-
-          }
-
-        }
-      );
-
-
-      humanLoading.loaded = true;
-
-
-      spawnAllEmployees();
-
-    },
-
-
-    function(progress){
-
-      if(progress.total){
-
-        console.log(
-          "Human loading:",
-          Math.round(
-            progress.loaded /
-            progress.total *
-            100
-          ) + "%"
-        );
-
-      }
-
-    },
-
-
-    function(error){
-
-      humanLoading.failed = true;
-
-      console.error(
-        "REAL HUMAN MODEL FAILED",
-        error
-      );
-
+      "three/addons/":
+        "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
     }
-
-  );
-
-}
-
-
-/* =====================================================
-   FIND ANIMATION
-===================================================== */
-
-function findHumanAnimation(
-  keywords
-){
-
-  if(!humanAnimations.length){
-    return null;
   }
+  </script>
 
 
-  const lower =
-    keywords.map(
-      x => x.toLowerCase()
+  <!-- ===================================================
+       WORLD ENGINE
+       PART 2 CONTINUES HERE
+       =================================================== -->
+  <script type="module">
+
+    import * as THREE from "three";
+
+    import {
+      OrbitControls
+    } from
+      "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/controls/OrbitControls.js";
+
+    import {
+      GLTFLoader
+    } from
+      "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/loaders/GLTFLoader.js";
+
+    import * as SkeletonUtils from
+      "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/utils/SkeletonUtils.js";
+
+
+    /* =====================================================
+       ENGINE
+       ===================================================== */
+
+    const canvas =
+      document.getElementById("game");
+
+
+    const scene =
+      new THREE.Scene();
+
+
+    scene.background =
+      new THREE.Color(
+        0xc8d5dc
+      );
+
+
+    scene.fog =
+      new THREE.Fog(
+        0xc8d5dc,
+        60,
+        125
+      );
+
+
+    const camera =
+      new THREE.PerspectiveCamera(
+        42,
+        window.innerWidth /
+          window.innerHeight,
+        0.1,
+        220
+      );
+
+
+    camera.position.set(
+      26,
+      16,
+      29
     );
 
 
-  return humanAnimations.find(
-    clip => {
-
-      const name =
-        clip.name.toLowerCase();
-
-      return lower.some(
-        key => name.includes(key)
-      );
-
-    }
-  ) || null;
-
-}
-
-
-/* =====================================================
-   CREATE HUMAN
-===================================================== */
-
-function createRealHuman(
-  employee
-){
-
-  if(!humanTemplate){
-    return null;
-  }
-
-
-  const human =
-    SkeletonUtils.clone(
-      humanTemplate
-    );
-
-
-  human.position.set(
-    employee.x,
-    0.05,
-    employee.z
-  );
-
-
-  human.scale.setScalar(
-    employee.scale || 1
-  );
-
-
-  human.traverse(
-    function(object){
-
-      if(!object.isMesh){
-        return;
-      }
-
-      object.castShadow = true;
-      object.receiveShadow = true;
-
-      if(object.material){
-        object.material.needsUpdate = true;
-      }
-
-    }
-  );
-
-
-  human.userData = {
-
-    name:employee.name,
-
-    role:employee.role,
-
-    dept:employee.dept,
-
-    gender:employee.gender,
-
-    status:"Working",
-
-    homeX:employee.x,
-
-    homeZ:employee.z,
-
-    targetX:null,
-
-    targetZ:null,
-
-    speed:
-      0.9 +
-      Math.random() * 0.35
-
-  };
-
-
-  const mixer =
-    new THREE.AnimationMixer(
-      human
-    );
-
-
-  human.userData.mixer =
-    mixer;
-
-
-  const idleClip =
-    findHumanAnimation([
-      "idle",
-      "standing",
-      "stand"
-    ]);
-
-
-  const walkClip =
-    findHumanAnimation([
-      "walk",
-      "walking",
-      "locomotion"
-    ]);
-
-
-  const runClip =
-    findHumanAnimation([
-      "run",
-      "running"
-    ]);
-
-
-  const actions = {};
-
-
-  if(idleClip){
-
-    actions.idle =
-      mixer.clipAction(
-        idleClip
-      );
-
-    actions.idle.play();
-
-  }
-
-
-  if(walkClip){
-
-    actions.walk =
-      mixer.clipAction(
-        walkClip
-      );
-
-  }
-
-
-  if(runClip){
-
-    actions.run =
-      mixer.clipAction(
-        runClip
-      );
-
-  }
-
-
-  human.userData.actions =
-    actions;
-
-
-  human.userData.currentAction =
-    "idle";
-
-
-  scene.add(human);
-
-  workers.push(human);
-
-  humanMixers.push(mixer);
-
-
-  return human;
-
-}
-
-
-/* =====================================================
-   HUMAN ANIMATION
-===================================================== */
-
-function playHumanAnimation(
-  human,
-  name
-){
-
-  if(!human){
-    return;
-  }
-
-
-  const actions =
-    human.userData.actions;
-
-
-  if(!actions){
-    return;
-  }
-
-
-  const next =
-    actions[name];
-
-
-  if(!next){
-    return;
-  }
-
-
-  const current =
-    actions[
-      human.userData.currentAction
-    ];
-
-
-  if(current === next){
-    return;
-  }
-
-
-  if(current){
-    current.fadeOut(0.25);
-  }
-
-
-  next.reset();
-
-  next.fadeIn(0.25);
-
-  next.play();
-
-
-  human.userData.currentAction =
-    name;
-
-}
-
-
-/* =====================================================
-   SPAWN EMPLOYEES
-===================================================== */
-
-function spawnAllEmployees(){
-
-  if(!humanTemplate){
-    return;
-  }
-
-
-  if(workers.length){
-    return;
-  }
-
-
-  data.forEach(
-    employee => {
-
-      createRealHuman(
-        employee
-      );
-
-    }
-  );
-
-
-  console.log(
-    "REAL EMPLOYEES:",
-    workers.length
-  );
-
-}
-
-
-/* =====================================================
-   MOVE HUMAN
-===================================================== */
-
-function moveHumanTo(
-  human,
-  x,
-  z,
-  status = "Walking"
-){
-
-  if(!human){
-    return;
-  }
-
-
-  human.userData.targetX = x;
-
-  human.userData.targetZ = z;
-
-  human.userData.status = status;
-
-
-  playHumanAnimation(
-    human,
-    "walk"
-  );
-
-}
-
-
-/* =====================================================
-   UPDATE HUMANS
-===================================================== */
-
-function updateHumans(
-  delta
-){
-
-  humanMixers.forEach(
-    mixer => {
-
-      mixer.update(delta);
-
-    }
-  );
-
-
-  workers.forEach(
-    human => {
-
-      const d =
-        human.userData;
-
-
-      if(
-        d.targetX === null ||
-        d.targetZ === null
-      ){
-
-        return;
-
-      }
-
-
-      const dx =
-        d.targetX -
-        human.position.x;
-
-
-      const dz =
-        d.targetZ -
-        human.position.z;
-
-
-      const distance =
-        Math.sqrt(
-          dx * dx +
-          dz * dz
-        );
-
-
-      if(distance < 0.15){
-
-        human.position.x =
-          d.targetX;
-
-        human.position.z =
-          d.targetZ;
-
-
-        d.targetX = null;
-
-        d.targetZ = null;
-
-        d.status = "Working";
-
-
-        playHumanAnimation(
-          human,
-          "idle"
-        );
-
-
-        return;
-
-      }
-
-
-      const targetRotation =
-        Math.atan2(
-          dx,
-          dz
-        );
-
-
-      let difference =
-        targetRotation -
-        human.rotation.y;
-
-
-      while(
-        difference > Math.PI
-      ){
-
-        difference -=
-          Math.PI * 2;
-
-      }
-
-
-      while(
-        difference < -Math.PI
-      ){
-
-        difference +=
-          Math.PI * 2;
-
-      }
-
-
-      human.rotation.y +=
-        difference *
-        Math.min(
-          delta * 8,
-          1
-        );
-
-
-      const speed =
-        d.speed * delta;
-
-
-      human.position.x +=
-        Math.sin(
-          human.rotation.y
-        ) * speed;
-
-
-      human.position.z +=
-        Math.cos(
-          human.rotation.y
-        ) * speed;
-
-    }
-  );
-
-}
-
-
-/* =====================================================
-   EMPLOYEE HIRING EVENT
-===================================================== */
-
-window.addEventListener(
-  "EmpireEmployeeHired",
-  function(event){
-
-    const employee =
-      event.detail;
-
-
-    if(!employee){
-      return;
-    }
-
-
-    if(!humanTemplate){
-
-      console.log(
-        "Human model still loading..."
-      );
-
-      return;
-
-    }
-
-
-    const human =
-      createRealHuman({
-
-        name:
-          employee.name,
-
-        role:
-          employee.role ||
-          "Employee",
-
-        dept:
-          employee.department ||
-          "General",
-
-        gender:"male",
-
-        x:0,
-
-        z:-18,
-
-        scale:1
-
+    const renderer =
+      new THREE.WebGLRenderer({
+        canvas,
+        antialias: true,
+        powerPreference:
+          "high-performance"
       });
-
-
-    if(!human){
-      return;
-    }
-
-
-    human.userData.status =
-      "Entering campus";
-
-
-    moveHumanTo(
-      human,
-      0,
-      -7,
-      "Entering campus"
-    );
-
-
-    setTimeout(
-      function(){
-
-        const positions = {
-
-          Finance:
-            [-10,-3],
-
-          Sales:
-            [9,-3],
-
-          Marketing:
-            [9,-3],
-
-          Operations:
-            [-5,0.9],
-
-          "Human Resources":
-            [-5,0.9],
-
-          Product:
-            [4,0.9],
-
-          "R&D":
-            [9,0.9]
-
-        };
-
-
-        const target =
-          positions[
-            employee.department
-          ] ||
-          [0,-3];
-
-
-        moveHumanTo(
-          human,
-          target[0],
-          target[1],
-          "Going to department"
-        );
-
-      },
-      6500
-    );
-
-  }
-);
-
-
-/* =====================================================
-   WALKING ASSISTANTS
-===================================================== */
-
-const walkers = [];
-
-
-function createWalker(
-  x,
-  z
-){
-
-  const group =
-    new THREE.Group();
-
-
-  group.position.set(
-    x,
-    0.35,
-    z
-  );
-
-
-  const shirt =
-    mat(
-      Math.random() > 0.5
-        ? 0x80633d
-        : 0x704e83
-    );
-
-
-  cube(
-    0.22,
-    0.85,
-    0.22,
-    pants,
-    -0.17,
-    0.43,
-    0,
-    group
-  );
-
-
-  cube(
-    0.22,
-    0.85,
-    0.22,
-    pants,
-    0.17,
-    0.43,
-    0,
-    group
-  );
-
-
-  cube(
-    0.68,
-    1.05,
-    0.44,
-    shirt,
-    0,
-    1.3,
-    0,
-    group
-  );
-
-
-  const head =
-    new THREE.Mesh(
-      new THREE.SphereGeometry(
-        0.31,
-        14,
-        10
-      ),
-      skin
-    );
-
-
-  head.position.y = 2.15;
-
-  group.add(head);
-
-
-  group.userData = {
-
-    startX:x,
-
-    startZ:z,
-
-    phase:
-      Math.random() * 10
-
-  };
-
-
-  scene.add(group);
-
-  walkers.push(group);
-
-}
-
-
-createWalker(-1,-1.8);
-
-createWalker(2,-2.2);
-
-
-/* =====================================================
-   PARKING / CARS
-===================================================== */
-
-function car(
-  x,
-  z,
-  scale = 1
-){
-
-  const group =
-    new THREE.Group();
-
-
-  group.position.set(
-    x,
-    0.4,
-    z
-  );
-
-
-  group.scale.setScalar(
-    scale
-  );
-
-
-  cube(
-    2.4,
-    0.55,
-    1.2,
-    black,
-    0,
-    0.35,
-    0,
-    group
-  );
-
-
-  cube(
-    1.3,
-    0.55,
-    1,
-    blueGlass,
-    0,
-    0.75,
-    0,
-    group
-  );
-
-
-  for(
-    const px of [-0.85,0.85]
-  ){
-
-    const wheel =
-      cyl(
-        0.3,
-        0.18,
-        black,
-        px,
-        0.02,
-        -0.68,
-        group
-      );
-
-
-    wheel.rotation.x =
-      Math.PI / 2;
-
-
-    const wheel2 =
-      wheel.clone();
-
-
-    wheel2.position.z =
-      0.68;
-
-
-    group.add(wheel2);
-
-  }
-
-
-  scene.add(group);
-
-}
-
-
-car(-6,14,0.9);
-
-car(3,14,0.9);
-
-car(13,14,0.8);
-
-
-/* =====================================================
-   TREES
-===================================================== */
-
-function tree(
-  x,
-  z
-){
-
-  cyl(
-    0.25,
-    1.8,
-    mat(0x67472f),
-    x,
-    0.9,
-    z
-  );
-
-
-  const crown =
-    new THREE.Mesh(
-      new THREE.SphereGeometry(
-        1.2,
-        14,
-        10
-      ),
-      mat(0x47773e)
-    );
-
-
-  crown.position.set(
-    x,
-    2.4,
-    z
-  );
-
-
-  crown.castShadow = true;
-
-  scene.add(crown);
-
-}
-
-
-[
-  [-21,-13],
-  [-15,-14],
-  [20,-13],
-  [25,-4],
-  [-22,8],
-  [22,8],
-  [-26,20],
-  [27,21]
-].forEach(
-  p => tree(p[0],p[1])
-);
-
-
-/* =====================================================
-   CITY
-===================================================== */
-
-function city(
-  x,
-  z,
-  w,
-  h,
-  d
-){
-
-  cube(
-    w,
-    h,
-    d,
-    mat(0x9da7ac),
-    x,
-    h / 2,
-    z
-  );
-
-
-  for(
-    let y = 2;
-    y < h - 1;
-    y += 2.5
-  ){
-
-    for(
-      let xx = x - w / 2 + 1;
-      xx < x + w / 2 - 1;
-      xx += 2
-    ){
-
-      cube(
-        0.65,
-        0.65,
-        0.04,
-        blueGlass,
-        xx,
-        y,
-        z - d / 2 - 0.03
-      );
-
-    }
-
-  }
-
-}
-
-
-city(-34,-4,9,12,8);
-
-city(34,-3,10,16,9);
-
-city(-35,15,8,9,8);
-
-city(35,17,11,14,9);
-
-
-/* =====================================================
-   EMPLOYEE RAYCAST
-===================================================== */
-
-const ray =
-  new THREE.Raycaster();
-
-const pointer =
-  new THREE.Vector2();
-
-
-function inspect(
-  x,
-  y
-){
-
-  const rect =
-    canvas.getBoundingClientRect();
-
-
-  pointer.x =
-    ((x - rect.left) / rect.width) * 2 - 1;
-
-
-  pointer.y =
-    -((y - rect.top) / rect.height) * 2 + 1;
-
-
-  ray.setFromCamera(
-    pointer,
-    camera
-  );
-
-
-  const hits =
-    ray.intersectObjects(
-      workers,
-      true
-    );
-
-
-  if(!hits.length){
-    return;
-  }
-
-
-  let object =
-    hits[0].object;
-
-
-  while(
-    object.parent &&
-    !object.userData.name
-  ){
-
-    object =
-      object.parent;
-
-  }
-
-
-  if(!object.userData.name){
-    return;
-  }
-
-
-  const employee =
-    object.userData;
-
-
-  window.dispatchEvent(
-    new CustomEvent(
-      "EmpireEmployeeSelected",
-      {
-        detail:employee
-      }
-    )
-  );
-
-
-  document.getElementById(
-    "ename"
-  ).textContent =
-    employee.name;
-
-
-  document.getElementById(
-    "erole"
-  ).textContent =
-    "Role: " + employee.role;
-
-
-  document.getElementById(
-    "edept"
-  ).textContent =
-    "Department: " + employee.dept;
-
-
-  document.getElementById(
-    "estatus"
-  ).textContent =
-    "Status: " +
-    (employee.status || "Working");
-
-
-  document.getElementById(
-    "employeePanel"
-  ).style.display =
-    "block";
-
-}
-
-
-/* =====================================================
-   TAP DETECTION
-===================================================== */
-
-let downX = 0;
-
-let downY = 0;
-
-
-canvas.addEventListener(
-  "pointerdown",
-  function(event){
-
-    downX =
-      event.clientX;
-
-    downY =
-      event.clientY;
-
-  }
-);
-
-
-canvas.addEventListener(
-  "pointerup",
-  function(event){
-
-    const dx =
-      event.clientX -
-      downX;
-
-
-    const dy =
-      event.clientY -
-      downY;
-
-
-    if(
-      Math.sqrt(
-        dx * dx +
-        dy * dy
-      ) < 8
-    ){
-
-      inspect(
-        event.clientX,
-        event.clientY
-      );
-
-    }
-
-  }
-);
-
-
-/* =====================================================
-   CLOSE EMPLOYEE PANEL
-===================================================== */
-
-document.getElementById(
-  "close"
-).onclick =
-  function(){
-
-    document.getElementById(
-      "employeePanel"
-    ).style.display =
-      "none";
-
-  };
-
-
-/* =====================================================
-   ANIMATION LOOP
-===================================================== */
-
-const clock =
-  new THREE.Clock();
-
-
-function animate(){
-
-  requestAnimationFrame(
-    animate
-  );
-
-
-  const delta =
-    Math.min(
-      clock.getDelta(),
-      0.05
-    );
-
-
-  updateHumans(
-    delta
-  );
-
-
-  controls.update();
-
-
-  renderer.render(
-    scene,
-    camera
-  );
-
-}
-
-
-animate();
-
-
-/* =====================================================
-   WORLD API
-===================================================== */
-
-window.THREE =
-  THREE;
-
-
-window.EmpireWorld = {
-
-  THREE,
-
-  scene,
-
-  camera,
-
-  renderer,
-
-  controls,
-
-  HQ,
-
-  workers,
-
-
-  focusOn(
-    x = 0,
-    z = 0
-  ){
-
-    controls.target.set(
-      x,
-      1.8,
-      z
-    );
-
-
-    camera.lookAt(
-      x,
-      1.8,
-      z
-    );
-
-  }
-
-};
-
-
-/* =====================================================
-   WORLD READY
-===================================================== */
-
-window.dispatchEvent(
-  new Event(
-    "EmpireWorldReady"
-  )
-);
-
-
-/* =====================================================
-   RESIZE
-===================================================== */
-
-window.addEventListener(
-  "resize",
-  function(){
-
-    camera.aspect =
-      window.innerWidth /
-      window.innerHeight;
-
-
-    camera.updateProjectionMatrix();
 
 
     renderer.setSize(
@@ -2418,78 +407,3579 @@ window.addEventListener(
       )
     );
 
-  }
-);
+
+    renderer.shadowMap.enabled =
+      true;
 
 
-/* =====================================================
-   START HUMAN MODEL
-===================================================== */
-
-loadHumanModel();
+    renderer.shadowMap.type =
+      THREE.PCFSoftShadowMap;
 
 
-/* =====================================================
-   WORLD ERROR REPORT
-===================================================== */
+    renderer.outputColorSpace =
+      THREE.SRGBColorSpace;
 
-window.addEventListener(
-  "error",
-  function(event){
 
-    console.error(
-      "Empire Rush World Error:",
-      event.error || event.message
+    /* =====================================================
+       CAMERA
+       ===================================================== */
+
+    const controls =
+      new OrbitControls(
+        camera,
+        canvas
+      );
+
+
+    controls.enableDamping =
+      true;
+
+
+    controls.dampingFactor =
+      0.065;
+
+
+    controls.minDistance =
+      13;
+
+
+    controls.maxDistance =
+      70;
+
+
+    controls.minPolarAngle =
+      0.35;
+
+
+    controls.maxPolarAngle =
+      Math.PI / 2.18;
+
+
+    controls.target.set(
+      0,
+      1.8,
+      0
     );
 
-  }
-);
 
-</script>
+    /* =====================================================
+       LIGHTING
+       ===================================================== */
+
+    const hemisphere =
+      new THREE.HemisphereLight(
+        0xf5f9ff,
+        0x52616a,
+        2.4
+      );
 
 
-<!-- =====================================================
-     EMPIRE RUSH GAME SYSTEMS
-     Load order is important
-     ===================================================== -->
+    scene.add(
+      hemisphere
+    );
 
-<script src="./world3d.js"></script>
-<script src="citytopia-graphics.js"></script>
-<script src="./empire-game-state.js"></script>
-<script src="./career-business-ui.js"></script>
-<script src="./career-progression-system.js"></script>
-<script src="./business-operations-ui.js"></script>
-<script src="./business-type-operations.js"></script>
-<script src="./business-setup-ui.js"></script>
 
-<script src="./world-business-life.js"></script>
-<script src="./business-3d-operations-system.js"></script>
-<script src="./living-city-system.js"></script>
-<script src="./customer-market-system.js"></script>
-<script src="./employee-productivity-system.js"></script>
-<script src="./hr-department-system.js"></script>
-<script src="./company-accounting-system.js"></script>
-<script src="./business-financing-system.js"></script>
-<script src="./banking-investment-system.js"></script>
-<script src="./government-compliance-system.js"></script>
-<script src="./government-compliance-ui.js"></script>
-<script src="./competition-market-events.js"></script>
-<script src="./competition-market-ui.js"></script>
-<script src="./news-decision-system.js"></script>
-<script src="./product-development-system.js"></script>
-<script src="./product-market-integration.js"></script>
-<script src="./product-management-ui.js"></script>
-<script src="./news-decision-ui.js"></script>
-<script src="./company-group-system.js"></script>
-<script src="./company-group-ui.js"></script>
-<script src="./corporate-gameplay-system.js"></script>
-<script src="./empire-sim.js"></script>
-<script src="./business-engine.js"></script>
-<script src="./business-launcher.js"></script>
-<script src="./business-economics.js"></script>
-<script src="./workforce.js"></script>
-<script src="./workforce-world.js"></script>
-<script src="./main-game-hud.js"></script>
+    const sun =
+      new THREE.DirectionalLight(
+        0xffffff,
+        3.2
+      );
+
+
+    sun.position.set(
+      25,
+      40,
+      22
+    );
+
+
+    sun.castShadow =
+      true;
+
+
+    sun.shadow.mapSize.set(
+      2048,
+      2048
+    );
+
+
+    sun.shadow.camera.left =
+      -55;
+
+
+    sun.shadow.camera.right =
+      55;
+
+
+    sun.shadow.camera.top =
+      55;
+
+
+    sun.shadow.camera.bottom =
+      -55;
+
+
+    sun.shadow.camera.near =
+      1;
+
+
+    sun.shadow.camera.far =
+      130;
+
+
+    scene.add(
+      sun
+    );
+
+
+    /* =====================================================
+       MATERIAL SYSTEM
+       ===================================================== */
+
+    function material(
+      color,
+      roughness = 0.8,
+      metalness = 0
+    ){
+
+      return new THREE.MeshStandardMaterial({
+
+        color,
+
+        roughness,
+
+        metalness
+
+      });
+
+    }
+
+
+    const MATERIALS = {
+
+      grass:
+        material(
+          0x6d8f5c,
+          1
+        ),
+
+      grassDark:
+        material(
+          0x557648,
+          1
+        ),
+
+      sidewalk:
+        material(
+          0xc6c9c8,
+          0.95
+        ),
+
+      curb:
+        material(
+          0x858b8c,
+          0.9
+        ),
+
+      asphalt:
+        material(
+          0x272d33,
+          0.95
+        ),
+
+      asphaltLight:
+        material(
+          0x343a40,
+          0.95
+        ),
+
+      concrete:
+        material(
+          0xaeb5b6,
+          0.95
+        ),
+
+      wall:
+        material(
+          0xd9dfe0,
+          0.85
+        ),
+
+      wallDark:
+        material(
+          0x343c43,
+          0.7
+        ),
+
+      wood:
+        material(
+          0x75553d,
+          0.82
+        ),
+
+      dark:
+        material(
+          0x20262d,
+          0.7
+        ),
+
+      metal:
+        material(
+          0x68737a,
+          0.35,
+          0.75
+        ),
+
+      green:
+        material(
+          0xb9ef2d,
+          0.4,
+          0.05
+        ),
+
+      treeTrunk:
+        material(
+          0x65452e,
+          1
+        ),
+
+      treeLeaf:
+        material(
+          0x47763d,
+          0.95
+        ),
+
+      skin:
+        material(
+          0xd49a73,
+          0.9
+        ),
+
+      pants:
+        material(
+          0x292f36,
+          0.9
+        ),
+
+      glass:
+        new THREE.MeshStandardMaterial({
+
+          color:
+            0x72aabd,
+
+          transparent:
+            true,
+
+          opacity:
+            0.55,
+
+          roughness:
+            0.12,
+
+          metalness:
+            0.05
+        }),
+
+      glassDark:
+        new THREE.MeshStandardMaterial({
+
+          color:
+            0x385e6d,
+
+          transparent:
+            true,
+
+          opacity:
+            0.7,
+
+          roughness:
+            0.1,
+
+          metalness:
+            0.1
+        }),
+
+      screen:
+        material(
+          0x195f6b,
+          0.2,
+          0.1
+        )
+
+    };
+
+
+    /* =====================================================
+       BASIC GEOMETRY HELPERS
+       ===================================================== */
+
+    function box(
+      width,
+      height,
+      depth,
+      mat,
+      x = 0,
+      y = 0,
+      z = 0,
+      parent = scene
+    ){
+
+      const mesh =
+        new THREE.Mesh(
+          new THREE.BoxGeometry(
+            width,
+            height,
+            depth
+          ),
+          mat
+        );
+
+
+      mesh.position.set(
+        x,
+        y,
+        z
+      );
+
+
+      mesh.castShadow =
+        true;
+
+
+      mesh.receiveShadow =
+        true;
+
+
+      parent.add(
+        mesh
+      );
+
+
+      return mesh;
+    }
+
+
+    function cylinder(
+      radius,
+      height,
+      mat,
+      x = 0,
+      y = 0,
+      z = 0,
+      parent = scene,
+      segments = 16
+    ){
+
+      const mesh =
+        new THREE.Mesh(
+          new THREE.CylinderGeometry(
+            radius,
+            radius,
+            height,
+            segments
+          ),
+          mat
+        );
+
+
+      mesh.position.set(
+        x,
+        y,
+        z
+      );
+
+
+      mesh.castShadow =
+        true;
+
+
+      mesh.receiveShadow =
+        true;
+
+
+      parent.add(
+        mesh
+      );
+
+
+      return mesh;
+    }
+
+
+    function plane(
+      width,
+      depth,
+      mat,
+      x = 0,
+      y = 0,
+      z = 0,
+      parent = scene
+    ){
+
+      const mesh =
+        new THREE.Mesh(
+          new THREE.PlaneGeometry(
+            width,
+            depth
+          ),
+          mat
+        );
+
+
+      mesh.rotation.x =
+        -Math.PI / 2;
+
+
+      mesh.position.set(
+        x,
+        y,
+        z
+      );
+
+
+      mesh.receiveShadow =
+        true;
+
+
+      parent.add(
+        mesh
+      );
+
+
+      return mesh;
+    }
+
+
+    /* =====================================================
+       WORLD ROOTS
+       ===================================================== */
+
+    const WORLD =
+      new THREE.Group();
+
+
+    WORLD.name =
+      "EmpireRushWorld";
+
+
+    scene.add(
+      WORLD
+    );
+
+
+    const CITY =
+      new THREE.Group();
+
+
+    CITY.name =
+      "EmpireRushCity";
+
+
+    WORLD.add(
+      CITY
+    );
+
+
+    const HQ =
+      new THREE.Group();
+
+
+    HQ.name =
+      "PlayerHQ";
+
+
+    WORLD.add(
+      HQ
+    );
+
+
+    const NPC_ROOT =
+      new THREE.Group();
+
+
+    NPC_ROOT.name =
+      "NPCWorld";
+
+
+    WORLD.add(
+      NPC_ROOT
+    );
+
+
+    const TRAFFIC_ROOT =
+      new THREE.Group();
+
+
+    TRAFFIC_ROOT.name =
+      "TrafficWorld";
+
+
+    WORLD.add(
+      TRAFFIC_ROOT
+    );
+
+
+    /* =====================================================
+       GROUND
+       ===================================================== */
+
+    plane(
+      120,
+      120,
+      MATERIALS.grass,
+      0,
+      -0.03,
+      0,
+      CITY
+    );
+
+
+    /* =====================================================
+       MAIN CITY ROAD GRID
+       ===================================================== */
+
+    function roadHorizontal(
+      z,
+      width = 8
+    ){
+
+      box(
+        110,
+        0.18,
+        width,
+        MATERIALS.asphalt,
+        0,
+        0.08,
+        z,
+        CITY
+      );
+
+
+      /*
+       * Sidewalks stay OUTSIDE the road.
+       */
+
+      box(
+        110,
+        0.10,
+        1.8,
+        MATERIALS.sidewalk,
+        0,
+        0.17,
+        z - width / 2 - 0.9,
+        CITY
+      );
+
+
+      box(
+        110,
+        0.10,
+        1.8,
+        MATERIALS.sidewalk,
+        0,
+        0.17,
+        z + width / 2 + 0.9,
+        CITY
+      );
+
+
+      /*
+       * Curbs.
+       */
+
+      box(
+        110,
+        0.13,
+        0.18,
+        MATERIALS.curb,
+        0,
+        0.18,
+        z - width / 2,
+        CITY
+      );
+
+
+      box(
+        110,
+        0.13,
+        0.18,
+        MATERIALS.curb,
+        0,
+        0.18,
+        z + width / 2,
+        CITY
+      );
+
+
+      /*
+       * Center lane markings.
+       */
+
+      for(
+        let x = -52;
+        x <= 52;
+        x += 7
+      ){
+
+        box(
+          3.4,
+          0.025,
+          0.12,
+          MATERIALS.concrete,
+          x,
+          0.20,
+          z,
+          CITY
+        );
+
+      }
+    }
+
+
+    function roadVertical(
+      x,
+      width = 8
+    ){
+
+      box(
+        width,
+        0.18,
+        110,
+        MATERIALS.asphalt,
+        x,
+        0.08,
+        0,
+        CITY
+      );
+
+
+      box(
+        1.8,
+        0.10,
+        110,
+        MATERIALS.sidewalk,
+        x - width / 2 - 0.9,
+        0.17,
+        0,
+        CITY
+      );
+
+
+      box(
+        1.8,
+        0.10,
+        110,
+        MATERIALS.sidewalk,
+        x + width / 2 + 0.9,
+        0.17,
+        0,
+        CITY
+      );
+
+
+      box(
+        0.18,
+        0.13,
+        110,
+        MATERIALS.curb,
+        x - width / 2,
+        0.18,
+        0,
+        CITY
+      );
+
+
+      box(
+        0.18,
+        0.13,
+        110,
+        MATERIALS.curb,
+        x + width / 2,
+        0.18,
+        0,
+        CITY
+      );
+
+
+      for(
+        let z = -52;
+        z <= 52;
+        z += 7
+      ){
+
+        box(
+          0.12,
+          0.025,
+          3.4,
+          MATERIALS.concrete,
+          x,
+          0.20,
+          z,
+          CITY
+        );
+
+      }
+    }
+
+
+    /*
+     * Planned grid.
+     *
+     * Roads are defined FIRST.
+     * Buildings will occupy property
+     * blocks BETWEEN these roads.
+     */
+
+    roadHorizontal(
+      18
+    );
+
+
+    roadHorizontal(
+      -20
+    );
+
+
+    roadVertical(
+      19
+    );
+
+
+    roadVertical(
+      -19
+    );
+
+
+    /* =====================================================
+       PROPERTY SYSTEM
+       ===================================================== */
+
+    const properties = [];
+
+
+    function createProperty(
+      id,
+      x,
+      z,
+      width,
+      depth,
+      type = "commercial"
+    ){
+
+      const property =
+        new THREE.Group();
+
+
+      property.name =
+        "Property_" + id;
+
+
+      property.position.set(
+        x,
+        0,
+        z
+      );
+
+
+      property.userData = {
+
+        id,
+
+        type,
+
+        width,
+
+        depth,
+
+        occupied:false
+
+      };
+
+
+      /*
+       * Property surface.
+       * It sits between roads,
+       * never over them.
+       */
+
+      box(
+        width,
+        0.10,
+        depth,
+        MATERIALS.concrete,
+        0,
+        0.05,
+        0,
+        property
+      );
+
+
+      /*
+       * Green setback around building.
+       */
+
+      box(
+        Math.max(
+          width - 1.2,
+          2
+        ),
+        0.08,
+        Math.max(
+          depth - 1.2,
+          2
+        ),
+        MATERIALS.grassDark,
+        0,
+        0.14,
+        0,
+        property
+      );
+
+
+      CITY.add(
+        property
+      );
+
+
+      properties.push(
+        property
+      );
+
+
+      return property;
+    }
+
+
+    /* =====================================================
+       CITY PROPERTY BLOCKS
+       ===================================================== */
+
+    createProperty(
+      "commercial_north",
+      0,
+      8,
+      15,
+      15,
+      "commercial"
+    );
+
+
+    createProperty(
+      "corporate_north",
+      -29,
+      8,
+      13,
+      15,
+      "corporate"
+    );
+
+
+    createProperty(
+      "retail_north",
+      29,
+      8,
+      13,
+      15,
+      "retail"
+    );
+
+
+    createProperty(
+      "commercial_south",
+      0,
+      -4,
+      15,
+      15,
+      "commercial"
+    );
+
+
+    createProperty(
+      "residential_west",
+      -29,
+      -4,
+      13,
+      15,
+      "residential"
+    );
+
+
+    createProperty(
+      "corporate_east",
+      29,
+      -4,
+      13,
+      15,
+      "corporate"
+    );
+
+
+    /* =====================================================
+       HQ PROPERTY
+       ===================================================== */
+
+    const HQ_PROPERTY =
+      createProperty(
+        "player_hq",
+        0,
+        42,
+        32,
+        20,
+        "player-hq"
+      );
+
+
+    HQ_PROPERTY.userData.occupied =
+      true;
+
+
+    HQ.position.set(
+      0,
+      0,
+      42
+    );
+
+
+    /* =====================================================
+       HQ FOUNDATION
+       ===================================================== */
+
+    box(
+      30,
+      0.18,
+      18,
+      MATERIALS.floor,
+      0,
+      0.18,
+      0,
+      HQ
+    );
+
+
+    /* =====================================================
+       HQ EXTERIOR
+       ===================================================== */
+
+    box(
+      30,
+      3.6,
+      0.45,
+      MATERIALS.wallDark,
+      0,
+      1.95,
+      9,
+      HQ
+    );
+
+
+    box(
+      0.45,
+      3.6,
+      18,
+      MATERIALS.wall,
+      -15,
+      1.95,
+      0,
+      HQ
+    );
+
+
+    box(
+      0.45,
+      3.6,
+      18,
+      MATERIALS.wall,
+      15,
+      1.95,
+      0,
+      HQ
+    );
+
+
+    /*
+     * Front walls leave the entrance
+     * physically open.
+     */
+
+    box(
+      7,
+      3.6,
+      0.45,
+      MATERIALS.wall,
+      -11.5,
+      1.95,
+      -9,
+      HQ
+    );
+
+
+    box(
+      7,
+      3.6,
+      0.45,
+      MATERIALS.wall,
+      11.5,
+      1.95,
+      -9,
+      HQ
+    );
+
+
+    /* =====================================================
+       HQ GLASS FRONT
+       ===================================================== */
+
+    for(
+      let x = -7.5;
+      x <= 7.5;
+      x += 3.75
+    ){
+
+      box(
+        3.25,
+        4.6,
+        0.08,
+        MATERIALS.glass,
+        x,
+        3.65,
+        -9.08,
+        HQ
+      );
+
+    }
+
+
+    /* =====================================================
+       HQ ENTRANCE
+       ===================================================== */
+
+    box(
+      4.8,
+      0.18,
+      2.6,
+      MATERIALS.concrete,
+      0,
+      0.28,
+      -10.3,
+      HQ
+    );
+
+
+    box(
+      4.2,
+      3.2,
+      0.18,
+      MATERIALS.glassDark,
+      0,
+      1.8,
+      -9.12,
+      HQ
+    );
+
+
+    /*
+     * Entrance canopy.
+     */
+
+    box(
+      7,
+      0.22,
+      3.2,
+      MATERIALS.wallDark,
+      0,
+      4.8,
+      -10.4,
+      HQ
+    );
+
+
+    /* =====================================================
+       HQ ROOF
+       ===================================================== */
+
+    box(
+      31,
+      0.28,
+      19,
+      MATERIALS.wallDark,
+      0,
+      4.05,
+      0,
+      HQ
+    );
+
+
+    /* =====================================================
+       HQ SIGN
+       ===================================================== */
+
+    box(
+      7,
+      0.9,
+      0.16,
+      MATERIALS.dark,
+      0,
+      5.0,
+      -9.35,
+      HQ
+    );
+
+
+    box(
+      3.2,
+      0.18,
+      0.05,
+      MATERIALS.green,
+      0,
+      5.02,
+      -9.46,
+      HQ
+    );
+
+
+    /* =====================================================
+       HQ PARKING
+       ===================================================== */
+
+    box(
+      18,
+      0.08,
+      7,
+      MATERIALS.asphaltLight,
+      0,
+      0.24,
+      -14.5,
+      HQ
+    );
+
+
+    for(
+      let x = -7.5;
+      x <= 7.5;
+      x += 3
+    ){
+
+      box(
+        0.07,
+        0.025,
+        5.5,
+        MATERIALS.concrete,
+        x,
+        0.31,
+        -14.5,
+        HQ
+      );
+
+    }
+
+
+    /* =====================================================
+       CEO OFFICE
+       ===================================================== */
+
+    const CEO =
+      new THREE.Group();
+
+
+    CEO.name =
+      "CEOOffice";
+
+
+    CEO.position.set(
+      -8.5,
+      0,
+      4.5
+    );
+
+
+    HQ.add(
+      CEO
+    );
+
+
+    box(
+      9,
+      0.12,
+      6,
+      MATERIALS.wood,
+      0,
+      1.0,
+      0,
+      CEO
+    );
+
+
+    box(
+      8.6,
+      2.5,
+      0.10,
+      MATERIALS.glass,
+      0,
+      2.8,
+      2.95,
+      CEO
+    );
+
+
+    /*
+     * Executive desk.
+     */
+
+    box(
+      3.4,
+      0.18,
+      1.5,
+      MATERIALS.wood,
+      0,
+      1.55,
+      -0.5,
+      CEO
+    );
+
+
+    box(
+      1.1,
+      0.7,
+      0.06,
+      MATERIALS.screen,
+      0,
+      1.98,
+      -0.78,
+      CEO
+    );
+
+
+    /*
+     * Executive chair.
+     */
+
+    cylinder(
+      0.55,
+      0.14,
+      MATERIALS.dark,
+      0,
+      0.72,
+      -1.9,
+      CEO
+    );
+
+
+    box(
+      0.12,
+      1.0,
+      0.12,
+      MATERIALS.metal,
+      0,
+      1.12,
+      -1.9,
+      CEO
+    );
+
+
+    box(
+      0.8,
+      1.1,
+      0.35,
+      MATERIALS.dark,
+      0,
+      1.35,
+      -1.9,
+      CEO
+    );
+
+
+    /* =====================================================
+       EXECUTIVE MEETING TABLE
+       ===================================================== */
+
+    box(
+      5.4,
+      0.16,
+      2.1,
+      MATERIALS.wood,
+      5.5,
+      1.05,
+      5.5,
+      HQ
+    );
+
+
+    /* =====================================================
+       OPEN OFFICE DESKS
+       ===================================================== */
+
+    function officeDesk(
+      x,
+      z
+    ){
+
+      box(
+        2.5,
+        0.16,
+        1.15,
+        MATERIALS.wood,
+        x,
+        1.15,
+        z,
+        HQ
+      );
+
+
+      box(
+        0.9,
+        0.55,
+        0.06,
+        MATERIALS.screen,
+        x,
+        1.53,
+        z - 0.22,
+        HQ
+      );
+
+
+      box(
+        0.10,
+        1.0,
+        0.10,
+        MATERIALS.metal,
+        x - 0.95,
+        0.65,
+        z,
+        HQ
+      );
+
+
+      box(
+        0.10,
+        1.0,
+        0.10,
+        MATERIALS.metal,
+        x + 0.95,
+        0.65,
+        z,
+        HQ
+      );
+
+    }
+
+
+    [
+      [-11,-4],
+      [-6,-4],
+      [-1,-4],
+      [4,-4],
+      [9,-4],
+
+      [-11,0],
+      [-6,0],
+      [-1,0],
+      [4,0],
+      [9,0]
+    ].forEach(
+      p =>
+        officeDesk(
+          p[0],
+          p[1]
+        )
+    );
+
+
+    /* =====================================================
+       MEETING DISPLAY
+       ===================================================== */
+
+    box(
+      5.5,
+      2.5,
+      0.12,
+      MATERIALS.glassDark,
+      5.5,
+      3.0,
+      8.45,
+      HQ
+    );
+
+
+    box(
+      3.7,
+      1.6,
+      0.06,
+      MATERIALS.screen,
+      5.5,
+      3.15,
+      8.35,
+      HQ
+    );
+
+
+    console.log(
+      "Empire Rush: Clean world foundation loaded."
+    );
+    /* =====================================================
+       BUSINESS / CITY BUILDINGS
+       ===================================================== */
+
+    const cityBuildings =
+      new THREE.Group();
+
+    cityBuildings.name =
+      "CityBuildings";
+
+    CITY.add(
+      cityBuildings
+    );
+
+
+    function building(
+      x,
+      z,
+      width,
+      depth,
+      height,
+      bodyMaterial,
+      glassMaterial = MATERIALS.glass
+    ){
+
+      const group =
+        new THREE.Group();
+
+      group.position.set(
+        x,
+        0,
+        z
+      );
+
+      cityBuildings.add(
+        group
+      );
+
+
+      /* Building body */
+
+      box(
+        width,
+        height,
+        depth,
+        bodyMaterial,
+        0,
+        height / 2,
+        0,
+        group
+      );
+
+
+      /* Vertical glass bands */
+
+      const columns =
+        Math.max(
+          2,
+          Math.floor(
+            width / 2.4
+          )
+        );
+
+
+      const rows =
+        Math.max(
+          1,
+          Math.floor(
+            height / 2.5
+          )
+        );
+
+
+      for(
+        let r = 0;
+        r < rows;
+        r++
+      ){
+
+        const y =
+          1.35 +
+          r * 2.35;
+
+
+        if(
+          y >
+          height - 0.8
+        ){
+          continue;
+        }
+
+
+        for(
+          let c = 0;
+          c < columns;
+          c++
+        ){
+
+          const xOffset =
+            -width / 2 +
+            1.1 +
+            c * (
+              (width - 2.2) /
+              Math.max(
+                columns - 1,
+                1
+              )
+            );
+
+
+          box(
+            0.9,
+            0.95,
+            0.05,
+            glassMaterial,
+            xOffset,
+            y,
+            -depth / 2 - 0.04,
+            group
+          );
+
+        }
+      }
+
+
+      /* Roof cap */
+
+      box(
+        width + 0.25,
+        0.18,
+        depth + 0.25,
+        MATERIALS.dark,
+        0,
+        height + 0.09,
+        0,
+        group
+      );
+
+
+      /* Entrance */
+
+      box(
+        Math.min(
+          3,
+          width * 0.32
+        ),
+        2.1,
+        0.12,
+        MATERIALS.glassDark,
+        0,
+        1.05,
+        -depth / 2 - 0.08,
+        group
+      );
+
+
+      return group;
+    }
+
+
+    /* =====================================================
+       CORPORATE DISTRICT
+       ===================================================== */
+
+    building(
+      -29,
+      8,
+      10,
+      9,
+      11,
+      MATERIALS.wallDark,
+      MATERIALS.glass
+    );
+
+
+    building(
+      -29,
+      -4,
+      9,
+      8,
+      7,
+      MATERIALS.wall,
+      MATERIALS.glassDark
+    );
+
+
+    /* =====================================================
+       RETAIL DISTRICT
+       ===================================================== */
+
+    building(
+      29,
+      8,
+      10,
+      9,
+      6,
+      material(
+        0x9a6d52,
+        0.9
+      ),
+      MATERIALS.glass
+    );
+
+
+    building(
+      29,
+      -4,
+      9,
+      8,
+      9,
+      material(
+        0x767f86,
+        0.9
+      ),
+      MATERIALS.glass
+    );
+
+
+    /* =====================================================
+       COMMERCIAL DISTRICT
+       ===================================================== */
+
+    building(
+      0,
+      8,
+      11,
+      9,
+      8,
+      material(
+        0x7b858a,
+        0.9
+      ),
+      MATERIALS.glass
+    );
+
+
+    building(
+      0,
+      -4,
+      11,
+      9,
+      6,
+      MATERIALS.wall,
+      MATERIALS.glassDark
+    );
+
+
+    /* =====================================================
+       PROPERTY ENTRANCES
+       ===================================================== */
+
+    function driveway(
+      x,
+      z,
+      width = 4,
+      depth = 4
+    ){
+
+      box(
+        width,
+        0.07,
+        depth,
+        MATERIALS.asphaltLight,
+        x,
+        0.23,
+        z,
+        CITY
+      );
+
+
+      box(
+        width + 0.25,
+        0.05,
+        0.12,
+        MATERIALS.concrete,
+        x,
+        0.30,
+        z - depth / 2,
+        CITY
+      );
+
+    }
+
+
+    driveway(
+      -29,
+      14.3,
+      4,
+      4
+    );
+
+
+    driveway(
+      0,
+      14.3,
+      4,
+      4
+    );
+
+
+    driveway(
+      29,
+      14.3,
+      4,
+      4
+    );
+
+
+    driveway(
+      -29,
+      -10.2,
+      4,
+      4
+    );
+
+
+    driveway(
+      0,
+      -10.2,
+      4,
+      4
+    );
+
+
+    driveway(
+      29,
+      -10.2,
+      4,
+      4
+    );
+
+
+    /* =====================================================
+       PARK
+       ===================================================== */
+
+    const park =
+      new THREE.Group();
+
+    park.name =
+      "CentralPark";
+
+    park.position.set(
+      -43,
+      0,
+      0
+    );
+
+    CITY.add(
+      park
+    );
+
+
+    box(
+      15,
+      0.12,
+      28,
+      MATERIALS.grassDark,
+      0,
+      0.08,
+      0,
+      park
+    );
+
+
+    /* Park walking paths */
+
+    box(
+      2.2,
+      0.06,
+      25,
+      MATERIALS.sidewalk,
+      0,
+      0.17,
+      0,
+      park
+    );
+
+
+    box(
+      13,
+      0.06,
+      2.2,
+      MATERIALS.sidewalk,
+      0,
+      0.18,
+      0,
+      park
+    );
+
+
+    /* Park benches */
+
+    function bench(
+      x,
+      z,
+      rotation = 0
+    ){
+
+      const b =
+        new THREE.Group();
+
+      b.position.set(
+        x,
+        0,
+        z
+      );
+
+      b.rotation.y =
+        rotation;
+
+      park.add(
+        b
+      );
+
+
+      box(
+        2,
+        0.18,
+        0.55,
+        MATERIALS.wood,
+        0,
+        0.65,
+        0,
+        b
+      );
+
+
+      box(
+        0.12,
+        0.65,
+        0.12,
+        MATERIALS.metal,
+        -0.7,
+        0.32,
+        0,
+        b
+      );
+
+
+      box(
+        0.12,
+        0.65,
+        0.12,
+        MATERIALS.metal,
+        0.7,
+        0.32,
+        0,
+        b
+      );
+
+
+      box(
+        2,
+        0.65,
+        0.12,
+        MATERIALS.wood,
+        0,
+        1.0,
+        0.25,
+        b
+      );
+
+    }
+
+
+    bench(
+      -4,
+      -7,
+      0
+    );
+
+
+    bench(
+      4,
+      7,
+      Math.PI
+    );
+
+
+    /* =====================================================
+       TREES
+       ===================================================== */
+
+    function tree(
+      x,
+      z,
+      scale = 1,
+      parent = CITY
+    ){
+
+      const group =
+        new THREE.Group();
+
+      group.position.set(
+        x,
+        0,
+        z
+      );
+
+      group.scale.setScalar(
+        scale
+      );
+
+      parent.add(
+        group
+      );
+
+
+      cylinder(
+        0.24,
+        1.8,
+        MATERIALS.treeTrunk,
+        0,
+        0.9,
+        0,
+        group,
+        12
+      );
+
+
+      const crown =
+        new THREE.Mesh(
+          new THREE.SphereGeometry(
+            1.15,
+            14,
+            10
+          ),
+          MATERIALS.treeLeaf
+        );
+
+
+      crown.position.y =
+        2.25;
+
+
+      crown.castShadow =
+        true;
+
+
+      group.add(
+        crown
+      );
+
+
+      return group;
+    }
+
+
+    [
+      [-49,-10,1.1],
+      [-49,10,1.0],
+      [-39,-10,0.9],
+      [-39,10,1.1],
+
+      [-34,15,0.8],
+      [-24,15,0.9],
+
+      [34,15,0.8],
+      [24,15,0.9],
+
+      [-34,-11,0.9],
+      [-24,-11,0.8],
+
+      [24,-11,0.9],
+      [34,-11,0.8]
+    ].forEach(
+      p =>
+        tree(
+          p[0],
+          p[1],
+          p[2]
+        )
+    );
+
+
+    /* =====================================================
+       HQ LANDSCAPING
+       ===================================================== */
+
+    [
+      [-14,31],
+      [-9,31],
+      [9,31],
+      [14,31],
+
+      [-14,53],
+      [-9,53],
+      [9,53],
+      [14,53]
+    ].forEach(
+      p =>
+        tree(
+          p[0],
+          p[1],
+          0.75
+        )
+    );
+
+
+    /* =====================================================
+       STREET LIGHTS
+       ===================================================== */
+
+    function streetLight(
+      x,
+      z
+    ){
+
+      const group =
+        new THREE.Group();
+
+      group.position.set(
+        x,
+        0,
+        z
+      );
+
+      CITY.add(
+        group
+      );
+
+
+      cylinder(
+        0.07,
+        2.8,
+        MATERIALS.metal,
+        0,
+        1.4,
+        0,
+        group,
+        10
+      );
+
+
+      box(
+        0.65,
+        0.08,
+        0.08,
+        MATERIALS.metal,
+        0.28,
+        2.78,
+        0,
+        group
+      );
+
+
+      const lamp =
+        new THREE.Mesh(
+          new THREE.SphereGeometry(
+            0.12,
+            10,
+            8
+          ),
+          new THREE.MeshStandardMaterial({
+            color:0xfff3c4,
+            emissive:0xffdf88,
+            emissiveIntensity:1.2,
+            roughness:0.4
+          })
+        );
+
+
+      lamp.position.set(
+        0.6,
+        2.72,
+        0
+      );
+
+
+      group.add(
+        lamp
+      );
+
+    }
+
+
+    [
+      [-24,22],
+      [24,22],
+      [-24,-24],
+      [24,-24],
+
+      [-14,18],
+      [14,18],
+      [-14,-20],
+      [14,-20],
+
+      [-43,18],
+      [-43,-20]
+    ].forEach(
+      p =>
+        streetLight(
+          p[0],
+          p[1]
+        )
+    );
+
+
+    /* =====================================================
+       CARS
+       ===================================================== */
+
+    function createCar(
+      x,
+      y,
+      z,
+      scale = 1,
+      rotation = 0,
+      bodyColor = 0x3e6d8e
+    ){
+
+      const group =
+        new THREE.Group();
+
+      group.position.set(
+        x,
+        y,
+        z
+      );
+
+      group.rotation.y =
+        rotation;
+
+      group.scale.setScalar(
+        scale
+      );
+
+
+      TRAFFIC_ROOT.add(
+        group
+      );
+
+
+      const body =
+        material(
+          bodyColor,
+          0.45,
+          0.1
+        );
+
+
+      box(
+        2.6,
+        0.48,
+        1.25,
+        body,
+        0,
+        0.42,
+        0,
+        group
+      );
+
+
+      box(
+        1.55,
+        0.48,
+        1.02,
+        MATERIALS.glassDark,
+        0,
+        0.78,
+        0,
+        group
+      );
+
+
+      /* Hood */
+
+      box(
+        0.65,
+        0.12,
+        1.1,
+        body,
+        0.95,
+        0.68,
+        0,
+        group
+      );
+
+
+      /* Wheels */
+
+      [
+        [-0.82,-0.68],
+        [0.82,-0.68],
+        [-0.82,0.68],
+        [0.82,0.68]
+      ].forEach(
+        p => {
+
+          const wheel =
+            cylinder(
+              0.30,
+              0.20,
+              MATERIALS.dark,
+              p[0],
+              0.25,
+              p[1],
+              group,
+              14
+            );
+
+
+          wheel.rotation.x =
+            Math.PI / 2;
+
+        }
+      );
+
+
+      /* Headlights */
+
+      const lightMaterial =
+        new THREE.MeshStandardMaterial({
+
+          color:0xffffff,
+
+          emissive:0xffffff,
+
+          emissiveIntensity:0.7,
+
+          roughness:0.25
+
+        });
+
+
+      box(
+        0.12,
+        0.12,
+        0.28,
+        lightMaterial,
+        1.33,
+        0.50,
+        -0.40,
+        group
+      );
+
+
+      box(
+        0.12,
+        0.12,
+        0.28,
+        lightMaterial,
+        1.33,
+        0.50,
+        0.40,
+        group
+      );
+
+
+      group.userData = {
+
+        speed:
+          2.5 +
+          Math.random() * 1.5,
+
+        startX:x,
+
+        startZ:z,
+
+        axis:"x"
+
+      };
+
+
+      return group;
+    }
+
+
+    const trafficCars = [];
+
+
+    trafficCars.push(
+      createCar(
+        -42,
+        0.35,
+        18,
+        0.85,
+        0,
+        0x3f6d91
+      )
+    );
+
+
+    trafficCars.push(
+      createCar(
+        20,
+        0.35,
+        18,
+        0.85,
+        Math.PI,
+        0x8b5149
+      )
+    );
+
+
+    trafficCars.push(
+      createCar(
+        -19,
+        0.35,
+        -20,
+        0.8,
+        0,
+        0x6b7542
+      )
+    );
+
+
+    trafficCars.push(
+      createCar(
+        40,
+        0.35,
+        -20,
+        0.82,
+        Math.PI,
+        0x6a5b80
+      )
+    );
+
+
+    /* =====================================================
+       PARKING CARS
+       ===================================================== */
+
+    createCar(
+      -6,
+      0.35,
+      37,
+      0.72,
+      0,
+      0x4e6580
+    );
+
+
+    createCar(
+      3,
+      0.35,
+      37,
+      0.72,
+      0,
+      0x8b654d
+    );
+
+
+    createCar(
+      11,
+      0.35,
+      37,
+      0.72,
+      0,
+      0x586f59
+    );
+
+
+    /* =====================================================
+       PEDESTRIANS
+       ===================================================== */
+
+    const pedestrians = [];
+
+
+    function pedestrian(
+      x,
+      z,
+      scale = 1
+    ){
+
+      const group =
+        new THREE.Group();
+
+      group.position.set(
+        x,
+        0,
+        z
+      );
+
+      group.scale.setScalar(
+        scale
+      );
+
+
+      NPC_ROOT.add(
+        group
+      );
+
+
+      const shirt =
+        material(
+          Math.random() >
+            0.5
+            ? 0x4d6d92
+            : 0x76536b,
+          0.9
+        );
+
+
+      cylinder(
+        0.13,
+        0.75,
+        MATERIALS.pants,
+        -0.13,
+        0.42,
+        0,
+        group,
+        10
+      );
+
+
+      cylinder(
+        0.13,
+        0.75,
+        MATERIALS.pants,
+        0.13,
+        0.42,
+        0,
+        group,
+        10
+      );
+
+
+      box(
+        0.52,
+        0.9,
+        0.32,
+        shirt,
+        0,
+        1.18,
+        0,
+        group
+      );
+
+
+      const head =
+        new THREE.Mesh(
+          new THREE.SphereGeometry(
+            0.22,
+            12,
+            9
+          ),
+          MATERIALS.skin
+        );
+
+
+      head.position.y =
+        1.85;
+
+
+      head.castShadow =
+        true;
+
+
+      group.add(
+        head
+      );
+
+
+      group.userData = {
+
+        phase:
+          Math.random() * 10,
+
+        speed:
+          0.55 +
+          Math.random() * 0.35,
+
+        startX:x,
+
+        startZ:z
+
+      };
+
+
+      pedestrians.push(
+        group
+      );
+
+
+      return group;
+    }
+
+
+    pedestrian(
+      -40,
+      17,
+      0.95
+    );
+
+
+    pedestrian(
+      -36,
+      17,
+      0.9
+    );
+
+
+    pedestrian(
+      38,
+      17,
+      0.95
+    );
+
+
+    pedestrian(
+      42,
+      17,
+      0.9
+    );
+
+
+    pedestrian(
+      -39,
+      -20,
+      0.9
+    );
+
+
+    pedestrian(
+      39,
+      -20,
+      0.95
+    );
+
+
+    /* =====================================================
+       REAL EMPLOYEE MODEL
+       ===================================================== */
+
+    const loader =
+      new GLTFLoader();
+
+
+    const HUMAN_URL =
+      "https://cdn.jsdelivr.net/gh/UMRAM-Bilkent/supine-human-model@main/assets/human.glb";
+
+
+    let humanTemplate =
+      null;
+
+
+    let humanAnimations =
+      [];
+
+
+    const workers = [];
+
+
+    const mixers = [];
+
+
+    function animationByName(
+      keywords
+    ){
+
+      if(
+        !humanAnimations.length
+      ){
+        return null;
+      }
+
+
+      return (
+        humanAnimations.find(
+          clip => {
+
+            const name =
+              String(
+                clip.name || ""
+              )
+                .toLowerCase();
+
+
+            return keywords.some(
+              key =>
+                name.includes(
+                  key
+                )
+            );
+
+          }
+        ) ||
+        null
+      );
+
+    }
+
+
+    function loadHumans(){
+
+      loader.load(
+
+        HUMAN_URL,
+
+        gltf => {
+
+          humanTemplate =
+            gltf.scene;
+
+
+          humanAnimations =
+            gltf.animations ||
+            [];
+
+
+          humanTemplate.traverse(
+            object => {
+
+              if(
+                object.isMesh
+              ){
+
+                object.castShadow =
+                  true;
+
+                object.receiveShadow =
+                  true;
+
+              }
+
+            }
+          );
+
+
+          spawnEmployees();
+
+
+          console.log(
+            "Empire Rush: Real employee model loaded."
+          );
+
+        },
+
+        undefined,
+
+        error => {
+
+          console.warn(
+            "Empire Rush: Employee model unavailable.",
+            error
+          );
+
+        }
+
+      );
+
+    }
+
+
+    /* =====================================================
+       EMPLOYEE DATA
+       ===================================================== */
+
+    const employeeData = [
+
+      {
+        name:"Aarav",
+        role:"Operations Manager",
+        dept:"Operations",
+        x:-6,
+        z:-1
+      },
+
+      {
+        name:"Riya",
+        role:"Finance Analyst",
+        dept:"Finance",
+        x:-10,
+        z:-3
+      },
+
+      {
+        name:"Kabir",
+        role:"Marketing Executive",
+        dept:"Marketing",
+        x:9,
+        z:-3
+      },
+
+      {
+        name:"Anaya",
+        role:"Product Manager",
+        dept:"Product",
+        x:4,
+        z:-3
+      },
+
+      {
+        name:"Vivaan",
+        role:"HR Manager",
+        dept:"Human Resources",
+        x:-5,
+        z:1
+      },
+
+      {
+        name:"Meera",
+        role:"Sales Executive",
+        dept:"Sales",
+        x:9,
+        z:-1
+      },
+
+      {
+        name:"Arjun",
+        role:"R&D Engineer",
+        dept:"R&D",
+        x:9,
+        z:1
+      },
+
+      {
+        name:"Ishita",
+        role:"Accountant",
+        dept:"Finance",
+        x:-5,
+        z:-3
+      }
+
+    ];
+
+
+    function spawnEmployees(){
+
+      if(
+        !humanTemplate ||
+        workers.length
+      ){
+        return;
+      }
+
+
+      employeeData.forEach(
+        employee => {
+
+          const human =
+            SkeletonUtils.clone(
+              humanTemplate
+            );
+
+
+          human.position.set(
+            employee.x,
+            0.05,
+            employee.z
+          );
+
+
+          human.scale.setScalar(
+            1
+          );
+
+
+          human.userData = {
+
+            name:
+              employee.name,
+
+            role:
+              employee.role,
+
+            dept:
+              employee.dept,
+
+            status:
+              "Working",
+
+            targetX:
+              null,
+
+            targetZ:
+              null,
+
+            speed:
+              0.8 +
+              Math.random() * 0.25
+
+          };
+
+
+          human.traverse(
+            object => {
+
+              if(
+                object.isMesh
+              ){
+
+                object.castShadow =
+                  true;
+
+                object.receiveShadow =
+                  true;
+
+              }
+
+            }
+          );
+
+
+          const mixer =
+            new THREE.AnimationMixer(
+              human
+            );
+
+
+          const idle =
+            animationByName([
+              "idle",
+              "stand",
+              "standing"
+            ]);
+
+
+          if(idle){
+
+            mixer
+              .clipAction(
+                idle
+              )
+              .play();
+
+          }
+
+
+          human.userData.mixer =
+            mixer;
+
+
+          scene.add(
+            human
+          );
+
+
+          workers.push(
+            human
+          );
+
+
+          mixers.push(
+            mixer
+          );
+
+        }
+      );
+
+    }
+
+
+    loadHumans();
+
+
+    /* =====================================================
+       EMPLOYEE MOVEMENT
+       ===================================================== */
+
+    function moveEmployee(
+      human,
+      x,
+      z
+    ){
+
+      if(!human){
+        return;
+      }
+
+
+      human.userData.targetX =
+        x;
+
+
+      human.userData.targetZ =
+        z;
+
+
+      human.userData.status =
+        "Walking";
+
+    }
+
+
+    function updateEmployees(
+      delta
+    ){
+
+      mixers.forEach(
+        mixer => {
+
+          mixer.update(
+            delta
+          );
+
+        }
+      );
+
+
+      workers.forEach(
+        human => {
+
+          const data =
+            human.userData;
+
+
+          if(
+            data.targetX === null ||
+            data.targetZ === null
+          ){
+
+            return;
+
+          }
+
+
+          const dx =
+            data.targetX -
+            human.position.x;
+
+
+          const dz =
+            data.targetZ -
+            human.position.z;
+
+
+          const distance =
+            Math.hypot(
+              dx,
+              dz
+            );
+
+
+          if(
+            distance < 0.12
+          ){
+
+            human.position.x =
+              data.targetX;
+
+            human.position.z =
+              data.targetZ;
+
+            data.targetX =
+              null;
+
+            data.targetZ =
+              null;
+
+            data.status =
+              "Working";
+
+            return;
+
+          }
+
+
+          const angle =
+            Math.atan2(
+              dx,
+              dz
+            );
+
+
+          human.rotation.y =
+            angle;
+
+
+          const speed =
+            data.speed *
+            delta;
+
+
+          human.position.x +=
+            Math.sin(
+              angle
+            ) *
+            speed;
+
+
+          human.position.z +=
+            Math.cos(
+              angle
+            ) *
+            speed;
+
+        }
+      );
+
+    }
+    /* =====================================================
+       TRAFFIC ANIMATION
+       ===================================================== */
+
+    function updateTraffic(
+      delta
+    ){
+
+      trafficCars.forEach(
+        car => {
+
+          const data =
+            car.userData;
+
+          car.position.x +=
+            data.speed *
+            delta;
+
+          /*
+           * Keep traffic inside the
+           * planned road corridor.
+           */
+
+          if(
+            car.position.x > 48
+          ){
+
+            car.position.x =
+              -48;
+
+          }
+
+        }
+      );
+
+    }
+
+
+    /* =====================================================
+       EMPLOYEE INTERACTION
+       ===================================================== */
+
+    const raycaster =
+      new THREE.Raycaster();
+
+
+    const pointer =
+      new THREE.Vector2();
+
+
+    function selectEmployee(
+      event
+    ){
+
+      const rect =
+        renderer.domElement
+          .getBoundingClientRect();
+
+
+      pointer.x =
+        (
+          event.clientX -
+          rect.left
+        ) /
+        rect.width *
+        2 -
+        1;
+
+
+      pointer.y =
+        -(
+          event.clientY -
+          rect.top
+        ) /
+        rect.height *
+        2 +
+        1;
+
+
+      raycaster.setFromCamera(
+        pointer,
+        camera
+      );
+
+
+      const hits =
+        raycaster.intersectObjects(
+          workers,
+          true
+        );
+
+
+      if(
+        !hits.length
+      ){
+        return;
+      }
+
+
+      let selected =
+        hits[0].object;
+
+
+      while(
+        selected &&
+        !workers.includes(
+          selected
+        )
+      ){
+
+        selected =
+          selected.parent;
+
+      }
+
+
+      if(
+        !selected
+      ){
+        return;
+      }
+
+
+      const data =
+        selected.userData;
+
+
+      window.dispatchEvent(
+        new CustomEvent(
+          "EmpireEmployeeSelected",
+          {
+            detail:{
+              employee:data,
+              worker:selected
+            }
+          }
+        )
+      );
+
+    }
+
+
+    renderer.domElement.addEventListener(
+      "pointerdown",
+      selectEmployee
+    );
+
+
+    /* =====================================================
+       EMPLOYEE HIRED EVENT
+       ===================================================== */
+
+    window.addEventListener(
+      "EmpireEmployeeHired",
+      event => {
+
+        const detail =
+          event.detail ||
+          {};
+
+
+        if(
+          !humanTemplate
+        ){
+          return;
+        }
+
+
+        const employee =
+          detail.employee ||
+          detail;
+
+
+        if(
+          !employee ||
+          !employee.name
+        ){
+          return;
+        }
+
+
+        const human =
+          SkeletonUtils.clone(
+            humanTemplate
+          );
+
+
+        human.position.set(
+          0,
+          0.05,
+          25
+        );
+
+
+        human.userData = {
+
+          name:
+            employee.name,
+
+          role:
+            employee.role ||
+            "Employee",
+
+          dept:
+            employee.department ||
+            employee.dept ||
+            "General",
+
+          status:
+            "Walking",
+
+          targetX:
+            0,
+
+          targetZ:
+            4,
+
+          speed:
+            0.9
+
+        };
+
+
+        human.traverse(
+          object => {
+
+            if(
+              object.isMesh
+            ){
+
+              object.castShadow =
+                true;
+
+              object.receiveShadow =
+                true;
+
+            }
+
+          }
+        );
+
+
+        const mixer =
+          new THREE.AnimationMixer(
+            human
+          );
+
+
+        human.userData.mixer =
+          mixer;
+
+
+        scene.add(
+          human
+        );
+
+
+        workers.push(
+          human
+        );
+
+
+        mixers.push(
+          mixer
+        );
+
+
+        moveEmployee(
+          human,
+          0,
+          4
+        );
+
+      }
+    );
+
+
+    /* =====================================================
+       EMPIRE WORLD API
+       ===================================================== */
+
+    function focusOn(
+      x,
+      z
+    ){
+
+      controls.target.set(
+        x,
+        0,
+        z
+      );
+
+      camera.position.set(
+        x + 22,
+        22,
+        z + 22
+      );
+
+      controls.update();
+
+    }
+
+
+    function moveWorkerTo(
+      worker,
+      x,
+      z
+    ){
+
+      moveEmployee(
+        worker,
+        x,
+        z
+      );
+
+    }
+
+
+    window.EmpireWorld = {
+
+      THREE,
+
+      scene,
+
+      camera,
+
+      renderer,
+
+      controls,
+
+      HQ,
+
+      workers,
+
+      focusOn,
+
+      moveWorkerTo,
+
+      city:
+        CITY,
+
+      traffic:
+        trafficCars,
+
+      pedestrians,
+
+      getEmployees(){
+        return workers;
+      }
+
+    };
+
+
+    /* =====================================================
+       WORKFORCE COMPATIBILITY API
+       ===================================================== */
+
+    window.EmpireWorkforceWorld = {
+
+      moveWorkerTo,
+
+      getWorkers(){
+        return workers;
+      },
+
+      focusEmployee(
+        name
+      ){
+
+        const worker =
+          workers.find(
+            item =>
+              item.userData &&
+              item.userData.name ===
+              name
+          );
+
+
+        if(
+          !worker
+        ){
+          return false;
+        }
+
+
+        focusOn(
+          worker.position.x,
+          worker.position.z
+        );
+
+
+        return true;
+
+      }
+
+    };
+
+
+    /* =====================================================
+       WORLD READY EVENT
+       ===================================================== */
+
+    window.dispatchEvent(
+      new CustomEvent(
+        "EmpireWorldReady",
+        {
+          detail:
+            window.EmpireWorld
+        }
+      )
+    );
+
+
+    /* =====================================================
+       ANIMATION LOOP
+       ===================================================== */
+
+    let previousTime =
+      performance.now();
+
+
+    function animate(
+      currentTime
+    ){
+
+      requestAnimationFrame(
+        animate
+      );
+
+
+      const delta =
+        Math.min(
+          (
+            currentTime -
+            previousTime
+          ) /
+          1000,
+          0.05
+        );
+
+
+      previousTime =
+        currentTime;
+
+
+      updateEmployees(
+        delta
+      );
+
+
+      updateTraffic(
+        delta
+      );
+
+
+      controls.update();
+
+
+      renderer.render(
+        scene,
+        camera
+      );
+
+    }
+
+
+    animate(
+      performance.now()
+    );
+
+
+    /* =====================================================
+       RESIZE
+       ===================================================== */
+
+    function resize(){
+
+      const width =
+        window.innerWidth;
+
+
+      const height =
+        window.innerHeight;
+
+
+      camera.aspect =
+        width / height;
+
+
+      camera.updateProjectionMatrix();
+
+
+      renderer.setSize(
+        width,
+        height,
+        false
+      );
+
+
+      renderer.setPixelRatio(
+        Math.min(
+          window.devicePixelRatio ||
+          1,
+          2
+        )
+      );
+
+    }
+
+
+    window.addEventListener(
+      "resize",
+      resize
+    );
+
+
+    resize();
+
+
+  </script>
+
+
+  <!-- ===================================================
+       GAME SYSTEMS
+       =================================================== -->
+
+  <script src="./empire-game-state.js"></script>
+
+  <script src="./career-business-ui.js"></script>
+
+  <script src="./career-progression-system.js"></script>
+
+  <script src="./business-operations-ui.js"></script>
+
+  <script src="./business-type-operations.js"></script>
+
+  <script src="./business-setup-ui.js"></script>
+
+  <script src="./customer-market-system.js"></script>
+
+  <script src="./employee-productivity-system.js"></script>
+
+  <script src="./hr-department-system.js"></script>
+
+  <script src="./company-accounting-system.js"></script>
+
+  <script src="./business-financing-system.js"></script>
+
+  <script src="./banking-investment-system.js"></script>
+
+  <script src="./government-compliance-system.js"></script>
+
+  <script src="./government-compliance-ui.js"></script>
+
+  <script src="./competition-market-events.js"></script>
+
+  <script src="./competition-market-ui.js"></script>
+
+  <script src="./news-decision-system.js"></script>
+
+  <script src="./news-decision-ui.js"></script>
+
+  <script src="./product-development-system.js"></script>
+
+  <script src="./product-market-integration.js"></script>
+
+  <script src="./product-management-ui.js"></script>
+
+  <script src="./company-group-system.js"></script>
+
+  <script src="./company-group-ui.js"></script>
+
+  <script src="./corporate-gameplay-system.js"></script>
+
+  <!-- ===================================================
+       MAIN MOBILE HUD
+       =================================================== -->
+
+  <script src="./main-game-hud.js"></script>
+
 
 </body>
+
 </html>
