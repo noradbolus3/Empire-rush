@@ -2,1419 +2,1690 @@
   "use strict";
 
   /*
-   * ============================================================
    * EMPIRE RUSH — LIVING CITY SYSTEM
-   * ============================================================
+   * ---------------------------------
+   * Dedicated city visual layer.
    *
-   * Population
-   * Pedestrians
-   * Traffic
-   * Commercial vehicles
-   * Daily routines
-   * Business-area activity
-   * Day / night behavior
-   * Weather effects
+   * Responsibilities:
+   * - Roads
+   * - Intersections
+   * - Sidewalks
+   * - Traffic
+   * - Cars
+   * - Buildings
+   * - Shops
+   * - Parks
+   * - Trees
+   * - Street lights
+   * - Pedestrians
    *
-   * ============================================================
+   * Does NOT own:
+   * - Game economy
+   * - Employees
+   * - Company accounting
+   * - Career
+   * - Business logic
+   *
+   * Requires:
+   * window.EmpireWorld
    */
 
-  const THREE =
-    window.THREE ||
-    globalThis.THREE;
+  let WORLD = null;
+  let THREE = null;
+  let scene = null;
 
-  const Game =
-    window.EmpireGameState;
+  let cityRoot = null;
+  let trafficRoot = null;
+  let pedestrianRoot = null;
 
-  if (!THREE) {
-    console.warn(
-      "Living City: THREE not available."
-    );
-    return;
+  let started = false;
+  let animationStarted = false;
+
+  const CITY = {
+    size: 300,
+    roadWidth: 13,
+    sidewalkWidth: 3,
+    blockSize: 48,
+
+    roadXs: [-120, -60, 0, 60, 120],
+    roadZs: [-120, -60, 0, 60, 120],
+
+    buildingColors: [
+      0x8fa7b8,
+      0xb6c3ca,
+      0x7893a6,
+      0xd0b28b,
+      0x9c8da3,
+      0x6e8999,
+      0xc5a77d,
+      0x849d8b
+    ],
+
+    glassColors: [
+      0x75a9c7,
+      0x6e9eb8,
+      0x9cc8d9
+    ],
+
+    carColors: [
+      0xe74c3c,
+      0x3498db,
+      0xf1c40f,
+      0x2ecc71,
+      0x9b59b6,
+      0xe67e22,
+      0xecf0f1,
+      0x34495e
+    ]
+  };
+
+  const cars = [];
+  const pedestrians = [];
+
+  /* ---------------------------------------------------------
+     HELPERS
+  --------------------------------------------------------- */
+
+  function getWorld() {
+    return window.EmpireWorld || null;
   }
 
-  const City = {
+  function random(min, max) {
+    return min + Math.random() * (max - min);
+  }
 
-    scene: null,
-    group: null,
+  function pick(arr) {
+    return arr[Math.floor(Math.random() * arr.length)];
+  }
 
-    pedestrians: [],
-    vehicles: [],
-    buildings: [],
+  function clamp(v, min, max) {
+    return Math.max(min, Math.min(max, v));
+  }
 
-    population: 12500,
+  function removeOldCity() {
+    if (!scene) return;
 
-    traffic: {
-      density: 0.55,
-      speed: 1,
-      congestion: 0.10
-    },
+    const oldNames = [
+      "EmpireRushLivingCity",
+      "EmpireLivingCity",
+      "LivingCity",
+      "LivingCityRoot"
+    ];
 
-    activity: {
-      residential: 0.5,
-      commercial: 0.5,
-      industrial: 0.4,
-      office: 0.5
-    },
-
-    time: {
-      hour: 8,
-      day: 1
-    },
-
-    weather: "Clear",
-
-    initialized: false,
-
-    /* ==========================================================
-       INIT
-       ========================================================== */
-
-    init() {
-
-      this.connectWorld();
-
-      if (!this.scene) {
-
-        console.warn(
-          "Living City: scene not found. Retrying..."
-        );
-
-        setTimeout(
-          () => this.init(),
-          1000
-        );
-
-        return;
+    oldNames.forEach(function (name) {
+      const old = scene.getObjectByName(name);
+      if (old && old.parent) {
+        old.parent.remove(old);
       }
+    });
+  }
 
-      if (this.initialized) {
-        return;
-      }
+  function makeMaterial(color, roughness) {
+    return new THREE.MeshStandardMaterial({
+      color: color,
+      roughness: roughness == null ? 0.72 : roughness,
+      metalness: 0.05
+    });
+  }
 
-      this.group =
-        new THREE.Group();
+  function box(w, h, d, color, x, y, z, parent) {
+    const mesh = new THREE.Mesh(
+      new THREE.BoxGeometry(w, h, d),
+      makeMaterial(color)
+    );
 
-      this.group.name =
-        "EmpireLivingCity";
+    mesh.position.set(x || 0, (y || 0) + h / 2, z || 0);
 
-      this.scene.add(
-        this.group
+    if (parent) parent.add(mesh);
+    return mesh;
+  }
+
+  function cylinder(radius, height, color, x, y, z, parent, segments) {
+    const mesh = new THREE.Mesh(
+      new THREE.CylinderGeometry(
+        radius,
+        radius,
+        height,
+        segments || 12
+      ),
+      makeMaterial(color)
+    );
+
+    mesh.position.set(x || 0, (y || 0) + height / 2, z || 0);
+
+    if (parent) parent.add(mesh);
+    return mesh;
+  }
+
+  function sphere(radius, color, x, y, z, parent) {
+    const mesh = new THREE.Mesh(
+      new THREE.SphereGeometry(radius, 14, 10),
+      makeMaterial(color)
+    );
+
+    mesh.position.set(x || 0, (y || 0) + radius, z || 0);
+
+    if (parent) parent.add(mesh);
+    return mesh;
+  }
+
+  /* ---------------------------------------------------------
+     GROUND
+  --------------------------------------------------------- */
+
+  function createGround() {
+    const ground = box(
+      CITY.size,
+      0.35,
+      CITY.size,
+      0x789b67,
+      0,
+      -0.35,
+      0,
+      cityRoot
+    );
+
+    ground.name = "CityGround";
+  }
+
+  /* ---------------------------------------------------------
+     ROADS
+  --------------------------------------------------------- */
+
+  function createRoadNetwork() {
+    const roadMat = makeMaterial(0x252a31, 0.9);
+    const sidewalkMat = makeMaterial(0xb8b8b2, 0.95);
+    const curbMat = makeMaterial(0x8d8f91, 0.95);
+
+    CITY.roadXs.forEach(function (x) {
+      const road = new THREE.Mesh(
+        new THREE.BoxGeometry(
+          CITY.roadWidth,
+          0.18,
+          CITY.size
+        ),
+        roadMat
       );
 
-      this.createRoadNetwork();
+      road.position.set(x, 0.04, 0);
+      cityRoot.add(road);
 
-      this.createCityBuildings();
-
-      this.spawnInitialPopulation();
-
-      this.spawnInitialTraffic();
-
-      this.listen();
-
-      this.initialized = true;
-
-      console.log(
-        "Empire Rush: Living City System loaded."
-      );
-    },
-
-    /* ==========================================================
-       WORLD CONNECTION
-       ========================================================== */
-
-    connectWorld() {
-
-      const world =
-        window.EmpireWorld;
-
-      if (world) {
-
-        this.scene =
-          world.scene ||
-          world.worldScene ||
-          null;
-
-      }
-
-      if (!this.scene) {
-
-        this.scene =
-          window.empireScene ||
-          window.gameScene ||
-          null;
-
-      }
-    },
-
-    /* ==========================================================
-       MATERIALS
-       ========================================================== */
-
-    material(color) {
-
-      return new THREE.MeshStandardMaterial({
-        color
-      });
-
-    },
-
-    /* ==========================================================
-       OBJECT
-       ========================================================== */
-
-    add(object) {
-
-      if (!object) return;
-
-      this.group.add(
-        object
-      );
-
-      return object;
-    },
-
-    /* ==========================================================
-       ROAD NETWORK
-       ========================================================== */
-
-    createRoadNetwork() {
-
-      const roadMaterial =
-        this.material(
-          0x303238
-        );
-
-      const road1 =
-        new THREE.Mesh(
-          new THREE.BoxGeometry(
-            90,
-            0.08,
-            7
-          ),
-          roadMaterial
-        );
-
-      road1.position.set(
+      const leftSide = box(
+        CITY.sidewalkWidth,
+        0.18,
+        CITY.size,
+        0xb9b9b3,
+        x - CITY.roadWidth / 2 - CITY.sidewalkWidth / 2,
+        0.08,
         0,
-        0.04,
-        18
+        cityRoot
       );
 
-      this.add(
-        road1
+      const rightSide = box(
+        CITY.sidewalkWidth,
+        0.18,
+        CITY.size,
+        0xb9b9b3,
+        x + CITY.roadWidth / 2 + CITY.sidewalkWidth / 2,
+        0.08,
+        0,
+        cityRoot
       );
 
-      const road2 =
-        new THREE.Mesh(
-          new THREE.BoxGeometry(
-            7,
-            0.08,
-            90
-          ),
-          roadMaterial
+      leftSide.material = sidewalkMat;
+      rightSide.material = sidewalkMat;
+
+      box(
+        0.45,
+        0.25,
+        CITY.size,
+        0x85878a,
+        x - CITY.roadWidth / 2,
+        0.1,
+        0,
+        cityRoot
+      );
+
+      box(
+        0.45,
+        0.25,
+        CITY.size,
+        0x85878a,
+        x + CITY.roadWidth / 2,
+        0.1,
+        0,
+        cityRoot
+      );
+    });
+
+    CITY.roadZs.forEach(function (z) {
+      const road = new THREE.Mesh(
+        new THREE.BoxGeometry(
+          CITY.size,
+          0.18,
+          CITY.roadWidth
+        ),
+        roadMat
+      );
+
+      road.position.set(0, 0.04, z);
+      cityRoot.add(road);
+
+      box(
+        CITY.size,
+        0.18,
+        CITY.sidewalkWidth,
+        0xb9b9b3,
+        0,
+        0.08,
+        z - CITY.roadWidth / 2 - CITY.sidewalkWidth / 2,
+        cityRoot
+      );
+
+      box(
+        CITY.size,
+        0.18,
+        CITY.sidewalkWidth,
+        0xb9b9b3,
+        0,
+        0.08,
+        z + CITY.roadWidth / 2 + CITY.sidewalkWidth / 2,
+        cityRoot
+      );
+
+      box(
+        CITY.size,
+        0.25,
+        0.45,
+        0x85878a,
+        0,
+        0.1,
+        z - CITY.roadWidth / 2,
+        cityRoot
+      );
+
+      box(
+        CITY.size,
+        0.25,
+        0.45,
+        0x85878a,
+        0,
+        0.1,
+        z + CITY.roadWidth / 2,
+        cityRoot
+      );
+    });
+
+    createRoadMarkings();
+    createCrossings();
+  }
+
+  function createRoadMarkings() {
+    const markingMat = makeMaterial(0xe9e9e5, 0.7);
+
+    CITY.roadXs.forEach(function (x) {
+      for (let z = -145; z <= 145; z += 10) {
+        const dash = new THREE.Mesh(
+          new THREE.BoxGeometry(0.35, 0.035, 5),
+          markingMat
         );
 
-      road2.position.set(
-        18,
-        0.05,
-        0
-      );
+        dash.position.set(x, 0.18, z);
+        cityRoot.add(dash);
+      }
+    });
 
-      this.add(
-        road2
-      );
+    CITY.roadZs.forEach(function (z) {
+      for (let x = -145; x <= 145; x += 10) {
+        const dash = new THREE.Mesh(
+          new THREE.BoxGeometry(5, 0.035, 0.35),
+          markingMat
+        );
 
-      /*
-       * Smaller side roads.
-       */
+        dash.position.set(x, 0.18, z);
+        cityRoot.add(dash);
+      }
+    });
+  }
 
-      [-35, -10, 35].forEach(
-        z => {
+  function createCrossings() {
+    const white = makeMaterial(0xf4f4ef);
 
-          const road =
-            new THREE.Mesh(
-              new THREE.BoxGeometry(
-                70,
-                0.06,
-                4
-              ),
-              roadMaterial
-            );
+    CITY.roadXs.forEach(function (x) {
+      CITY.roadZs.forEach(function (z) {
 
-          road.position.set(
-            0,
-            0.05,
+        for (let i = -5; i <= 5; i += 2) {
+          const stripeA = new THREE.Mesh(
+            new THREE.BoxGeometry(
+              1.0,
+              0.04,
+              CITY.roadWidth
+            ),
+            white
+          );
+
+          stripeA.position.set(
+            x + i,
+            0.2,
             z
           );
 
-          this.add(
-            road
-          );
-
-        }
-      );
-
-      [-35, -10, 35].forEach(
-        x => {
-
-          const road =
-            new THREE.Mesh(
-              new THREE.BoxGeometry(
-                4,
-                0.06,
-                70
-              ),
-              roadMaterial
-            );
-
-          road.position.set(
-            x,
-            0.05,
-            0
-          );
-
-          this.add(
-            road
-          );
-
-        }
-      );
-    },
-
-    /* ==========================================================
-       CITY BUILDINGS
-       ========================================================== */
-
-    createCityBuildings() {
-
-      const zones = [
-
-        {
-          type: "residential",
-          color: 0x8d8172,
-          count: 18,
-          minHeight: 3,
-          maxHeight: 7
-        },
-
-        {
-          type: "commercial",
-          color: 0x65788a,
-          count: 12,
-          minHeight: 5,
-          maxHeight: 11
-        },
-
-        {
-          type: "office",
-          color: 0x586878,
-          count: 8,
-          minHeight: 8,
-          maxHeight: 16
-        },
-
-        {
-          type: "industrial",
-          color: 0x6d6a62,
-          count: 8,
-          minHeight: 4,
-          maxHeight: 9
+          cityRoot.add(stripeA);
         }
 
-      ];
+      });
+    });
+  }
 
-      zones.forEach(
-        zone => {
+  /* ---------------------------------------------------------
+     BUILDINGS
+  --------------------------------------------------------- */
 
-          for (
-            let i = 0;
-            i < zone.count;
-            i++
-          ) {
+  function createBuilding(x, z, w, d, floors, type) {
 
-            const x =
-              Math.round(
-                Math.random() * 80 - 40
-              );
+    const root = new THREE.Group();
+    root.position.set(x, 0, z);
 
-            const z =
-              Math.round(
-                Math.random() * 80 - 40
-              );
+    const bodyColor = pick(CITY.buildingColors);
 
-            /*
-             * Keep central road area relatively clear.
-             */
+    const height = floors * 4.2;
 
-            if (
-              Math.abs(x) < 8 &&
-              Math.abs(z) < 8
-            ) {
-              continue;
-            }
+    const body = new THREE.Mesh(
+      new THREE.BoxGeometry(w, height, d),
+      makeMaterial(bodyColor)
+    );
 
-            const height =
-              zone.minHeight +
-              Math.random() *
-              (
-                zone.maxHeight -
-                zone.minHeight
-              );
+    body.position.y = height / 2;
+    root.add(body);
 
-            const width =
-              3 +
-              Math.random() * 4;
+    createWindows(root, w, d, height);
+    createRoof(root, w, d, height);
 
-            const depth =
-              3 +
-              Math.random() * 4;
+    if (type === "commercial") {
+      createShopFront(root, w, d);
+    }
 
-            const building =
-              new THREE.Mesh(
-                new THREE.BoxGeometry(
-                  width,
-                  height,
-                  depth
-                ),
-                this.material(
-                  zone.color
-                )
-              );
+    if (type === "corporate") {
+      createCorporateEntrance(root, w, d);
+    }
 
-            building.position.set(
-              x,
-              height / 2,
-              z
-            );
+    if (type === "residential") {
+      createBalconies(root, w, d, height);
+    }
 
-            building.userData.zone =
-              zone.type;
+    cityRoot.add(root);
 
-            this.add(
-              building
-            );
+    return root;
+  }
 
-            this.buildings.push(
-              building
-            );
-          }
+  function createWindows(parent, w, d, height) {
+    const windowColor = pick(CITY.glassColors);
+    const rows = Math.max(2, Math.floor(height / 4.2));
 
-        }
-      );
-    },
+    for (let row = 0; row < rows; row++) {
+      const y = 1.3 + row * 4.1;
 
-    /* ==========================================================
-       PERSON CREATION
-       ========================================================== */
+      const colsFront = Math.max(2, Math.floor(w / 3.5));
 
-    createPerson() {
+      for (let c = 0; c < colsFront; c++) {
+        const x =
+          -w / 2 +
+          1.4 +
+          c * ((w - 2.8) / Math.max(1, colsFront - 1));
 
-      const person =
-        new THREE.Group();
-
-      const body =
-        new THREE.Mesh(
+        const window = new THREE.Mesh(
           new THREE.BoxGeometry(
-            0.45,
-            0.9,
-            0.3
+            1.35,
+            1.65,
+            0.08
           ),
-          this.material(
-            0x4b6378 +
-            Math.floor(
-              Math.random() * 5
-            )
-          )
+          makeMaterial(windowColor, 0.35)
         );
 
-      body.position.y =
-        0.7;
-
-      person.add(
-        body
-      );
-
-      const head =
-        new THREE.Mesh(
-          new THREE.SphereGeometry(
-            0.18,
-            10,
-            10
-          ),
-          this.material(
-            0xc9946e
-          )
+        window.position.set(
+          x,
+          y,
+          d / 2 + 0.06
         );
 
-      head.position.y =
-        1.35;
-
-      person.add(
-        head
-      );
-
-      person.userData.speed =
-        0.015 +
-        Math.random() * 0.025;
-
-      person.userData.state =
-        "walking";
-
-      person.userData.target =
-        new THREE.Vector3();
-
-      person.userData.home =
-        new THREE.Vector3();
-
-      person.userData.work =
-        new THREE.Vector3();
-
-      person.userData.destination =
-        "home";
-
-      person.userData.role =
-        Math.random();
-
-      this.add(
-        person
-      );
-
-      return person;
-    },
-
-    /* ==========================================================
-       POPULATION
-       ========================================================== */
-
-    spawnInitialPopulation() {
-
-      const count =
-        35;
-
-      for (
-        let i = 0;
-        i < count;
-        i++
-      ) {
-
-        const person =
-          this.createPerson();
-
-        const home =
-          this.randomCityPoint(
-            "residential"
-          );
-
-        const work =
-          this.randomCityPoint(
-            Math.random() < 0.6
-              ? "commercial"
-              : "office"
-          );
-
-        person.position.copy(
-          home
-        );
-
-        person.userData.home =
-          home.clone();
-
-        person.userData.work =
-          work.clone();
-
-        person.userData.target =
-          home.clone();
-
-        this.pedestrians.push(
-          person
-        );
-      }
-    },
-
-    /* ==========================================================
-       CITY POINT
-       ========================================================== */
-
-    randomCityPoint(
-      preferredZone
-    ) {
-
-      const candidates =
-        this.buildings.filter(
-          building =>
-            building.userData.zone ===
-            preferredZone
-        );
-
-      if (
-        candidates.length
-      ) {
-
-        const building =
-          candidates[
-            Math.floor(
-              Math.random() *
-              candidates.length
-            )
-          ];
-
-        return new THREE.Vector3(
-          building.position.x +
-            Math.random() * 3 - 1.5,
-          0,
-          building.position.z +
-            Math.random() * 3 - 1.5
-        );
-
+        parent.add(window);
       }
 
-      return new THREE.Vector3(
-        Math.random() * 70 - 35,
-        0,
-        Math.random() * 70 - 35
-      );
-    },
+      const colsSide = Math.max(2, Math.floor(d / 3.5));
 
-    /* ==========================================================
-       VEHICLE
-       ========================================================== */
+      for (let c = 0; c < colsSide; c++) {
+        const z =
+          -d / 2 +
+          1.4 +
+          c * ((d - 2.8) / Math.max(1, colsSide - 1));
 
-    createVehicle(
-      type
-    ) {
-
-      const vehicle =
-        new THREE.Group();
-
-      const color =
-        type === "delivery"
-          ? 0xd6d6d6
-          : 0x454c55;
-
-      const body =
-        new THREE.Mesh(
+        const window = new THREE.Mesh(
           new THREE.BoxGeometry(
-            2,
-            0.65,
-            1
+            0.08,
+            1.65,
+            1.35
           ),
-          this.material(
-            color
-          )
+          makeMaterial(windowColor, 0.35)
         );
 
-      body.position.y =
-        0.55;
-
-      vehicle.add(
-        body
-      );
-
-      const cabin =
-        new THREE.Mesh(
-          new THREE.BoxGeometry(
-            0.9,
-            0.6,
-            0.9
-          ),
-          this.material(
-            0x69747d
-          )
+        window.position.set(
+          w / 2 + 0.06,
+          y,
+          z
         );
 
-      cabin.position.set(
-        0.45,
-        0.95,
-        0
+        parent.add(window);
+      }
+    }
+  }
+
+  function createRoof(parent, w, d, height) {
+    box(
+      w + 0.8,
+      0.35,
+      d + 0.8,
+      0x555b62,
+      0,
+      height,
+      0,
+      parent
+    );
+  }
+
+  function createShopFront(parent, w, d) {
+    const shop = box(
+      Math.min(w * 0.8, 9),
+      2.8,
+      0.25,
+      0x293b4a,
+      0,
+      0,
+      d / 2 + 0.2,
+      parent
+    );
+
+    box(
+      Math.min(w * 0.72, 8),
+      0.55,
+      0.25,
+      pick([
+        0xd35400,
+        0x2980b9,
+        0x27ae60,
+        0x8e44ad
+      ]),
+      0,
+      2.85,
+      d / 2 + 0.23,
+      parent
+    );
+  }
+
+  function createCorporateEntrance(parent, w, d) {
+    box(
+      Math.min(w * 0.38, 5),
+      3.2,
+      0.3,
+      0x243746,
+      0,
+      0,
+      d / 2 + 0.22,
+      parent
+    );
+
+    box(
+      Math.min(w * 0.45, 6),
+      0.45,
+      0.25,
+      0xf2f2ef,
+      0,
+      3.5,
+      d / 2 + 0.25,
+      parent
+    );
+  }
+
+  function createBalconies(parent, w, d, height) {
+    const levels = Math.min(4, Math.floor(height / 5));
+
+    for (let i = 0; i < levels; i++) {
+      const y = 3.0 + i * 4.5;
+
+      box(
+        Math.min(w * 0.35, 4),
+        0.2,
+        1.2,
+        0x626a70,
+        -w * 0.2,
+        y,
+        d / 2 + 0.55,
+        parent
       );
+    }
+  }
 
-      vehicle.add(
-        cabin
+  function createCityBuildings() {
+
+    const blocks = [
+      [-90, -90],
+      [-30, -90],
+      [30, -90],
+      [90, -90],
+
+      [-90, -30],
+      [-30, -30],
+      [30, -30],
+      [90, -30],
+
+      [-90, 30],
+      [-30, 30],
+      [30, 30],
+      [90, 30],
+
+      [-90, 90],
+      [-30, 90],
+      [30, 90],
+      [90, 90]
+    ];
+
+    blocks.forEach(function (p, index) {
+
+      if (index === 5 || index === 10) return;
+
+      const x = p[0] + random(-5, 5);
+      const z = p[1] + random(-5, 5);
+
+      const w = random(20, 30);
+      const d = random(20, 30);
+
+      let floors = Math.floor(random(2, 7));
+
+      if (index === 6 || index === 9) {
+        floors = Math.floor(random(7, 12));
+      }
+
+      let type = "residential";
+
+      if (index % 4 === 0) {
+        type = "commercial";
+      }
+
+      if (index === 6 || index === 9) {
+        type = "corporate";
+      }
+
+      createBuilding(
+        x,
+        z,
+        w,
+        d,
+        floors,
+        type
       );
+    });
 
-      vehicle.userData.type =
-        type;
+    createLandmarkBuildings();
+  }
 
-      vehicle.userData.speed =
-        0.04 +
-        Math.random() * 0.035;
+  function createLandmarkBuildings() {
 
-      vehicle.userData.direction =
-        Math.random() > 0.5
-          ? 1
-          : -1;
+    const tower = createBuilding(
+      105,
+      30,
+      25,
+      25,
+      16,
+      "corporate"
+    );
 
-      vehicle.userData.axis =
-        Math.random() > 0.5
-          ? "x"
-          : "z";
+    tower.scale.set(1.15, 1, 1.15);
 
-      this.add(
-        vehicle
+    const tower2 = createBuilding(
+      -105,
+      -30,
+      23,
+      23,
+      13,
+      "corporate"
+    );
+
+    tower2.scale.set(1.1, 1, 1.1);
+  }
+
+  /* ---------------------------------------------------------
+     PARKS
+  --------------------------------------------------------- */
+
+  function createParks() {
+
+    createPark(-30, 30, 42, 38);
+    createPark(30, -30, 42, 38);
+
+  }
+
+  function createPark(x, z, w, d) {
+
+    const park = new THREE.Group();
+    park.position.set(x, 0, z);
+
+    box(
+      w,
+      0.18,
+      d,
+      0x6fa45e,
+      0,
+      0,
+      0,
+      park
+    );
+
+    createParkPaths(park, w, d);
+
+    for (let i = 0; i < 10; i++) {
+      const tx = random(-w / 2 + 3, w / 2 - 3);
+      const tz = random(-d / 2 + 3, d / 2 - 3);
+
+      createTree(
+        tx,
+        tz,
+        random(0.8, 1.25),
+        park
       );
+    }
 
-      return vehicle;
-    },
+    for (let i = 0; i < 3; i++) {
+      createBench(
+        random(-w / 2 + 6, w / 2 - 6),
+        random(-d / 2 + 5, d / 2 - 5),
+        park
+      );
+    }
 
-    /* ==========================================================
-       TRAFFIC
-       ========================================================== */
+    cityRoot.add(park);
+  }
 
-    spawnInitialTraffic() {
+  function createParkPaths(parent, w, d) {
 
-      const normalCars =
-        Math.round(
-          10 *
-          this.traffic.density
+    box(
+      2.6,
+      0.08,
+      d - 3,
+      0xd9c89d,
+      0,
+      0.2,
+      0,
+      parent
+    );
+
+    box(
+      w - 3,
+      0.08,
+      2.6,
+      0xd9c89d,
+      0,
+      0.21,
+      0,
+      parent
+    );
+  }
+
+  /* ---------------------------------------------------------
+     TREES
+  --------------------------------------------------------- */
+
+  function createTree(x, z, scale, parent) {
+
+    const tree = new THREE.Group();
+
+    tree.position.set(x, 0, z);
+    tree.scale.setScalar(scale || 1);
+
+    cylinder(
+      0.45,
+      2.2,
+      0x745035,
+      0,
+      0,
+      0,
+      tree,
+      10
+    );
+
+    sphere(
+      2.0,
+      pick([
+        0x4e8f52,
+        0x5c9d59,
+        0x6da85f
+      ]),
+      0,
+      2.0,
+      0,
+      tree
+    );
+
+    sphere(
+      1.35,
+      0x76ad63,
+      -0.8,
+      2.5,
+      0.3,
+      tree
+    );
+
+    parent.add(tree);
+  }
+
+  function createStreetTrees() {
+
+    const positions = [];
+
+    CITY.roadXs.forEach(function (x) {
+      [-135, -75, -15, 45, 105, 135].forEach(function (z) {
+        positions.push([
+          x - 10,
+          z
+        ]);
+
+        positions.push([
+          x + 10,
+          z
+        ]);
+      });
+    });
+
+    CITY.roadZs.forEach(function (z) {
+      [-135, -75, -15, 45, 105, 135].forEach(function (x) {
+        positions.push([
+          x,
+          z - 10
+        ]);
+
+        positions.push([
+          x,
+          z + 10
+        ]);
+      });
+    });
+
+    positions.forEach(function (p) {
+      createTree(
+        p[0],
+        p[1],
+        random(0.65, 0.9),
+        cityRoot
+      );
+    });
+  }
+
+  /* ---------------------------------------------------------
+     STREET LIGHTS
+  --------------------------------------------------------- */
+
+  function createStreetLight(x, z, rotationY) {
+
+    const root = new THREE.Group();
+
+    root.position.set(x, 0, z);
+    root.rotation.y = rotationY || 0;
+
+    cylinder(
+      0.12,
+      4.5,
+      0x33383c,
+      0,
+      0,
+      0,
+      root,
+      10
+    );
+
+    box(
+      1.1,
+      0.12,
+      0.12,
+      0x33383c,
+      0.45,
+      4.35,
+      0,
+      root
+    );
+
+    sphere(
+      0.28,
+      0xffe9a5,
+      1.0,
+      4.15,
+      0,
+      root
+    );
+
+    cityRoot.add(root);
+  }
+
+  function createStreetLights() {
+
+    CITY.roadXs.forEach(function (x) {
+
+      [-105, -45, 15, 75, 135].forEach(function (z) {
+
+        createStreetLight(
+          x - 9,
+          z,
+          0
         );
 
-      for (
-        let i = 0;
-        i < normalCars;
-        i++
-      ) {
+        createStreetLight(
+          x + 9,
+          z,
+          Math.PI
+        );
 
-        const vehicle =
-          this.createVehicle(
-            "car"
-          );
+      });
 
-        if (
-          vehicle.userData.axis ===
-          "x"
-        ) {
+    });
 
-          vehicle.position.set(
-            Math.random() * 70 - 35,
-            0,
-            18
-          );
+    CITY.roadZs.forEach(function (z) {
 
+      [-105, -45, 15, 75, 135].forEach(function (x) {
+
+        createStreetLight(
+          x,
+          z - 9,
+          Math.PI / 2
+        );
+
+        createStreetLight(
+          x,
+          z + 9,
+          -Math.PI / 2
+        );
+
+      });
+
+    });
+  }
+
+  /* ---------------------------------------------------------
+     BENCH
+  --------------------------------------------------------- */
+
+  function createBench(x, z, parent) {
+
+    box(
+      3.0,
+      0.25,
+      0.75,
+      0x805538,
+      x,
+      1.0,
+      z,
+      parent
+    );
+
+    box(
+      0.18,
+      1.0,
+      0.18,
+      0x444444,
+      x - 1.1,
+      0.1,
+      z,
+      parent
+    );
+
+    box(
+      0.18,
+      1.0,
+      0.18,
+      0x444444,
+      x + 1.1,
+      0.1,
+      z,
+      parent
+    );
+  }
+
+  /* ---------------------------------------------------------
+     CARS
+  --------------------------------------------------------- */
+
+  function createCar(color, x, z, rotationY) {
+
+    const car = new THREE.Group();
+
+    car.position.set(x, 0.35, z);
+    car.rotation.y = rotationY || 0;
+
+    car.userData.speed = random(4, 7);
+    car.userData.direction = rotationY || 0;
+    car.userData.lane = random(-1, 1);
+
+    /* Main body */
+
+    box(
+      2.8,
+      0.75,
+      5.2,
+      color,
+      0,
+      0,
+      0,
+      car
+    );
+
+    /* Lower bumper */
+
+    box(
+      2.65,
+      0.3,
+      5.35,
+      0x202327,
+      0,
+      -0.15,
+      0,
+      car
+    );
+
+    /* Cabin */
+
+    const cabin = new THREE.Mesh(
+      new THREE.BoxGeometry(
+        2.25,
+        0.8,
+        2.6
+      ),
+      makeMaterial(
+        pick(CITY.glassColors),
+        0.25
+      )
+    );
+
+    cabin.position.set(
+      0,
+      0.72,
+      -0.1
+    );
+
+    car.add(cabin);
+
+    /* Roof */
+
+    box(
+      2.0,
+      0.12,
+      2.2,
+      color,
+      0,
+      1.1,
+      -0.1,
+      car
+    );
+
+    /* Wheels */
+
+    [
+      [-1.48, 0.25, -1.65],
+      [1.48, 0.25, -1.65],
+      [-1.48, 0.25, 1.65],
+      [1.48, 0.25, 1.65]
+    ].forEach(function (p) {
+
+      const wheel = new THREE.Mesh(
+        new THREE.CylinderGeometry(
+          0.48,
+          0.48,
+          0.35,
+          12
+        ),
+        makeMaterial(0x17191b, 0.9)
+      );
+
+      wheel.rotation.z = Math.PI / 2;
+
+      wheel.position.set(
+        p[0],
+        p[1],
+        p[2]
+      );
+
+      car.add(wheel);
+    });
+
+    /* Headlights */
+
+    box(
+      0.42,
+      0.18,
+      0.12,
+      0xfff2c2,
+      -0.8,
+      0.48,
+      -2.64,
+      car
+    );
+
+    box(
+      0.42,
+      0.18,
+      0.12,
+      0xfff2c2,
+      0.8,
+      0.48,
+      -2.64,
+      car
+    );
+
+    /* Tail lights */
+
+    box(
+      0.4,
+      0.18,
+      0.12,
+      0xa51f26,
+      -0.8,
+      0.48,
+      2.64,
+      car
+    );
+
+    box(
+      0.4,
+      0.18,
+      0.12,
+      0xa51f26,
+      0.8,
+      0.48,
+      2.64,
+      car
+    );
+
+    trafficRoot.add(car);
+
+    cars.push(car);
+
+    return car;
+  }
+
+  function createTraffic() {
+
+    const lanes = [
+      {
+        axis: "z",
+        x: -120,
+        rotation: 0
+      },
+      {
+        axis: "z",
+        x: -60,
+        rotation: Math.PI
+      },
+      {
+        axis: "z",
+        x: 60,
+        rotation: 0
+      },
+      {
+        axis: "z",
+        x: 120,
+        rotation: Math.PI
+      },
+      {
+        axis: "x",
+        z: -120,
+        rotation: Math.PI / 2
+      },
+      {
+        axis: "x",
+        z: -60,
+        rotation: -Math.PI / 2
+      },
+      {
+        axis: "x",
+        z: 60,
+        rotation: Math.PI / 2
+      },
+      {
+        axis: "x",
+        z: 120,
+        rotation: -Math.PI / 2
+      }
+    ];
+
+    lanes.forEach(function (lane, laneIndex) {
+
+      for (let i = 0; i < 3; i++) {
+
+        let x = 0;
+        let z = 0;
+
+        if (lane.axis === "z") {
+          x = lane.x;
+          z = -145 + i * 95 + laneIndex * 3;
         } else {
-
-          vehicle.position.set(
-            18,
-            0,
-            Math.random() * 70 - 35
-          );
-
+          x = -145 + i * 95 + laneIndex * 3;
+          z = lane.z;
         }
 
-        this.vehicles.push(
-          vehicle
+        createCar(
+          pick(CITY.carColors),
+          x,
+          z,
+          lane.rotation
         );
       }
+    });
+  }
 
-      /*
-       * Commercial vehicles.
-       */
+  function updateTraffic(delta) {
 
-      for (
-        let i = 0;
-        i < 3;
-        i++
-      ) {
+    cars.forEach(function (car) {
 
-        const van =
-          this.createVehicle(
-            "delivery"
-          );
+      const speed = car.userData.speed * delta;
 
-        van.position.set(
-          Math.random() * 50 - 25,
-          0,
-          18
-        );
+      const direction = car.userData.direction;
 
-        this.vehicles.push(
-          van
-        );
+      car.position.x += Math.sin(direction) * speed;
+      car.position.z += Math.cos(direction) * speed;
+
+      if (car.position.x > 155) {
+        car.position.x = -155;
       }
-    },
 
-    /* ==========================================================
-       UPDATE PEOPLE
-       ========================================================== */
+      if (car.position.x < -155) {
+        car.position.x = 155;
+      }
 
-    updatePeople(
-      delta
-    ) {
+      if (car.position.z > 155) {
+        car.position.z = -155;
+      }
 
-      const hour =
-        this.time.hour;
+      if (car.position.z < -155) {
+        car.position.z = 155;
+      }
 
-      this.pedestrians.forEach(
-        person => {
+    });
+  }
 
-          /*
-           * Morning:
-           * Home -> Work
-           */
+  /* ---------------------------------------------------------
+     PEDestrians
+  --------------------------------------------------------- */
 
-          if (
-            hour >= 7 &&
-            hour < 10
-          ) {
+  function createPedestrian(x, z, scale) {
 
-            person.userData.destination =
-              "work";
+    const person = new THREE.Group();
 
-            person.userData.target =
-              person.userData.work;
+    person.position.set(x, 0, z);
+    person.scale.setScalar(scale || 1);
 
-          }
+    const skin = pick([
+      0xc68d6b,
+      0xd8a27d,
+      0x9d674a
+    ]);
 
-          /*
-           * Working hours:
-           */
+    const clothes = pick([
+      0x304c67,
+      0x526b45,
+      0x70465c,
+      0x6e5c3d,
+      0x343b45
+    ]);
 
-          else if (
-            hour >= 10 &&
-            hour < 17
-          ) {
-
-            person.userData.destination =
-              "work";
-
-            /*
-             * Small movement around
-             * workplace.
-             */
-
-            if (
-              Math.random() < 0.002
-            ) {
-
-              person.userData.target =
-                person.userData.work.clone();
-
-              person.userData.target.x +=
-                Math.random() * 6 - 3;
-
-              person.userData.target.z +=
-                Math.random() * 6 - 3;
-            }
-
-          }
-
-          /*
-           * Evening:
-           * Work -> Commercial
-           */
-
-          else if (
-            hour >= 17 &&
-            hour < 21
-          ) {
-
-            person.userData.destination =
-              "shopping";
-
-            if (
-              person.userData.destinationPoint
-              === undefined
-            ) {
-
-              person.userData.destinationPoint =
-                this.randomCityPoint(
-                  "commercial"
-                );
-
-            }
-
-            person.userData.target =
-              person.userData.destinationPoint;
-
-          }
-
-          /*
-           * Night:
-           * Return home.
-           */
-
-          else {
-
-            person.userData.destination =
-              "home";
-
-            person.userData.target =
-              person.userData.home;
-
-          }
-
-          this.movePerson(
-            person,
-            delta
-          );
-
-        }
-      );
-    },
-
-    /* ==========================================================
-       PERSON MOVEMENT
-       ========================================================== */
-
-    movePerson(
+    cylinder(
+      0.23,
+      1.1,
+      clothes,
+      0,
+      0,
+      0,
       person,
-      delta
-    ) {
+      10
+    );
 
-      const target =
-        person.userData.target;
+    sphere(
+      0.25,
+      skin,
+      0,
+      1.1,
+      0,
+      person
+    );
 
-      if (!target) return;
+    person.userData.speed = random(0.7, 1.4);
+    person.userData.direction = random(0, Math.PI * 2);
 
-      const dx =
-        target.x -
-        person.position.x;
+    pedestrianRoot.add(person);
+    pedestrians.push(person);
 
-      const dz =
-        target.z -
-        person.position.z;
+    return person;
+  }
 
-      const distance =
-        Math.sqrt(
-          dx * dx +
-          dz * dz
+  function createPedestrians() {
+
+    for (let i = 0; i < 35; i++) {
+
+      const useXRoad = Math.random() > 0.5;
+
+      if (useXRoad) {
+
+        const z = pick(
+          CITY.roadZs.map(function (v) {
+            return v + pick([-9, 9]);
+          })
         );
 
-      if (
-        distance < 0.25
-      ) {
+        createPedestrian(
+          random(-145, 145),
+          z,
+          random(0.85, 1.15)
+        );
 
-        /*
-         * Choose another destination
-         * after reaching the current one.
-         */
+      } else {
 
-        if (
-          person.userData.destination ===
-          "shopping"
-        ) {
+        const x = pick(
+          CITY.roadXs.map(function (v) {
+            return v + pick([-9, 9]);
+          })
+        );
 
-          person.userData.destinationPoint =
-            this.randomCityPoint(
-              "commercial"
-            );
-
-        }
-
-        return;
+        createPedestrian(
+          x,
+          random(-145, 145),
+          random(0.85, 1.15)
+        );
       }
+    }
+  }
+
+  function updatePedestrians(delta) {
+
+    pedestrians.forEach(function (person) {
 
       const speed =
-        person.userData.speed *
-        this.traffic.speed;
+        person.userData.speed * delta;
 
       person.position.x +=
-        (
-          dx / distance
-        ) *
-        speed *
-        delta *
-        60;
+        Math.sin(person.userData.direction) * speed;
 
       person.position.z +=
-        (
-          dz / distance
-        ) *
-        speed *
-        delta *
-        60;
-
-      person.rotation.y =
-        Math.atan2(
-          dx,
-          dz
-        );
-    },
-
-    /* ==========================================================
-       TRAFFIC UPDATE
-       ========================================================== */
-
-    updateTraffic(
-      delta
-    ) {
-
-      this.vehicles.forEach(
-        vehicle => {
-
-          const speed =
-            vehicle.userData.speed *
-            this.traffic.speed;
-
-          if (
-            vehicle.userData.axis ===
-            "x"
-          ) {
-
-            vehicle.position.x +=
-              speed *
-              vehicle.userData.direction *
-              delta *
-              60;
-
-            if (
-              vehicle.position.x >
-              42
-            ) {
-              vehicle.position.x =
-                -42;
-            }
-
-            if (
-              vehicle.position.x <
-              -42
-            ) {
-              vehicle.position.x =
-                42;
-            }
-
-          } else {
-
-            vehicle.position.z +=
-              speed *
-              vehicle.userData.direction *
-              delta *
-              60;
-
-            if (
-              vehicle.position.z >
-              42
-            ) {
-              vehicle.position.z =
-                -42;
-            }
-
-            if (
-              vehicle.position.z <
-              -42
-            ) {
-              vehicle.position.z =
-                42;
-            }
-
-          }
-
-        }
-      );
-    },
-
-    /* ==========================================================
-       TIME
-       ========================================================== */
-
-    updateTime() {
-
-      if (!Game) {
-        return;
-      }
-
-      const state =
-        Game.getState();
-
-      if (!state?.world) {
-        return;
-      }
-
-      this.time.day =
-        Number(
-          state.world.day || 1
-        );
-
-      /*
-       * Use simulation time if
-       * available, otherwise derive
-       * a moving city clock.
-       */
+        Math.cos(person.userData.direction) * speed;
 
       if (
-        typeof state.world.timeOfDay ===
-        "number"
+        Math.abs(person.position.x) > 148 ||
+        Math.abs(person.position.z) > 148
       ) {
-
-        this.time.hour =
-          state.world.timeOfDay;
-
-      } else {
-
-        this.time.hour =
-          (
-            this.time.hour +
-            0.02
-          ) % 24;
-
+        person.position.x = random(-130, 130);
+        person.position.z = random(-130, 130);
       }
 
-      this.updateActivityLevels();
-    },
-
-    /* ==========================================================
-       ACTIVITY LEVELS
-       ========================================================== */
-
-    updateActivityLevels() {
-
-      const hour =
-        this.time.hour;
-
-      if (
-        hour >= 7 &&
-        hour < 10
-      ) {
-
-        this.activity.residential =
-          0.25;
-
-        this.activity.office =
-          0.80;
-
-        this.activity.commercial =
-          0.50;
-
-        this.activity.industrial =
-          0.70;
-
-      } else if (
-        hour >= 10 &&
-        hour < 17
-      ) {
-
-        this.activity.residential =
-          0.40;
-
-        this.activity.office =
-          0.95;
-
-        this.activity.commercial =
-          0.75;
-
-        this.activity.industrial =
-          0.90;
-
-      } else if (
-        hour >= 17 &&
-        hour < 21
-      ) {
-
-        this.activity.residential =
-          0.70;
-
-        this.activity.office =
-          0.40;
-
-        this.activity.commercial =
-          0.95;
-
-        this.activity.industrial =
-          0.50;
-
-      } else {
-
-        this.activity.residential =
-          0.95;
-
-        this.activity.office =
-          0.15;
-
-        this.activity.commercial =
-          0.35;
-
-        this.activity.industrial =
-          0.20;
+      if (Math.random() < 0.002) {
+        person.userData.direction =
+          random(0, Math.PI * 2);
       }
-    },
 
-    /* ==========================================================
-       WEATHER
-       ========================================================== */
+    });
+  }
 
-    setWeather(
-      weather
+  /* ---------------------------------------------------------
+     PARKING
+  --------------------------------------------------------- */
+
+  function createParkingArea(x, z, w, d) {
+
+    box(
+      w,
+      0.12,
+      d,
+      0x45484c,
+      x,
+      0.08,
+      z,
+      cityRoot
+    );
+
+    for (
+      let px = x - w / 2 + 4;
+      px < x + w / 2 - 2;
+      px += 5
     ) {
 
-      this.weather =
-        weather || "Clear";
-
-      switch (
-        this.weather
-      ) {
-
-        case "Rain":
-          this.traffic.speed =
-            0.70;
-          break;
-
-        case "Storm":
-          this.traffic.speed =
-            0.45;
-          break;
-
-        case "Heatwave":
-          this.traffic.speed =
-            0.85;
-          break;
-
-        default:
-          this.traffic.speed =
-            1;
-      }
-
-      window.dispatchEvent(
-        new CustomEvent(
-          "EmpireCityWeatherChanged",
-          {
-            detail: {
-              weather:
-                this.weather
-            }
-          }
-        )
+      box(
+        0.12,
+        0.03,
+        d - 4,
+        0xe7e7e1,
+        px,
+        0.2,
+        z,
+        cityRoot
       );
-    },
-
-    /* ==========================================================
-       MARKET ACTIVITY
-       ========================================================== */
-
-    getCommercialActivity() {
-
-      return Number(
-        this.activity.commercial
-          .toFixed(2)
-      );
-    },
-
-    getIndustrialActivity() {
-
-      return Number(
-        this.activity.industrial
-          .toFixed(2)
-      );
-    },
-
-    getOfficeActivity() {
-
-      return Number(
-        this.activity.office
-          .toFixed(2)
-      );
-    },
-
-    /* ==========================================================
-       DAY ADVANCE
-       ========================================================== */
-
-    onDayAdvanced() {
-
-      this.time.day++;
-
-      /*
-       * Population growth is slow.
-       */
-
-      if (
-        Math.random() < 0.15
-      ) {
-
-        this.population +=
-          Math.floor(
-            Math.random() * 15
-          );
-
-      }
-
-      /*
-       * Traffic changes with
-       * economic activity.
-       */
-
-      const economy =
-        window.EmpireMarketEvents
-          ?.getSummary?.();
-
-      if (economy) {
-
-        const demand =
-          Number(
-            economy.demandIndex || 1
-          );
-
-        this.traffic.density =
-          Math.max(
-            0.25,
-            Math.min(
-              1,
-              demand * 0.55
-            )
-          );
-      }
-    },
-
-    /* ==========================================================
-       EVENTS
-       ========================================================== */
-
-    listen() {
-
-      window.addEventListener(
-        "EmpireDayAdvanced",
-        () => {
-
-          this.updateTime();
-
-          this.onDayAdvanced();
-
-        }
-      );
-
-      window.addEventListener(
-        "EmpireWeatherChanged",
-        event => {
-
-          this.setWeather(
-            event.detail?.weather
-          );
-
-        }
-      );
-    },
-
-    /* ==========================================================
-       UPDATE
-       ========================================================== */
-
-    update(
-      delta
-    ) {
-
-      if (!this.initialized) {
-        return;
-      }
-
-      this.updateTime();
-
-      this.updatePeople(
-        delta
-      );
-
-      this.updateTraffic(
-        delta
-      );
-    },
-
-    /* ==========================================================
-       SUMMARY
-       ========================================================== */
-
-    getSummary() {
-
-      return {
-
-        population:
-          this.population,
-
-        hour:
-          Number(
-            this.time.hour.toFixed(1)
-          ),
-
-        day:
-          this.time.day,
-
-        weather:
-          this.weather,
-
-        pedestrians:
-          this.pedestrians.length,
-
-        vehicles:
-          this.vehicles.length,
-
-        trafficDensity:
-          Number(
-            this.traffic.density
-              .toFixed(2)
-          ),
-
-        commercialActivity:
-          this.getCommercialActivity(),
-
-        officeActivity:
-          this.getOfficeActivity(),
-
-        industrialActivity:
-          this.getIndustrialActivity()
-
-      };
     }
-  };
 
-  /* ============================================================
+    for (let i = 0; i < 4; i++) {
+
+      createCar(
+        pick(CITY.carColors),
+        x - w / 2 + 5 + i * 5,
+        z,
+        0
+      );
+    }
+  }
+
+  /* ---------------------------------------------------------
+     CITY DECOR
+  --------------------------------------------------------- */
+
+  function createCityDecor() {
+
+    createParkingArea(
+      100,
+      -30,
+      28,
+      18
+    );
+
+    createParkingArea(
+      -100,
+      90,
+      28,
+      18
+    );
+
+    createTreesAroundBlocks();
+  }
+
+  function createTreesAroundBlocks() {
+
+    const spots = [
+      [-130, -130],
+      [-70, -130],
+      [70, -130],
+      [130, -130],
+
+      [-130, -70],
+      [130, -70],
+
+      [-130, 70],
+      [130, 70],
+
+      [-130, 130],
+      [-70, 130],
+      [70, 130],
+      [130, 130]
+    ];
+
+    spots.forEach(function (p) {
+
+      createTree(
+        p[0],
+        p[1],
+        random(0.7, 1.0),
+        cityRoot
+      );
+
+      createTree(
+        p[0] + random(-5, 5),
+        p[1] + random(-5, 5),
+        random(0.55, 0.8),
+        cityRoot
+      );
+    });
+  }
+
+  /* ---------------------------------------------------------
+     CITY SIGNAGE
+  --------------------------------------------------------- */
+
+  function createSign(x, z, text) {
+
+    const sign = new THREE.Group();
+
+    sign.position.set(x, 0, z);
+
+    box(
+      0.16,
+      3.0,
+      0.16,
+      0x30353a,
+      0,
+      0,
+      0,
+      sign
+    );
+
+    box(
+      3.5,
+      1.2,
+      0.18,
+      0x1f2932,
+      0,
+      2.4,
+      0,
+      sign
+    );
+
+    cityRoot.add(sign);
+  }
+
+  function createCitySigns() {
+
+    createSign(
+      -25,
+      -12,
+      "BUSINESS"
+    );
+
+    createSign(
+      35,
+      12,
+      "DOWNTOWN"
+    );
+  }
+
+  /* ---------------------------------------------------------
+     HQ CONNECTION
+  --------------------------------------------------------- */
+
+  function improveHQSurroundings() {
+
+    if (!WORLD || !WORLD.HQ) return;
+
+    const hq = WORLD.HQ;
+
+    if (!hq.userData) {
+      hq.userData = {};
+    }
+
+    hq.userData.cityIntegrated = true;
+
+    /*
+     * We intentionally do not reposition the existing HQ.
+     * Existing office/interior coordinates remain controlled
+     * by world3d.html.
+     */
+  }
+
+  /* ---------------------------------------------------------
+     CITY BUILD
+  --------------------------------------------------------- */
+
+  function buildCity() {
+
+    if (!scene || !THREE) return;
+
+    removeOldCity();
+
+    cityRoot = new THREE.Group();
+    cityRoot.name = "EmpireRushLivingCity";
+
+    trafficRoot = new THREE.Group();
+    trafficRoot.name = "Traffic";
+
+    pedestrianRoot = new THREE.Group();
+    pedestrianRoot.name = "Pedestrians";
+
+    cityRoot.add(trafficRoot);
+    cityRoot.add(pedestrianRoot);
+
+    scene.add(cityRoot);
+
+    createGround();
+    createRoadNetwork();
+    createCityBuildings();
+    createParks();
+    createStreetTrees();
+    createStreetLights();
+    createCityDecor();
+    createCitySigns();
+
+    createTraffic();
+    createPedestrians();
+
+    improveHQSurroundings();
+
+    started = true;
+
+    console.log(
+      "[Empire Living City] City visual layer ready."
+    );
+  }
+
+  /* ---------------------------------------------------------
      ANIMATION
-     ============================================================ */
+  --------------------------------------------------------- */
 
-  let previous =
-    performance.now();
+  let lastTime = performance.now();
 
-  function loop() {
+  function animateCity() {
 
-    const now =
-      performance.now();
+    if (!animationStarted) {
+      animationStarted = true;
+    }
+
+    const now = performance.now();
 
     const delta =
       Math.min(
-        0.1,
-        (
-          now -
-          previous
-        ) / 1000
+        (now - lastTime) / 1000,
+        0.05
       );
 
-    previous =
-      now;
+    lastTime = now;
 
-    City.update(
-      delta
-    );
+    if (started) {
+      updateTraffic(delta);
+      updatePedestrians(delta);
+    }
 
-    requestAnimationFrame(
-      loop
-    );
+    requestAnimationFrame(animateCity);
   }
 
-  /* ============================================================
-     PUBLIC API
-     ============================================================ */
+  /* ---------------------------------------------------------
+     START
+  --------------------------------------------------------- */
 
-  window.EmpireLivingCity =
-    City;
+  function start() {
 
-  /* ============================================================
-     BOOT
-     ============================================================ */
+    if (started) return;
 
-  function boot() {
+    WORLD = getWorld();
 
-    if (
-      !window.EmpireWorld
-    ) {
-
-      setTimeout(
-        boot,
-        500
-      );
-
+    if (!WORLD || !WORLD.scene) {
+      setTimeout(start, 500);
       return;
     }
 
-    City.init();
+    THREE = WORLD.THREE;
 
-    loop();
+    if (!THREE) {
+      console.warn(
+        "[Empire Living City] THREE unavailable."
+      );
+
+      setTimeout(start, 500);
+      return;
+    }
+
+    scene = WORLD.scene;
+
+    buildCity();
+
+    if (!animationStarted) {
+      animateCity();
+    }
   }
 
-  boot();
+  window.addEventListener(
+    "EmpireWorldReady",
+    function () {
+      setTimeout(start, 300);
+    }
+  );
+
+  /*
+   * Fallback if EmpireWorld already exists
+   */
+  setTimeout(function () {
+
+    if (!started) {
+      start();
+    }
+
+  }, 800);
+
+  /* ---------------------------------------------------------
+     PUBLIC API
+  --------------------------------------------------------- */
+
+  window.EmpireLivingCity = {
+
+    start: start,
+
+    rebuild: function () {
+
+      started = false;
+
+      if (cityRoot && cityRoot.parent) {
+        cityRoot.parent.remove(cityRoot);
+      }
+
+      cityRoot = null;
+      trafficRoot = null;
+      pedestrianRoot = null;
+
+      cars.length = 0;
+      pedestrians.length = 0;
+
+      start();
+    },
+
+    getRoot: function () {
+      return cityRoot;
+    },
+
+    getCars: function () {
+      return cars;
+    },
+
+    getPedestrians: function () {
+      return pedestrians;
+    },
+
+    getStatus: function () {
+
+      return {
+        started: started,
+        buildings:
+          cityRoot
+            ? cityRoot.children.length
+            : 0,
+        cars: cars.length,
+        pedestrians: pedestrians.length
+      };
+    }
+
+  };
 
 })();
