@@ -1,1158 +1,27 @@
-<!DOCTYPE html>
-<html lang="en">
-
-<head>
-
-  <meta charset="UTF-8">
-
-  <meta
-    name="viewport"
-    content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"
-  >
-
-  <title>Empire Rush — Headquarters</title>
-
-
-  <style>
-
     /* =====================================================
-       BASE
-       ===================================================== */
-
-    * {
-      box-sizing: border-box;
-      -webkit-tap-highlight-color: transparent;
-    }
-
-
-    html,
-    body {
-
-      width: 100%;
-      height: 100%;
-
-      margin: 0;
-      padding: 0;
-
-      overflow: hidden;
-
-      background: #b9c9d5;
-
-      font-family:
-        Inter,
-        -apple-system,
-        BlinkMacSystemFont,
-        "Segoe UI",
-        Roboto,
-        Arial,
-        sans-serif;
-    }
-
-
-    body {
-
-      position: relative;
-
-      touch-action: none;
-
-      overscroll-behavior: none;
-    }
-
-
-    /* =====================================================
-       THREE.JS CANVAS
-       ===================================================== */
-
-    #game {
-
-      position: fixed;
-
-      inset: 0;
-
-      width: 100%;
-      height: 100%;
-
-      display: block;
-
-      outline: none;
-
-      touch-action: none;
-
-      z-index: 1;
-    }
-
-
-    /* =====================================================
-       OLD HUD REMOVAL
+       OFFICE-01
+       PLANNED PROPERTY / ROAD ACCESS SYSTEM
        =====================================================
 
-       The previous world3d.html contained its own:
+       DESIGN RULE:
 
-       #top
-       .brand
-       .stats
-       .stat
-       .tip
+       MAIN ROAD
+           ↓
+       SIDEWALK
+           ↓
+       PROPERTY FRONTAGE
+           ↓
+       DRIVEWAY
+           ↓
+       PARKING
+           ↓
+       BUILDING ENTRANCE
+           ↓
+       BUILDING
 
-       Those elements are intentionally NOT recreated.
-
-       HUD ownership now belongs exclusively to:
-
-       main-game-hud.js
+       Buildings NEVER occupy road space.
        ===================================================== */
 
-
-    #top,
-    .brand,
-    .stats,
-    .stat,
-    .tip {
-
-      display: none !important;
-    }
-
-
-    /* =====================================================
-       EMPLOYEE PANEL
-       ===================================================== */
-
-    #employeePanel {
-
-      display: none;
-
-      position: fixed;
-
-      right: 14px;
-
-      bottom:
-        calc(
-          82px +
-          env(safe-area-inset-bottom)
-        );
-
-      width: min(
-        270px,
-        calc(100vw - 28px)
-      );
-
-      padding: 16px;
-
-      border-radius: 18px;
-
-      background:
-        rgba(10,16,25,.96);
-
-      border:
-        1px solid
-        rgba(255,255,255,.12);
-
-      color: #fff;
-
-      box-shadow:
-        0 18px 50px
-        rgba(0,0,0,.42);
-
-      backdrop-filter:
-        blur(18px);
-
-      -webkit-backdrop-filter:
-        blur(18px);
-
-      z-index: 7000;
-
-      pointer-events: auto;
-    }
-
-
-    #employeePanel h2 {
-
-      margin:
-        0 0 6px;
-
-      font-size: 18px;
-
-      font-weight: 900;
-    }
-
-
-    #employeePanel p {
-
-      margin: 6px 0;
-
-      color:
-        rgba(255,255,255,.62);
-
-      font-size: 12px;
-
-      line-height: 1.35;
-    }
-
-
-    #close {
-
-      position: absolute;
-
-      right: 9px;
-      top: 9px;
-
-      width: 30px;
-      height: 30px;
-
-      border: 0;
-
-      border-radius: 50%;
-
-      background:
-        rgba(255,255,255,.09);
-
-      color: #fff;
-
-      font-size: 19px;
-
-      line-height: 30px;
-
-      padding: 0;
-
-      cursor: pointer;
-    }
-
-
-    #close:active {
-
-      transform: scale(.94);
-    }
-
-
-    /* =====================================================
-       DESKTOP EMPLOYEE PANEL
-       ===================================================== */
-
-    @media (min-width: 700px) {
-
-      #employeePanel {
-
-        right: 20px;
-
-        bottom: 95px;
-
-        width: 290px;
-      }
-
-    }
-
-
-    /* =====================================================
-       VERY SMALL MOBILE
-       ===================================================== */
-
-    @media (max-width: 360px) {
-
-      #employeePanel {
-
-        right: 8px;
-
-        width:
-          calc(100vw - 16px);
-
-        padding: 14px;
-      }
-
-    }
-
-  </style>
-
-</head>
-
-
-<body>
-
-
-  <!-- ===================================================
-       THREE.JS WORLD
-       =================================================== -->
-
-  <canvas id="game"></canvas>
-
-
-  <!-- ===================================================
-       EMPLOYEE INFORMATION PANEL
-       =================================================== -->
-
-  <div id="employeePanel">
-
-    <button
-      id="close"
-      type="button"
-      aria-label="Close employee"
-    >
-      ×
-    </button>
-
-
-    <h2 id="ename">
-      Employee
-    </h2>
-
-
-    <p id="erole"></p>
-
-    <p id="edept"></p>
-
-    <p id="estatus"></p>
-
-  </div>
-
-
-  <!-- ===================================================
-       THREE.JS IMPORT MAP
-       =================================================== -->
-
-  <script type="importmap">
-  {
-    "imports": {
-      "three":
-        "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
-
-      "three/addons/":
-        "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
-    }
-  }
-  </script>
-
-
-  <!-- ===================================================
-       WORLD ENGINE
-       PART 2 CONTINUES HERE
-       =================================================== -->
-  <script type="module">
-
-    import * as THREE from "three";
-
-    import {
-      OrbitControls
-    } from
-      "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/controls/OrbitControls.js";
-
-    import {
-      GLTFLoader
-    } from
-      "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/loaders/GLTFLoader.js";
-
-    import * as SkeletonUtils from
-      "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/utils/SkeletonUtils.js";
-
-
-    /* =====================================================
-       ENGINE
-       ===================================================== */
-
-    const canvas =
-      document.getElementById("game");
-
-
-    const scene =
-      new THREE.Scene();
-
-
-    scene.background =
-      new THREE.Color(
-        0xc8d5dc
-      );
-
-
-    scene.fog =
-      new THREE.Fog(
-        0xc8d5dc,
-        60,
-        125
-      );
-
-
-    const camera =
-      new THREE.PerspectiveCamera(
-        42,
-        window.innerWidth /
-          window.innerHeight,
-        0.1,
-        220
-      );
-
-
-    camera.position.set(
-      26,
-      16,
-      29
-    );
-
-
-    const renderer =
-      new THREE.WebGLRenderer({
-        canvas,
-        antialias: true,
-        powerPreference:
-          "high-performance"
-      });
-
-
-    renderer.setSize(
-      window.innerWidth,
-      window.innerHeight
-    );
-
-
-    renderer.setPixelRatio(
-      Math.min(
-        window.devicePixelRatio || 1,
-        1.5
-      )
-    );
-
-
-    renderer.shadowMap.enabled =
-      true;
-
-
-    renderer.shadowMap.type =
-      THREE.PCFSoftShadowMap;
-
-
-    renderer.outputColorSpace =
-      THREE.SRGBColorSpace;
-
-
-    /* =====================================================
-       CAMERA
-       ===================================================== */
-
-    const controls =
-      new OrbitControls(
-        camera,
-        canvas
-      );
-
-
-    controls.enableDamping =
-      true;
-
-
-    controls.dampingFactor =
-      0.065;
-
-
-    controls.minDistance =
-      13;
-
-
-    controls.maxDistance =
-      70;
-
-
-    controls.minPolarAngle =
-      0.35;
-
-
-    controls.maxPolarAngle =
-      Math.PI / 2.18;
-
-
-    controls.target.set(
-      0,
-      1.8,
-      0
-    );
-
-
-    /* =====================================================
-       LIGHTING
-       ===================================================== */
-
-    const hemisphere =
-      new THREE.HemisphereLight(
-        0xf5f9ff,
-        0x52616a,
-        2.4
-      );
-
-
-    scene.add(
-      hemisphere
-    );
-
-
-    const sun =
-      new THREE.DirectionalLight(
-        0xffffff,
-        3.2
-      );
-
-
-    sun.position.set(
-      25,
-      40,
-      22
-    );
-
-
-    sun.castShadow =
-      true;
-
-
-    sun.shadow.mapSize.set(
-      2048,
-      2048
-    );
-
-
-    sun.shadow.camera.left =
-      -55;
-
-
-    sun.shadow.camera.right =
-      55;
-
-
-    sun.shadow.camera.top =
-      55;
-
-
-    sun.shadow.camera.bottom =
-      -55;
-
-
-    sun.shadow.camera.near =
-      1;
-
-
-    sun.shadow.camera.far =
-      130;
-
-
-    scene.add(
-      sun
-    );
-
-
-    /* =====================================================
-       MATERIAL SYSTEM
-       ===================================================== */
-
-    function material(
-      color,
-      roughness = 0.8,
-      metalness = 0
-    ){
-
-      return new THREE.MeshStandardMaterial({
-
-        color,
-
-        roughness,
-
-        metalness
-
-      });
-
-    }
-
-
-    const MATERIALS = {
-
-      grass:
-        material(
-          0x6d8f5c,
-          1
-        ),
-
-      grassDark:
-        material(
-          0x557648,
-          1
-        ),
-
-      sidewalk:
-        material(
-          0xc6c9c8,
-          0.95
-        ),
-
-      curb:
-        material(
-          0x858b8c,
-          0.9
-        ),
-
-      asphalt:
-        material(
-          0x272d33,
-          0.95
-        ),
-
-      asphaltLight:
-        material(
-          0x343a40,
-          0.95
-        ),
-
-      concrete:
-        material(
-          0xaeb5b6,
-          0.95
-        ),
-
-      wall:
-        material(
-          0xd9dfe0,
-          0.85
-        ),
-
-      wallDark:
-        material(
-          0x343c43,
-          0.7
-        ),
-
-      wood:
-        material(
-          0x75553d,
-          0.82
-        ),
-
-      dark:
-        material(
-          0x20262d,
-          0.7
-        ),
-
-      metal:
-        material(
-          0x68737a,
-          0.35,
-          0.75
-        ),
-
-      green:
-        material(
-          0xb9ef2d,
-          0.4,
-          0.05
-        ),
-
-      treeTrunk:
-        material(
-          0x65452e,
-          1
-        ),
-
-      treeLeaf:
-        material(
-          0x47763d,
-          0.95
-        ),
-
-      skin:
-        material(
-          0xd49a73,
-          0.9
-        ),
-
-      pants:
-        material(
-          0x292f36,
-          0.9
-        ),
-
-      glass:
-        new THREE.MeshStandardMaterial({
-
-          color:
-            0x72aabd,
-
-          transparent:
-            true,
-
-          opacity:
-            0.55,
-
-          roughness:
-            0.12,
-
-          metalness:
-            0.05
-        }),
-
-      glassDark:
-        new THREE.MeshStandardMaterial({
-
-          color:
-            0x385e6d,
-
-          transparent:
-            true,
-
-          opacity:
-            0.7,
-
-          roughness:
-            0.1,
-
-          metalness:
-            0.1
-        }),
-
-      screen:
-        material(
-          0x195f6b,
-          0.2,
-          0.1
-        )
-
-    };
-
-
-    /* =====================================================
-       BASIC GEOMETRY HELPERS
-       ===================================================== */
-
-    function box(
-      width,
-      height,
-      depth,
-      mat,
-      x = 0,
-      y = 0,
-      z = 0,
-      parent = scene
-    ){
-
-      const mesh =
-        new THREE.Mesh(
-          new THREE.BoxGeometry(
-            width,
-            height,
-            depth
-          ),
-          mat
-        );
-
-
-      mesh.position.set(
-        x,
-        y,
-        z
-      );
-
-
-      mesh.castShadow =
-        true;
-
-
-      mesh.receiveShadow =
-        true;
-
-
-      parent.add(
-        mesh
-      );
-
-
-      return mesh;
-    }
-
-
-    function cylinder(
-      radius,
-      height,
-      mat,
-      x = 0,
-      y = 0,
-      z = 0,
-      parent = scene,
-      segments = 16
-    ){
-
-      const mesh =
-        new THREE.Mesh(
-          new THREE.CylinderGeometry(
-            radius,
-            radius,
-            height,
-            segments
-          ),
-          mat
-        );
-
-
-      mesh.position.set(
-        x,
-        y,
-        z
-      );
-
-
-      mesh.castShadow =
-        true;
-
-
-      mesh.receiveShadow =
-        true;
-
-
-      parent.add(
-        mesh
-      );
-
-
-      return mesh;
-    }
-
-
-    function plane(
-      width,
-      depth,
-      mat,
-      x = 0,
-      y = 0,
-      z = 0,
-      parent = scene
-    ){
-
-      const mesh =
-        new THREE.Mesh(
-          new THREE.PlaneGeometry(
-            width,
-            depth
-          ),
-          mat
-        );
-
-
-      mesh.rotation.x =
-        -Math.PI / 2;
-
-
-      mesh.position.set(
-        x,
-        y,
-        z
-      );
-
-
-      mesh.receiveShadow =
-        true;
-
-
-      parent.add(
-        mesh
-      );
-
-
-      return mesh;
-    }
-
-
-    /* =====================================================
-       WORLD ROOTS
-       ===================================================== */
-
-    const WORLD =
-      new THREE.Group();
-
-
-    WORLD.name =
-      "EmpireRushWorld";
-
-
-    scene.add(
-      WORLD
-    );
-
-
-    const CITY =
-      new THREE.Group();
-
-
-    CITY.name =
-      "EmpireRushCity";
-
-
-    WORLD.add(
-      CITY
-    );
-
-
-    const HQ =
-      new THREE.Group();
-
-
-    HQ.name =
-      "PlayerHQ";
-
-
-    WORLD.add(
-      HQ
-    );
-
-
-    const NPC_ROOT =
-      new THREE.Group();
-
-
-    NPC_ROOT.name =
-      "NPCWorld";
-
-
-    WORLD.add(
-      NPC_ROOT
-    );
-
-
-    const TRAFFIC_ROOT =
-      new THREE.Group();
-
-
-    TRAFFIC_ROOT.name =
-      "TrafficWorld";
-
-
-    WORLD.add(
-      TRAFFIC_ROOT
-    );
-
-
-    /* =====================================================
-       GROUND
-       ===================================================== */
-
-    plane(
-      120,
-      120,
-      MATERIALS.grass,
-      0,
-      -0.03,
-      0,
-      CITY
-    );
-
-
-    /* =====================================================
-       MAIN CITY ROAD GRID
-       ===================================================== */
-
-    function roadHorizontal(
-      z,
-      width = 8
-    ){
-
-      box(
-        110,
-        0.18,
-        width,
-        MATERIALS.asphalt,
-        0,
-        0.08,
-        z,
-        CITY
-      );
-
-
-      /*
-       * Sidewalks stay OUTSIDE the road.
-       */
-
-      box(
-        110,
-        0.10,
-        1.8,
-        MATERIALS.sidewalk,
-        0,
-        0.17,
-        z - width / 2 - 0.9,
-        CITY
-      );
-
-
-      box(
-        110,
-        0.10,
-        1.8,
-        MATERIALS.sidewalk,
-        0,
-        0.17,
-        z + width / 2 + 0.9,
-        CITY
-      );
-
-
-      /*
-       * Curbs.
-       */
-
-      box(
-        110,
-        0.13,
-        0.18,
-        MATERIALS.curb,
-        0,
-        0.18,
-        z - width / 2,
-        CITY
-      );
-
-
-      box(
-        110,
-        0.13,
-        0.18,
-        MATERIALS.curb,
-        0,
-        0.18,
-        z + width / 2,
-        CITY
-      );
-
-
-      /*
-       * Center lane markings.
-       */
-
-      for(
-        let x = -52;
-        x <= 52;
-        x += 7
-      ){
-
-        box(
-          3.4,
-          0.025,
-          0.12,
-          MATERIALS.concrete,
-          x,
-          0.20,
-          z,
-          CITY
-        );
-
-      }
-    }
-
-
-    function roadVertical(
-      x,
-      width = 8
-    ){
-
-      box(
-        width,
-        0.18,
-        110,
-        MATERIALS.asphalt,
-        x,
-        0.08,
-        0,
-        CITY
-      );
-
-
-      box(
-        1.8,
-        0.10,
-        110,
-        MATERIALS.sidewalk,
-        x - width / 2 - 0.9,
-        0.17,
-        0,
-        CITY
-      );
-
-
-      box(
-        1.8,
-        0.10,
-        110,
-        MATERIALS.sidewalk,
-        x + width / 2 + 0.9,
-        0.17,
-        0,
-        CITY
-      );
-
-
-      box(
-        0.18,
-        0.13,
-        110,
-        MATERIALS.curb,
-        x - width / 2,
-        0.18,
-        0,
-        CITY
-      );
-
-
-      box(
-        0.18,
-        0.13,
-        110,
-        MATERIALS.curb,
-        x + width / 2,
-        0.18,
-        0,
-        CITY
-      );
-
-
-      for(
-        let z = -52;
-        z <= 52;
-        z += 7
-      ){
-
-        box(
-          0.12,
-          0.025,
-          3.4,
-          MATERIALS.concrete,
-          x,
-          0.20,
-          z,
-          CITY
-        );
-
-      }
-    }
-
-
-    /*
-     * Planned grid.
-     *
-     * Roads are defined FIRST.
-     * Buildings will occupy property
-     * blocks BETWEEN these roads.
-     */
-
-    roadHorizontal(
-      18
-    );
-
-
-    roadHorizontal(
-      -20
-    );
-
-
-    roadVertical(
-      19
-    );
-
-
-    roadVertical(
-      -19
-    );
-
-
-    /* =====================================================
-       PROPERTY SYSTEM
-       ===================================================== */
 
     const properties = [];
 
@@ -1169,17 +38,14 @@
       const property =
         new THREE.Group();
 
-
       property.name =
         "Property_" + id;
-
 
       property.position.set(
         x,
         0,
         z
       );
-
 
       property.userData = {
 
@@ -1196,11 +62,9 @@
       };
 
 
-      /*
-       * Property surface.
-       * It sits between roads,
-       * never over them.
-       */
+      /* =================================================
+         PROPERTY BASE
+         ================================================= */
 
       box(
         width,
@@ -1214,20 +78,14 @@
       );
 
 
-      /*
-       * Green setback around building.
-       */
+      /* =================================================
+         LANDSCAPED SETBACK
+         ================================================= */
 
       box(
-        Math.max(
-          width - 1.2,
-          2
-        ),
+        Math.max(width - 1.0, 2),
         0.08,
-        Math.max(
-          depth - 1.2,
-          2
-        ),
+        Math.max(depth - 1.0, 2),
         MATERIALS.grassDark,
         0,
         0.14,
@@ -1240,11 +98,9 @@
         property
       );
 
-
       properties.push(
         property
       );
-
 
       return property;
     }
@@ -1252,7 +108,18 @@
 
     /* =====================================================
        CITY PROPERTY BLOCKS
+       =====================================================
+
+       These blocks remain BETWEEN roads.
+
+       Road coordinates:
+         Horizontal: +18 / -20
+         Vertical:   +19 / -19
+
+       No building is placed directly
+       on a road surface.
        ===================================================== */
+
 
     createProperty(
       "commercial_north",
@@ -1315,8 +182,29 @@
 
 
     /* =====================================================
-       HQ PROPERTY
+       PLAYER HQ PROPERTY
+       =====================================================
+
+       HQ is deliberately placed in its own
+       premium plot.
+
+       World position:
+
+             MAIN ACCESS ROAD
+                    │
+                    │
+              HQ DRIVEWAY
+                    │
+               PARKING
+                    │
+              HQ ENTRANCE
+                    │
+              PLAYER HQ
+
+       The building itself stays completely
+       inside the property boundary.
        ===================================================== */
+
 
     const HQ_PROPERTY =
       createProperty(
@@ -1324,7 +212,7 @@
         0,
         42,
         32,
-        20,
+        26,
         "player-hq"
       );
 
@@ -1341,997 +229,1652 @@
 
 
     /* =====================================================
-       HQ FOUNDATION
+       HQ SITE DIMENSIONS
        ===================================================== */
 
-    box(
-      30,
-      0.18,
-      18,
-      MATERIALS.floor,
-      0,
-      0.18,
-      0,
-      HQ
-    );
+    const HQ_SITE = {
+
+      width:32,
+
+      depth:26,
+
+      frontRoadZ:27,
+
+      frontSidewalkZ:29,
+
+      propertyFrontZ:29,
+
+      parkingFrontZ:31,
+
+      parkingBackZ:36,
+
+      buildingFrontZ:37,
+
+      buildingBackZ:51,
+
+      buildingWidth:30,
+
+      buildingDepth:14
+
+    };
 
 
     /* =====================================================
-       HQ EXTERIOR
+       HQ INTERNAL SITE ACCESS
+       =====================================================
+
+       This is NOT a road through the office.
+
+       It is a private driveway connecting
+       the public road to the parking area.
        ===================================================== */
 
-    box(
-      30,
-      3.6,
-      0.45,
-      MATERIALS.wallDark,
-      0,
-      1.95,
-      9,
-      HQ
-    );
 
+    function createHQDriveway(){
 
-    box(
-      0.45,
-      3.6,
-      18,
-      MATERIALS.wall,
-      -15,
-      1.95,
-      0,
-      HQ
-    );
+      const drivewayGroup =
+        new THREE.Group();
 
+      drivewayGroup.name =
+        "HQ_PrivateDriveway";
 
-    box(
-      0.45,
-      3.6,
-      18,
-      MATERIALS.wall,
-      15,
-      1.95,
-      0,
-      HQ
-    );
-
-
-    /*
-     * Front walls leave the entrance
-     * physically open.
-     */
-
-    box(
-      7,
-      3.6,
-      0.45,
-      MATERIALS.wall,
-      -11.5,
-      1.95,
-      -9,
-      HQ
-    );
-
-
-    box(
-      7,
-      3.6,
-      0.45,
-      MATERIALS.wall,
-      11.5,
-      1.95,
-      -9,
-      HQ
-    );
-
-
-    /* =====================================================
-       HQ GLASS FRONT
-       ===================================================== */
-
-    for(
-      let x = -7.5;
-      x <= 7.5;
-      x += 3.75
-    ){
-
-      box(
-        3.25,
-        4.6,
-        0.08,
-        MATERIALS.glass,
-        x,
-        3.65,
-        -9.08,
-        HQ
+      HQ.add(
+        drivewayGroup
       );
 
+
+      /*
+       * Driveway extends from the
+       * property frontage toward parking.
+       *
+       * HQ local Z:
+       *
+       *   -15 = public/front side
+       *    0  = HQ center
+       *   +15 = rear
+       */
+
+
+      box(
+        8,
+        0.08,
+        9,
+        MATERIALS.asphaltLight,
+        0,
+        0.24,
+        -10.5,
+        drivewayGroup
+      );
+
+
+      /*
+       * Driveway edge lines.
+       */
+
+      box(
+        0.12,
+        0.04,
+        8.5,
+        MATERIALS.concrete,
+        -4.05,
+        0.30,
+        -10.5,
+        drivewayGroup
+      );
+
+
+      box(
+        0.12,
+        0.04,
+        8.5,
+        MATERIALS.concrete,
+        4.05,
+        0.30,
+        -10.5,
+        drivewayGroup
+      );
+
+
+      return drivewayGroup;
     }
 
 
+    createHQDriveway();
+
+
     /* =====================================================
-       HQ ENTRANCE
+       HQ PARKING AREA
        ===================================================== */
 
-    box(
-      4.8,
-      0.18,
-      2.6,
-      MATERIALS.concrete,
-      0,
-      0.28,
-      -10.3,
-      HQ
+
+    const HQ_PARKING =
+      new THREE.Group();
+
+    HQ_PARKING.name =
+      "HQ_Parking";
+
+    HQ.add(
+      HQ_PARKING
     );
 
 
     box(
-      4.2,
-      3.2,
-      0.18,
-      MATERIALS.glassDark,
+      22,
+      0.08,
+      6,
+      MATERIALS.asphaltLight,
       0,
-      1.8,
-      -9.12,
-      HQ
+      0.24,
+      -6,
+      HQ_PARKING
     );
 
 
     /*
-     * Entrance canopy.
+     * Parking boundary.
      */
 
     box(
-      7,
-      0.22,
-      3.2,
-      MATERIALS.wallDark,
+      22.3,
+      0.04,
+      0.12,
+      MATERIALS.concrete,
       0,
-      4.8,
-      -10.4,
-      HQ
-    );
-
-
-    /* =====================================================
-       HQ ROOF
-       ===================================================== */
-
-    box(
-      31,
-      0.28,
-      19,
-      MATERIALS.wallDark,
-      0,
-      4.05,
-      0,
-      HQ
-    );
-
-
-    /* =====================================================
-       HQ SIGN
-       ===================================================== */
-
-    box(
-      7,
-      0.9,
-      0.16,
-      MATERIALS.dark,
-      0,
-      5.0,
-      -9.35,
-      HQ
+      0.30,
+      -8.9,
+      HQ_PARKING
     );
 
 
     box(
-      3.2,
-      0.18,
-      0.05,
-      MATERIALS.green,
+      22.3,
+      0.04,
+      0.12,
+      MATERIALS.concrete,
       0,
-      5.02,
-      -9.46,
-      HQ
+      0.30,
+      -3.1,
+      HQ_PARKING
     );
 
 
-    /* =====================================================
-       HQ PARKING
-       ===================================================== */
-
-    box(
-      18,
-      0.08,
-      7,
-      MATERIALS.asphaltLight,
-      0,
-      0.24,
-      -14.5,
-      HQ
-    );
-
+    /*
+     * Individual parking bays.
+     */
 
     for(
-      let x = -7.5;
-      x <= 7.5;
+      let x = -9;
+      x <= 9;
       x += 3
     ){
 
       box(
         0.07,
         0.025,
-        5.5,
+        5.4,
         MATERIALS.concrete,
         x,
         0.31,
-        -14.5,
-        HQ
+        -6,
+        HQ_PARKING
       );
 
     }
 
 
     /* =====================================================
-       CEO OFFICE
+       HQ PEDESTRIAN WALKWAY
        ===================================================== */
 
-    const CEO =
+
+    box(
+      10,
+      0.07,
+      2.2,
+      MATERIALS.sidewalk,
+      0,
+      0.33,
+      -2.0,
+      HQ
+    );
+
+
+    /* =====================================================
+       HQ LANDSCAPE ZONES
+       ===================================================== */
+
+
+    const HQ_LANDSCAPE =
       new THREE.Group();
 
-
-    CEO.name =
-      "CEOOffice";
-
-
-    CEO.position.set(
-      -8.5,
-      0,
-      4.5
-    );
-
+    HQ_LANDSCAPE.name =
+      "HQ_Landscaping";
 
     HQ.add(
-      CEO
+      HQ_LANDSCAPE
+    );
+
+
+    /*
+     * Front landscape strips.
+     */
+
+    box(
+      4.0,
+      0.08,
+      2.5,
+      MATERIALS.grassDark,
+      -13,
+      0.20,
+      -2,
+      HQ_LANDSCAPE
     );
 
 
     box(
-      9,
-      0.12,
+      4.0,
+      0.08,
+      2.5,
+      MATERIALS.grassDark,
+      13,
+      0.20,
+      -2,
+      HQ_LANDSCAPE
+    );
+
+
+    /*
+     * Side landscape strips.
+     */
+
+    box(
+      2.0,
+      0.08,
+      10,
+      MATERIALS.grassDark,
+      -14,
+      0.20,
       6,
-      MATERIALS.wood,
-      0,
-      1.0,
-      0,
-      CEO
+      HQ_LANDSCAPE
     );
 
 
     box(
-      8.6,
-      2.5,
+      2.0,
+      0.08,
+      10,
+      MATERIALS.grassDark,
+      14,
+      0.20,
+      6,
+      HQ_LANDSCAPE
+    );
+
+
+    /* =====================================================
+       HQ FRONTAGE / PUBLIC SIDEWALK
+       =====================================================
+
+       This sits OUTSIDE the building property
+       and creates the connection to the city.
+       ===================================================== */
+
+
+    box(
+      32,
       0.10,
-      MATERIALS.glass,
+      2.2,
+      MATERIALS.sidewalk,
       0,
-      2.8,
-      2.95,
-      CEO
-    );
-
-
-    /*
-     * Executive desk.
-     */
-
-    box(
-      3.4,
       0.18,
-      1.5,
-      MATERIALS.wood,
-      0,
-      1.55,
-      -0.5,
-      CEO
-    );
-
-
-    box(
-      1.1,
-      0.7,
-      0.06,
-      MATERIALS.screen,
-      0,
-      1.98,
-      -0.78,
-      CEO
-    );
-
-
-    /*
-     * Executive chair.
-     */
-
-    cylinder(
-      0.55,
-      0.14,
-      MATERIALS.dark,
-      0,
-      0.72,
-      -1.9,
-      CEO
-    );
-
-
-    box(
-      0.12,
-      1.0,
-      0.12,
-      MATERIALS.metal,
-      0,
-      1.12,
-      -1.9,
-      CEO
-    );
-
-
-    box(
-      0.8,
-      1.1,
-      0.35,
-      MATERIALS.dark,
-      0,
-      1.35,
-      -1.9,
-      CEO
-    );
-
-
-    /* =====================================================
-       EXECUTIVE MEETING TABLE
-       ===================================================== */
-
-    box(
-      5.4,
-      0.16,
-      2.1,
-      MATERIALS.wood,
-      5.5,
-      1.05,
-      5.5,
+      29.0 - 42.0,
       HQ
     );
 
 
     /* =====================================================
-       OPEN OFFICE DESKS
+       HQ PROPERTY CURB
        ===================================================== */
 
-    function officeDesk(
-      x,
-      z
-    ){
 
-      box(
-        2.5,
-        0.16,
-        1.15,
-        MATERIALS.wood,
-        x,
-        1.15,
-        z,
-        HQ
-      );
-
-
-      box(
-        0.9,
-        0.55,
-        0.06,
-        MATERIALS.screen,
-        x,
-        1.53,
-        z - 0.22,
-        HQ
-      );
-
-
-      box(
-        0.10,
-        1.0,
-        0.10,
-        MATERIALS.metal,
-        x - 0.95,
-        0.65,
-        z,
-        HQ
-      );
-
-
-      box(
-        0.10,
-        1.0,
-        0.10,
-        MATERIALS.metal,
-        x + 0.95,
-        0.65,
-        z,
-        HQ
-      );
-
-    }
-
-
-    [
-      [-11,-4],
-      [-6,-4],
-      [-1,-4],
-      [4,-4],
-      [9,-4],
-
-      [-11,0],
-      [-6,0],
-      [-1,0],
-      [4,0],
-      [9,0]
-    ].forEach(
-      p =>
-        officeDesk(
-          p[0],
-          p[1]
-        )
+    box(
+      32,
+      0.13,
+      0.18,
+      MATERIALS.curb,
+      0,
+      0.20,
+      29.0 - 42.0 - 1.1,
+      HQ
     );
 
 
     /* =====================================================
-       MEETING DISPLAY
+       OFFICE-01 VALIDATION DATA
        ===================================================== */
 
-    box(
-      5.5,
-      2.5,
-      0.12,
-      MATERIALS.glassDark,
-      5.5,
-      3.0,
-      8.45,
-      HQ
-    );
 
+    HQ.userData.sitePlan = {
 
-    box(
-      3.7,
-      1.6,
-      0.06,
-      MATERIALS.screen,
-      5.5,
-      3.15,
-      8.35,
-      HQ
-    );
+      propertyWidth:
+        HQ_SITE.width,
+
+      propertyDepth:
+        HQ_SITE.depth,
+
+      buildingWidth:
+        HQ_SITE.buildingWidth,
+
+      buildingDepth:
+        HQ_SITE.buildingDepth,
+
+      hasDriveway:
+        true,
+
+      hasParking:
+        true,
+
+      hasSidewalk:
+        true,
+
+      roadInsideBuilding:
+        false
+
+    };
 
 
     console.log(
-      "Empire Rush: Clean world foundation loaded."
+      "Empire Rush OFFICE-01: HQ property/site plan created.",
+      HQ.userData.sitePlan
     );
+
+
     /* =====================================================
-       BUSINESS / CITY BUILDINGS
+       HQ FOUNDATION
+       ===================================================== */
+        /* =====================================================
+       OFFICE-01 — PART 2/4
+       HQ BUILDING FOOTPRINT + FOUNDATION
        ===================================================== */
 
-    const cityBuildings =
-      new THREE.Group();
 
-    cityBuildings.name =
-      "CityBuildings";
+    /*
+     * IMPORTANT:
+     *
+     * HQ local coordinates:
+     *
+     * Front / City side = negative Z
+     * Rear                = positive Z
+     *
+     * Building occupies:
+     *
+     * X = -15 ... +15
+     * Z = -5  ... +9
+     *
+     * Parking occupies:
+     *
+     * X = -11 ... +11
+     * Z = -9 ... -3
+     *
+     * Therefore parking and building
+     * do NOT overlap.
+     */
 
-    CITY.add(
-      cityBuildings
-    );
 
+    /* =====================================================
+       MATERIAL FIX
+       ===================================================== */
 
-    function building(
-      x,
-      z,
-      width,
-      depth,
-      height,
-      bodyMaterial,
-      glassMaterial = MATERIALS.glass
+    /*
+     * The original file referenced:
+     *
+     * MATERIALS.floor
+     *
+     * but no floor material existed.
+     *
+     * Create it once here.
+     */
+
+    if(
+      !MATERIALS.floor
     ){
 
-      const group =
-        new THREE.Group();
-
-      group.position.set(
-        x,
-        0,
-        z
-      );
-
-      cityBuildings.add(
-        group
-      );
-
-
-      /* Building body */
-
-      box(
-        width,
-        height,
-        depth,
-        bodyMaterial,
-        0,
-        height / 2,
-        0,
-        group
-      );
-
-
-      /* Vertical glass bands */
-
-      const columns =
-        Math.max(
-          2,
-          Math.floor(
-            width / 2.4
-          )
+      MATERIALS.floor =
+        material(
+          0x8f9698,
+          0.92
         );
 
-
-      const rows =
-        Math.max(
-          1,
-          Math.floor(
-            height / 2.5
-          )
-        );
-
-
-      for(
-        let r = 0;
-        r < rows;
-        r++
-      ){
-
-        const y =
-          1.35 +
-          r * 2.35;
-
-
-        if(
-          y >
-          height - 0.8
-        ){
-          continue;
-        }
-
-
-        for(
-          let c = 0;
-          c < columns;
-          c++
-        ){
-
-          const xOffset =
-            -width / 2 +
-            1.1 +
-            c * (
-              (width - 2.2) /
-              Math.max(
-                columns - 1,
-                1
-              )
-            );
-
-
-          box(
-            0.9,
-            0.95,
-            0.05,
-            glassMaterial,
-            xOffset,
-            y,
-            -depth / 2 - 0.04,
-            group
-          );
-
-        }
-      }
-
-
-      /* Roof cap */
-
-      box(
-        width + 0.25,
-        0.18,
-        depth + 0.25,
-        MATERIALS.dark,
-        0,
-        height + 0.09,
-        0,
-        group
-      );
-
-
-      /* Entrance */
-
-      box(
-        Math.min(
-          3,
-          width * 0.32
-        ),
-        2.1,
-        0.12,
-        MATERIALS.glassDark,
-        0,
-        1.05,
-        -depth / 2 - 0.08,
-        group
-      );
-
-
-      return group;
     }
 
 
     /* =====================================================
-       CORPORATE DISTRICT
+       HQ FOUNDATION PLATFORM
        ===================================================== */
 
-    building(
-      -29,
-      8,
-      10,
-      9,
-      11,
-      MATERIALS.wallDark,
-      MATERIALS.glass
-    );
 
-
-    building(
-      -29,
-      -4,
-      9,
-      8,
-      7,
-      MATERIALS.wall,
-      MATERIALS.glassDark
-    );
-
-
-    /* =====================================================
-       RETAIL DISTRICT
-       ===================================================== */
-
-    building(
-      29,
-      8,
-      10,
-      9,
-      6,
-      material(
-        0x9a6d52,
-        0.9
-      ),
-      MATERIALS.glass
-    );
-
-
-    building(
-      29,
-      -4,
-      9,
-      8,
-      9,
-      material(
-        0x767f86,
-        0.9
-      ),
-      MATERIALS.glass
-    );
-
-
-    /* =====================================================
-       COMMERCIAL DISTRICT
-       ===================================================== */
-
-    building(
-      0,
-      8,
-      11,
-      9,
-      8,
-      material(
-        0x7b858a,
-        0.9
-      ),
-      MATERIALS.glass
-    );
-
-
-    building(
-      0,
-      -4,
-      11,
-      9,
-      6,
-      MATERIALS.wall,
-      MATERIALS.glassDark
-    );
-
-
-    /* =====================================================
-       PROPERTY ENTRANCES
-       ===================================================== */
-
-    function driveway(
-      x,
-      z,
-      width = 4,
-      depth = 4
-    ){
-
-      box(
-        width,
-        0.07,
-        depth,
-        MATERIALS.asphaltLight,
-        x,
-        0.23,
-        z,
-        CITY
-      );
-
-
-      box(
-        width + 0.25,
-        0.05,
-        0.12,
-        MATERIALS.concrete,
-        x,
-        0.30,
-        z - depth / 2,
-        CITY
-      );
-
-    }
-
-
-    driveway(
-      -29,
-      14.3,
-      4,
-      4
-    );
-
-
-    driveway(
-      0,
-      14.3,
-      4,
-      4
-    );
-
-
-    driveway(
-      29,
-      14.3,
-      4,
-      4
-    );
-
-
-    driveway(
-      -29,
-      -10.2,
-      4,
-      4
-    );
-
-
-    driveway(
-      0,
-      -10.2,
-      4,
-      4
-    );
-
-
-    driveway(
-      29,
-      -10.2,
-      4,
-      4
-    );
-
-
-    /* =====================================================
-       PARK
-       ===================================================== */
-
-    const park =
+    const HQ_FOUNDATION =
       new THREE.Group();
 
-    park.name =
-      "CentralPark";
+    HQ_FOUNDATION.name =
+      "HQ_BuildingFoundation";
 
-    park.position.set(
-      -43,
-      0,
-      0
+    HQ.add(
+      HQ_FOUNDATION
     );
 
-    CITY.add(
-      park
-    );
 
+    /*
+     * Main structural slab.
+     *
+     * This is the actual building footprint.
+     */
 
     box(
-      15,
+      HQ_SITE.buildingWidth,
+      0.22,
+      HQ_SITE.buildingDepth,
+      MATERIALS.floor,
+      0,
+      0.36,
+      3,
+      HQ_FOUNDATION
+    );
+
+
+    /*
+     * Slightly raised perimeter edge.
+     */
+
+    box(
+      HQ_SITE.buildingWidth + 0.5,
       0.12,
-      28,
-      MATERIALS.grassDark,
+      0.30,
+      MATERIALS.dark,
       0,
+      0.52,
+      -4.15,
+      HQ_FOUNDATION
+    );
+
+
+    box(
+      HQ_SITE.buildingWidth + 0.5,
+      0.12,
+      0.30,
+      MATERIALS.dark,
+      0,
+      0.52,
+      10.15,
+      HQ_FOUNDATION
+    );
+
+
+    box(
+      0.30,
+      0.12,
+      HQ_SITE.buildingDepth,
+      MATERIALS.dark,
+      -15.15,
+      0.52,
+      3,
+      HQ_FOUNDATION
+    );
+
+
+    box(
+      0.30,
+      0.12,
+      HQ_SITE.buildingDepth,
+      MATERIALS.dark,
+      15.15,
+      0.52,
+      3,
+      HQ_FOUNDATION
+    );
+
+
+    /* =====================================================
+       BUILDING FRONT TERRACE
+       ===================================================== */
+
+
+    box(
+      12,
+      0.10,
+      2.0,
+      MATERIALS.concrete,
+      0,
+      0.55,
+      -5.0,
+      HQ_FOUNDATION
+    );
+
+
+    /*
+     * Entrance path from parking
+     * to front door.
+     */
+
+    box(
+      6,
       0.08,
-      0,
-      park
-    );
-
-
-    /* Park walking paths */
-
-    box(
-      2.2,
-      0.06,
-      25,
+      3.4,
       MATERIALS.sidewalk,
       0,
-      0.17,
+      0.61,
+      -4.0,
+      HQ_FOUNDATION
+    );
+
+
+    /* =====================================================
+       HQ FRONT ENTRANCE PAD
+       ===================================================== */
+
+
+    const HQ_ENTRANCE =
+      new THREE.Group();
+
+    HQ_ENTRANCE.name =
+      "HQ_MainEntrance";
+
+    HQ.add(
+      HQ_ENTRANCE
+    );
+
+
+    /*
+     * Entrance landing.
+     */
+
+    box(
+      5.6,
+      0.10,
+      1.8,
+      MATERIALS.concrete,
       0,
-      park
+      0.67,
+      -5.0,
+      HQ_ENTRANCE
+    );
+
+
+    /*
+     * Door threshold.
+     */
+
+    box(
+      4.4,
+      0.08,
+      0.35,
+      MATERIALS.dark,
+      0,
+      0.76,
+      -5.72,
+      HQ_ENTRANCE
+    );
+
+
+    /* =====================================================
+       ENTRANCE COLUMNS
+       ===================================================== */
+
+
+    box(
+      0.35,
+      3.8,
+      0.35,
+      MATERIALS.wallDark,
+      -3.0,
+      2.45,
+      -5.65,
+      HQ_ENTRANCE
     );
 
 
     box(
-      13,
-      0.06,
-      2.2,
-      MATERIALS.sidewalk,
-      0,
-      0.18,
-      0,
-      park
+      0.35,
+      3.8,
+      0.35,
+      MATERIALS.wallDark,
+      3.0,
+      2.45,
+      -5.65,
+      HQ_ENTRANCE
     );
 
 
-    /* Park benches */
+    /* =====================================================
+       ENTRANCE GLASS DOORS
+       ===================================================== */
 
-    function bench(
-      x,
-      z,
-      rotation = 0
+
+    box(
+      1.85,
+      3.0,
+      0.10,
+      MATERIALS.glassDark,
+      -1.0,
+      2.25,
+      -5.68,
+      HQ_ENTRANCE
+    );
+
+
+    box(
+      1.85,
+      3.0,
+      0.10,
+      MATERIALS.glassDark,
+      1.0,
+      2.25,
+      -5.68,
+      HQ_ENTRANCE
+    );
+
+
+    /*
+     * Door divider.
+     */
+
+    box(
+      0.08,
+      3.0,
+      0.14,
+      MATERIALS.metal,
+      0,
+      2.25,
+      -5.74,
+      HQ_ENTRANCE
+    );
+
+
+    /* =====================================================
+       ENTRANCE CANOPY SUPPORT
+       ===================================================== */
+
+
+    box(
+      7.4,
+      0.20,
+      2.7,
+      MATERIALS.wallDark,
+      0,
+      4.55,
+      -6.2,
+      HQ_ENTRANCE
+    );
+
+
+    /*
+     * Canopy underside.
+     */
+
+    box(
+      6.8,
+      0.08,
+      2.25,
+      MATERIALS.metal,
+      0,
+      4.40,
+      -6.2,
+      HQ_ENTRANCE
+    );
+
+
+    /* =====================================================
+       BUILDING SIDE WALLS
+       ===================================================== */
+
+
+    const HQ_SHELL =
+      new THREE.Group();
+
+    HQ_SHELL.name =
+      "HQ_BuildingShell";
+
+    HQ.add(
+      HQ_SHELL
+    );
+
+
+    /*
+     * Rear wall.
+     */
+
+    box(
+      30,
+      4.0,
+      0.40,
+      MATERIALS.wallDark,
+      0,
+      2.55,
+      10.0,
+      HQ_SHELL
+    );
+
+
+    /*
+     * Left wall.
+     */
+
+    box(
+      0.40,
+      4.0,
+      14.0,
+      MATERIALS.wall,
+      -15.0,
+      2.55,
+      3.0,
+      HQ_SHELL
+    );
+
+
+    /*
+     * Right wall.
+     */
+
+    box(
+      0.40,
+      4.0,
+      14.0,
+      MATERIALS.wall,
+      15.0,
+      2.55,
+      3.0,
+      HQ_SHELL
+    );
+
+
+    /* =====================================================
+       FRONT STRUCTURAL SECTIONS
+       =====================================================
+
+       Front façade remains open around
+       the main entrance.
+
+       Side sections hold the façade.
+       ===================================================== */
+
+
+    box(
+      10.0,
+      4.0,
+      0.40,
+      MATERIALS.wallDark,
+      -10.0,
+      2.55,
+      -4.0,
+      HQ_SHELL
+    );
+
+
+    box(
+      10.0,
+      4.0,
+      0.40,
+      MATERIALS.wallDark,
+      10.0,
+      2.55,
+      -4.0,
+      HQ_SHELL
+    );
+
+
+    /* =====================================================
+       FRONT GLASS WALL
+       ===================================================== */
+
+
+    const HQ_GLASS_FRONT =
+      new THREE.Group();
+
+    HQ_GLASS_FRONT.name =
+      "HQ_GlassFront";
+
+    HQ.add(
+      HQ_GLASS_FRONT
+    );
+
+
+    /*
+     * Glass panels left of entrance.
+     */
+
+    for(
+      let x = -12.5;
+      x <= -4.5;
+      x += 2.0
     ){
 
-      const b =
-        new THREE.Group();
-
-      b.position.set(
+      box(
+        1.65,
+        3.3,
+        0.08,
+        MATERIALS.glass,
         x,
-        0,
-        z
-      );
-
-      b.rotation.y =
-        rotation;
-
-      park.add(
-        b
-      );
-
-
-      box(
-        2,
-        0.18,
-        0.55,
-        MATERIALS.wood,
-        0,
-        0.65,
-        0,
-        b
-      );
-
-
-      box(
-        0.12,
-        0.65,
-        0.12,
-        MATERIALS.metal,
-        -0.7,
-        0.32,
-        0,
-        b
-      );
-
-
-      box(
-        0.12,
-        0.65,
-        0.12,
-        MATERIALS.metal,
-        0.7,
-        0.32,
-        0,
-        b
-      );
-
-
-      box(
-        2,
-        0.65,
-        0.12,
-        MATERIALS.wood,
-        0,
-        1.0,
-        0.25,
-        b
+        2.55,
+        -4.22,
+        HQ_GLASS_FRONT
       );
 
     }
 
 
-    bench(
-      -4,
-      -7,
-      0
-    );
+    /*
+     * Glass panels right of entrance.
+     */
+
+    for(
+      let x = 4.5;
+      x <= 12.5;
+      x += 2.0
+    ){
+
+      box(
+        1.65,
+        3.3,
+        0.08,
+        MATERIALS.glass,
+        x,
+        2.55,
+        -4.22,
+        HQ_GLASS_FRONT
+      );
+
+    }
 
 
-    bench(
-      4,
-      7,
-      Math.PI
+    /* =====================================================
+       VERTICAL FAÇADE MULLIONS
+       ===================================================== */
+
+
+    [
+      -13.5,
+      -11.5,
+      -9.5,
+      -7.5,
+      -5.5,
+      5.5,
+      7.5,
+      9.5,
+      11.5,
+      13.5
+    ].forEach(
+      x => {
+
+        box(
+          0.10,
+          3.55,
+          0.12,
+          MATERIALS.metal,
+          x,
+          2.55,
+          -4.28,
+          HQ_GLASS_FRONT
+        );
+
+      }
     );
 
 
     /* =====================================================
-       TREES
+       BUILDING ROOF SLAB
        ===================================================== */
 
-    function tree(
-      x,
-      z,
-      scale = 1,
-      parent = CITY
+
+    box(
+      30.8,
+      0.30,
+      14.8,
+      MATERIALS.wallDark,
+      0,
+      4.72,
+      3,
+      HQ
+    );
+
+
+    /*
+     * Roof overhang.
+     */
+
+    box(
+      31.5,
+      0.10,
+      15.5,
+      MATERIALS.metal,
+      0,
+      4.90,
+      3,
+      HQ
+    );
+
+
+    /* =====================================================
+       FRONT SIGN BAND
+       ===================================================== */
+
+
+    box(
+      8.0,
+      0.95,
+      0.16,
+      MATERIALS.dark,
+      0,
+      4.45,
+      -4.38,
+      HQ
+    );
+
+
+    /*
+     * Placeholder illuminated logo strip.
+     *
+     * Actual company logo/name system
+     * will come in a later office stage.
+     */
+
+    box(
+      3.6,
+      0.16,
+      0.06,
+      MATERIALS.green,
+      0,
+      4.48,
+      -4.50,
+      HQ
+    );
+
+
+    /* =====================================================
+       OFFICE-01 STRUCTURAL VALIDATION
+       ===================================================== */
+
+
+    HQ.userData.buildingFootprint = {
+
+      xMin:
+        -HQ_SITE.buildingWidth / 2,
+
+      xMax:
+        HQ_SITE.buildingWidth / 2,
+
+      zMin:
+        -4,
+
+      zMax:
+        10,
+
+      parkingZMin:
+        -9,
+
+      parkingZMax:
+        -3,
+
+      entranceZ:
+        -5.7,
+
+      roadInsideBuilding:
+        false
+
+    };
+
+
+    console.log(
+      "Empire Rush OFFICE-01: building footprint created.",
+      HQ.userData.buildingFootprint
+    );
+
+
+    /* =====================================================
+       LEGACY HQ EXTERIOR SECTION
+       =====================================================
+
+       The next part will continue with the
+       remaining old HQ geometry cleanup.
+
+       DO NOT SAVE YET.
+       ===================================================== */
+        /* =====================================================
+       OFFICE-01 — PART 3/4
+       LEGACY HQ EXTERIOR CLEANUP
+       =====================================================
+
+       The old HQ exterior, old front walls,
+       old glass front, old roof, old sign and
+       old parking geometry are intentionally
+       removed from the build.
+
+       OFFICE-01 now uses the new planned
+       property/site structure created above.
+
+       CEO/interior remains untouched.
+       ===================================================== */
+
+
+    /*
+     * Compatibility marker.
+     *
+     * The new HQ site is already constructed
+     * by OFFICE-01 PART 1 + PART 2.
+     */
+
+    HQ.userData.officeStage =
+      "OFFICE-01";
+
+
+    HQ.userData.siteAccess =
+      "ROAD → SIDEWALK → DRIVEWAY → PARKING → ENTRANCE";
+
+
+    HQ.userData.buildingRules = {
+
+      roadThroughBuilding:
+        false,
+
+      parkingInsideBuilding:
+        false,
+
+      drivewayThroughBuilding:
+        false,
+
+      buildingInsideProperty:
+        true,
+
+      entranceConnectedToParking:
+        true
+
+    };
+
+
+    /* =====================================================
+       HQ PROPERTY VISUAL BOUNDARY
+       ===================================================== */
+
+
+    const HQ_BOUNDARY =
+      new THREE.Group();
+
+    HQ_BOUNDARY.name =
+      "HQ_PropertyBoundary";
+
+    HQ.add(
+      HQ_BOUNDARY
+    );
+
+
+    /*
+     * Front property edge.
+     */
+
+    box(
+      32,
+      0.06,
+      0.12,
+      MATERIALS.curb,
+      0,
+      0.25,
+      -12.8,
+      HQ_BOUNDARY
+    );
+
+
+    /*
+     * Left property edge.
+     */
+
+    box(
+      0.12,
+      0.06,
+      25.6,
+      MATERIALS.curb,
+      -15.9,
+      0.25,
+      0,
+      HQ_BOUNDARY
+    );
+
+
+    /*
+     * Right property edge.
+     */
+
+    box(
+      0.12,
+      0.06,
+      25.6,
+      MATERIALS.curb,
+      15.9,
+      0.25,
+      0,
+      HQ_BOUNDARY
+    );
+
+
+    /*
+     * Rear property edge.
+     */
+
+    box(
+      32,
+      0.06,
+      0.12,
+      MATERIALS.curb,
+      0,
+      0.25,
+      12.8,
+      HQ_BOUNDARY
+    );
+
+
+    /* =====================================================
+       HQ ENTRANCE LANDSCAPE
+       ===================================================== */
+
+
+    function entrancePlanter(
+      x
     ){
 
-      const group =
+      const planter =
         new THREE.Group();
 
-      group.position.set(
+      planter.name =
+        "HQ_EntrancePlanter";
+
+      planter.position.set(
         x,
         0,
-        z
+        -3.0
       );
 
-      group.scale.setScalar(
-        scale
+      HQ.add(
+        planter
       );
 
-      parent.add(
-        group
+
+      /*
+       * Low planter box.
+       */
+
+      box(
+        3.2,
+        0.45,
+        1.0,
+        MATERIALS.concrete,
+        0,
+        0.35,
+        0,
+        planter
+      );
+
+
+      /*
+       * Plant mass.
+       */
+
+      cylinder(
+        0.42,
+        0.70,
+        MATERIALS.treeLeaf,
+        -0.85,
+        0.90,
+        0,
+        planter,
+        12
       );
 
 
       cylinder(
-        0.24,
+        0.42,
+        0.70,
+        MATERIALS.treeLeaf,
+        0,
+        0.90,
+        0,
+        planter,
+        12
+      );
+
+
+      cylinder(
+        0.42,
+        0.70,
+        MATERIALS.treeLeaf,
+        0.85,
+        0.90,
+        0,
+        planter,
+        12
+      );
+
+
+      return planter;
+    }
+
+
+    entrancePlanter(
+      -9.5
+    );
+
+
+    entrancePlanter(
+      9.5
+    );
+
+
+    /* =====================================================
+       HQ FRONT WALKWAY LIGHTS
+       ===================================================== */
+
+
+    function entranceLight(
+      x
+    ){
+
+      const light =
+        new THREE.Group();
+
+      light.name =
+        "HQ_EntranceLight";
+
+      light.position.set(
+        x,
+        0,
+        -3.1
+      );
+
+      HQ.add(
+        light
+      );
+
+
+      cylinder(
+        0.055,
         1.8,
-        MATERIALS.treeTrunk,
+        MATERIALS.metal,
         0,
         0.9,
         0,
-        group,
+        light,
+        10
+      );
+
+
+      const lampMaterial =
+        new THREE.MeshStandardMaterial({
+
+          color:
+            0xfff1bf,
+
+          emissive:
+            0xffd979,
+
+          emissiveIntensity:
+            1.0,
+
+          roughness:
+            0.35
+
+        });
+
+
+      box(
+        0.24,
+        0.24,
+        0.24,
+        lampMaterial,
+        0,
+        1.82,
+        0,
+        light
+      );
+
+    }
+
+
+    entranceLight(
+      -5.0
+    );
+
+
+    entranceLight(
+      5.0
+    );
+
+
+    /* =====================================================
+       HQ VEHICLE DROP-OFF
+       =====================================================
+
+       Small arrival zone directly before
+       the entrance.
+
+       It is NOT a public road.
+       ===================================================== */
+
+
+    const HQ_DROPOFF =
+      new THREE.Group();
+
+    HQ_DROPOFF.name =
+      "HQ_DropOff";
+
+    HQ.add(
+      HQ_DROPOFF
+    );
+
+
+    box(
+      7.5,
+      0.07,
+      2.4,
+      MATERIALS.asphaltLight,
+      0,
+      0.27,
+      -10.5,
+      HQ_DROPOFF
+    );
+
+
+    /*
+     * Drop-off edge.
+     */
+
+    box(
+      7.5,
+      0.06,
+      0.14,
+      MATERIALS.curb,
+      0,
+      0.34,
+      -11.65,
+      HQ_DROPOFF
+    );
+
+
+    /* =====================================================
+       HQ SITE PLAN DATA
+       ===================================================== */
+
+
+    HQ.userData.sitePlanV1 = {
+
+      publicRoad:
+        "CITY_ROAD",
+
+      publicSidewalk:
+        true,
+
+      privateDriveway:
+        true,
+
+      parking:
+        true,
+
+      pedestrianWalkway:
+        true,
+
+      vehicleDropOff:
+        true,
+
+      buildingSetback:
+        true,
+
+      landscapedProperty:
+        true,
+
+      roadInsideBuilding:
+        false
+
+    };
+
+
+    console.log(
+      "Empire Rush OFFICE-01: legacy HQ exterior removed; planned site retained."
+    );
+
+
+    /* =====================================================
+       CEO OFFICE / EXISTING INTERIOR
+       =====================================================
+
+       PRESERVED FOR NOW.
+
+       It will be redesigned in a separate
+       office-interior stage.
+       ===================================================== */
+     /* =====================================================
+       OFFICE-01 — PART 4/4
+       FINAL SITE CONNECTION + VALIDATION
+       ===================================================== */
+
+
+    /* =====================================================
+       HQ CITY CONNECTION
+       =====================================================
+
+       World coordinates:
+
+       CITY ROAD
+          │
+          │  public sidewalk
+          │
+       PROPERTY FRONTAGE
+          │
+       HQ PRIVATE DRIVEWAY
+          │
+       PARKING
+          │
+       PEDESTRIAN WALKWAY
+          │
+       HQ ENTRANCE
+
+       No public road passes through HQ.
+       ===================================================== */
+
+
+    const HQ_CONNECTION =
+      new THREE.Group();
+
+    HQ_CONNECTION.name =
+      "HQ_CityConnection";
+
+    WORLD.add(
+      HQ_CONNECTION
+    );
+
+
+    /* =====================================================
+       PUBLIC SIDEWALK IN FRONT OF HQ
+       ===================================================== */
+
+
+    box(
+      32,
+      0.10,
+      2.4,
+      MATERIALS.sidewalk,
+      0,
+      0.17,
+      28.0,
+      HQ_CONNECTION
+    );
+
+
+    /* =====================================================
+       SIDEWALK CURB
+       ===================================================== */
+
+
+    box(
+      32,
+      0.14,
+      0.18,
+      MATERIALS.curb,
+      0,
+      0.22,
+      26.72,
+      HQ_CONNECTION
+    );
+
+
+    /* =====================================================
+       HQ DRIVEWAY CONNECTION
+       =====================================================
+
+       The driveway starts at the sidewalk
+       and ends at the private parking area.
+
+       It is deliberately narrow and local,
+       unlike a city road.
+       ===================================================== */
+
+
+    box(
+      8,
+      0.08,
+      7.0,
+      MATERIALS.asphaltLight,
+      0,
+      0.24,
+      32.0,
+      HQ_CONNECTION
+    );
+
+
+    /* =====================================================
+       DRIVEWAY EDGE MARKERS
+       ===================================================== */
+
+
+    box(
+      0.12,
+      0.04,
+      6.8,
+      MATERIALS.concrete,
+      -4.05,
+      0.30,
+      32.0,
+      HQ_CONNECTION
+    );
+
+
+    box(
+      0.12,
+      0.04,
+      6.8,
+      MATERIALS.concrete,
+      4.05,
+      0.30,
+      32.0,
+      HQ_CONNECTION
+    );
+
+
+    /* =====================================================
+       PEDESTRIAN CROSSING
+       =====================================================
+
+       Small visual crossing where the private
+       driveway meets the public sidewalk.
+       ===================================================== */
+
+
+    for(
+      let x = -3;
+      x <= 3;
+      x += 1.2
+    ){
+
+      box(
+        0.65,
+        0.025,
+        2.0,
+        MATERIALS.concrete,
+        x,
+        0.30,
+        28.0,
+        HQ_CONNECTION
+      );
+
+    }
+
+
+    /* =====================================================
+       HQ ENTRANCE PATH
+       ===================================================== */
+
+
+    box(
+      6,
+      0.07,
+      2.8,
+      MATERIALS.sidewalk,
+      0,
+      0.38,
+      36.0,
+      HQ_CONNECTION
+    );
+
+
+    /* =====================================================
+       PARKING → ENTRANCE WALKWAY
+       ===================================================== */
+
+
+    box(
+      7,
+      0.07,
+      2.2,
+      MATERIALS.sidewalk,
+      0,
+      0.40,
+      38.0,
+      HQ_CONNECTION
+    );
+
+
+    /* =====================================================
+       PROPERTY LANDSCAPING
+       ===================================================== */
+
+
+    function propertyShrub(
+      x,
+      z,
+      scale = 1
+    ){
+
+      const shrub =
+        new THREE.Group();
+
+      shrub.position.set(
+        x,
+        0,
+        z
+      );
+
+      shrub.scale.setScalar(
+        scale
+      );
+
+      HQ.add(
+        shrub
+      );
+
+
+      cylinder(
+        0.42,
+        0.55,
+        MATERIALS.treeLeaf,
+        0,
+        0.48,
+        0,
+        shrub,
         12
       );
 
@@ -2339,1647 +1882,312 @@
       const crown =
         new THREE.Mesh(
           new THREE.SphereGeometry(
-            1.15,
-            14,
-            10
+            0.48,
+            12,
+            8
           ),
           MATERIALS.treeLeaf
         );
 
-
       crown.position.y =
-        2.25;
-
+        0.82;
 
       crown.castShadow =
         true;
 
-
-      group.add(
+      shrub.add(
         crown
       );
 
-
-      return group;
     }
 
 
-    [
-      [-49,-10,1.1],
-      [-49,10,1.0],
-      [-39,-10,0.9],
-      [-39,10,1.1],
+    propertyShrub(
+      -13.0,
+      -9.5,
+      0.9
+    );
 
-      [-34,15,0.8],
-      [-24,15,0.9],
 
-      [34,15,0.8],
-      [24,15,0.9],
+    propertyShrub(
+      -10.5,
+      -9.5,
+      0.75
+    );
 
-      [-34,-11,0.9],
-      [-24,-11,0.8],
 
-      [24,-11,0.9],
-      [34,-11,0.8]
-    ].forEach(
-      p =>
-        tree(
-          p[0],
-          p[1],
-          p[2]
-        )
+    propertyShrub(
+      10.5,
+      -9.5,
+      0.75
+    );
+
+
+    propertyShrub(
+      13.0,
+      -9.5,
+      0.9
     );
 
 
     /* =====================================================
-       HQ LANDSCAPING
+       HQ PARKING SPACE NUMBERS / MARKERS
        ===================================================== */
 
-    [
-      [-14,31],
-      [-9,31],
-      [9,31],
-      [14,31],
 
-      [-14,53],
-      [-9,53],
-      [9,53],
-      [14,53]
-    ].forEach(
-      p =>
-        tree(
-          p[0],
-          p[1],
-          0.75
-        )
+    const parkingMarkers =
+      new THREE.Group();
+
+    parkingMarkers.name =
+      "HQ_ParkingMarkers";
+
+    HQ.add(
+      parkingMarkers
     );
 
 
+    for(
+      let x = -9;
+      x <= 9;
+      x += 3
+    ){
+
+      /*
+       * Small parking stop.
+       */
+
+      box(
+        1.6,
+        0.10,
+        0.18,
+        MATERIALS.concrete,
+        x,
+        0.38,
+        -8.35,
+        parkingMarkers
+      );
+
+    }
+
+
     /* =====================================================
-       STREET LIGHTS
+       HQ FRONT SAFETY BOLLARDS
        ===================================================== */
 
-    function streetLight(
+
+    function bollard(
       x,
       z
     ){
 
-      const group =
-        new THREE.Group();
-
-      group.position.set(
-        x,
-        0,
-        z
-      );
-
-      CITY.add(
-        group
-      );
-
-
       cylinder(
-        0.07,
-        2.8,
-        MATERIALS.metal,
-        0,
-        1.4,
-        0,
-        group,
-        10
-      );
-
-
-      box(
-        0.65,
-        0.08,
-        0.08,
-        MATERIALS.metal,
-        0.28,
-        2.78,
-        0,
-        group
-      );
-
-
-      const lamp =
-        new THREE.Mesh(
-          new THREE.SphereGeometry(
-            0.12,
-            10,
-            8
-          ),
-          new THREE.MeshStandardMaterial({
-            color:0xfff3c4,
-            emissive:0xffdf88,
-            emissiveIntensity:1.2,
-            roughness:0.4
-          })
-        );
-
-
-      lamp.position.set(
-        0.6,
-        2.72,
-        0
-      );
-
-
-      group.add(
-        lamp
-      );
-
-    }
-
-
-    [
-      [-24,22],
-      [24,22],
-      [-24,-24],
-      [24,-24],
-
-      [-14,18],
-      [14,18],
-      [-14,-20],
-      [14,-20],
-
-      [-43,18],
-      [-43,-20]
-    ].forEach(
-      p =>
-        streetLight(
-          p[0],
-          p[1]
-        )
-    );
-
-
-    /* =====================================================
-       CARS
-       ===================================================== */
-
-    function createCar(
-      x,
-      y,
-      z,
-      scale = 1,
-      rotation = 0,
-      bodyColor = 0x3e6d8e
-    ){
-
-      const group =
-        new THREE.Group();
-
-      group.position.set(
-        x,
-        y,
-        z
-      );
-
-      group.rotation.y =
-        rotation;
-
-      group.scale.setScalar(
-        scale
-      );
-
-
-      TRAFFIC_ROOT.add(
-        group
-      );
-
-
-      const body =
-        material(
-          bodyColor,
-          0.45,
-          0.1
-        );
-
-
-      box(
-        2.6,
-        0.48,
-        1.25,
-        body,
-        0,
-        0.42,
-        0,
-        group
-      );
-
-
-      box(
-        1.55,
-        0.48,
-        1.02,
-        MATERIALS.glassDark,
-        0,
-        0.78,
-        0,
-        group
-      );
-
-
-      /* Hood */
-
-      box(
-        0.65,
-        0.12,
-        1.1,
-        body,
-        0.95,
-        0.68,
-        0,
-        group
-      );
-
-
-      /* Wheels */
-
-      [
-        [-0.82,-0.68],
-        [0.82,-0.68],
-        [-0.82,0.68],
-        [0.82,0.68]
-      ].forEach(
-        p => {
-
-          const wheel =
-            cylinder(
-              0.30,
-              0.20,
-              MATERIALS.dark,
-              p[0],
-              0.25,
-              p[1],
-              group,
-              14
-            );
-
-
-          wheel.rotation.x =
-            Math.PI / 2;
-
-        }
-      );
-
-
-      /* Headlights */
-
-      const lightMaterial =
-        new THREE.MeshStandardMaterial({
-
-          color:0xffffff,
-
-          emissive:0xffffff,
-
-          emissiveIntensity:0.7,
-
-          roughness:0.25
-
-        });
-
-
-      box(
-        0.12,
-        0.12,
-        0.28,
-        lightMaterial,
-        1.33,
-        0.50,
-        -0.40,
-        group
-      );
-
-
-      box(
-        0.12,
-        0.12,
-        0.28,
-        lightMaterial,
-        1.33,
-        0.50,
-        0.40,
-        group
-      );
-
-
-      group.userData = {
-
-        speed:
-          2.5 +
-          Math.random() * 1.5,
-
-        startX:x,
-
-        startZ:z,
-
-        axis:"x"
-
-      };
-
-
-      return group;
-    }
-
-
-    const trafficCars = [];
-
-
-    trafficCars.push(
-      createCar(
-        -42,
-        0.35,
-        18,
-        0.85,
-        0,
-        0x3f6d91
-      )
-    );
-
-
-    trafficCars.push(
-      createCar(
-        20,
-        0.35,
-        18,
-        0.85,
-        Math.PI,
-        0x8b5149
-      )
-    );
-
-
-    trafficCars.push(
-      createCar(
-        -19,
-        0.35,
-        -20,
-        0.8,
-        0,
-        0x6b7542
-      )
-    );
-
-
-    trafficCars.push(
-      createCar(
-        40,
-        0.35,
-        -20,
-        0.82,
-        Math.PI,
-        0x6a5b80
-      )
-    );
-
-
-    /* =====================================================
-       PARKING CARS
-       ===================================================== */
-
-    createCar(
-      -6,
-      0.35,
-      37,
-      0.72,
-      0,
-      0x4e6580
-    );
-
-
-    createCar(
-      3,
-      0.35,
-      37,
-      0.72,
-      0,
-      0x8b654d
-    );
-
-
-    createCar(
-      11,
-      0.35,
-      37,
-      0.72,
-      0,
-      0x586f59
-    );
-
-
-    /* =====================================================
-       PEDESTRIANS
-       ===================================================== */
-
-    const pedestrians = [];
-
-
-    function pedestrian(
-      x,
-      z,
-      scale = 1
-    ){
-
-      const group =
-        new THREE.Group();
-
-      group.position.set(
-        x,
-        0,
-        z
-      );
-
-      group.scale.setScalar(
-        scale
-      );
-
-
-      NPC_ROOT.add(
-        group
-      );
-
-
-      const shirt =
-        material(
-          Math.random() >
-            0.5
-            ? 0x4d6d92
-            : 0x76536b,
-          0.9
-        );
-
-
-      cylinder(
-        0.13,
+        0.09,
         0.75,
-        MATERIALS.pants,
-        -0.13,
-        0.42,
-        0,
-        group,
-        10
+        MATERIALS.metal,
+        x,
+        0.55,
+        z,
+        HQ,
+        12
       );
 
-
-      cylinder(
-        0.13,
-        0.75,
-        MATERIALS.pants,
-        0.13,
-        0.42,
-        0,
-        group,
-        10
-      );
-
-
-      box(
-        0.52,
-        0.9,
-        0.32,
-        shirt,
-        0,
-        1.18,
-        0,
-        group
-      );
-
-
-      const head =
-        new THREE.Mesh(
-          new THREE.SphereGeometry(
-            0.22,
-            12,
-            9
-          ),
-          MATERIALS.skin
-        );
-
-
-      head.position.y =
-        1.85;
-
-
-      head.castShadow =
-        true;
-
-
-      group.add(
-        head
-      );
-
-
-      group.userData = {
-
-        phase:
-          Math.random() * 10,
-
-        speed:
-          0.55 +
-          Math.random() * 0.35,
-
-        startX:x,
-
-        startZ:z
-
-      };
-
-
-      pedestrians.push(
-        group
-      );
-
-
-      return group;
     }
 
 
-    pedestrian(
-      -40,
-      17,
-      0.95
+    bollard(
+      -3.8,
+      -5.2
     );
 
 
-    pedestrian(
-      -36,
-      17,
-      0.9
-    );
-
-
-    pedestrian(
-      38,
-      17,
-      0.95
-    );
-
-
-    pedestrian(
-      42,
-      17,
-      0.9
-    );
-
-
-    pedestrian(
-      -39,
-      -20,
-      0.9
-    );
-
-
-    pedestrian(
-      39,
-      -20,
-      0.95
+    bollard(
+      3.8,
+      -5.2
     );
 
 
     /* =====================================================
-       REAL EMPLOYEE MODEL
+       HQ SITE LABEL DATA
        ===================================================== */
 
-    const loader =
-      new GLTFLoader();
 
+    HQ.userData.site = {
 
-    const HUMAN_URL =
-      "https://cdn.jsdelivr.net/gh/UMRAM-Bilkent/supine-human-model@main/assets/human.glb";
+      id:
+        "player_hq",
 
+      type:
+        "player-headquarters",
 
-    let humanTemplate =
-      null;
+      property:
 
-
-    let humanAnimations =
-      [];
-
-
-    const workers = [];
-
-
-    const mixers = [];
-
-
-    function animationByName(
-      keywords
-    ){
-
-      if(
-        !humanAnimations.length
-      ){
-        return null;
-      }
-
-
-      return (
-        humanAnimations.find(
-          clip => {
-
-            const name =
-              String(
-                clip.name || ""
-              )
-                .toLowerCase();
-
-
-            return keywords.some(
-              key =>
-                name.includes(
-                  key
-                )
-            );
-
-          }
-        ) ||
-        null
-      );
-
-    }
-
-
-    function loadHumans(){
-
-      loader.load(
-
-        HUMAN_URL,
-
-        gltf => {
-
-          humanTemplate =
-            gltf.scene;
-
-
-          humanAnimations =
-            gltf.animations ||
-            [];
-
-
-          humanTemplate.traverse(
-            object => {
-
-              if(
-                object.isMesh
-              ){
-
-                object.castShadow =
-                  true;
-
-                object.receiveShadow =
-                  true;
-
-              }
-
-            }
-          );
-
-
-          spawnEmployees();
-
-
-          console.log(
-            "Empire Rush: Real employee model loaded."
-          );
-
+        {
+          width:32,
+          depth:26
         },
 
-        undefined,
+      access:
 
-        error => {
-
-          console.warn(
-            "Empire Rush: Employee model unavailable.",
-            error
-          );
-
-        }
-
-      );
-
-    }
-
-
-    /* =====================================================
-       EMPLOYEE DATA
-       ===================================================== */
-
-    const employeeData = [
-
-      {
-        name:"Aarav",
-        role:"Operations Manager",
-        dept:"Operations",
-        x:-6,
-        z:-1
-      },
-
-      {
-        name:"Riya",
-        role:"Finance Analyst",
-        dept:"Finance",
-        x:-10,
-        z:-3
-      },
-
-      {
-        name:"Kabir",
-        role:"Marketing Executive",
-        dept:"Marketing",
-        x:9,
-        z:-3
-      },
-
-      {
-        name:"Anaya",
-        role:"Product Manager",
-        dept:"Product",
-        x:4,
-        z:-3
-      },
-
-      {
-        name:"Vivaan",
-        role:"HR Manager",
-        dept:"Human Resources",
-        x:-5,
-        z:1
-      },
-
-      {
-        name:"Meera",
-        role:"Sales Executive",
-        dept:"Sales",
-        x:9,
-        z:-1
-      },
-
-      {
-        name:"Arjun",
-        role:"R&D Engineer",
-        dept:"R&D",
-        x:9,
-        z:1
-      },
-
-      {
-        name:"Ishita",
-        role:"Accountant",
-        dept:"Finance",
-        x:-5,
-        z:-3
-      }
-
-    ];
-
-
-    function spawnEmployees(){
-
-      if(
-        !humanTemplate ||
-        workers.length
-      ){
-        return;
-      }
-
-
-      employeeData.forEach(
-        employee => {
-
-          const human =
-            SkeletonUtils.clone(
-              humanTemplate
-            );
-
-
-          human.position.set(
-            employee.x,
-            0.05,
-            employee.z
-          );
-
-
-          human.scale.setScalar(
-            1
-          );
-
-
-          human.userData = {
-
-            name:
-              employee.name,
-
-            role:
-              employee.role,
-
-            dept:
-              employee.dept,
-
-            status:
-              "Working",
-
-            targetX:
-              null,
-
-            targetZ:
-              null,
-
-            speed:
-              0.8 +
-              Math.random() * 0.25
-
-          };
-
-
-          human.traverse(
-            object => {
-
-              if(
-                object.isMesh
-              ){
-
-                object.castShadow =
-                  true;
-
-                object.receiveShadow =
-                  true;
-
-              }
-
-            }
-          );
-
-
-          const mixer =
-            new THREE.AnimationMixer(
-              human
-            );
-
-
-          const idle =
-            animationByName([
-              "idle",
-              "stand",
-              "standing"
-            ]);
-
-
-          if(idle){
-
-            mixer
-              .clipAction(
-                idle
-              )
-              .play();
-
-          }
-
-
-          human.userData.mixer =
-            mixer;
-
-
-          scene.add(
-            human
-          );
-
-
-          workers.push(
-            human
-          );
-
-
-          mixers.push(
-            mixer
-          );
-
-        }
-      );
-
-    }
-
-
-    loadHumans();
-
-
-    /* =====================================================
-       EMPLOYEE MOVEMENT
-       ===================================================== */
-
-    function moveEmployee(
-      human,
-      x,
-      z
-    ){
-
-      if(!human){
-        return;
-      }
-
-
-      human.userData.targetX =
-        x;
-
-
-      human.userData.targetZ =
-        z;
-
-
-      human.userData.status =
-        "Walking";
-
-    }
-
-
-    function updateEmployees(
-      delta
-    ){
-
-      mixers.forEach(
-        mixer => {
-
-          mixer.update(
-            delta
-          );
-
-        }
-      );
-
-
-      workers.forEach(
-        human => {
-
-          const data =
-            human.userData;
-
-
-          if(
-            data.targetX === null ||
-            data.targetZ === null
-          ){
-
-            return;
-
-          }
-
-
-          const dx =
-            data.targetX -
-            human.position.x;
-
-
-          const dz =
-            data.targetZ -
-            human.position.z;
-
-
-          const distance =
-            Math.hypot(
-              dx,
-              dz
-            );
-
-
-          if(
-            distance < 0.12
-          ){
-
-            human.position.x =
-              data.targetX;
-
-            human.position.z =
-              data.targetZ;
-
-            data.targetX =
-              null;
-
-            data.targetZ =
-              null;
-
-            data.status =
-              "Working";
-
-            return;
-
-          }
-
-
-          const angle =
-            Math.atan2(
-              dx,
-              dz
-            );
-
-
-          human.rotation.y =
-            angle;
-
-
-          const speed =
-            data.speed *
-            delta;
-
-
-          human.position.x +=
-            Math.sin(
-              angle
-            ) *
-            speed;
-
-
-          human.position.z +=
-            Math.cos(
-              angle
-            ) *
-            speed;
-
-        }
-      );
-
-    }
-    /* =====================================================
-       TRAFFIC ANIMATION
-       ===================================================== */
-
-    function updateTraffic(
-      delta
-    ){
-
-      trafficCars.forEach(
-        car => {
-
-          const data =
-            car.userData;
-
-          car.position.x +=
-            data.speed *
-            delta;
-
-          /*
-           * Keep traffic inside the
-           * planned road corridor.
-           */
-
-          if(
-            car.position.x > 48
-          ){
-
-            car.position.x =
-              -48;
-
-          }
-
-        }
-      );
-
-    }
-
-
-    /* =====================================================
-       EMPLOYEE INTERACTION
-       ===================================================== */
-
-    const raycaster =
-      new THREE.Raycaster();
-
-
-    const pointer =
-      new THREE.Vector2();
-
-
-    function selectEmployee(
-      event
-    ){
-
-      const rect =
-        renderer.domElement
-          .getBoundingClientRect();
-
-
-      pointer.x =
-        (
-          event.clientX -
-          rect.left
-        ) /
-        rect.width *
-        2 -
-        1;
-
-
-      pointer.y =
-        -(
-          event.clientY -
-          rect.top
-        ) /
-        rect.height *
-        2 +
-        1;
-
-
-      raycaster.setFromCamera(
-        pointer,
-        camera
-      );
-
-
-      const hits =
-        raycaster.intersectObjects(
-          workers,
-          true
-        );
-
-
-      if(
-        !hits.length
-      ){
-        return;
-      }
-
-
-      let selected =
-        hits[0].object;
-
-
-      while(
-        selected &&
-        !workers.includes(
-          selected
-        )
-      ){
-
-        selected =
-          selected.parent;
-
-      }
-
-
-      if(
-        !selected
-      ){
-        return;
-      }
-
-
-      const data =
-        selected.userData;
-
-
-      window.dispatchEvent(
-        new CustomEvent(
-          "EmpireEmployeeSelected",
-          {
-            detail:{
-              employee:data,
-              worker:selected
-            }
-          }
-        )
-      );
-
-    }
-
-
-    renderer.domElement.addEventListener(
-      "pointerdown",
-      selectEmployee
-    );
-
-
-    /* =====================================================
-       EMPLOYEE HIRED EVENT
-       ===================================================== */
-
-    window.addEventListener(
-      "EmpireEmployeeHired",
-      event => {
-
-        const detail =
-          event.detail ||
-          {};
-
-
-        if(
-          !humanTemplate
-        ){
-          return;
-        }
-
-
-        const employee =
-          detail.employee ||
-          detail;
-
-
-        if(
-          !employee ||
-          !employee.name
-        ){
-          return;
-        }
-
-
-        const human =
-          SkeletonUtils.clone(
-            humanTemplate
-          );
-
-
-        human.position.set(
-          0,
-          0.05,
-          25
-        );
-
-
-        human.userData = {
-
-          name:
-            employee.name,
-
-          role:
-            employee.role ||
-            "Employee",
-
-          dept:
-            employee.department ||
-            employee.dept ||
-            "General",
-
-          status:
-            "Walking",
-
-          targetX:
-            0,
-
-          targetZ:
-            4,
-
-          speed:
-            0.9
-
-        };
-
-
-        human.traverse(
-          object => {
-
-            if(
-              object.isMesh
-            ){
-
-              object.castShadow =
-                true;
-
-              object.receiveShadow =
-                true;
-
-            }
-
-          }
-        );
-
-
-        const mixer =
-          new THREE.AnimationMixer(
-            human
-          );
-
-
-        human.userData.mixer =
-          mixer;
-
-
-        scene.add(
-          human
-        );
-
-
-        workers.push(
-          human
-        );
-
-
-        mixers.push(
-          mixer
-        );
-
-
-        moveEmployee(
-          human,
-          0,
-          4
-        );
-
-      }
-    );
-
-
-    /* =====================================================
-       EMPIRE WORLD API
-       ===================================================== */
-
-    function focusOn(
-      x,
-      z
-    ){
-
-      controls.target.set(
-        x,
-        0,
-        z
-      );
-
-      camera.position.set(
-        x + 22,
-        22,
-        z + 22
-      );
-
-      controls.update();
-
-    }
-
-
-    function moveWorkerTo(
-      worker,
-      x,
-      z
-    ){
-
-      moveEmployee(
-        worker,
-        x,
-        z
-      );
-
-    }
-
-
-    window.EmpireWorld = {
-
-      THREE,
-
-      scene,
-
-      camera,
-
-      renderer,
-
-      controls,
-
-      HQ,
-
-      workers,
-
-      focusOn,
-
-      moveWorkerTo,
-
-      city:
-        CITY,
-
-      traffic:
-        trafficCars,
-
-      pedestrians,
-
-      getEmployees(){
-        return workers;
-      }
-
-    };
-
-
-    /* =====================================================
-       WORKFORCE COMPATIBILITY API
-       ===================================================== */
-
-    window.EmpireWorkforceWorld = {
-
-      moveWorkerTo,
-
-      getWorkers(){
-        return workers;
-      },
-
-      focusEmployee(
-        name
-      ){
-
-        const worker =
-          workers.find(
-            item =>
-              item.userData &&
-              item.userData.name ===
-              name
-          );
-
-
-        if(
-          !worker
-        ){
-          return false;
-        }
-
-
-        focusOn(
-          worker.position.x,
-          worker.position.z
-        );
-
-
-        return true;
-
-      }
-
-    };
-
-
-    /* =====================================================
-       WORLD READY EVENT
-       ===================================================== */
-
-    window.dispatchEvent(
-      new CustomEvent(
-        "EmpireWorldReady",
         {
-          detail:
-            window.EmpireWorld
+          publicRoad:true,
+          sidewalk:true,
+          driveway:true,
+          parking:true,
+          pedestrianPath:true
+        },
+
+      building:
+
+        {
+          width:30,
+          depth:14,
+          insideProperty:true
+        },
+
+      rules:
+
+        {
+          roadInsideProperty:false,
+          roadInsideBuilding:false,
+          parkingInsideBuilding:false,
+          drivewayInsideBuilding:false
         }
-      )
-    );
+
+    };
 
 
     /* =====================================================
-       ANIMATION LOOP
+       OFFICE-01 VALIDATION
        ===================================================== */
 
-    let previousTime =
-      performance.now();
+
+    function validateHQSite(){
+
+      const site =
+        HQ.userData.site;
 
 
-    function animate(
-      currentTime
-    ){
+      const checks = {
 
-      requestAnimationFrame(
-        animate
+        propertyExists:
+          !!HQ_PROPERTY,
+
+        drivewayExists:
+          !!HQ.getObjectByName(
+            "HQ_PrivateDriveway"
+          ),
+
+        parkingExists:
+          !!HQ.getObjectByName(
+            "HQ_Parking"
+          ),
+
+        entranceExists:
+          !!HQ.getObjectByName(
+            "HQ_MainEntrance"
+          ),
+
+        buildingInsideProperty:
+          site.building.insideProperty,
+
+        roadInsideBuilding:
+          site.rules.roadInsideBuilding,
+
+        parkingInsideBuilding:
+          site.rules.parkingInsideBuilding,
+
+        drivewayInsideBuilding:
+          site.rules.drivewayInsideBuilding
+
+      };
+
+
+      const passed =
+        checks.propertyExists &&
+        checks.drivewayExists &&
+        checks.parkingExists &&
+        checks.entranceExists &&
+        checks.buildingInsideProperty &&
+        checks.roadInsideBuilding === false &&
+        checks.parkingInsideBuilding === false &&
+        checks.drivewayInsideBuilding === false;
+
+
+      HQ.userData.office01Passed =
+        passed;
+
+
+      console.log(
+        "========================================"
+      );
+
+      console.log(
+        "EMPIRE RUSH — OFFICE-01 VALIDATION"
+      );
+
+      console.table(
+        checks
+      );
+
+      console.log(
+        passed
+          ? "OFFICE-01 PASS ✓"
+          : "OFFICE-01 NEEDS REVIEW"
+      );
+
+      console.log(
+        "========================================"
       );
 
 
-      const delta =
-        Math.min(
-          (
-            currentTime -
-            previousTime
-          ) /
-          1000,
-          0.05
-        );
-
-
-      previousTime =
-        currentTime;
-
-
-      updateEmployees(
-        delta
-      );
-
-
-      updateTraffic(
-        delta
-      );
-
-
-      controls.update();
-
-
-      renderer.render(
-        scene,
-        camera
-      );
+      return passed;
 
     }
 
 
-    animate(
-      performance.now()
+    validateHQSite();
+
+
+    /* =====================================================
+       OFFICE-01 COMPLETE
+       ===================================================== */
+
+
+    window.EmpireOffice =
+      window.EmpireOffice ||
+      {};
+
+
+    window.EmpireOffice.stage =
+      "OFFICE-01";
+
+
+    window.EmpireOffice.HQ =
+      HQ;
+
+
+    window.EmpireOffice.property =
+      HQ_PROPERTY;
+
+
+    window.EmpireOffice.validate =
+      validateHQSite;
+
+
+    window.EmpireOffice.getSitePlan =
+      function(){
+
+        return HQ.userData.site;
+
+      };
+
+
+    console.log(
+      "Empire Rush: OFFICE-01 complete."
     );
 
 
     /* =====================================================
-       RESIZE
-       ===================================================== */
-
-    function resize(){
-
-      const width =
-        window.innerWidth;
-
-
-      const height =
-        window.innerHeight;
-
-
-      camera.aspect =
-        width / height;
-
-
-      camera.updateProjectionMatrix();
-
-
-      renderer.setSize(
-        width,
-        height,
-        false
-      );
-
-
-      renderer.setPixelRatio(
-        Math.min(
-          window.devicePixelRatio ||
-          1,
-          2
-        )
-      );
-
-    }
-
-
-    window.addEventListener(
-      "resize",
-      resize
-    );
-
-
-    resize();
-
-
-  </script>
-
-
-  <!-- ===================================================
-       GAME SYSTEMS
-       =================================================== -->
-
-  <script src="./empire-game-state.js"></script>
-
-  <script src="./career-business-ui.js"></script>
-
-  <script src="./career-progression-system.js"></script>
-
-  <script src="./business-operations-ui.js"></script>
-
-  <script src="./business-type-operations.js"></script>
-
-  <script src="./business-setup-ui.js"></script>
-
-  <script src="./customer-market-system.js"></script>
-
-  <script src="./employee-productivity-system.js"></script>
-
-  <script src="./hr-department-system.js"></script>
-
-  <script src="./company-accounting-system.js"></script>
-
-  <script src="./business-financing-system.js"></script>
-
-  <script src="./banking-investment-system.js"></script>
-
-  <script src="./government-compliance-system.js"></script>
-
-  <script src="./government-compliance-ui.js"></script>
-
-  <script src="./competition-market-events.js"></script>
-
-  <script src="./competition-market-ui.js"></script>
-
-  <script src="./news-decision-system.js"></script>
-
-  <script src="./news-decision-ui.js"></script>
-
-  <script src="./product-development-system.js"></script>
-
-  <script src="./product-market-integration.js"></script>
-
-  <script src="./product-management-ui.js"></script>
-
-  <script src="./company-group-system.js"></script>
-
-  <script src="./company-group-ui.js"></script>
-
-  <script src="./corporate-gameplay-system.js"></script>
-
-  <!-- ===================================================
-       MAIN MOBILE HUD
-       =================================================== -->
-
-  <script src="./main-game-hud.js"></script>
-
-
-</body>
-
-</html>
+       END OFFICE-01
+       ===================================================== */       
+  
