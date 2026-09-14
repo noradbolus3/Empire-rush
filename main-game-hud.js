@@ -1,2243 +1,3426 @@
 (function () {
   "use strict";
 
-  /* =========================================================
-     EMPIRE RUSH — CLEAN MOBILE HUD
-     One HUD only.
-     Legacy HUD is automatically hidden.
-     ========================================================= */
+  /*
+   * =========================================================
+   * EMPIRE RUSH
+   * MOBILE COMMAND HUD
+   *
+   * This file owns the mobile HUD.
+   *
+   * Responsibilities:
+   *  - Compact header
+   *  - Career / Business / Finance / More navigation
+   *  - Module drawer
+   *  - Legacy floating-button cleanup
+   *  - Mobile-first viewport protection
+   *
+   * It does NOT render the 3D world.
+   * =========================================================
+   */
 
-  const HUD_ID = "empireCleanHUD";
 
   const HUD = {
 
     root: null,
-    started: false,
-    timer: null,
 
-    /* =======================================================
-       GAME STATE
-       ======================================================= */
+    moreDrawer: null,
 
-    game() {
-      return window.EmpireGameState || null;
+    toastTimer: null,
+
+    observer: null,
+
+    game: null,
+
+
+    /*
+     * -------------------------------------------------------
+     * GAME ACCESS
+     * -------------------------------------------------------
+     */
+
+    getGame() {
+
+      return (
+        window.EmpireGameState ||
+        null
+      );
+
     },
 
-    state() {
-      try {
-        const game = this.game();
-        return game && game.getState
-          ? game.getState() || {}
-          : {};
-      } catch (e) {
-        return {};
-      }
-    },
 
-    player() {
-      return this.state().player || {};
-    },
+    getState() {
 
-    world() {
-      return this.state().world || {};
-    },
-
-    company() {
-      const companies =
-        this.state().companies;
+      const game =
+        this.getGame();
 
       if (
-        !Array.isArray(companies) ||
-        !companies.length
+        !game
       ) {
         return null;
       }
 
-      return companies[0];
+      if (
+        typeof game.getState === "function"
+      ) {
+        return game.getState();
+      }
+
+      return (
+        game.state ||
+        null
+      );
+
     },
+
+
+    getPlayer() {
+
+      const state =
+        this.getState();
+
+      return (
+        state &&
+        state.player
+      ) || {
+        name: "Founder",
+        currentJob: "Unemployed",
+        jobLevel: "Entry",
+        cash: 0,
+        savings: 0
+      };
+
+    },
+
+
+    getWorld() {
+
+      const state =
+        this.getState();
+
+      return (
+        state &&
+        state.world
+      ) || {
+        day: 1,
+        month: 1,
+        year: 1
+      };
+
+    },
+
+
+    /*
+     * -------------------------------------------------------
+     * NUMBER FORMAT
+     * -------------------------------------------------------
+     */
 
     money(value) {
-      const n = Number(value || 0);
-      const a = Math.abs(n);
 
-      let text;
+      const amount =
+        Number(value) || 0;
 
-      if (a >= 10000000) {
-        text =
+
+      if (
+        Math.abs(amount) >= 10000000
+      ) {
+
+        return (
           "₹" +
-          (a / 10000000).toFixed(1) +
-          "Cr";
-      } else if (a >= 100000) {
-        text =
-          "₹" +
-          (a / 100000).toFixed(1) +
-          "L";
-      } else if (a >= 1000) {
-        text =
-          "₹" +
-          (a / 1000).toFixed(1) +
-          "K";
-      } else {
-        text =
-          "₹" +
-          Math.round(a)
-            .toLocaleString("en-IN");
+          (
+            amount /
+            10000000
+          ).toFixed(2) +
+          "Cr"
+        );
+
       }
 
-      return n < 0
-        ? "-" + text
-        : text;
+
+      if (
+        Math.abs(amount) >= 100000
+      ) {
+
+        return (
+          "₹" +
+          (
+            amount /
+            100000
+          ).toFixed(2) +
+          "L"
+        );
+
+      }
+
+
+      if (
+        Math.abs(amount) >= 1000
+      ) {
+
+        return (
+          "₹" +
+          (
+            amount /
+            1000
+          ).toFixed(1) +
+          "K"
+        );
+
+      }
+
+
+      return (
+        "₹" +
+        Math.round(
+          amount
+        ).toLocaleString(
+          "en-IN"
+        )
+      );
+
     },
 
-    esc(value) {
-      return String(value ?? "")
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-    },
 
-    /* =======================================================
-       REMOVE THIS HUD'S OLD VERSION
-       ======================================================= */
+    /*
+     * -------------------------------------------------------
+     * ROOT
+     * -------------------------------------------------------
+     */
 
-    removeOwnOldHUD() {
+    createRoot() {
 
       const old =
-        document.getElementById(HUD_ID);
+        document.getElementById(
+          "empireCleanHUD"
+        );
+
 
       if (old) {
+
         old.remove();
+
       }
 
-      const previous =
-        document.getElementById(
-          "empireMainHUD"
-        );
-
-      if (previous) {
-        previous.remove();
-      }
-
-      const oldStyle =
-        document.getElementById(
-          "empireHUDStyles"
-        );
-
-      if (oldStyle) {
-        oldStyle.remove();
-      }
-    },
-
-    /* =======================================================
-       HIDE LEGACY STATIC HUD
-       ======================================================= */
-
-    hideLegacy() {
-
-      /*
-       * The previous HUD was being rendered separately
-       * from this controller.
-       *
-       * We hide only obvious legacy game HUD elements.
-       * Three.js canvas/world is NEVER touched.
-       */
-
-      const exactTexts = [
-        "EMPIRE RUSH · HQ",
-        "EMPIRE RUSH • HQ",
-        "COMMAND CENTER"
-      ];
-
-      const buttons = [
-        "PRODUCTS",
-        "NEWS",
-        "CORPORATE",
-        "GOVERNMENT",
-        "WORKFORCE",
-        "ECONOMICS",
-        "BUSINESS"
-      ];
-
-      const all =
-        document.body.querySelectorAll(
-          "div,section,header,nav,button"
-        );
-
-      all.forEach(el => {
-
-        if (
-          el.id === HUD_ID ||
-          el.closest("#" + HUD_ID)
-        ) {
-          return;
-        }
-
-        const text =
-          (el.textContent || "")
-            .replace(/\s+/g, " ")
-            .trim();
-
-        if (!text) {
-          return;
-        }
-
-        /*
-         * Hide exact old header.
-         */
-
-        if (
-          exactTexts.some(
-            value =>
-              text === value
-          )
-        ) {
-
-          const target =
-            el.tagName === "BUTTON"
-              ? el
-              : el;
-
-          target.style.setProperty(
-            "display",
-            "none",
-            "important"
-          );
-
-          return;
-        }
-
-        /*
-         * Hide old standalone right-side
-         * and bottom navigation buttons.
-         */
-
-        if (
-          el.tagName === "BUTTON" &&
-          buttons.includes(text)
-        ) {
-
-          el.style.setProperty(
-            "display",
-            "none",
-            "important"
-          );
-        }
-      });
-    },
-
-    /* =======================================================
-       ROOT
-       ======================================================= */
-
-    create() {
-
-      this.removeOwnOldHUD();
 
       const root =
-        document.createElement("div");
+        document.createElement(
+          "div"
+        );
 
-      root.id = HUD_ID;
+
+      root.id =
+        "empireCleanHUD";
+
 
       root.innerHTML = `
-        <div class="er-header"></div>
 
-        <div class="er-status"></div>
+        <div
+          id="erHeader"
+          class="er-header"
+        >
 
-        <div class="er-more"></div>
+          <div
+            class="er-brand"
+          >
 
-        <div class="er-bottom"></div>
+            <div
+              class="er-logo"
+            >
+              ♛
+            </div>
 
-        <div class="er-toast-layer"></div>
+            <div
+              class="er-brand-text"
+            >
+
+              <div
+                class="er-title"
+              >
+                RUSH
+              </div>
+
+              <div
+                class="er-founder"
+                id="erFounder"
+              >
+                Founder
+              </div>
+
+              <div
+                class="er-job"
+                id="erJob"
+              >
+                Unemployed · Entry
+              </div>
+
+            </div>
+
+          </div>
+
+
+          <div
+            class="er-stat"
+          >
+
+            <span>
+              CASH
+            </span>
+
+            <strong
+              id="erCash"
+            >
+              ₹0
+            </strong>
+
+          </div>
+
+
+          <div
+            class="er-stat er-day"
+          >
+
+            <span>
+              DAY
+            </span>
+
+            <strong
+              id="erDay"
+            >
+              1
+            </strong>
+
+          </div>
+
+
+          <button
+            class="er-menu-button"
+            id="erMenuButton"
+            type="button"
+            aria-label="Open menu"
+          >
+
+            <span></span>
+            <span></span>
+            <span></span>
+
+          </button>
+
+        </div>
+
+
+        <div
+          id="erObjective"
+          class="er-objective"
+        >
+
+          <div
+            class="er-objective-dot"
+          ></div>
+
+          <div
+            class="er-objective-main"
+            id="erObjectiveMain"
+          >
+            Build your career
+          </div>
+
+          <div
+            class="er-objective-separator"
+          ></div>
+
+          <div
+            class="er-objective-sub"
+            id="erObjectiveSub"
+          >
+            Start from zero
+          </div>
+
+          <div
+            class="er-date"
+            id="erDate"
+          >
+            Y1 · M1 · D1
+          </div>
+
+        </div>
+
+
+        <div
+          id="erBottomNav"
+          class="er-bottom-nav"
+        >
+
+          <button
+            class="er-nav active"
+            data-action="home"
+            type="button"
+          >
+
+            <span
+              class="er-nav-icon"
+            >
+              ⌂
+            </span>
+
+            <span>
+              HOME
+            </span>
+
+          </button>
+
+
+          <button
+            class="er-nav"
+            data-action="career"
+            type="button"
+          >
+
+            <span
+              class="er-nav-icon"
+            >
+              💼
+            </span>
+
+            <span>
+              CAREER
+            </span>
+
+          </button>
+
+
+          <button
+            class="er-nav"
+            data-action="business"
+            type="button"
+          >
+
+            <span
+              class="er-nav-icon"
+            >
+              ▦
+            </span>
+
+            <span>
+              BUSINESS
+            </span>
+
+          </button>
+
+
+          <button
+            class="er-nav"
+            data-action="finance"
+            type="button"
+          >
+
+            <span
+              class="er-nav-icon"
+            >
+              ₹
+            </span>
+
+            <span>
+              FINANCE
+            </span>
+
+          </button>
+
+
+          <button
+            class="er-nav"
+            data-action="more"
+            type="button"
+          >
+
+            <span
+              class="er-nav-icon"
+            >
+              ☰
+            </span>
+
+            <span>
+              MORE
+            </span>
+
+          </button>
+
+        </div>
+
+
+        <div
+          id="erMoreDrawer"
+          class="er-more-drawer"
+        >
+
+          <div
+            class="er-drawer-backdrop"
+            data-close-more="true"
+          ></div>
+
+
+          <div
+            class="er-drawer"
+          >
+
+            <div
+              class="er-drawer-handle"
+            ></div>
+
+
+            <div
+              class="er-drawer-title"
+            >
+              COMMAND MENU
+            </div>
+
+
+            <div
+              class="er-drawer-grid"
+            >
+
+              <button
+                class="er-module"
+                data-module="products"
+                type="button"
+              >
+
+                <span>📦</span>
+                <b>Products</b>
+                <small>Develop & manage</small>
+
+              </button>
+
+
+              <button
+                class="er-module"
+                data-module="news"
+                type="button"
+              >
+
+                <span>📰</span>
+                <b>News</b>
+                <small>World events</small>
+
+              </button>
+
+
+              <button
+                class="er-module"
+                data-module="corporate"
+                type="button"
+              >
+
+                <span>🏢</span>
+                <b>Corporate</b>
+                <small>Group control</small>
+
+              </button>
+
+
+              <button
+                class="er-module"
+                data-module="operations"
+                type="button"
+              >
+
+                <span>⚙️</span>
+                <b>Operations</b>
+                <small>Run your company</small>
+
+              </button>
+
+
+              <button
+                class="er-module"
+                data-module="workforce"
+                type="button"
+              >
+
+                <span>👥</span>
+                <b>Workforce</b>
+                <small>Employees & HR</small>
+
+              </button>
+
+
+              <button
+                class="er-module"
+                data-module="government"
+                type="button"
+              >
+
+                <span>🏛️</span>
+                <b>Government</b>
+                <small>Tax & compliance</small>
+
+              </button>
+
+
+              <button
+                class="er-module"
+                data-module="market"
+                type="button"
+              >
+
+                <span>📈</span>
+                <b>Market</b>
+                <small>Competition</small>
+
+              </button>
+
+
+              <button
+                class="er-module"
+                data-module="economics"
+                type="button"
+              >
+
+                <span>📊</span>
+                <b>Economics</b>
+                <small>Business numbers</small>
+
+              </button>
+
+
+              <button
+                class="er-module"
+                data-module="save"
+                type="button"
+              >
+
+                <span>💾</span>
+                <b>Save Game</b>
+                <small>Save progress</small>
+
+              </button>
+
+            </div>
+
+
+            <button
+              class="er-close"
+              id="erCloseMore"
+              type="button"
+            >
+              CLOSE
+            </button>
+
+          </div>
+
+        </div>
+
+
+        <div
+          id="erToast"
+          class="er-toast"
+        ></div>
+
       `;
 
-      document.body.appendChild(root);
 
-      this.root = root;
+      document.body.appendChild(
+        root
+      );
 
-      this.css();
+
+      this.root =
+        root;
+
+
+      this.moreDrawer =
+        document.getElementById(
+          "erMoreDrawer"
+        );
+
     },
 
-    /* =======================================================
-       CSS
-       ======================================================= */
 
-    css() {
+    /*
+     * -------------------------------------------------------
+     * STYLES
+     * -------------------------------------------------------
+     */
+
+    injectStyles() {
 
       if (
         document.getElementById(
-          "empireCleanHUDStyle"
+          "empireCleanHUDStyles"
         )
       ) {
+
         return;
+
       }
 
+
       const style =
-        document.createElement("style");
+        document.createElement(
+          "style"
+        );
+
 
       style.id =
-        "empireCleanHUDStyle";
+        "empireCleanHUDStyles";
+
 
       style.textContent = `
 
-        #${HUD_ID} {
+        #empireCleanHUD {
 
-          position:fixed;
-          inset:0;
+          position: fixed;
 
-          z-index:9990;
+          inset: 0;
 
-          pointer-events:none;
+          z-index: 9000;
+
+          pointer-events: none;
 
           font-family:
             Inter,
+            system-ui,
             -apple-system,
             BlinkMacSystemFont,
             "Segoe UI",
-            Roboto,
-            Arial,
             sans-serif;
 
-          color:#fff;
-
-          -webkit-font-smoothing:antialiased;
         }
 
 
-        #${HUD_ID} * {
-          box-sizing:border-box;
+        #empireCleanHUD * {
+
+          box-sizing: border-box;
+
         }
 
 
-        /* ===============================================
+        /* ================================================
            HEADER
-           =============================================== */
+           ================================================ */
 
-        #${HUD_ID} .er-header {
+        .er-header {
 
-          position:absolute;
+          position: fixed;
 
-          top:
-            max(
-              7px,
-              env(safe-area-inset-top)
-            );
+          top: 12px;
 
-          left:8px;
-          right:8px;
+          left: 14px;
 
-          height:58px;
+          right: 14px;
 
-          display:flex;
-          align-items:center;
+          height: 88px;
 
-          padding:5px 6px;
+          display: flex;
 
-          border-radius:18px;
+          align-items: center;
+
+          gap: 8px;
+
+          padding: 8px;
+
+          border-radius: 28px;
 
           background:
-            rgba(8,15,25,.95);
+            rgba(
+              10,
+              17,
+              27,
+              0.94
+            );
 
           border:
             1px solid
-            rgba(255,255,255,.13);
+            rgba(
+              255,
+              255,
+              255,
+              0.16
+            );
 
           box-shadow:
-            0 8px 28px
-            rgba(0,0,0,.32),
-            inset 0 1px 0
-            rgba(255,255,255,.06);
+            0 12px 35px
+            rgba(
+              0,
+              0,
+              0,
+              0.32
+            );
 
-          backdrop-filter:blur(18px);
-          -webkit-backdrop-filter:blur(18px);
+          backdrop-filter:
+            blur(18px);
 
-          pointer-events:auto;
+          -webkit-backdrop-filter:
+            blur(18px);
 
-          overflow:hidden;
+          pointer-events:
+            auto;
+
         }
 
 
         .er-brand {
 
-          width:118px;
-          min-width:118px;
+          min-width: 0;
 
-          display:flex;
-          align-items:center;
+          flex: 1;
 
-          gap:7px;
+          display: flex;
+
+          align-items: center;
+
+          gap: 9px;
+
         }
 
 
         .er-logo {
 
-          width:39px;
-          height:39px;
+          width: 52px;
 
-          flex:0 0 39px;
+          height: 52px;
 
-          display:flex;
-          align-items:center;
-          justify-content:center;
+          flex: 0 0 52px;
 
-          border-radius:12px;
+          display: flex;
 
-          background:
-            linear-gradient(
-              145deg,
-              #303b4d,
-              #121a26
-            );
+          align-items: center;
 
-          border:
-            1px solid
-            rgba(255,255,255,.15);
+          justify-content: center;
 
-          font-size:20px;
-          font-weight:950;
-        }
-
-
-        .er-brand-title {
-
-          font-size:15px;
-          line-height:15px;
-
-          font-weight:950;
-
-          letter-spacing:.2px;
-
-          white-space:nowrap;
-        }
-
-
-        .er-brand-title span {
-          color:#8bd63f;
-        }
-
-
-        .er-brand-sub {
-
-          margin-top:4px;
-
-          font-size:5px;
-
-          font-weight:800;
-
-          letter-spacing:1px;
-
-          opacity:.45;
-        }
-
-
-        /* ===============================================
-           PLAYER
-           =============================================== */
-
-        .er-player {
-
-          min-width:0;
-          flex:1;
-
-          display:flex;
-          align-items:center;
-
-          padding:0 6px;
-        }
-
-
-        .er-avatar {
-
-          width:38px;
-          height:38px;
-
-          flex:0 0 38px;
-
-          display:flex;
-          align-items:center;
-          justify-content:center;
-
-          border-radius:50%;
+          border-radius: 18px;
 
           background:
             linear-gradient(
               145deg,
-              #745cff,
-              #3d2bc0
+              #182434,
+              #0d141e
             );
-
-          font-size:14px;
-          font-weight:900;
-        }
-
-
-        .er-player-info {
-
-          min-width:0;
-
-          margin-left:7px;
-        }
-
-
-        .er-player-name {
-
-          font-size:11px;
-          font-weight:900;
-
-          white-space:nowrap;
-          overflow:hidden;
-          text-overflow:ellipsis;
-        }
-
-
-        .er-player-job {
-
-          margin-top:3px;
-
-          font-size:6px;
-          font-weight:700;
-
-          color:#9ec1e1;
-
-          white-space:nowrap;
-          overflow:hidden;
-          text-overflow:ellipsis;
-        }
-
-
-        /* ===============================================
-           CASH
-           =============================================== */
-
-        .er-cash {
-
-          width:66px;
-          min-width:66px;
-
-          height:43px;
-
-          display:flex;
-          align-items:center;
-
-          gap:5px;
-
-          padding:4px 6px;
-
-          border-radius:12px;
-
-          background:
-            rgba(255,255,255,.055);
 
           border:
             1px solid
-            rgba(255,255,255,.08);
+            rgba(
+              255,
+              255,
+              255,
+              0.18
+            );
+
+          font-size: 25px;
+
         }
 
 
-        .er-cash-icon {
+        .er-brand-text {
 
-          width:22px;
-          height:22px;
+          min-width: 0;
 
-          display:flex;
-          align-items:center;
-          justify-content:center;
+          line-height: 1;
 
-          border-radius:7px;
+        }
+
+
+        .er-title {
+
+          color: #91df45;
+
+          font-size: 22px;
+
+          font-weight: 900;
+
+          letter-spacing: -0.5px;
+
+        }
+
+
+        .er-founder {
+
+          margin-top: 3px;
+
+          color: #f4f7fb;
+
+          font-size: 14px;
+
+          font-weight: 800;
+
+          white-space: nowrap;
+
+          overflow: hidden;
+
+          text-overflow: ellipsis;
+
+        }
+
+
+        .er-job {
+
+          margin-top: 4px;
+
+          color: #8da0b4;
+
+          font-size: 9px;
+
+          font-weight: 700;
+
+          white-space: nowrap;
+
+          overflow: hidden;
+
+          text-overflow: ellipsis;
+
+        }
+
+
+        .er-stat {
+
+          width: 86px;
+
+          height: 66px;
+
+          flex: 0 0 86px;
+
+          display: flex;
+
+          flex-direction: column;
+
+          justify-content: center;
+
+          padding: 8px 10px;
+
+          border-radius: 18px;
 
           background:
-            rgba(80,210,125,.16);
+            rgba(
+              28,
+              38,
+              50,
+              0.9
+            );
 
-          font-size:12px;
+          border:
+            1px solid
+            rgba(
+              255,
+              255,
+              255,
+              0.10
+            );
+
         }
 
 
-        .er-cash-label {
+        .er-stat span {
 
-          font-size:5px;
+          color: #718094;
 
-          font-weight:800;
+          font-size: 8px;
 
-          opacity:.42;
+          font-weight: 800;
+
+          letter-spacing: 0.7px;
+
         }
 
 
-        .er-cash-value {
+        .er-stat strong {
 
-          margin-top:2px;
+          margin-top: 4px;
 
-          font-size:10px;
+          color: #f4f7fb;
 
-          font-weight:950;
+          font-size: 16px;
 
-          white-space:nowrap;
+          font-weight: 900;
+
+          white-space: nowrap;
+
         }
 
-
-        /* ===============================================
-           DAY
-           =============================================== */
 
         .er-day {
 
-          width:58px;
-          min-width:58px;
+          width: 70px;
 
-          height:43px;
+          flex-basis: 70px;
 
-          margin-left:5px;
+        }
 
-          display:flex;
-          align-items:center;
 
-          gap:5px;
+        .er-menu-button {
 
-          padding:4px 6px;
+          width: 56px;
 
-          border-radius:12px;
+          height: 66px;
+
+          flex: 0 0 56px;
+
+          border: 0;
+
+          border-radius: 18px;
 
           background:
-            rgba(255,255,255,.055);
-
-          border:
-            1px solid
-            rgba(255,255,255,.08);
-        }
-
-
-        .er-day-icon {
-
-          width:22px;
-          height:22px;
-
-          display:flex;
-          align-items:center;
-          justify-content:center;
-
-          border-radius:7px;
-
-          background:
-            rgba(140,210,75,.16);
-
-          font-size:12px;
-        }
-
-
-        .er-day-label {
-
-          font-size:5px;
-
-          font-weight:800;
-
-          opacity:.42;
-        }
-
-
-        .er-day-value {
-
-          margin-top:2px;
-
-          font-size:9px;
-
-          font-weight:950;
-
-          white-space:nowrap;
-        }
-
-
-        /* ===============================================
-           MENU
-           =============================================== */
-
-        .er-menu {
-
-          width:39px;
-          height:39px;
-
-          flex:0 0 39px;
-
-          margin-left:5px;
-
-          border:0;
-
-          border-radius:11px;
-
-          background:
-            rgba(255,255,255,.075);
-
-          color:#fff;
-
-          font-size:21px;
-
-          font-weight:900;
-        }
-
-
-        /* ===============================================
-           STATUS
-           =============================================== */
-
-        #${HUD_ID} .er-status {
-
-          position:absolute;
-
-          top:
-            calc(
-              max(
-                7px,
-                env(safe-area-inset-top)
-              ) + 65px
+            rgba(
+              29,
+              39,
+              52,
+              0.95
             );
 
-          left:9px;
-          right:9px;
+          display: flex;
 
-          height:33px;
+          flex-direction: column;
 
-          display:flex;
-          align-items:center;
+          align-items: center;
 
-          padding:0 10px;
+          justify-content: center;
 
-          border-radius:11px;
+          gap: 5px;
+
+          cursor: pointer;
+
+        }
+
+
+        .er-menu-button span {
+
+          display: block;
+
+          width: 28px;
+
+          height: 4px;
+
+          border-radius: 3px;
+
+          background: #f2f5f8;
+
+        }
+
+
+        /* ================================================
+           OBJECTIVE BAR
+           ================================================ */
+
+        .er-objective {
+
+          position: fixed;
+
+          top: 110px;
+
+          left: 18px;
+
+          right: 18px;
+
+          min-height: 56px;
+
+          display: flex;
+
+          align-items: center;
+
+          gap: 10px;
+
+          padding: 9px 13px;
+
+          border-radius: 19px;
 
           background:
-            rgba(8,15,25,.80);
+            rgba(
+              25,
+              36,
+              48,
+              0.90
+            );
 
           border:
             1px solid
-            rgba(255,255,255,.08);
+            rgba(
+              255,
+              255,
+              255,
+              0.10
+            );
 
-          backdrop-filter:blur(13px);
-          -webkit-backdrop-filter:blur(13px);
+          color: white;
 
-          pointer-events:none;
+          pointer-events: none;
+
         }
 
 
-        .er-status-main {
+        .er-objective-dot {
 
-          min-width:0;
-          flex:1;
+          width: 13px;
 
-          display:flex;
-          align-items:center;
+          height: 13px;
 
-          gap:7px;
-        }
+          flex: 0 0 13px;
 
+          border-radius: 50%;
 
-        .er-dot {
-
-          width:7px;
-          height:7px;
-
-          flex:0 0 7px;
-
-          border-radius:50%;
-
-          background:#f1bd45;
+          background: #f3c83b;
 
           box-shadow:
-            0 0 8px
-            rgba(241,189,69,.7);
+            0 0 10px
+            rgba(
+              243,
+              200,
+              59,
+              0.45
+            );
+
         }
 
 
-        .er-status-title {
+        .er-objective-main {
 
-          font-size:8px;
-          font-weight:900;
+          font-size: 14px;
 
-          white-space:nowrap;
+          font-weight: 900;
+
+          white-space: nowrap;
+
         }
 
 
-        .er-separator {
+        .er-objective-separator {
 
-          opacity:.3;
+          width: 2px;
+
+          height: 24px;
+
+          background:
+            rgba(
+              255,
+              255,
+              255,
+              0.22
+            );
+
         }
 
 
-        .er-status-sub {
+        .er-objective-sub {
 
-          font-size:7px;
-          font-weight:700;
+          min-width: 0;
 
-          opacity:.48;
+          color: #8595a8;
 
-          white-space:nowrap;
+          font-size: 10px;
+
+          font-weight: 700;
+
+          white-space: nowrap;
+
+          overflow: hidden;
+
+          text-overflow: ellipsis;
+
         }
 
 
         .er-date {
 
-          font-size:6px;
-          font-weight:800;
+          margin-left: auto;
 
-          opacity:.5;
+          color: #8999aa;
 
-          white-space:nowrap;
+          font-size: 9px;
+
+          font-weight: 800;
+
+          white-space: nowrap;
+
         }
 
 
-        /* ===============================================
-           MORE
-           =============================================== */
+        /* ================================================
+           BOTTOM NAV
+           ================================================ */
 
-        #${HUD_ID} .er-more {
+        .er-bottom-nav {
 
-          position:absolute;
+          position: fixed;
 
-          left:8px;
-          right:8px;
+          left: 16px;
 
-          bottom:
-            calc(
-              79px +
-              env(safe-area-inset-bottom)
-            );
-
-          padding:8px;
-
-          display:none;
-
-          grid-template-columns:
-            repeat(3,1fr);
-
-          gap:6px;
-
-          border-radius:17px;
-
-          background:
-            rgba(7,13,22,.97);
-
-          border:
-            1px solid
-            rgba(255,255,255,.12);
-
-          box-shadow:
-            0 18px 45px
-            rgba(0,0,0,.45);
-
-          backdrop-filter:blur(20px);
-
-          -webkit-backdrop-filter:blur(20px);
-
-          pointer-events:auto;
-        }
-
-
-        #${HUD_ID} .er-more.open {
-          display:grid;
-        }
-
-
-        .er-more-button {
-
-          height:52px;
-
-          border:0;
-
-          border-radius:11px;
-
-          background:
-            rgba(255,255,255,.06);
-
-          color:#fff;
-
-          font-size:7px;
-          font-weight:900;
-
-          display:flex;
-          flex-direction:column;
-
-          align-items:center;
-          justify-content:center;
-
-          gap:3px;
-        }
-
-
-        .er-more-icon {
-          font-size:17px;
-        }
-
-
-        /* ===============================================
-           BOTTOM
-           =============================================== */
-
-        #${HUD_ID} .er-bottom {
-
-          position:absolute;
-
-          left:8px;
-          right:8px;
+          right: 16px;
 
           bottom:
             max(
-              6px,
-              env(safe-area-inset-bottom)
+              10px,
+              env(
+                safe-area-inset-bottom
+              )
             );
 
-          height:67px;
+          height: 74px;
 
-          padding:5px;
-
-          display:grid;
+          display: grid;
 
           grid-template-columns:
-            repeat(5,1fr);
+            repeat(
+              5,
+              1fr
+            );
 
-          gap:4px;
+          align-items: stretch;
 
-          border-radius:19px;
+          padding: 5px;
+
+          border-radius: 27px;
 
           background:
-            rgba(6,13,22,.96);
+            rgba(
+              7,
+              14,
+              23,
+              0.96
+            );
 
           border:
             1px solid
-            rgba(255,255,255,.12);
+            rgba(
+              255,
+              255,
+              255,
+              0.12
+            );
 
           box-shadow:
             0 -8px 30px
-            rgba(0,0,0,.34);
+            rgba(
+              0,
+              0,
+              0,
+              0.28
+            );
 
-          backdrop-filter:blur(18px);
-          -webkit-backdrop-filter:blur(18px);
+          backdrop-filter:
+            blur(18px);
 
-          pointer-events:auto;
+          -webkit-backdrop-filter:
+            blur(18px);
+
+          pointer-events:
+            auto;
+
         }
 
 
         .er-nav {
 
-          position:relative;
+          position: relative;
 
-          border:0;
+          min-width: 0;
 
-          border-radius:14px;
+          border: 0;
 
-          background:transparent;
+          background: transparent;
 
-          color:#fff;
+          color: #8993a0;
 
-          opacity:.58;
+          border-radius: 20px;
 
-          display:flex;
+          display: flex;
 
-          flex-direction:column;
+          flex-direction: column;
 
-          align-items:center;
+          align-items: center;
 
-          justify-content:center;
+          justify-content: center;
 
-          gap:3px;
-        }
+          gap: 2px;
 
+          cursor: pointer;
 
-        .er-nav.active {
+          font-size: 8px;
 
-          opacity:1;
+          font-weight: 900;
 
-          background:
-            rgba(
-              56,
-              82,
-              137,
-              .35
-            );
-        }
-
-
-        .er-nav.active::after {
-
-          content:"";
-
-          position:absolute;
-
-          bottom:4px;
-          left:50%;
-
-          width:32px;
-          height:3px;
-
-          transform:
-            translateX(-50%);
-
-          border-radius:5px;
-
-          background:#4da9ff;
-
-          box-shadow:
-            0 0 8px
-            rgba(77,169,255,.6);
         }
 
 
         .er-nav-icon {
 
-          font-size:19px;
-          line-height:19px;
+          font-size: 22px;
+
+          line-height: 23px;
+
         }
 
 
-        .er-nav-label {
+        .er-nav.active {
 
-          font-size:6px;
-
-          line-height:8px;
-
-          font-weight:900;
-
-          letter-spacing:.3px;
-        }
-
-
-        /* ===============================================
-           TOAST
-           =============================================== */
-
-        .er-toast {
-
-          position:absolute;
-
-          left:50%;
-
-          bottom:
-            calc(
-              84px +
-              env(safe-area-inset-bottom)
-            );
-
-          transform:
-            translate(-50%,10px);
-
-          padding:9px 13px;
-
-          border-radius:11px;
+          color: white;
 
           background:
-            rgba(7,14,24,.96);
+            rgba(
+              38,
+              58,
+              82,
+              0.92
+            );
+
+        }
+
+
+        .er-nav.active::after {
+
+          content: "";
+
+          position: absolute;
+
+          bottom: 4px;
+
+          left: 30%;
+
+          right: 30%;
+
+          height: 3px;
+
+          border-radius: 5px;
+
+          background: #5eaeff;
+
+        }
+
+
+        /* ================================================
+           MORE DRAWER
+           ================================================ */
+
+        .er-more-drawer {
+
+          position: fixed;
+
+          inset: 0;
+
+          visibility: hidden;
+
+          opacity: 0;
+
+          pointer-events: none;
+
+          transition:
+            opacity 0.18s ease,
+            visibility 0.18s ease;
+
+        }
+
+
+        .er-more-drawer.open {
+
+          visibility: visible;
+
+          opacity: 1;
+
+          pointer-events: auto;
+
+        }
+
+
+        .er-drawer-backdrop {
+
+          position: absolute;
+
+          inset: 0;
+
+          background:
+            rgba(
+              0,
+              0,
+              0,
+              0.46
+            );
+
+        }
+
+
+        .er-drawer {
+
+          position: absolute;
+
+          left: 10px;
+
+          right: 10px;
+
+          bottom: 10px;
+
+          padding: 12px;
+
+          border-radius: 28px;
+
+          background:
+            rgba(
+              11,
+              19,
+              29,
+              0.98
+            );
 
           border:
             1px solid
-            rgba(255,255,255,.10);
+            rgba(
+              255,
+              255,
+              255,
+              0.14
+            );
 
-          font-size:8px;
-          font-weight:800;
+          box-shadow:
+            0 15px 50px
+            rgba(
+              0,
+              0,
+              0,
+              0.45
+            );
 
-          opacity:0;
+        }
 
-          transition:.2s ease;
 
-          white-space:nowrap;
+        .er-drawer-handle {
+
+          width: 42px;
+
+          height: 4px;
+
+          margin:
+            0 auto 12px;
+
+          border-radius: 5px;
+
+          background:
+            rgba(
+              255,
+              255,
+              255,
+              0.22
+            );
+
+        }
+
+
+        .er-drawer-title {
+
+          padding:
+            2px 5px 10px;
+
+          color: #8291a3;
+
+          font-size: 10px;
+
+          font-weight: 900;
+
+          letter-spacing: 1px;
+
+        }
+
+
+        .er-drawer-grid {
+
+          display: grid;
+
+          grid-template-columns:
+            repeat(
+              3,
+              1fr
+            );
+
+          gap: 7px;
+
+        }
+
+
+        .er-module {
+
+          min-height: 70px;
+
+          padding: 8px 5px;
+
+          border: 1px solid
+            rgba(
+              255,
+              255,
+              255,
+              0.08
+            );
+
+          border-radius: 16px;
+
+          background:
+            rgba(
+              25,
+              35,
+              47,
+              0.95
+            );
+
+          color: white;
+
+          display: flex;
+
+          flex-direction: column;
+
+          align-items: center;
+
+          justify-content: center;
+
+          gap: 2px;
+
+          cursor: pointer;
+
+        }
+
+
+        .er-module > span {
+
+          font-size: 20px;
+
+          line-height: 22px;
+
+        }
+
+
+        .er-module b {
+
+          font-size: 10px;
+
+          font-weight: 900;
+
+        }
+
+
+        .er-module small {
+
+          color: #78899b;
+
+          font-size: 7px;
+
+          font-weight: 700;
+
+        }
+
+
+        .er-close {
+
+          width: 100%;
+
+          height: 40px;
+
+          margin-top: 9px;
+
+          border: 0;
+
+          border-radius: 13px;
+
+          background:
+            rgba(
+              255,
+              255,
+              255,
+              0.08
+            );
+
+          color: #b5c0cc;
+
+          font-size: 10px;
+
+          font-weight: 900;
+
+        }
+
+
+        /* ================================================
+           TOAST
+           ================================================ */
+
+        .er-toast {
+
+          position: fixed;
+
+          left: 50%;
+
+          bottom: 100px;
+
+          transform:
+            translate(
+              -50%,
+              15px
+            );
+
+          opacity: 0;
+
+          padding:
+            9px 14px;
+
+          border-radius: 12px;
+
+          background:
+            rgba(
+              8,
+              15,
+              23,
+              0.95
+            );
+
+          border:
+            1px solid
+            rgba(
+              255,
+              255,
+              255,
+              0.12
+            );
+
+          color: white;
+
+          font-size: 11px;
+
+          font-weight: 800;
+
+          pointer-events: none;
+
+          transition:
+            opacity 0.18s ease,
+            transform 0.18s ease;
+
+          white-space: nowrap;
+
         }
 
 
         .er-toast.show {
 
-          opacity:1;
+          opacity: 1;
 
           transform:
-            translate(-50%,0);
+            translate(
+              -50%,
+              0
+            );
+
         }
 
 
-        /* ===============================================
-           SMALL MOBILE
-           =============================================== */
+        /* ================================================
+           LEGACY FLOATING UI
+           ================================================ */
 
-        @media(max-width:420px) {
+        /*
+         * Old systems created huge standalone buttons.
+         * We hide them because modules now live inside MORE.
+         */
 
-          #${HUD_ID} .er-header {
-            height:55px;
+        body.empire-modern-hud
+        .legacy-module-button,
+        body.empire-modern-hud
+        .floating-module-button,
+        body.empire-modern-hud
+        .module-launcher,
+        body.empire-modern-hud
+        .quick-action-button {
+
+          display: none !important;
+
+        }
+
+
+        @media (
+          max-width: 430px
+        ){
+
+          .er-header {
+
+            left: 10px;
+
+            right: 10px;
+
+            top: 8px;
+
+            height: 78px;
+
+            padding: 6px;
+
+            border-radius: 23px;
+
           }
 
-          .er-brand {
-            width:89px;
-            min-width:89px;
-          }
 
           .er-logo {
-            width:33px;
-            height:33px;
-            flex-basis:33px;
-            font-size:17px;
+
+            width: 45px;
+
+            height: 45px;
+
+            flex-basis: 45px;
+
+            border-radius: 15px;
+
+            font-size: 21px;
+
           }
 
-          .er-brand-title {
-            font-size:13px;
+
+          .er-title {
+
+            font-size: 19px;
+
           }
 
-          .er-brand-sub {
-            font-size:4px;
+
+          .er-founder {
+
+            font-size: 12px;
+
           }
 
-          .er-avatar {
-            display:none;
+
+          .er-job {
+
+            font-size: 8px;
+
           }
 
-          .er-player-info {
-            margin-left:2px;
+
+          .er-stat {
+
+            width: 72px;
+
+            flex-basis: 72px;
+
+            height: 58px;
+
+            border-radius: 15px;
+
           }
 
-          .er-player-name {
-            font-size:10px;
+
+          .er-stat strong {
+
+            font-size: 14px;
+
           }
 
-          .er-player-job {
-            font-size:6px;
-          }
-
-          .er-cash {
-            width:57px;
-            min-width:57px;
-          }
-
-          .er-cash-icon {
-            display:none;
-          }
 
           .er-day {
-            width:51px;
-            min-width:51px;
+
+            width: 58px;
+
+            flex-basis: 58px;
+
           }
 
-          .er-day-icon {
-            display:none;
+
+          .er-menu-button {
+
+            width: 48px;
+
+            flex-basis: 48px;
+
+            height: 58px;
+
+            border-radius: 15px;
+
           }
 
-          .er-menu {
-            width:35px;
-            height:35px;
-            flex-basis:35px;
+
+          .er-menu-button span {
+
+            width: 24px;
+
+            height: 3px;
+
           }
 
-          .er-status {
-            height:31px;
+
+          .er-objective {
+
+            top: 94px;
+
+            left: 12px;
+
+            right: 12px;
+
+            min-height: 48px;
+
+            border-radius: 16px;
+
           }
 
-          .er-status-title {
-            font-size:8px;
+
+          .er-objective-main {
+
+            font-size: 12px;
+
           }
 
-          .er-status-sub {
-            font-size:6px;
+
+          .er-objective-sub {
+
+            display: none;
+
           }
+
 
           .er-date {
-            font-size:5.5px;
+
+            font-size: 8px;
+
           }
+
+
+          .er-bottom-nav {
+
+            left: 10px;
+
+            right: 10px;
+
+            bottom:
+              max(
+                7px,
+                env(
+                  safe-area-inset-bottom
+                )
+              );
+
+            height: 68px;
+
+            border-radius: 23px;
+
+          }
+
+
+          .er-nav {
+
+            border-radius: 17px;
+
+            font-size: 7px;
+
+          }
+
+
+          .er-nav-icon {
+
+            font-size: 19px;
+
+          }
+
+
+          .er-drawer {
+
+            left: 7px;
+
+            right: 7px;
+
+            bottom: 7px;
+
+            border-radius: 24px;
+
+          }
+
+
+          .er-drawer-grid {
+
+            gap: 5px;
+
+          }
+
+
+          .er-module {
+
+            min-height: 64px;
+
+          }
+
         }
 
 
-        @media(max-width:360px) {
+        @media (
+          max-height: 650px
+        ){
 
-          .er-brand {
-            width:70px;
-            min-width:70px;
+          .er-header {
+
+            height: 68px;
+
           }
 
-          .er-brand-sub {
-            display:none;
+
+          .er-logo {
+
+            width: 42px;
+
+            height: 42px;
+
+            flex-basis: 42px;
+
           }
 
-          .er-brand-title {
-            font-size:11px;
+
+          .er-stat {
+
+            height: 52px;
+
           }
 
-          .er-player-name {
-            font-size:8px;
+
+          .er-menu-button {
+
+            height: 52px;
+
           }
 
-          .er-player-job {
-            font-size:5px;
+
+          .er-objective {
+
+            top: 82px;
+
+            min-height: 43px;
+
           }
 
-          .er-cash {
-            width:51px;
-            min-width:51px;
+
+          .er-bottom-nav {
+
+            height: 62px;
+
           }
 
-          .er-day {
-            width:45px;
-            min-width:45px;
-          }
-
-          .er-menu {
-            width:32px;
-            height:32px;
-            flex-basis:32px;
-          }
-        }
-
-
-        @media(min-width:700px) {
-
-          #${HUD_ID} .er-header {
-
-            left:14px;
-            right:14px;
-
-            height:60px;
-
-            border-radius:18px;
-          }
-
-          .er-brand {
-            width:145px;
-            min-width:145px;
-          }
-
-          .er-brand-title {
-            font-size:17px;
-          }
-
-          .er-player {
-            flex:none;
-            width:220px;
-          }
-
-          #${HUD_ID} .er-status {
-            left:16px;
-            right:16px;
-          }
-
-          #${HUD_ID} .er-bottom {
-
-            left:50%;
-            right:auto;
-
-            width:
-              min(
-                620px,
-                calc(100% - 30px)
-              );
-
-            transform:
-              translateX(-50%);
-          }
-
-          #${HUD_ID} .er-more {
-
-            left:50%;
-            right:auto;
-
-            width:
-              min(
-                430px,
-                calc(100% - 30px)
-              );
-
-            transform:
-              translateX(-50%);
-          }
         }
 
       `;
+
 
       document.head.appendChild(
         style
       );
+
     },
 
-    /* =======================================================
-       HEADER RENDER
-       ======================================================= */
 
-    renderHeader() {
+    /*
+     * -------------------------------------------------------
+     * LEGACY UI CLEANER
+     * -------------------------------------------------------
+     */
 
-      const el =
-        this.root.querySelector(
-          ".er-header"
+    cleanLegacyUI() {
+
+      /*
+       * Old world3d.html header
+       */
+
+      const oldSelectors = [
+
+        "#top",
+
+        ".tip",
+
+        "#legacyHUD",
+
+        "#oldHUD",
+
+        ".old-hud",
+
+        ".legacy-hud",
+
+        ".legacy-module-button",
+
+        ".floating-module-button",
+
+        ".module-launcher",
+
+        ".quick-action-button"
+
+      ];
+
+
+      oldSelectors.forEach(
+        selector => {
+
+          document
+            .querySelectorAll(
+              selector
+            )
+            .forEach(
+              element => {
+
+                element.style
+                  .setProperty(
+                    "display",
+                    "none",
+                    "important"
+                  );
+
+              }
+            );
+
+        }
+      );
+
+
+      /*
+       * Activate modern HUD mode.
+       */
+
+      document.body
+        .classList
+        .add(
+          "empire-modern-hud"
         );
 
-      if (!el) return;
 
-      const player =
-        this.player();
+      /*
+       * Search visible buttons by
+       * their displayed labels.
+       */
 
-      const world =
-        this.world();
+      const blockedLabels = [
 
-      const name =
-        player.name ||
-        "Founder";
+        "PRODUCTS",
 
-      const job =
-        player.currentJob ||
-        "Unemployed";
+        "NEWS",
 
-      const level =
-        player.jobLevel ||
-        "Entry";
+        "CORPORATE",
 
-      const cash =
-        Number(
-          player.cash || 0
+        "OPERATIONS",
+
+        "WORKFORCE",
+
+        "GOVERNMENT",
+
+        "ECONOMICS"
+
+      ];
+
+
+      document
+        .querySelectorAll(
+          "button"
+        )
+        .forEach(
+          button => {
+
+            if (
+              this.root &&
+              this.root.contains(
+                button
+              )
+            ) {
+
+              return;
+
+            }
+
+
+            const text =
+              (
+                button.innerText ||
+                button.textContent ||
+                ""
+              )
+                .trim()
+                .toUpperCase();
+
+
+            if (
+              blockedLabels.includes(
+                text
+              )
+            ) {
+
+              button.style
+                .setProperty(
+                  "display",
+                  "none",
+                  "important"
+                );
+
+            }
+
+          }
         );
 
-      const day =
-        Number(
-          world.day || 1
-        );
-
-      const year =
-        Number(
-          world.year || 1
-        );
-
-      const month =
-        Number(
-          world.month || 1
-        );
-
-      el.innerHTML = `
-
-        <div class="er-brand">
-
-          <div class="er-logo">
-            ♛
-          </div>
-
-          <div>
-
-            <div class="er-brand-title">
-              <span>RUSH</span>
-            </div>
-
-            <div class="er-brand-sub">
-              BUSINESS EMPIRE
-            </div>
-
-          </div>
-
-        </div>
-
-
-        <div class="er-player">
-
-          <div class="er-avatar">
-            ${this.esc(
-              String(name)
-                .charAt(0)
-                .toUpperCase()
-            )}
-          </div>
-
-          <div class="er-player-info">
-
-            <div class="er-player-name">
-              ${this.esc(name)}
-            </div>
-
-            <div class="er-player-job">
-              ${this.esc(job)}
-              ·
-              ${this.esc(level)}
-            </div>
-
-          </div>
-
-        </div>
-
-
-        <div class="er-cash">
-
-          <div class="er-cash-icon">
-            💵
-          </div>
-
-          <div>
-
-            <div class="er-cash-label">
-              CASH
-            </div>
-
-            <div class="er-cash-value">
-              ${this.money(cash)}
-            </div>
-
-          </div>
-
-        </div>
-
-
-        <div class="er-day">
-
-          <div class="er-day-icon">
-            ▣
-          </div>
-
-          <div>
-
-            <div class="er-day-label">
-              DAY
-            </div>
-
-            <div class="er-day-value">
-              ${day}
-            </div>
-
-          </div>
-
-        </div>
-
-
-        <button
-          class="er-menu"
-          type="button"
-          aria-label="More"
-        >
-          ☰
-        </button>
-      `;
-
-      el
-        .querySelector(".er-menu")
-        .onclick = () => {
-          this.toggleMore();
-        };
     },
 
-    /* =======================================================
-       STATUS
-       ======================================================= */
 
-    renderStatus() {
+    /*
+     * -------------------------------------------------------
+     * CONTINUOUS LEGACY CLEANUP
+     * -------------------------------------------------------
+     */
 
-      const el =
-        this.root.querySelector(
-          ".er-status"
-        );
+    startLegacyObserver() {
 
-      if (!el) return;
-
-      const company =
-        this.company();
-
-      const world =
-        this.world();
-
-      if (!company) {
-
-        el.innerHTML = `
-
-          <div class="er-status-main">
-
-            <span class="er-dot"></span>
-
-            <span class="er-status-title">
-              Build your career
-            </span>
-
-            <span class="er-separator">
-              |
-            </span>
-
-            <span class="er-status-sub">
-              Start from zero
-            </span>
-
-          </div>
-
-          <span class="er-date">
-            Y${world.year || 1}
-            · M${world.month || 1}
-            · D${world.day || 1}
-          </span>
-        `;
+      if (
+        this.observer
+      ) {
 
         return;
+
       }
 
-      const finance =
-        company.finance || {};
 
-      const revenue =
-        Number(
-          finance.totalRevenue ??
-          finance.revenue ??
-          company.revenue ??
-          0
+      this.observer =
+        new MutationObserver(
+          () => {
+
+            this.cleanLegacyUI();
+
+          }
         );
 
-      const profit =
-        Number(
-          finance.profit ??
-          company.profit ??
-          0
-        );
 
-      const employees =
-        Array.isArray(
-          company.employees
-        )
-          ? company.employees.length
-          : 0;
+      this.observer.observe(
+        document.body,
+        {
+          childList: true,
+          subtree: true
+        }
+      );
 
-      const status =
-        company.status ||
-        (
-          company.operating
-            ? "Operating"
-            : "Setup Required"
-        );
 
-      el.innerHTML = `
+      /*
+       * Also perform periodic cleanup.
+       * This catches systems that change
+       * their styles after rendering.
+       */
 
-        <div class="er-status-main">
+      setInterval(
+        () => {
 
-          <span
-            class="er-dot"
-            style="
-              background:
-                ${company.operating
-                  ? "#55d68a"
-                  : "#f1bd45"};
-            "
-          ></span>
+          this.cleanLegacyUI();
 
-          <span class="er-status-title">
-            ${this.esc(
-              company.name ||
-              "My Company"
-            )}
-          </span>
+        },
+        1200
+      );
 
-          <span class="er-separator">
-            |
-          </span>
-
-          <span class="er-status-sub">
-            ${this.esc(status)}
-          </span>
-
-        </div>
-
-        <span class="er-date">
-          REV ${this.money(revenue)}
-          · PROF ${this.money(profit)}
-          · EMP ${employees}
-        </span>
-      `;
     },
 
-    /* =======================================================
-       BOTTOM
-       ======================================================= */
 
-    renderBottom() {
+    /*
+     * -------------------------------------------------------
+     * STATE RENDER
+     * -------------------------------------------------------
+     */
 
-      const el =
-        this.root.querySelector(
-          ".er-bottom"
+    render() {
+
+      if (
+        !this.root
+      ) {
+
+        return;
+
+      }
+
+
+      const player =
+        this.getPlayer();
+
+
+      const world =
+        this.getWorld();
+
+
+      const founder =
+        document.getElementById(
+          "erFounder"
         );
 
-      if (!el) return;
 
-      el.innerHTML = `
-
-        <button
-          class="er-nav active"
-          data-nav="home"
-          type="button"
-        >
-          <span class="er-nav-icon">
-            ⌂
-          </span>
-
-          <span class="er-nav-label">
-            HOME
-          </span>
-        </button>
+      const job =
+        document.getElementById(
+          "erJob"
+        );
 
 
-        <button
-          class="er-nav"
-          data-nav="career"
-          type="button"
-        >
-          <span class="er-nav-icon">
-            💼
-          </span>
-
-          <span class="er-nav-label">
-            CAREER
-          </span>
-        </button>
+      const cash =
+        document.getElementById(
+          "erCash"
+        );
 
 
-        <button
-          class="er-nav"
-          data-nav="business"
-          type="button"
-        >
-          <span class="er-nav-icon">
-            🏢
-          </span>
-
-          <span class="er-nav-label">
-            BUSINESS
-          </span>
-        </button>
+      const day =
+        document.getElementById(
+          "erDay"
+        );
 
 
-        <button
-          class="er-nav"
-          data-nav="finance"
-          type="button"
-        >
-          <span class="er-nav-icon">
-            ₹
-          </span>
-
-          <span class="er-nav-label">
-            FINANCE
-          </span>
-        </button>
+      const date =
+        document.getElementById(
+          "erDate"
+        );
 
 
-        <button
-          class="er-nav"
-          data-nav="more"
-          type="button"
-        >
-          <span class="er-nav-icon">
-            ☰
-          </span>
+      if(founder){
 
-          <span class="er-nav-label">
-            MORE
-          </span>
-        </button>
-      `;
+        founder.textContent =
+          player.name ||
+          "Founder";
 
-      el
-        .querySelector(
-          '[data-nav="home"]'
-        )
-        .onclick = () => {
-          this.setActive("home");
-          this.closeMore();
-        };
+      }
 
-      el
-        .querySelector(
-          '[data-nav="career"]'
-        )
-        .onclick = () => {
-          this.setActive("career");
-          this.openCareer();
-        };
 
-      el
-        .querySelector(
-          '[data-nav="business"]'
-        )
-        .onclick = () => {
-          this.setActive("business");
-          this.openBusiness();
-        };
+      if(job){
 
-      el
-        .querySelector(
-          '[data-nav="finance"]'
-        )
-        .onclick = () => {
-          this.setActive("finance");
-          this.openFinance();
-        };
+        job.textContent =
+          (
+            player.currentJob ||
+            "Unemployed"
+          ) +
+          " · " +
+          (
+            player.jobLevel ||
+            "Entry"
+          );
 
-      el
-        .querySelector(
-          '[data-nav="more"]'
-        )
-        .onclick = () => {
+      }
+
+
+      if(cash){
+
+        cash.textContent =
+          this.money(
+            player.cash
+          );
+
+      }
+
+
+      if(day){
+
+        day.textContent =
+          world.day ||
+          1;
+
+      }
+
+
+      if(date){
+
+        date.textContent =
+          "Y" +
+          (
+            world.year ||
+            1
+          ) +
+          " · M" +
+          (
+            world.month ||
+            1
+          ) +
+          " · D" +
+          (
+            world.day ||
+            1
+          );
+
+      }
+
+
+      this.updateObjective();
+
+    },
+
+
+    /*
+     * -------------------------------------------------------
+     * OBJECTIVE
+     * -------------------------------------------------------
+     */
+
+    updateObjective() {
+
+      const player =
+        this.getPlayer();
+
+
+      const main =
+        document.getElementById(
+          "erObjectiveMain"
+        );
+
+
+      const sub =
+        document.getElementById(
+          "erObjectiveSub"
+        );
+
+
+      if (
+        !main ||
+        !sub
+      ) {
+
+        return;
+
+      }
+
+
+      if (
+        !player.currentJob ||
+        player.currentJob ===
+        "Unemployed"
+      ) {
+
+        main.textContent =
+          "Build your career";
+
+        sub.textContent =
+          "Start from zero";
+
+        return;
+
+      }
+
+
+      if (
+        !this.getGameCompany()
+      ) {
+
+        main.textContent =
+          "Grow your capital";
+
+        sub.textContent =
+          "Save for your first business";
+
+        return;
+
+      }
+
+
+      main.textContent =
+        "Build your company";
+
+      sub.textContent =
+        "Grow operations";
+
+    },
+
+
+    getGameCompany() {
+
+      const game =
+        this.getGame();
+
+
+      if (
+        !game
+      ) {
+
+        return null;
+
+      }
+
+
+      if (
+        typeof game.getCompanies ===
+        "function"
+      ) {
+
+        const companies =
+          game.getCompanies();
+
+
+        if (
+          Array.isArray(
+            companies
+          ) &&
+          companies.length
+        ) {
+
+          return companies[0];
+
+        }
+
+      }
+
+
+      return null;
+
+    },
+
+
+    /*
+     * -------------------------------------------------------
+     * DRAWER
+     * -------------------------------------------------------
+     */
+
+    openMore() {
+
+      if (
+        !this.moreDrawer
+      ) {
+
+        return;
+
+      }
+
+
+      this.moreDrawer
+        .classList
+        .add(
+          "open"
+        );
+
+    },
+
+
+    closeMore() {
+
+      if (
+        !this.moreDrawer
+      ) {
+
+        return;
+
+      }
+
+
+      this.moreDrawer
+        .classList
+        .remove(
+          "open"
+        );
+
+    },
+
+
+    toggleMore() {
+
+      if (
+        !this.moreDrawer
+      ) {
+
+        return;
+
+      }
+
+
+      this.moreDrawer
+        .classList
+        .toggle(
+          "open"
+        );
+
+    },
+
+
+    /*
+     * -------------------------------------------------------
+     * TOAST
+     * -------------------------------------------------------
+     */
+
+    toast(
+      message
+    ) {
+
+      const element =
+        document.getElementById(
+          "erToast"
+        );
+
+
+      if (
+        !element
+      ) {
+
+        return;
+
+      }
+
+
+      element.textContent =
+        message;
+
+
+      element.classList
+        .add(
+          "show"
+        );
+
+
+      clearTimeout(
+        this.toastTimer
+      );
+
+
+      this.toastTimer =
+        setTimeout(
+          () => {
+
+            element.classList
+              .remove(
+                "show"
+              );
+
+          },
+          1800
+        );
+
+    },
+
+
+    /*
+     * -------------------------------------------------------
+     * MODULE INVOCATION
+     * -------------------------------------------------------
+     */
+
+    invoke(
+      module
+    ) {
+
+      const mapping = {
+
+        products: [
+          "EmpireProducts",
+          "EmpireProductUI",
+          "EmpireProductManagement"
+        ],
+
+        news: [
+          "EmpireNewsUI",
+          "EmpireNewsDecisionUI"
+        ],
+
+        corporate: [
+          "EmpireGroupUI",
+          "EmpireCorporateGameplay"
+        ],
+
+        operations: [
+          "EmpireBusinessOperationsUI",
+          "EmpireOperationsUI"
+        ],
+
+        workforce: [
+          "EmpireHR",
+          "EmpireHRUI",
+          "EmpireWorkforce"
+        ],
+
+        government: [
+          "EmpireGovernmentComplianceUI",
+          "EmpireGovernmentUI"
+        ],
+
+        market: [
+          "EmpireCompetitionUI",
+          "EmpireMarketUI"
+        ],
+
+        economics: [
+          "EmpireAccountingUI",
+          "EmpireEconomicsUI"
+        ]
+
+      };
+
+
+      const candidates =
+        mapping[module] ||
+        [];
+
+
+      for (
+        const name of candidates
+      ) {
+
+        const object =
+          window[name];
+
+
+        if (
+          !object
+        ) {
+
+          continue;
+
+        }
+
+
+        const methods = [
+
+          "open",
+
+          "show",
+
+          "openPanel",
+
+          "openDashboard",
+
+          "openOverlay",
+
+          "launch"
+
+        ];
+
+
+        for (
+          const method of methods
+        ) {
+
+          if (
+            typeof object[method] ===
+            "function"
+          ) {
+
+            try {
+
+              object[method]();
+
+              this.closeMore();
+
+              return true;
+
+            } catch (
+              error
+            ) {
+
+              console.warn(
+                "Empire Rush HUD module error:",
+                name,
+                method,
+                error
+              );
+
+            }
+
+          }
+
+        }
+
+      }
+
+
+      this.toast(
+        module.charAt(0)
+          .toUpperCase() +
+        module.slice(1) +
+        " module"
+      );
+
+
+      return false;
+
+    }
+
+  };
+  /*
+   * =========================================================
+   * EVENT HANDLERS
+   * =========================================================
+   */
+
+  HUD.bindEvents = function () {
+
+    if (!this.root) {
+      return;
+    }
+
+
+    /*
+     * Header menu
+     */
+
+    const menuButton =
+      document.getElementById(
+        "erMenuButton"
+      );
+
+
+    if (menuButton) {
+
+      menuButton.addEventListener(
+        "click",
+        () => {
+
           this.toggleMore();
-        };
-    },
 
-    /* =======================================================
-       MORE
-       ======================================================= */
+        }
+      );
 
-    renderMore() {
-
-      const el =
-        this.root.querySelector(
-          ".er-more"
-        );
-
-      if (!el) return;
-
-      el.innerHTML = `
-
-        <button
-          class="er-more-button"
-          data-action="products"
-        >
-          <span class="er-more-icon">
-            📦
-          </span>
-          PRODUCTS
-        </button>
+    }
 
 
-        <button
-          class="er-more-button"
-          data-action="news"
-        >
-          <span class="er-more-icon">
-            📰
-          </span>
-          NEWS
-        </button>
+    /*
+     * Close button
+     */
+
+    const closeButton =
+      document.getElementById(
+        "erCloseMore"
+      );
 
 
-        <button
-          class="er-more-button"
-          data-action="corporate"
-        >
-          <span class="er-more-icon">
-            🏢
-          </span>
-          CORPORATE
-        </button>
+    if (closeButton) {
+
+      closeButton.addEventListener(
+        "click",
+        () => {
+
+          this.closeMore();
+
+        }
+      );
+
+    }
 
 
-        <button
-          class="er-more-button"
-          data-action="government"
-        >
-          <span class="er-more-icon">
-            🏛️
-          </span>
-          GOVERNMENT
-        </button>
+    /*
+     * Backdrop
+     */
+
+    this.root
+      .querySelectorAll(
+        "[data-close-more='true']"
+      )
+      .forEach(
+        element => {
+
+          element.addEventListener(
+            "click",
+            () => {
+
+              this.closeMore();
+
+            }
+          );
+
+        }
+      );
 
 
-        <button
-          class="er-more-button"
-          data-action="workforce"
-        >
-          <span class="er-more-icon">
-            👥
-          </span>
-          WORKFORCE
-        </button>
+    /*
+     * Bottom navigation
+     */
 
+    this.root
+      .querySelectorAll(
+        ".er-nav"
+      )
+      .forEach(
+        button => {
 
-        <button
-          class="er-more-button"
-          data-action="economics"
-        >
-          <span class="er-more-icon">
-            📊
-          </span>
-          ECONOMICS
-        </button>
-
-
-        <button
-          class="er-more-button"
-          data-action="save"
-        >
-          <span class="er-more-icon">
-            💾
-          </span>
-          SAVE
-        </button>
-
-
-        <button
-          class="er-more-button"
-          data-action="close"
-        >
-          <span class="er-more-icon">
-            ×
-          </span>
-          CLOSE
-        </button>
-      `;
-
-      el
-        .querySelectorAll(
-          ".er-more-button"
-        )
-        .forEach(button => {
-
-          button.onclick =
+          button.addEventListener(
+            "click",
             () => {
 
               const action =
                 button.dataset.action;
 
+
+              this.setActiveNav(
+                action
+              );
+
+
+              this.handleNavigation(
+                action
+              );
+
+            }
+          );
+
+        }
+      );
+
+
+    /*
+     * More drawer modules
+     */
+
+    this.root
+      .querySelectorAll(
+        ".er-module"
+      )
+      .forEach(
+        button => {
+
+          button.addEventListener(
+            "click",
+            () => {
+
+              const module =
+                button.dataset.module;
+
+
               if (
-                action === "close"
+                module === "save"
               ) {
-                this.closeMore();
+
+                this.saveGame();
+
                 return;
+
               }
 
-              if (
-                action === "save"
-              ) {
-                this.save();
-                return;
-              }
 
-              const map = {
+              this.invoke(
+                module
+              );
 
-                products:
-                  "openProducts",
+            }
+          );
 
-                news:
-                  "openNews",
+        }
+      );
 
-                corporate:
-                  "openCorporate",
 
-                government:
-                  "openGovernment",
+    /*
+     * Escape closes drawer
+     */
 
-                workforce:
-                  "openWorkforce",
+    document.addEventListener(
+      "keydown",
+      event => {
 
-                economics:
-                  "openEconomics"
-              };
+        if (
+          event.key === "Escape"
+        ) {
 
-              if (
-                map[action] &&
-                typeof this[
-                  map[action]
-                ] === "function"
-              ) {
-                this[
-                  map[action]
-                ]();
-              }
-            };
-        });
-    },
+          this.closeMore();
 
-    /* =======================================================
-       NAV ACTIVE
-       ======================================================= */
+        }
 
-    setActive(name) {
+      }
+    );
 
-      this.root
-        .querySelectorAll(
-          ".er-nav"
-        )
-        .forEach(button => {
+
+    /*
+     * Game-state changes
+     */
+
+    const stateEvents = [
+
+      "EmpireGameStateChanged",
+
+      "EmpireStateChanged",
+
+      "EmpireMoneyChanged",
+
+      "EmpireDayChanged",
+
+      "EmpireJobChanged",
+
+      "EmpireBusinessChanged",
+
+      "EmpireCompanyChanged",
+
+      "EmpireEmployeeUpdated"
+
+    ];
+
+
+    stateEvents.forEach(
+      eventName => {
+
+        window.addEventListener(
+          eventName,
+          () => {
+
+            this.render();
+
+          }
+        );
+
+      }
+    );
+
+  };
+
+
+  /*
+   * =========================================================
+   * NAVIGATION
+   * =========================================================
+   */
+
+  HUD.setActiveNav = function (
+    action
+  ) {
+
+    if (!this.root) {
+      return;
+    }
+
+
+    this.root
+      .querySelectorAll(
+        ".er-nav"
+      )
+      .forEach(
+        button => {
 
           button.classList.toggle(
             "active",
-            button.dataset.nav ===
-              name
+            button.dataset.action ===
+            action
           );
-        });
-    },
 
-    /* =======================================================
-       MORE TOGGLE
-       ======================================================= */
-
-    toggleMore() {
-
-      const panel =
-        this.root.querySelector(
-          ".er-more"
-        );
-
-      if (!panel) return;
-
-      panel.classList.toggle(
-        "open"
+        }
       );
 
-      const open =
-        panel.classList.contains(
-          "open"
-        );
+  };
 
-      const button =
-        this.root.querySelector(
-          '[data-nav="more"]'
-        );
 
-      if (button) {
+  HUD.handleNavigation = function (
+    action
+  ) {
 
-        button.classList.toggle(
-          "active",
-          open
-        );
+    switch (
+      action
+    ) {
+
+      case "home":
+
+        this.closeMore();
+
+        this.focusWorld();
+
+        break;
+
+
+      case "career":
+
+        this.closeMore();
+
+        this.openCareer();
+
+        break;
+
+
+      case "business":
+
+        this.closeMore();
+
+        this.openBusiness();
+
+        break;
+
+
+      case "finance":
+
+        this.closeMore();
+
+        this.openFinance();
+
+        break;
+
+
+      case "more":
+
+        this.openMore();
+
+        break;
+
+    }
+
+  };
+
+
+  /*
+   * =========================================================
+   * WORLD
+   * =========================================================
+   */
+
+  HUD.focusWorld = function () {
+
+    const world =
+      window.EmpireWorld;
+
+
+    if (
+      world &&
+      typeof world.focusOn ===
+      "function"
+    ) {
+
+      world.focusOn(
+        0,
+        18
+      );
+
+    }
+
+  };
+
+
+  /*
+   * =========================================================
+   * CAREER
+   * =========================================================
+   */
+
+  HUD.openCareer = function () {
+
+    const candidates = [
+
+      "EmpireCareerBusinessUI",
+
+      "EmpireCareerUI",
+
+      "EmpireCareer"
+
+    ];
+
+
+    for (
+      const name of candidates
+    ) {
+
+      const object =
+        window[name];
+
+
+      if (
+        !object
+      ) {
+
+        continue;
+
       }
-    },
 
-    closeMore() {
 
-      const panel =
-        this.root.querySelector(
-          ".er-more"
-        );
+      const methods = [
 
-      if (panel) {
-        panel.classList.remove(
-          "open"
-        );
-      }
+        "open",
 
-      const button =
-        this.root.querySelector(
-          '[data-nav="more"]'
-        );
+        "show",
 
-      if (button) {
-        button.classList.remove(
-          "active"
-        );
-      }
-    },
+        "openPanel",
 
-    /* =======================================================
-       MODULE ACTIONS
-       ======================================================= */
+        "openCareer",
 
-    call(names) {
+        "openDashboard"
 
-      this.closeMore();
+      ];
+
 
       for (
-        const path of names
+        const method of methods
       ) {
 
-        try {
+        if (
+          typeof object[method] ===
+          "function"
+        ) {
 
-          const fn =
-            path
-              .split(".")
-              .reduce(
-                (
-                  object,
-                  key
-                ) =>
-                  object &&
-                  object[key],
-                window
-              );
+          try {
 
-          if (
-            typeof fn ===
-            "function"
+            object[method]();
+
+            return;
+
+          } catch (
+            error
           ) {
 
-            fn();
+            console.warn(
+              "Career UI error:",
+              error
+            );
 
-            return true;
           }
 
-        } catch (error) {
-
-          console.warn(
-            "HUD module:",
-            path,
-            error
-          );
         }
+
       }
 
-      return false;
-    },
+    }
 
-    openCareer() {
+
+    /*
+     * Fallback event.
+     */
+
+    window.dispatchEvent(
+      new CustomEvent(
+        "EmpireOpenCareer"
+      )
+    );
+
+  };
+
+
+  /*
+   * =========================================================
+   * BUSINESS
+   * =========================================================
+   */
+
+  HUD.openBusiness = function () {
+
+    const candidates = [
+
+      "EmpireCareerBusinessUI",
+
+      "EmpireBusinessSetupUI",
+
+      "EmpireBusinessOperationsUI",
+
+      "EmpireBusinessLauncher"
+
+    ];
+
+
+    for (
+      const name of candidates
+    ) {
+
+      const object =
+        window[name];
+
 
       if (
-        !this.call([
-          "EmpireCareerBusinessUI.open",
-          "EmpireCareerUI.open",
-          "EmpireCareerBusiness.open"
-        ])
+        !object
       ) {
-        this.toast(
-          "Career"
-        );
-      }
-    },
 
-    openBusiness() {
+        continue;
+
+      }
+
+
+      const methods = [
+
+        "open",
+
+        "show",
+
+        "openPanel",
+
+        "openBusiness",
+
+        "openDashboard",
+
+        "launch"
+
+      ];
+
+
+      for (
+        const method of methods
+      ) {
+
+        if (
+          typeof object[method] ===
+          "function"
+        ) {
+
+          try {
+
+            object[method]();
+
+            return;
+
+          } catch (
+            error
+          ) {
+
+            console.warn(
+              "Business UI error:",
+              error
+            );
+
+          }
+
+        }
+
+      }
+
+    }
+
+
+    window.dispatchEvent(
+      new CustomEvent(
+        "EmpireOpenBusiness"
+      )
+    );
+
+  };
+
+
+  /*
+   * =========================================================
+   * FINANCE
+   * =========================================================
+   */
+
+  HUD.openFinance = function () {
+
+    const candidates = [
+
+      "EmpireBankingUI",
+
+      "EmpireFinanceUI",
+
+      "EmpireAccountingUI",
+
+      "EmpireBankingInvestment"
+
+    ];
+
+
+    for (
+      const name of candidates
+    ) {
+
+      const object =
+        window[name];
+
 
       if (
-        !this.call([
-          "EmpireBusinessOperationsUI.open",
-          "EmpireBusinessUI.open",
-          "EmpireBusinessOperations.open"
-        ])
+        !object
       ) {
-        this.toast(
-          "Business"
-        );
+
+        continue;
+
       }
-    },
 
-    openFinance() {
 
-      if (
-        !this.call([
-          "EmpireBanking.open",
-          "EmpireBankingUI.open",
-          "EmpireFinanceUI.open",
-          "EmpireFinancingUI.open"
-        ])
+      const methods = [
+
+        "open",
+
+        "show",
+
+        "openPanel",
+
+        "openDashboard",
+
+        "openFinance"
+
+      ];
+
+
+      for (
+        const method of methods
       ) {
-        this.toast(
-          "Finance"
-        );
+
+        if (
+          typeof object[method] ===
+          "function"
+        ) {
+
+          try {
+
+            object[method]();
+
+            return;
+
+          } catch (
+            error
+          ) {
+
+            console.warn(
+              "Finance UI error:",
+              error
+            );
+
+          }
+
+        }
+
       }
-    },
 
-    openProducts() {
+    }
 
-      if (
-        !this.call([
-          "EmpireProductUI.open",
-          "EmpireProductManagementUI.open",
-          "EmpireProductsUI.open"
-        ])
-      ) {
-        this.toast(
-          "Products"
-        );
-      }
-    },
 
-    openNews() {
+    window.dispatchEvent(
+      new CustomEvent(
+        "EmpireOpenFinance"
+      )
+    );
 
-      if (
-        !this.call([
-          "EmpireNewsDecisionUI.open",
-          "EmpireNewsUI.open"
-        ])
-      ) {
-        this.toast(
-          "News"
-        );
-      }
-    },
+  };
 
-    openCorporate() {
 
-      if (
-        !this.call([
-          "EmpireCompanyGroupUI.open",
-          "EmpireCorporateUI.open",
-          "EmpireGroupUI.open"
-        ])
-      ) {
-        this.toast(
-          "Corporate"
-        );
-      }
-    },
+  /*
+   * =========================================================
+   * SAVE GAME
+   * =========================================================
+   */
 
-    openGovernment() {
+  HUD.saveGame = function () {
 
-      if (
-        !this.call([
-          "EmpireGovernmentUI.open",
-          "EmpireComplianceUI.open",
-          "EmpireGovernmentComplianceUI.open"
-        ])
-      ) {
-        this.toast(
-          "Government"
-        );
-      }
-    },
+    const game =
+      this.getGame();
 
-    openWorkforce() {
 
-      if (
-        !this.call([
-          "EmpireHRUI.open",
-          "EmpireHR.open",
-          "EmpireHumanResourcesUI.open"
-        ])
-      ) {
-        this.toast(
-          "Workforce"
-        );
-      }
-    },
-
-    openEconomics() {
-
-      if (
-        !this.call([
-          "EmpireCompetitionMarketUI.open",
-          "EmpireMarketUI.open",
-          "EmpireEconomicsUI.open"
-        ])
-      ) {
-        this.toast(
-          "Economics"
-        );
-      }
-    },
-
-    /* =======================================================
-       SAVE
-       ======================================================= */
-
-    save() {
-
-      this.closeMore();
+    if (
+      game &&
+      typeof game.save ===
+      "function"
+    ) {
 
       try {
 
-        const game =
-          this.game();
+        game.save();
 
-        if (
-          game &&
-          typeof game.save ===
-          "function"
-        ) {
-          game.save();
-        }
+        this.closeMore();
 
         this.toast(
           "Game saved"
         );
 
-      } catch (error) {
+        return;
+
+      } catch (
+        error
+      ) {
 
         console.warn(
-          "Save failed:",
+          "Save error:",
           error
         );
 
-        this.toast(
-          "Save failed"
-        );
-      }
-    },
-
-    /* =======================================================
-       TOAST
-       ======================================================= */
-
-    toast(message) {
-
-      const layer =
-        this.root.querySelector(
-          ".er-toast-layer"
-        );
-
-      if (!layer) return;
-
-      layer.innerHTML = `
-        <div class="er-toast">
-          ${this.esc(message)}
-        </div>
-      `;
-
-      const toast =
-        layer.querySelector(
-          ".er-toast"
-        );
-
-      requestAnimationFrame(
-        () => {
-          toast.classList.add(
-            "show"
-          );
-        }
-      );
-
-      setTimeout(
-        () => {
-          toast.classList.remove(
-            "show"
-          );
-        },
-        1500
-      );
-    },
-
-    /* =======================================================
-       REFRESH
-       ======================================================= */
-
-    refresh() {
-
-      if (!this.root) {
-        return;
       }
 
-      this.renderHeader();
-      this.renderStatus();
-
-      /*
-       * Legacy elements can be recreated by old
-       * scripts after our HUD starts, so check again.
-       */
-
-      this.hideLegacy();
-    },
-
-    /* =======================================================
-       START
-       ======================================================= */
-
-    start() {
-
-      if (this.started) {
-        return;
-      }
-
-      this.started = true;
-
-      this.create();
-
-      this.renderHeader();
-      this.renderStatus();
-      this.renderBottom();
-      this.renderMore();
-
-      this.hideLegacy();
-
-      if (this.timer) {
-        clearInterval(
-          this.timer
-        );
-      }
-
-      this.timer =
-        setInterval(
-          () => {
-            this.refresh();
-          },
-          1000
-        );
-
-      console.log(
-        "Empire Rush: Clean HUD started."
-      );
     }
+
+
+    /*
+     * Compatibility with systems
+     * that expose saveGame().
+     */
+
+    if (
+      game &&
+      typeof game.saveGame ===
+      "function"
+    ) {
+
+      try {
+
+        game.saveGame();
+
+        this.closeMore();
+
+        this.toast(
+          "Game saved"
+        );
+
+        return;
+
+      } catch (
+        error
+      ) {
+
+        console.warn(
+          "SaveGame error:",
+          error
+        );
+
+      }
+
+    }
+
+
+    this.toast(
+      "Save system unavailable"
+    );
+
   };
 
 
-  /* ===========================================================
-     BOOT WITH RETRY
-     =========================================================== */
+  /*
+   * =========================================================
+   * BOOT
+   * =========================================================
+   */
+
+  HUD.start = function () {
+
+    /*
+     * Prevent duplicate HUD.
+     */
+
+    if (
+      document.getElementById(
+        "empireCleanHUD"
+      )
+    ) {
+
+      return;
+
+    }
+
+
+    this.game =
+      this.getGame();
+
+
+    this.createRoot();
+
+    this.injectStyles();
+
+    this.bindEvents();
+
+    this.render();
+
+    this.cleanLegacyUI();
+
+    this.startLegacyObserver();
+
+
+    /*
+     * Run cleanup several times during
+     * initial boot because legacy game
+     * systems may render after this HUD.
+     */
+
+    setTimeout(
+      () => {
+
+        this.cleanLegacyUI();
+
+        this.render();
+
+      },
+      100
+    );
+
+
+    setTimeout(
+      () => {
+
+        this.cleanLegacyUI();
+
+        this.render();
+
+      },
+      500
+    );
+
+
+    setTimeout(
+      () => {
+
+        this.cleanLegacyUI();
+
+        this.render();
+
+      },
+      1500
+    );
+
+  };
+
+
+  /*
+   * =========================================================
+   * SAFE BOOT
+   *
+   * empire-game-state.js may load before
+   * or after this script depending on the
+   * page/system sequence.
+   * =========================================================
+   */
 
   function boot() {
 
@@ -2248,76 +3431,63 @@
 
       document.addEventListener(
         "DOMContentLoaded",
-        boot,
+        () => {
+
+          HUD.start();
+
+        },
         {
           once:true
         }
       );
 
       return;
+
     }
 
 
-    if (
-      window.EmpireGameState
-    ) {
+    HUD.start();
 
-      HUD.start();
-
-      return;
-    }
-
-
-    /*
-     * GameState may load after this file.
-     * Retry instead of permanently stopping.
-     */
-
-    setTimeout(
-      boot,
-      250
-    );
   }
 
 
-  boot();
+  /*
+   * If another system replaces the DOM,
+   * make sure the HUD comes back.
+   */
+
+  window.addEventListener(
+    "EmpireWorldReady",
+    () => {
+
+      if (
+        !document.getElementById(
+          "empireCleanHUD"
+        )
+      ) {
+
+        HUD.start();
+
+      }
 
 
-  /* ===========================================================
-     GAME EVENTS
-     =========================================================== */
+      HUD.cleanLegacyUI();
 
-  [
-    "EmpireGameStateChanged",
-    "EmpireDayAdvanced",
-    "EmpireMonthAdvanced",
-    "EmpireBusinessStarted",
-    "EmpireBusinessLaunched",
-    "EmpireEmployeeHired",
-    "EmpireEmployeePromoted"
-  ].forEach(
-    eventName => {
+      HUD.render();
 
-      window.addEventListener(
-        eventName,
-        () => {
-
-          if (
-            HUD.started
-          ) {
-            HUD.refresh();
-          }
-        }
-      );
     }
   );
 
 
-  /* ===========================================================
-     PUBLIC API
-     =========================================================== */
+  /*
+   * Public API
+   */
 
   window.EmpireMainHUD =
     HUD;
+
+
+  boot();
+
 
 })();
