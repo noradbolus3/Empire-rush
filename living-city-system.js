@@ -2,32 +2,42 @@
   "use strict";
 
   /*
-   * EMPIRE RUSH — LIVING CITY SYSTEM
-   * ---------------------------------
-   * Dedicated city visual layer.
+   * ============================================================
+   * EMPIRE RUSH
+   * LIVING CITY SYSTEM
+   * ============================================================
    *
-   * Responsibilities:
-   * - Roads
-   * - Intersections
-   * - Sidewalks
-   * - Traffic
-   * - Cars
-   * - Buildings
-   * - Shops
-   * - Parks
-   * - Trees
-   * - Street lights
-   * - Pedestrians
+   * COMPLETE FILE — PART 1 / 3
    *
-   * Does NOT own:
-   * - Game economy
-   * - Employees
-   * - Company accounting
-   * - Career
-   * - Business logic
+   * PART 1:
+   *  - World connection
+   *  - City configuration
+   *  - District system
+   *  - Road hierarchy
+   *  - Sidewalks
+   *  - Curbs
+   *  - Intersections
+   *  - Crosswalks
+   *  - Property plots
+   *  - Ground / terrain foundation
    *
-   * Requires:
-   * window.EmpireWorld
+   * PART 2:
+   *  - Buildings
+   *  - Parks
+   *  - Commercial properties
+   *  - Corporate properties
+   *  - Player property
+   *
+   * PART 3:
+   *  - Vehicles
+   *  - Pedestrians
+   *  - Street furniture
+   *  - City animation
+   *  - Public API
+   *  - Initialization
+   *
+   * DO NOT SAVE UNTIL ALL 3 PARTS ARE PASTED.
+   * ============================================================
    */
 
   let WORLD = null;
@@ -35,1657 +45,6516 @@
   let scene = null;
 
   let cityRoot = null;
+  let terrainRoot = null;
+  let roadRoot = null;
+  let plotRoot = null;
+  let decorationRoot = null;
   let trafficRoot = null;
   let pedestrianRoot = null;
 
-  let started = false;
-  let animationStarted = false;
+  let cityStarted = false;
+
+  /*
+   * ------------------------------------------------------------
+   * CITY MASTER PLAN
+   * ------------------------------------------------------------
+   *
+   * The city is intentionally designed as a grid rather than
+   * random objects being scattered around the player.
+   *
+   * Coordinates:
+   *
+   *             NORTH
+   *               ↑
+   *
+   *      ┌──────┬──────┬──────┐
+   *      │ RES  │ CORP │ RES  │
+   *      ├──────┼──────┼──────┤
+   *      │ COM  │ PARK │ COM  │
+   * WEST ├──────┼──────┼──────┤ EAST
+   *      │ COM  │ PLAYER│CORP │
+   *      ├──────┼──────┼──────┤
+   *      │ RES  │ PARK │ RES  │
+   *      └──────┴──────┴──────┘
+   *
+   *                ↓
+   *              SOUTH
+   *
+   * This is a foundation only.
+   */
 
   const CITY = {
-    size: 300,
-    roadWidth: 13,
-    sidewalkWidth: 3,
-    blockSize: 48,
 
-    roadXs: [-120, -60, 0, 60, 120],
-    roadZs: [-120, -60, 0, 60, 120],
+    width: 360,
+    depth: 360,
 
-    buildingColors: [
-      0x8fa7b8,
-      0xb6c3ca,
-      0x7893a6,
-      0xd0b28b,
-      0x9c8da3,
-      0x6e8999,
-      0xc5a77d,
-      0x849d8b
-    ],
+    terrainY: -0.18,
 
-    glassColors: [
-      0x75a9c7,
-      0x6e9eb8,
-      0x9cc8d9
-    ],
+    /*
+     * Main arterial road.
+     * Wide enough for future traffic.
+     */
+    arterialWidth: 18,
 
-    carColors: [
-      0xe74c3c,
-      0x3498db,
-      0xf1c40f,
-      0x2ecc71,
-      0x9b59b6,
-      0xe67e22,
-      0xecf0f1,
-      0x34495e
-    ]
+    /*
+     * Secondary road.
+     */
+    secondaryWidth: 12,
+
+    /*
+     * Local access road.
+     */
+    localWidth: 8,
+
+    sidewalkWidth: 3.2,
+
+    curbWidth: 0.45,
+
+    roadHeight: 0.16,
+
+    sidewalkHeight: 0.22,
+
+    /*
+     * Major road coordinates.
+     */
+    arterialX: [-120, 0, 120],
+    arterialZ: [-120, 0, 120],
+
+    secondaryX: [-60, 60],
+    secondaryZ: [-60, 60],
+
+    /*
+     * City limits.
+     */
+    minX: -180,
+    maxX: 180,
+    minZ: -180,
+    maxZ: 180,
+
+    /*
+     * Property blocks.
+     */
+    blockSize: 42,
+
+    /*
+     * Colors are intentionally slightly muted.
+     * Lighting in world3d.html will provide final appearance.
+     */
+    colors: {
+      terrain: 0x78966a,
+
+      arterialRoad: 0x292d32,
+      secondaryRoad: 0x30353a,
+      localRoad: 0x373c41,
+
+      sidewalk: 0xb7b7b0,
+      curb: 0x85878a,
+
+      laneMark: 0xe5e5df,
+      crosswalk: 0xf1f1ec,
+
+      residentialPlot: 0x789d6c,
+      commercialPlot: 0x9b8a63,
+      corporatePlot: 0x697f8c,
+      industrialPlot: 0x77705f,
+      parkPlot: 0x60905a,
+      playerPlot: 0x8b7654
+    },
+
+    districts: []
   };
 
-  const cars = [];
-  const pedestrians = [];
+  /*
+   * ------------------------------------------------------------
+   * DISTRICT MASTER PLAN
+   * ------------------------------------------------------------
+   */
 
-  /* ---------------------------------------------------------
-     HELPERS
-  --------------------------------------------------------- */
+  CITY.districts = [
+
+    {
+      id: "residential_north",
+      name: "North Residential District",
+      type: "residential",
+      x: -120,
+      z: -150,
+      width: 105,
+      depth: 42
+    },
+
+    {
+      id: "corporate_north",
+      name: "North Corporate District",
+      type: "corporate",
+      x: 60,
+      z: -150,
+      width: 105,
+      depth: 42
+    },
+
+    {
+      id: "commercial_west",
+      name: "West Commercial District",
+      type: "commercial",
+      x: -150,
+      z: -60,
+      width: 42,
+      depth: 105
+    },
+
+    {
+      id: "commercial_east",
+      name: "East Commercial District",
+      type: "commercial",
+      x: 150,
+      z: 60,
+      width: 42,
+      depth: 105
+    },
+
+    {
+      id: "central_park",
+      name: "Central City Park",
+      type: "park",
+      x: 0,
+      z: 0,
+      width: 42,
+      depth: 42
+    },
+
+    {
+      id: "player_business",
+      name: "Player Business District",
+      type: "player",
+      x: 60,
+      z: 60,
+      width: 42,
+      depth: 42
+    },
+
+    {
+      id: "corporate_south",
+      name: "South Corporate District",
+      type: "corporate",
+      x: 60,
+      z: 150,
+      width: 105,
+      depth: 42
+    },
+
+    {
+      id: "residential_south",
+      name: "South Residential District",
+      type: "residential",
+      x: -120,
+      z: 150,
+      width: 105,
+      depth: 42
+    },
+
+    {
+      id: "industrial_southeast",
+      name: "Industrial District",
+      type: "industrial",
+      x: 150,
+      z: 150,
+      width: 42,
+      depth: 42
+    }
+
+  ];
+
+  /*
+   * ------------------------------------------------------------
+   * BASIC HELPERS
+   * ------------------------------------------------------------
+   */
 
   function getWorld() {
+
     return window.EmpireWorld || null;
+
   }
 
-  function random(min, max) {
-    return min + Math.random() * (max - min);
+  function waitForWorld(callback) {
+
+    const world = getWorld();
+
+    if (
+      world &&
+      world.scene &&
+      world.THREE
+    ) {
+
+      callback(world);
+
+      return;
+
+    }
+
+    setTimeout(function () {
+
+      waitForWorld(callback);
+
+    }, 300);
+
   }
 
-  function pick(arr) {
-    return arr[Math.floor(Math.random() * arr.length)];
+  function material(
+    color,
+    roughness,
+    metalness
+  ) {
+
+    return new THREE.MeshStandardMaterial({
+
+      color: color,
+
+      roughness:
+        roughness == null
+          ? 0.78
+          : roughness,
+
+      metalness:
+        metalness == null
+          ? 0.02
+          : metalness
+
+    });
+
   }
 
-  function clamp(v, min, max) {
-    return Math.max(min, Math.min(max, v));
+  function createBox(
+    width,
+    height,
+    depth,
+    color,
+    x,
+    y,
+    z,
+    parent,
+    options
+  ) {
+
+    options = options || {};
+
+    const mesh = new THREE.Mesh(
+
+      new THREE.BoxGeometry(
+        width,
+        height,
+        depth
+      ),
+
+      material(
+        color,
+        options.roughness,
+        options.metalness
+      )
+
+    );
+
+    mesh.position.set(
+      x || 0,
+      y || 0,
+      z || 0
+    );
+
+    if (parent) {
+
+      parent.add(mesh);
+
+    }
+
+    return mesh;
+
   }
 
-  function removeOldCity() {
+  function createPlane(
+    width,
+    depth,
+    color,
+    x,
+    y,
+    z,
+    parent
+  ) {
+
+    const mesh = new THREE.Mesh(
+
+      new THREE.PlaneGeometry(
+        width,
+        depth
+      ),
+
+      material(
+        color,
+        0.95,
+        0
+      )
+
+    );
+
+    mesh.rotation.x = -Math.PI / 2;
+
+    mesh.position.set(
+      x || 0,
+      y || 0,
+      z || 0
+    );
+
+    if (parent) {
+
+      parent.add(mesh);
+
+    }
+
+    return mesh;
+
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * CLEAN PREVIOUS CITY
+   * ------------------------------------------------------------
+   */
+
+  function removePreviousCity() {
+
     if (!scene) return;
 
-    const oldNames = [
+    const names = [
+
       "EmpireRushLivingCity",
+
       "EmpireLivingCity",
+
       "LivingCity",
+
       "LivingCityRoot"
+
     ];
 
-    oldNames.forEach(function (name) {
-      const old = scene.getObjectByName(name);
-      if (old && old.parent) {
-        old.parent.remove(old);
+    names.forEach(function (name) {
+
+      const object =
+        scene.getObjectByName(name);
+
+      if (
+        object &&
+        object.parent
+      ) {
+
+        object.parent.remove(object);
+
       }
+
     });
+
   }
 
-  function makeMaterial(color, roughness) {
-    return new THREE.MeshStandardMaterial({
-      color: color,
-      roughness: roughness == null ? 0.72 : roughness,
-      metalness: 0.05
-    });
-  }
+  /*
+   * ------------------------------------------------------------
+   * CITY ROOT
+   * ------------------------------------------------------------
+   */
 
-  function box(w, h, d, color, x, y, z, parent) {
-    const mesh = new THREE.Mesh(
-      new THREE.BoxGeometry(w, h, d),
-      makeMaterial(color)
+  function createCityRoot() {
+
+    cityRoot =
+      new THREE.Group();
+
+    cityRoot.name =
+      "EmpireRushLivingCity";
+
+    terrainRoot =
+      new THREE.Group();
+
+    terrainRoot.name =
+      "Terrain";
+
+    roadRoot =
+      new THREE.Group();
+
+    roadRoot.name =
+      "RoadNetwork";
+
+    plotRoot =
+      new THREE.Group();
+
+    plotRoot.name =
+      "PropertyPlots";
+
+    decorationRoot =
+      new THREE.Group();
+
+    decorationRoot.name =
+      "CityDecoration";
+
+    trafficRoot =
+      new THREE.Group();
+
+    trafficRoot.name =
+      "Traffic";
+
+    pedestrianRoot =
+      new THREE.Group();
+
+    pedestrianRoot.name =
+      "Pedestrians";
+
+    cityRoot.add(
+      terrainRoot
     );
 
-    mesh.position.set(x || 0, (y || 0) + h / 2, z || 0);
-
-    if (parent) parent.add(mesh);
-    return mesh;
-  }
-
-  function cylinder(radius, height, color, x, y, z, parent, segments) {
-    const mesh = new THREE.Mesh(
-      new THREE.CylinderGeometry(
-        radius,
-        radius,
-        height,
-        segments || 12
-      ),
-      makeMaterial(color)
+    cityRoot.add(
+      roadRoot
     );
 
-    mesh.position.set(x || 0, (y || 0) + height / 2, z || 0);
-
-    if (parent) parent.add(mesh);
-    return mesh;
-  }
-
-  function sphere(radius, color, x, y, z, parent) {
-    const mesh = new THREE.Mesh(
-      new THREE.SphereGeometry(radius, 14, 10),
-      makeMaterial(color)
+    cityRoot.add(
+      plotRoot
     );
 
-    mesh.position.set(x || 0, (y || 0) + radius, z || 0);
+    cityRoot.add(
+      decorationRoot
+    );
 
-    if (parent) parent.add(mesh);
-    return mesh;
-  }
+    cityRoot.add(
+      trafficRoot
+    );
 
-  /* ---------------------------------------------------------
-     GROUND
-  --------------------------------------------------------- */
+    cityRoot.add(
+      pedestrianRoot
+    );
 
-  function createGround() {
-    const ground = box(
-      CITY.size,
-      0.35,
-      CITY.size,
-      0x789b67,
-      0,
-      -0.35,
-      0,
+    scene.add(
       cityRoot
     );
 
-    ground.name = "CityGround";
   }
 
-  /* ---------------------------------------------------------
-     ROADS
-  --------------------------------------------------------- */
+  /*
+   * ------------------------------------------------------------
+   * TERRAIN
+   * ------------------------------------------------------------
+   */
 
-  function createRoadNetwork() {
-    const roadMat = makeMaterial(0x252a31, 0.9);
-    const sidewalkMat = makeMaterial(0xb8b8b2, 0.95);
-    const curbMat = makeMaterial(0x8d8f91, 0.95);
+  function createTerrain() {
 
-    CITY.roadXs.forEach(function (x) {
-      const road = new THREE.Mesh(
-        new THREE.BoxGeometry(
-          CITY.roadWidth,
-          0.18,
-          CITY.size
-        ),
-        roadMat
-      );
+    /*
+     * Large base.
+     */
 
-      road.position.set(x, 0.04, 0);
-      cityRoot.add(road);
+    createBox(
 
-      const leftSide = box(
-        CITY.sidewalkWidth,
-        0.18,
-        CITY.size,
-        0xb9b9b3,
-        x - CITY.roadWidth / 2 - CITY.sidewalkWidth / 2,
-        0.08,
-        0,
-        cityRoot
-      );
+      CITY.width,
 
-      const rightSide = box(
-        CITY.sidewalkWidth,
-        0.18,
-        CITY.size,
-        0xb9b9b3,
-        x + CITY.roadWidth / 2 + CITY.sidewalkWidth / 2,
-        0.08,
-        0,
-        cityRoot
-      );
+      0.30,
 
-      leftSide.material = sidewalkMat;
-      rightSide.material = sidewalkMat;
+      CITY.depth,
 
-      box(
-        0.45,
-        0.25,
-        CITY.size,
-        0x85878a,
-        x - CITY.roadWidth / 2,
-        0.1,
-        0,
-        cityRoot
-      );
+      CITY.colors.terrain,
 
-      box(
-        0.45,
-        0.25,
-        CITY.size,
-        0x85878a,
-        x + CITY.roadWidth / 2,
-        0.1,
-        0,
-        cityRoot
-      );
-    });
+      0,
 
-    CITY.roadZs.forEach(function (z) {
-      const road = new THREE.Mesh(
-        new THREE.BoxGeometry(
-          CITY.size,
-          0.18,
-          CITY.roadWidth
-        ),
-        roadMat
-      );
+      CITY.terrainY,
 
-      road.position.set(0, 0.04, z);
-      cityRoot.add(road);
+      0,
 
-      box(
-        CITY.size,
-        0.18,
-        CITY.sidewalkWidth,
-        0xb9b9b3,
-        0,
-        0.08,
-        z - CITY.roadWidth / 2 - CITY.sidewalkWidth / 2,
-        cityRoot
-      );
+      terrainRoot
 
-      box(
-        CITY.size,
-        0.18,
-        CITY.sidewalkWidth,
-        0xb9b9b3,
-        0,
-        0.08,
-        z + CITY.roadWidth / 2 + CITY.sidewalkWidth / 2,
-        cityRoot
-      );
-
-      box(
-        CITY.size,
-        0.25,
-        0.45,
-        0x85878a,
-        0,
-        0.1,
-        z - CITY.roadWidth / 2,
-        cityRoot
-      );
-
-      box(
-        CITY.size,
-        0.25,
-        0.45,
-        0x85878a,
-        0,
-        0.1,
-        z + CITY.roadWidth / 2,
-        cityRoot
-      );
-    });
-
-    createRoadMarkings();
-    createCrossings();
-  }
-
-  function createRoadMarkings() {
-    const markingMat = makeMaterial(0xe9e9e5, 0.7);
-
-    CITY.roadXs.forEach(function (x) {
-      for (let z = -145; z <= 145; z += 10) {
-        const dash = new THREE.Mesh(
-          new THREE.BoxGeometry(0.35, 0.035, 5),
-          markingMat
-        );
-
-        dash.position.set(x, 0.18, z);
-        cityRoot.add(dash);
-      }
-    });
-
-    CITY.roadZs.forEach(function (z) {
-      for (let x = -145; x <= 145; x += 10) {
-        const dash = new THREE.Mesh(
-          new THREE.BoxGeometry(5, 0.035, 0.35),
-          markingMat
-        );
-
-        dash.position.set(x, 0.18, z);
-        cityRoot.add(dash);
-      }
-    });
-  }
-
-  function createCrossings() {
-    const white = makeMaterial(0xf4f4ef);
-
-    CITY.roadXs.forEach(function (x) {
-      CITY.roadZs.forEach(function (z) {
-
-        for (let i = -5; i <= 5; i += 2) {
-          const stripeA = new THREE.Mesh(
-            new THREE.BoxGeometry(
-              1.0,
-              0.04,
-              CITY.roadWidth
-            ),
-            white
-          );
-
-          stripeA.position.set(
-            x + i,
-            0.2,
-            z
-          );
-
-          cityRoot.add(stripeA);
-        }
-
-      });
-    });
-  }
-
-  /* ---------------------------------------------------------
-     BUILDINGS
-  --------------------------------------------------------- */
-
-  function createBuilding(x, z, w, d, floors, type) {
-
-    const root = new THREE.Group();
-    root.position.set(x, 0, z);
-
-    const bodyColor = pick(CITY.buildingColors);
-
-    const height = floors * 4.2;
-
-    const body = new THREE.Mesh(
-      new THREE.BoxGeometry(w, height, d),
-      makeMaterial(bodyColor)
     );
 
-    body.position.y = height / 2;
-    root.add(body);
+    /*
+     * Slightly darker border around the playable city.
+     */
 
-    createWindows(root, w, d, height);
-    createRoof(root, w, d, height);
+    createPlane(
+
+      CITY.width + 12,
+
+      CITY.depth + 12,
+
+      0x536b4b,
+
+      0,
+
+      CITY.terrainY - 0.02,
+
+      0,
+
+      terrainRoot
+
+    );
+
+    /*
+     * Put the actual city surface back above the border.
+     */
+
+    createPlane(
+
+      CITY.width,
+
+      CITY.depth,
+
+      CITY.colors.terrain,
+
+      0,
+
+      CITY.terrainY + 0.015,
+
+      0,
+
+      terrainRoot
+
+    );
+
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * ROAD HELPERS
+   * ------------------------------------------------------------
+   */
+
+  function createVerticalRoad(
+    x,
+    width,
+    roadColor,
+    isArterial
+  ) {
+
+    createBox(
+
+      width,
+
+      CITY.roadHeight,
+
+      CITY.depth,
+
+      roadColor,
+
+      x,
+
+      0.02,
+
+      0,
+
+      roadRoot
+
+    );
+
+    createSidewalksVertical(
+      x,
+      width
+    );
+
+    createCurbsVertical(
+      x,
+      width
+    );
+
+    if (isArterial) {
+
+      createCenterLineVertical(
+        x,
+        width
+      );
+
+    }
+
+  }
+
+  function createHorizontalRoad(
+    z,
+    width,
+    roadColor,
+    isArterial
+  ) {
+
+    createBox(
+
+      CITY.width,
+
+      CITY.roadHeight,
+
+      width,
+
+      roadColor,
+
+      0,
+
+      0.02,
+
+      z,
+
+      roadRoot
+
+    );
+
+    createSidewalksHorizontal(
+      z,
+      width
+    );
+
+    createCurbsHorizontal(
+      z,
+      width
+    );
+
+    if (isArterial) {
+
+      createCenterLineHorizontal(
+        z,
+        width
+      );
+
+    }
+
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * SIDEWALKS
+   * ------------------------------------------------------------
+   */
+
+  function createSidewalksVertical(
+    x,
+    roadWidth
+  ) {
+
+    const offset =
+      roadWidth / 2 +
+      CITY.sidewalkWidth / 2;
+
+    createBox(
+
+      CITY.sidewalkWidth,
+
+      CITY.sidewalkHeight,
+
+      CITY.depth,
+
+      CITY.colors.sidewalk,
+
+      x - offset,
+
+      0.10,
+
+      0,
+
+      roadRoot
+
+    );
+
+    createBox(
+
+      CITY.sidewalkWidth,
+
+      CITY.sidewalkHeight,
+
+      CITY.depth,
+
+      CITY.colors.sidewalk,
+
+      x + offset,
+
+      0.10,
+
+      0,
+
+      roadRoot
+
+    );
+
+  }
+
+  function createSidewalksHorizontal(
+    z,
+    roadWidth
+  ) {
+
+    const offset =
+      roadWidth / 2 +
+      CITY.sidewalkWidth / 2;
+
+    createBox(
+
+      CITY.width,
+
+      CITY.sidewalkHeight,
+
+      CITY.sidewalkWidth,
+
+      CITY.colors.sidewalk,
+
+      0,
+
+      0.10,
+
+      z - offset,
+
+      roadRoot
+
+    );
+
+    createBox(
+
+      CITY.width,
+
+      CITY.sidewalkHeight,
+
+      CITY.sidewalkWidth,
+
+      CITY.colors.sidewalk,
+
+      0,
+
+      0.10,
+
+      z + offset,
+
+      roadRoot
+
+    );
+
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * CURBS
+   * ------------------------------------------------------------
+   */
+
+  function createCurbsVertical(
+    x,
+    roadWidth
+  ) {
+
+    const offset =
+      roadWidth / 2;
+
+    createBox(
+
+      CITY.curbWidth,
+
+      0.30,
+
+      CITY.depth,
+
+      CITY.colors.curb,
+
+      x - offset,
+
+      0.10,
+
+      0,
+
+      roadRoot
+
+    );
+
+    createBox(
+
+      CITY.curbWidth,
+
+      0.30,
+
+      CITY.depth,
+
+      CITY.colors.curb,
+
+      x + offset,
+
+      0.10,
+
+      0,
+
+      roadRoot
+
+    );
+
+  }
+
+  function createCurbsHorizontal(
+    z,
+    roadWidth
+  ) {
+
+    const offset =
+      roadWidth / 2;
+
+    createBox(
+
+      CITY.width,
+
+      0.30,
+
+      CITY.curbWidth,
+
+      CITY.colors.curb,
+
+      0,
+
+      0.10,
+
+      z - offset,
+
+      roadRoot
+
+    );
+
+    createBox(
+
+      CITY.width,
+
+      0.30,
+
+      CITY.curbWidth,
+
+      CITY.colors.curb,
+
+      0,
+
+      0.10,
+
+      z + offset,
+
+      roadRoot
+
+    );
+
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * ROAD MARKINGS
+   * ------------------------------------------------------------
+   */
+
+  function createCenterLineVertical(
+    x,
+    roadWidth
+  ) {
+
+    /*
+     * Dashed centre line.
+     */
+
+    for (
+      let z = CITY.minZ + 8;
+      z < CITY.maxZ;
+      z += 16
+    ) {
+
+      createBox(
+
+        0.32,
+
+        0.035,
+
+        7,
+
+        CITY.colors.laneMark,
+
+        x,
+
+        0.115,
+
+        z,
+
+        roadRoot
+
+      );
+
+    }
+
+  }
+
+  function createCenterLineHorizontal(
+    z,
+    roadWidth
+  ) {
+
+    for (
+      let x = CITY.minX + 8;
+      x < CITY.maxX;
+      x += 16
+    ) {
+
+      createBox(
+
+        7,
+
+        0.035,
+
+        0.32,
+
+        CITY.colors.laneMark,
+
+        x,
+
+        0.115,
+
+        z,
+
+        roadRoot
+
+      );
+
+    }
+
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * INTERSECTION
+   * ------------------------------------------------------------
+   *
+   * Important:
+   * The intersection is kept open.
+   * We don't simply draw a road over a building plot.
+   */
+
+  function createIntersection(
+    x,
+    z,
+    size
+  ) {
+
+    const intersection =
+      new THREE.Group();
+
+    intersection.name =
+      "Intersection";
+
+    /*
+     * Asphalt centre.
+     */
+
+    createBox(
+
+      size,
+
+      0.04,
+
+      size,
+
+      CITY.colors.arterialRoad,
+
+      x,
+
+      0.11,
+
+      z,
+
+      intersection
+
+    );
+
+    /*
+     * Crosswalk north/south.
+     */
+
+    for (
+      let i = -4;
+      i <= 4;
+      i += 2
+    ) {
+
+      createBox(
+
+        1.0,
+
+        0.045,
+
+        5,
+
+        CITY.colors.crosswalk,
+
+        x + i,
+
+        0.16,
+
+        z - size / 2 + 2.5,
+
+        intersection
+
+      );
+
+      createBox(
+
+        1.0,
+
+        0.045,
+
+        5,
+
+        CITY.colors.crosswalk,
+
+        x + i,
+
+        0.16,
+
+        z + size / 2 - 2.5,
+
+        intersection
+
+      );
+
+    }
+
+    /*
+     * Crosswalk east/west.
+     */
+
+    for (
+      let i = -4;
+      i <= 4;
+      i += 2
+    ) {
+
+      createBox(
+
+        5,
+
+        0.045,
+
+        1.0,
+
+        CITY.colors.crosswalk,
+
+        x - size / 2 + 2.5,
+
+        0.16,
+
+        z + i,
+
+        intersection
+
+      );
+
+      createBox(
+
+        5,
+
+        0.045,
+
+        1.0,
+
+        CITY.colors.crosswalk,
+
+        x + size / 2 - 2.5,
+
+        0.16,
+
+        z + i,
+
+        intersection
+
+      );
+
+    }
+
+    roadRoot.add(
+      intersection
+    );
+
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * COMPLETE ROAD NETWORK
+   * ------------------------------------------------------------
+   */
+
+  function createRoadNetwork() {
+
+    /*
+     * Main north/south arterials.
+     */
+
+    CITY.arterialX.forEach(
+      function (x) {
+
+        createVerticalRoad(
+
+          x,
+
+          CITY.arterialWidth,
+
+          CITY.colors.arterialRoad,
+
+          true
+
+        );
+
+      }
+    );
+
+    /*
+     * Main east/west arterials.
+     */
+
+    CITY.arterialZ.forEach(
+      function (z) {
+
+        createHorizontalRoad(
+
+          z,
+
+          CITY.arterialWidth,
+
+          CITY.colors.arterialRoad,
+
+          true
+
+        );
+
+      }
+    );
+
+    /*
+     * Secondary roads.
+     */
+
+    CITY.secondaryX.forEach(
+      function (x) {
+
+        createVerticalRoad(
+
+          x,
+
+          CITY.secondaryWidth,
+
+          CITY.colors.secondaryRoad,
+
+          false
+
+        );
+
+      }
+    );
+
+    CITY.secondaryZ.forEach(
+      function (z) {
+
+        createHorizontalRoad(
+
+          z,
+
+          CITY.secondaryWidth,
+
+          CITY.colors.secondaryRoad,
+
+          false
+
+        );
+
+      }
+    );
+
+    /*
+     * Major intersections.
+     */
+
+    CITY.arterialX.forEach(
+      function (x) {
+
+        CITY.arterialZ.forEach(
+          function (z) {
+
+            createIntersection(
+              x,
+              z,
+              CITY.arterialWidth + 8
+            );
+
+          }
+        );
+
+      }
+    );
+
+    /*
+     * Secondary intersections.
+     */
+
+    CITY.secondaryX.forEach(
+      function (x) {
+
+        CITY.secondaryZ.forEach(
+          function (z) {
+
+            createIntersection(
+              x,
+              z,
+              CITY.secondaryWidth + 7
+            );
+
+          }
+        );
+
+      }
+    );
+
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * PROPERTY PLOT SYSTEM
+   * ------------------------------------------------------------
+   */
+
+  function createPropertyPlot(
+    x,
+    z,
+    width,
+    depth,
+    type,
+    id
+  ) {
+
+    const plot =
+      new THREE.Group();
+
+    plot.name =
+      "PropertyPlot_" + id;
+
+    plot.userData = {
+
+      propertyId: id,
+
+      zoning: type,
+
+      width: width,
+
+      depth: depth,
+
+      occupied: false,
+
+      owner: null,
+
+      businessType: null
+
+    };
+
+    let color =
+      CITY.colors.residentialPlot;
 
     if (type === "commercial") {
-      createShopFront(root, w, d);
+
+      color =
+        CITY.colors.commercialPlot;
+
     }
 
     if (type === "corporate") {
-      createCorporateEntrance(root, w, d);
+
+      color =
+        CITY.colors.corporatePlot;
+
     }
 
-    if (type === "residential") {
-      createBalconies(root, w, d, height);
+    if (type === "industrial") {
+
+      color =
+        CITY.colors.industrialPlot;
+
     }
 
-    cityRoot.add(root);
+    if (type === "park") {
 
-    return root;
-  }
+      color =
+        CITY.colors.parkPlot;
 
-  function createWindows(parent, w, d, height) {
-    const windowColor = pick(CITY.glassColors);
-    const rows = Math.max(2, Math.floor(height / 4.2));
-
-    for (let row = 0; row < rows; row++) {
-      const y = 1.3 + row * 4.1;
-
-      const colsFront = Math.max(2, Math.floor(w / 3.5));
-
-      for (let c = 0; c < colsFront; c++) {
-        const x =
-          -w / 2 +
-          1.4 +
-          c * ((w - 2.8) / Math.max(1, colsFront - 1));
-
-        const window = new THREE.Mesh(
-          new THREE.BoxGeometry(
-            1.35,
-            1.65,
-            0.08
-          ),
-          makeMaterial(windowColor, 0.35)
-        );
-
-        window.position.set(
-          x,
-          y,
-          d / 2 + 0.06
-        );
-
-        parent.add(window);
-      }
-
-      const colsSide = Math.max(2, Math.floor(d / 3.5));
-
-      for (let c = 0; c < colsSide; c++) {
-        const z =
-          -d / 2 +
-          1.4 +
-          c * ((d - 2.8) / Math.max(1, colsSide - 1));
-
-        const window = new THREE.Mesh(
-          new THREE.BoxGeometry(
-            0.08,
-            1.65,
-            1.35
-          ),
-          makeMaterial(windowColor, 0.35)
-        );
-
-        window.position.set(
-          w / 2 + 0.06,
-          y,
-          z
-        );
-
-        parent.add(window);
-      }
-    }
-  }
-
-  function createRoof(parent, w, d, height) {
-    box(
-      w + 0.8,
-      0.35,
-      d + 0.8,
-      0x555b62,
-      0,
-      height,
-      0,
-      parent
-    );
-  }
-
-  function createShopFront(parent, w, d) {
-    const shop = box(
-      Math.min(w * 0.8, 9),
-      2.8,
-      0.25,
-      0x293b4a,
-      0,
-      0,
-      d / 2 + 0.2,
-      parent
-    );
-
-    box(
-      Math.min(w * 0.72, 8),
-      0.55,
-      0.25,
-      pick([
-        0xd35400,
-        0x2980b9,
-        0x27ae60,
-        0x8e44ad
-      ]),
-      0,
-      2.85,
-      d / 2 + 0.23,
-      parent
-    );
-  }
-
-  function createCorporateEntrance(parent, w, d) {
-    box(
-      Math.min(w * 0.38, 5),
-      3.2,
-      0.3,
-      0x243746,
-      0,
-      0,
-      d / 2 + 0.22,
-      parent
-    );
-
-    box(
-      Math.min(w * 0.45, 6),
-      0.45,
-      0.25,
-      0xf2f2ef,
-      0,
-      3.5,
-      d / 2 + 0.25,
-      parent
-    );
-  }
-
-  function createBalconies(parent, w, d, height) {
-    const levels = Math.min(4, Math.floor(height / 5));
-
-    for (let i = 0; i < levels; i++) {
-      const y = 3.0 + i * 4.5;
-
-      box(
-        Math.min(w * 0.35, 4),
-        0.2,
-        1.2,
-        0x626a70,
-        -w * 0.2,
-        y,
-        d / 2 + 0.55,
-        parent
-      );
-    }
-  }
-
-  function createCityBuildings() {
-
-    const blocks = [
-      [-90, -90],
-      [-30, -90],
-      [30, -90],
-      [90, -90],
-
-      [-90, -30],
-      [-30, -30],
-      [30, -30],
-      [90, -30],
-
-      [-90, 30],
-      [-30, 30],
-      [30, 30],
-      [90, 30],
-
-      [-90, 90],
-      [-30, 90],
-      [30, 90],
-      [90, 90]
-    ];
-
-    blocks.forEach(function (p, index) {
-
-      if (index === 5 || index === 10) return;
-
-      const x = p[0] + random(-5, 5);
-      const z = p[1] + random(-5, 5);
-
-      const w = random(20, 30);
-      const d = random(20, 30);
-
-      let floors = Math.floor(random(2, 7));
-
-      if (index === 6 || index === 9) {
-        floors = Math.floor(random(7, 12));
-      }
-
-      let type = "residential";
-
-      if (index % 4 === 0) {
-        type = "commercial";
-      }
-
-      if (index === 6 || index === 9) {
-        type = "corporate";
-      }
-
-      createBuilding(
-        x,
-        z,
-        w,
-        d,
-        floors,
-        type
-      );
-    });
-
-    createLandmarkBuildings();
-  }
-
-  function createLandmarkBuildings() {
-
-    const tower = createBuilding(
-      105,
-      30,
-      25,
-      25,
-      16,
-      "corporate"
-    );
-
-    tower.scale.set(1.15, 1, 1.15);
-
-    const tower2 = createBuilding(
-      -105,
-      -30,
-      23,
-      23,
-      13,
-      "corporate"
-    );
-
-    tower2.scale.set(1.1, 1, 1.1);
-  }
-
-  /* ---------------------------------------------------------
-     PARKS
-  --------------------------------------------------------- */
-
-  function createParks() {
-
-    createPark(-30, 30, 42, 38);
-    createPark(30, -30, 42, 38);
-
-  }
-
-  function createPark(x, z, w, d) {
-
-    const park = new THREE.Group();
-    park.position.set(x, 0, z);
-
-    box(
-      w,
-      0.18,
-      d,
-      0x6fa45e,
-      0,
-      0,
-      0,
-      park
-    );
-
-    createParkPaths(park, w, d);
-
-    for (let i = 0; i < 10; i++) {
-      const tx = random(-w / 2 + 3, w / 2 - 3);
-      const tz = random(-d / 2 + 3, d / 2 - 3);
-
-      createTree(
-        tx,
-        tz,
-        random(0.8, 1.25),
-        park
-      );
     }
 
-    for (let i = 0; i < 3; i++) {
-      createBench(
-        random(-w / 2 + 6, w / 2 - 6),
-        random(-d / 2 + 5, d / 2 - 5),
-        park
-      );
+    if (type === "player") {
+
+      color =
+        CITY.colors.playerPlot;
+
     }
-
-    cityRoot.add(park);
-  }
-
-  function createParkPaths(parent, w, d) {
-
-    box(
-      2.6,
-      0.08,
-      d - 3,
-      0xd9c89d,
-      0,
-      0.2,
-      0,
-      parent
-    );
-
-    box(
-      w - 3,
-      0.08,
-      2.6,
-      0xd9c89d,
-      0,
-      0.21,
-      0,
-      parent
-    );
-  }
-
-  /* ---------------------------------------------------------
-     TREES
-  --------------------------------------------------------- */
-
-  function createTree(x, z, scale, parent) {
-
-    const tree = new THREE.Group();
-
-    tree.position.set(x, 0, z);
-    tree.scale.setScalar(scale || 1);
-
-    cylinder(
-      0.45,
-      2.2,
-      0x745035,
-      0,
-      0,
-      0,
-      tree,
-      10
-    );
-
-    sphere(
-      2.0,
-      pick([
-        0x4e8f52,
-        0x5c9d59,
-        0x6da85f
-      ]),
-      0,
-      2.0,
-      0,
-      tree
-    );
-
-    sphere(
-      1.35,
-      0x76ad63,
-      -0.8,
-      2.5,
-      0.3,
-      tree
-    );
-
-    parent.add(tree);
-  }
-
-  function createStreetTrees() {
-
-    const positions = [];
-
-    CITY.roadXs.forEach(function (x) {
-      [-135, -75, -15, 45, 105, 135].forEach(function (z) {
-        positions.push([
-          x - 10,
-          z
-        ]);
-
-        positions.push([
-          x + 10,
-          z
-        ]);
-      });
-    });
-
-    CITY.roadZs.forEach(function (z) {
-      [-135, -75, -15, 45, 105, 135].forEach(function (x) {
-        positions.push([
-          x,
-          z - 10
-        ]);
-
-        positions.push([
-          x,
-          z + 10
-        ]);
-      });
-    });
-
-    positions.forEach(function (p) {
-      createTree(
-        p[0],
-        p[1],
-        random(0.65, 0.9),
-        cityRoot
-      );
-    });
-  }
-
-  /* ---------------------------------------------------------
-     STREET LIGHTS
-  --------------------------------------------------------- */
-
-  function createStreetLight(x, z, rotationY) {
-
-    const root = new THREE.Group();
-
-    root.position.set(x, 0, z);
-    root.rotation.y = rotationY || 0;
-
-    cylinder(
-      0.12,
-      4.5,
-      0x33383c,
-      0,
-      0,
-      0,
-      root,
-      10
-    );
-
-    box(
-      1.1,
-      0.12,
-      0.12,
-      0x33383c,
-      0.45,
-      4.35,
-      0,
-      root
-    );
-
-    sphere(
-      0.28,
-      0xffe9a5,
-      1.0,
-      4.15,
-      0,
-      root
-    );
-
-    cityRoot.add(root);
-  }
-
-  function createStreetLights() {
-
-    CITY.roadXs.forEach(function (x) {
-
-      [-105, -45, 15, 75, 135].forEach(function (z) {
-
-        createStreetLight(
-          x - 9,
-          z,
-          0
-        );
-
-        createStreetLight(
-          x + 9,
-          z,
-          Math.PI
-        );
-
-      });
-
-    });
-
-    CITY.roadZs.forEach(function (z) {
-
-      [-105, -45, 15, 75, 135].forEach(function (x) {
-
-        createStreetLight(
-          x,
-          z - 9,
-          Math.PI / 2
-        );
-
-        createStreetLight(
-          x,
-          z + 9,
-          -Math.PI / 2
-        );
-
-      });
-
-    });
-  }
-
-  /* ---------------------------------------------------------
-     BENCH
-  --------------------------------------------------------- */
-
-  function createBench(x, z, parent) {
-
-    box(
-      3.0,
-      0.25,
-      0.75,
-      0x805538,
-      x,
-      1.0,
-      z,
-      parent
-    );
-
-    box(
-      0.18,
-      1.0,
-      0.18,
-      0x444444,
-      x - 1.1,
-      0.1,
-      z,
-      parent
-    );
-
-    box(
-      0.18,
-      1.0,
-      0.18,
-      0x444444,
-      x + 1.1,
-      0.1,
-      z,
-      parent
-    );
-  }
-
-  /* ---------------------------------------------------------
-     CARS
-  --------------------------------------------------------- */
-
-  function createCar(color, x, z, rotationY) {
-
-    const car = new THREE.Group();
-
-    car.position.set(x, 0.35, z);
-    car.rotation.y = rotationY || 0;
-
-    car.userData.speed = random(4, 7);
-    car.userData.direction = rotationY || 0;
-    car.userData.lane = random(-1, 1);
-
-    /* Main body */
-
-    box(
-      2.8,
-      0.75,
-      5.2,
-      color,
-      0,
-      0,
-      0,
-      car
-    );
-
-    /* Lower bumper */
-
-    box(
-      2.65,
-      0.3,
-      5.35,
-      0x202327,
-      0,
-      -0.15,
-      0,
-      car
-    );
-
-    /* Cabin */
-
-    const cabin = new THREE.Mesh(
-      new THREE.BoxGeometry(
-        2.25,
-        0.8,
-        2.6
-      ),
-      makeMaterial(
-        pick(CITY.glassColors),
-        0.25
-      )
-    );
-
-    cabin.position.set(
-      0,
-      0.72,
-      -0.1
-    );
-
-    car.add(cabin);
-
-    /* Roof */
-
-    box(
-      2.0,
-      0.12,
-      2.2,
-      color,
-      0,
-      1.1,
-      -0.1,
-      car
-    );
-
-    /* Wheels */
-
-    [
-      [-1.48, 0.25, -1.65],
-      [1.48, 0.25, -1.65],
-      [-1.48, 0.25, 1.65],
-      [1.48, 0.25, 1.65]
-    ].forEach(function (p) {
-
-      const wheel = new THREE.Mesh(
-        new THREE.CylinderGeometry(
-          0.48,
-          0.48,
-          0.35,
-          12
-        ),
-        makeMaterial(0x17191b, 0.9)
-      );
-
-      wheel.rotation.z = Math.PI / 2;
-
-      wheel.position.set(
-        p[0],
-        p[1],
-        p[2]
-      );
-
-      car.add(wheel);
-    });
-
-    /* Headlights */
-
-    box(
-      0.42,
-      0.18,
-      0.12,
-      0xfff2c2,
-      -0.8,
-      0.48,
-      -2.64,
-      car
-    );
-
-    box(
-      0.42,
-      0.18,
-      0.12,
-      0xfff2c2,
-      0.8,
-      0.48,
-      -2.64,
-      car
-    );
-
-    /* Tail lights */
-
-    box(
-      0.4,
-      0.18,
-      0.12,
-      0xa51f26,
-      -0.8,
-      0.48,
-      2.64,
-      car
-    );
-
-    box(
-      0.4,
-      0.18,
-      0.12,
-      0xa51f26,
-      0.8,
-      0.48,
-      2.64,
-      car
-    );
-
-    trafficRoot.add(car);
-
-    cars.push(car);
-
-    return car;
-  }
-
-  function createTraffic() {
-
-    const lanes = [
-      {
-        axis: "z",
-        x: -120,
-        rotation: 0
-      },
-      {
-        axis: "z",
-        x: -60,
-        rotation: Math.PI
-      },
-      {
-        axis: "z",
-        x: 60,
-        rotation: 0
-      },
-      {
-        axis: "z",
-        x: 120,
-        rotation: Math.PI
-      },
-      {
-        axis: "x",
-        z: -120,
-        rotation: Math.PI / 2
-      },
-      {
-        axis: "x",
-        z: -60,
-        rotation: -Math.PI / 2
-      },
-      {
-        axis: "x",
-        z: 60,
-        rotation: Math.PI / 2
-      },
-      {
-        axis: "x",
-        z: 120,
-        rotation: -Math.PI / 2
-      }
-    ];
-
-    lanes.forEach(function (lane, laneIndex) {
-
-      for (let i = 0; i < 3; i++) {
-
-        let x = 0;
-        let z = 0;
-
-        if (lane.axis === "z") {
-          x = lane.x;
-          z = -145 + i * 95 + laneIndex * 3;
-        } else {
-          x = -145 + i * 95 + laneIndex * 3;
-          z = lane.z;
-        }
-
-        createCar(
-          pick(CITY.carColors),
-          x,
-          z,
-          lane.rotation
-        );
-      }
-    });
-  }
-
-  function updateTraffic(delta) {
-
-    cars.forEach(function (car) {
-
-      const speed = car.userData.speed * delta;
-
-      const direction = car.userData.direction;
-
-      car.position.x += Math.sin(direction) * speed;
-      car.position.z += Math.cos(direction) * speed;
-
-      if (car.position.x > 155) {
-        car.position.x = -155;
-      }
-
-      if (car.position.x < -155) {
-        car.position.x = 155;
-      }
-
-      if (car.position.z > 155) {
-        car.position.z = -155;
-      }
-
-      if (car.position.z < -155) {
-        car.position.z = 155;
-      }
-
-    });
-  }
-
-  /* ---------------------------------------------------------
-     PEDestrians
-  --------------------------------------------------------- */
-
-  function createPedestrian(x, z, scale) {
-
-    const person = new THREE.Group();
-
-    person.position.set(x, 0, z);
-    person.scale.setScalar(scale || 1);
-
-    const skin = pick([
-      0xc68d6b,
-      0xd8a27d,
-      0x9d674a
-    ]);
-
-    const clothes = pick([
-      0x304c67,
-      0x526b45,
-      0x70465c,
-      0x6e5c3d,
-      0x343b45
-    ]);
-
-    cylinder(
-      0.23,
-      1.1,
-      clothes,
-      0,
-      0,
-      0,
-      person,
-      10
-    );
-
-    sphere(
-      0.25,
-      skin,
-      0,
-      1.1,
-      0,
-      person
-    );
-
-    person.userData.speed = random(0.7, 1.4);
-    person.userData.direction = random(0, Math.PI * 2);
-
-    pedestrianRoot.add(person);
-    pedestrians.push(person);
-
-    return person;
-  }
-
-  function createPedestrians() {
-
-    for (let i = 0; i < 35; i++) {
-
-      const useXRoad = Math.random() > 0.5;
-
-      if (useXRoad) {
-
-        const z = pick(
-          CITY.roadZs.map(function (v) {
-            return v + pick([-9, 9]);
-          })
-        );
-
-        createPedestrian(
-          random(-145, 145),
-          z,
-          random(0.85, 1.15)
-        );
-
-      } else {
-
-        const x = pick(
-          CITY.roadXs.map(function (v) {
-            return v + pick([-9, 9]);
-          })
-        );
-
-        createPedestrian(
-          x,
-          random(-145, 145),
-          random(0.85, 1.15)
-        );
-      }
-    }
-  }
-
-  function updatePedestrians(delta) {
-
-    pedestrians.forEach(function (person) {
-
-      const speed =
-        person.userData.speed * delta;
-
-      person.position.x +=
-        Math.sin(person.userData.direction) * speed;
-
-      person.position.z +=
-        Math.cos(person.userData.direction) * speed;
-
-      if (
-        Math.abs(person.position.x) > 148 ||
-        Math.abs(person.position.z) > 148
-      ) {
-        person.position.x = random(-130, 130);
-        person.position.z = random(-130, 130);
-      }
-
-      if (Math.random() < 0.002) {
-        person.userData.direction =
-          random(0, Math.PI * 2);
-      }
-
-    });
-  }
-
-  /* ---------------------------------------------------------
-     PARKING
-  --------------------------------------------------------- */
-
-  function createParkingArea(x, z, w, d) {
-
-    box(
-      w,
-      0.12,
-      d,
-      0x45484c,
-      x,
-      0.08,
-      z,
-      cityRoot
-    );
-
-    for (
-      let px = x - w / 2 + 4;
-      px < x + w / 2 - 2;
-      px += 5
-    ) {
-
-      box(
-        0.12,
-        0.03,
-        d - 4,
-        0xe7e7e1,
-        px,
-        0.2,
-        z,
-        cityRoot
-      );
-    }
-
-    for (let i = 0; i < 4; i++) {
-
-      createCar(
-        pick(CITY.carColors),
-        x - w / 2 + 5 + i * 5,
-        z,
-        0
-      );
-    }
-  }
-
-  /* ---------------------------------------------------------
-     CITY DECOR
-  --------------------------------------------------------- */
-
-  function createCityDecor() {
-
-    createParkingArea(
-      100,
-      -30,
-      28,
-      18
-    );
-
-    createParkingArea(
-      -100,
-      90,
-      28,
-      18
-    );
-
-    createTreesAroundBlocks();
-  }
-
-  function createTreesAroundBlocks() {
-
-    const spots = [
-      [-130, -130],
-      [-70, -130],
-      [70, -130],
-      [130, -130],
-
-      [-130, -70],
-      [130, -70],
-
-      [-130, 70],
-      [130, 70],
-
-      [-130, 130],
-      [-70, 130],
-      [70, 130],
-      [130, 130]
-    ];
-
-    spots.forEach(function (p) {
-
-      createTree(
-        p[0],
-        p[1],
-        random(0.7, 1.0),
-        cityRoot
-      );
-
-      createTree(
-        p[0] + random(-5, 5),
-        p[1] + random(-5, 5),
-        random(0.55, 0.8),
-        cityRoot
-      );
-    });
-  }
-
-  /* ---------------------------------------------------------
-     CITY SIGNAGE
-  --------------------------------------------------------- */
-
-  function createSign(x, z, text) {
-
-    const sign = new THREE.Group();
-
-    sign.position.set(x, 0, z);
-
-    box(
-      0.16,
-      3.0,
-      0.16,
-      0x30353a,
-      0,
-      0,
-      0,
-      sign
-    );
-
-    box(
-      3.5,
-      1.2,
-      0.18,
-      0x1f2932,
-      0,
-      2.4,
-      0,
-      sign
-    );
-
-    cityRoot.add(sign);
-  }
-
-  function createCitySigns() {
-
-    createSign(
-      -25,
-      -12,
-      "BUSINESS"
-    );
-
-    createSign(
-      35,
-      12,
-      "DOWNTOWN"
-    );
-  }
-
-  /* ---------------------------------------------------------
-     HQ CONNECTION
-  --------------------------------------------------------- */
-
-  function improveHQSurroundings() {
-
-    if (!WORLD || !WORLD.HQ) return;
-
-    const hq = WORLD.HQ;
-
-    if (!hq.userData) {
-      hq.userData = {};
-    }
-
-    hq.userData.cityIntegrated = true;
 
     /*
-     * We intentionally do not reposition the existing HQ.
-     * Existing office/interior coordinates remain controlled
-     * by world3d.html.
+     * Plot surface.
      */
+
+    createBox(
+
+      width,
+
+      0.10,
+
+      depth,
+
+      color,
+
+      x,
+
+      0.14,
+
+      z,
+
+      plot
+
+    );
+
+    /*
+     * Setback border.
+     */
+
+    createPlotBorder(
+      plot,
+      width,
+      depth
+    );
+
+    /*
+     * Small access strip facing nearest road.
+     * This prevents a future building from touching
+     * the public road directly.
+     */
+
+    createPropertyAccess(
+      plot,
+      x,
+      z,
+      width,
+      depth
+    );
+
+    plotRoot.add(
+      plot
+    );
+
+    return plot;
+
   }
 
-  /* ---------------------------------------------------------
-     CITY BUILD
-  --------------------------------------------------------- */
+  function createPlotBorder(
+    parent,
+    width,
+    depth
+  ) {
 
-  function buildCity() {
+    const border =
+      0.35;
 
-    if (!scene || !THREE) return;
+    const y =
+      0.21;
 
-    removeOldCity();
+    createBox(
 
-    cityRoot = new THREE.Group();
-    cityRoot.name = "EmpireRushLivingCity";
+      width,
+      0.08,
+      border,
 
-    trafficRoot = new THREE.Group();
-    trafficRoot.name = "Traffic";
+      0x666a65,
 
-    pedestrianRoot = new THREE.Group();
-    pedestrianRoot.name = "Pedestrians";
+      0,
+      y,
+      -depth / 2,
 
-    cityRoot.add(trafficRoot);
-    cityRoot.add(pedestrianRoot);
+      parent
 
-    scene.add(cityRoot);
+    );
 
-    createGround();
+    createBox(
+
+      width,
+      0.08,
+      border,
+
+      0x666a65,
+
+      0,
+      y,
+      depth / 2,
+
+      parent
+
+    );
+
+    createBox(
+
+      border,
+      0.08,
+      depth,
+
+      0x666a65,
+
+      -width / 2,
+      y,
+      0,
+
+      parent
+
+    );
+
+    createBox(
+
+      border,
+      0.08,
+      depth,
+
+      0x666a65,
+
+      width / 2,
+      y,
+      0,
+
+      parent
+
+    );
+
+  }
+
+  function createPropertyAccess(
+    parent,
+    x,
+    z,
+    width,
+    depth
+  ) {
+
+    /*
+     * Access is represented as a short paved strip.
+     *
+     * It is deliberately kept inside the plot.
+     */
+
+    const roadDistances = {
+
+      north:
+        Math.abs(z - (-120)),
+
+      south:
+        Math.abs(z - 120),
+
+      west:
+        Math.abs(x - (-120)),
+
+      east:
+        Math.abs(x - 120)
+
+    };
+
+    let nearest =
+      "north";
+
+    let shortest =
+      roadDistances.north;
+
+    Object.keys(
+      roadDistances
+    ).forEach(
+      function (key) {
+
+        if (
+          roadDistances[key] <
+          shortest
+        ) {
+
+          shortest =
+            roadDistances[key];
+
+          nearest =
+            key;
+
+        }
+
+      }
+    );
+
+    const accessColor =
+      0x73777a;
+
+    if (
+      nearest === "north" ||
+      nearest === "south"
+    ) {
+
+      createBox(
+
+        5,
+
+        0.05,
+
+        Math.min(9, depth * 0.35),
+
+        accessColor,
+
+        0,
+
+        0.24,
+
+        nearest === "north"
+          ? -depth / 2 + 4
+          : depth / 2 - 4,
+
+        parent
+
+      );
+
+    } else {
+
+      createBox(
+
+        Math.min(9, width * 0.35),
+
+        0.05,
+
+        5,
+
+        accessColor,
+
+        nearest === "west"
+          ? -width / 2 + 4
+          : width / 2 - 4,
+
+        0.24,
+
+        0,
+
+        parent
+
+      );
+
+    }
+
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * DISTRICT PLOTS
+   * ------------------------------------------------------------
+   */
+
+  function createDistrictPlots() {
+
+    CITY.districts.forEach(
+      function (district) {
+
+        const columns =
+          Math.max(
+            1,
+            Math.floor(
+              district.width /
+              CITY.blockSize
+            )
+          );
+
+        const rows =
+          Math.max(
+            1,
+            Math.floor(
+              district.depth /
+              CITY.blockSize
+            )
+          );
+
+        const plotWidth =
+          district.width /
+          columns;
+
+        const plotDepth =
+          district.depth /
+          rows;
+
+        let index = 0;
+
+        for (
+          let row = 0;
+          row < rows;
+          row++
+        ) {
+
+          for (
+            let col = 0;
+            col < columns;
+            col++
+          ) {
+
+            const px =
+              district.x -
+              district.width / 2 +
+              plotWidth / 2 +
+              col * plotWidth;
+
+            const pz =
+              district.z -
+              district.depth / 2 +
+              plotDepth / 2 +
+              row * plotDepth;
+
+            createPropertyPlot(
+
+              px,
+
+              pz,
+
+              plotWidth - 4,
+
+              plotDepth - 4,
+
+              district.type,
+
+              district.id +
+              "_" +
+              index
+
+            );
+
+            index++;
+
+          }
+
+        }
+
+      }
+    );
+
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * PUBLIC CITY INFORMATION
+   * ------------------------------------------------------------
+   */
+
+  function getDistrictAt(
+    x,
+    z
+  ) {
+
+    for (
+      let i = 0;
+      i < CITY.districts.length;
+      i++
+    ) {
+
+      const district =
+        CITY.districts[i];
+
+      const insideX =
+        x >=
+          district.x -
+          district.width / 2 &&
+        x <=
+          district.x +
+          district.width / 2;
+
+      const insideZ =
+        z >=
+          district.z -
+          district.depth / 2 &&
+        z <=
+          district.z +
+          district.depth / 2;
+
+      if (
+        insideX &&
+        insideZ
+      ) {
+
+        return district;
+
+      }
+
+    }
+
+    return null;
+
+  }
+
+  function getPropertyPlots() {
+
+    if (!plotRoot) {
+
+      return [];
+
+    }
+
+    return plotRoot
+      .children
+      .filter(
+        function (object) {
+
+          return (
+            object.userData &&
+            object.userData.propertyId
+          );
+
+        }
+      );
+
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * PLAYER PROPERTY RESERVATION
+   * ------------------------------------------------------------
+   */
+
+  function reservePlayerProperty(
+    propertyId,
+    companyId,
+    businessType
+  ) {
+
+    const plots =
+      getPropertyPlots();
+
+    for (
+      let i = 0;
+      i < plots.length;
+      i++
+    ) {
+
+      const plot =
+        plots[i];
+
+      if (
+        plot.userData.propertyId ===
+        propertyId
+      ) {
+
+        plot.userData.occupied =
+          true;
+
+        plot.userData.owner =
+          companyId;
+
+        plot.userData.businessType =
+          businessType;
+
+        return plot;
+
+      }
+
+    }
+
+    return null;
+
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * CITY FOUNDATION BUILD
+   * ------------------------------------------------------------
+   */
+
+  function buildFoundation() {
+
+    if (
+      !scene ||
+      !THREE
+    ) {
+
+      return;
+
+    }
+
+    removePreviousCity();
+
+    createCityRoot();
+
+    createTerrain();
+
     createRoadNetwork();
-    createCityBuildings();
-    createParks();
-    createStreetTrees();
-    createStreetLights();
-    createCityDecor();
-    createCitySigns();
 
-    createTraffic();
-    createPedestrians();
+    createDistrictPlots();
 
-    improveHQSurroundings();
-
-    started = true;
+    cityStarted =
+      true;
 
     console.log(
-      "[Empire Living City] City visual layer ready."
+      "[Empire Rush] City foundation created."
     );
+
+    console.log(
+      "[Empire Rush] Districts:",
+      CITY.districts.length
+    );
+
+    console.log(
+      "[Empire Rush] Property plots:",
+      getPropertyPlots().length
+    );
+
   }
 
-  /* ---------------------------------------------------------
-     ANIMATION
-  --------------------------------------------------------- */
+  /*
+   * ------------------------------------------------------------
+   * INITIALIZATION
+   * ------------------------------------------------------------
+   */
 
-  let lastTime = performance.now();
+  function startCity() {
 
-  function animateCity() {
+    if (cityStarted) {
 
-    if (!animationStarted) {
-      animationStarted = true;
-    }
-
-    const now = performance.now();
-
-    const delta =
-      Math.min(
-        (now - lastTime) / 1000,
-        0.05
-      );
-
-    lastTime = now;
-
-    if (started) {
-      updateTraffic(delta);
-      updatePedestrians(delta);
-    }
-
-    requestAnimationFrame(animateCity);
-  }
-
-  /* ---------------------------------------------------------
-     START
-  --------------------------------------------------------- */
-
-  function start() {
-
-    if (started) return;
-
-    WORLD = getWorld();
-
-    if (!WORLD || !WORLD.scene) {
-      setTimeout(start, 500);
       return;
+
     }
 
-    THREE = WORLD.THREE;
+    waitForWorld(
+      function (world) {
 
-    if (!THREE) {
-      console.warn(
-        "[Empire Living City] THREE unavailable."
-      );
+        WORLD =
+          world;
 
-      setTimeout(start, 500);
-      return;
-    }
+        THREE =
+          world.THREE;
 
-    scene = WORLD.scene;
+        scene =
+          world.scene;
 
-    buildCity();
+        buildFoundation();
 
-    if (!animationStarted) {
-      animateCity();
-    }
+      }
+    );
+
   }
+
+  /*
+   * ------------------------------------------------------------
+   * TEMPORARY PUBLIC FOUNDATION API
+   *
+   * PART 3 WILL EXTEND THIS API.
+   * ------------------------------------------------------------
+   */
+
+  window.EmpireLivingCity =
+    {
+
+      start:
+        startCity,
+
+      rebuild:
+        function () {
+
+          cityStarted =
+            false;
+
+          startCity();
+
+        },
+
+      getDistricts:
+        function () {
+
+          return CITY.districts;
+
+        },
+
+      getDistrictAt:
+        getDistrictAt,
+
+      getPropertyPlots:
+        getPropertyPlots,
+
+      reservePlayerProperty:
+        reservePlayerProperty,
+
+      getRoot:
+        function () {
+
+          return cityRoot;
+
+        },
+
+      getStatus:
+        function () {
+
+          return {
+
+            started:
+              cityStarted,
+
+            districts:
+              CITY.districts.length,
+
+            properties:
+              getPropertyPlots().length
+
+          };
+
+        }
+
+    };
+
+  /*
+   * ------------------------------------------------------------
+   * START
+   * ------------------------------------------------------------
+   */
 
   window.addEventListener(
     "EmpireWorldReady",
     function () {
-      setTimeout(start, 300);
+
+      setTimeout(
+        startCity,
+        250
+      );
+
     }
   );
 
   /*
-   * Fallback if EmpireWorld already exists
+   * Fallback if world already exists.
    */
-  setTimeout(function () {
 
-    if (!started) {
-      start();
-    }
+  setTimeout(
+    function () {
 
-  }, 800);
+      if (!cityStarted) {
 
-  /* ---------------------------------------------------------
-     PUBLIC API
-  --------------------------------------------------------- */
+        startCity();
 
-  window.EmpireLivingCity = {
-
-    start: start,
-
-    rebuild: function () {
-
-      started = false;
-
-      if (cityRoot && cityRoot.parent) {
-        cityRoot.parent.remove(cityRoot);
       }
 
-      cityRoot = null;
-      trafficRoot = null;
-      pedestrianRoot = null;
-
-      cars.length = 0;
-      pedestrians.length = 0;
-
-      start();
     },
+    1000
+  );
 
-    getRoot: function () {
-      return cityRoot;
-    },
+  /*
+   * ============================================================
+   * END OF PART 1 / 3
+   * ============================================================
+   *
+   * DO NOT SAVE YET.
+   *
+   * PART 2 continues directly after this code.
+   * ============================================================
+     /*
+   * ============================================================
+   * EMPIRE RUSH
+   * LIVING CITY SYSTEM
+   * ============================================================
+   *
+   * COMPLETE FILE — PART 2 / 3
+   *
+   * BUILDING + PROPERTY VISUAL LAYER
+   *
+   * Paste this DIRECTLY after PART 1.
+   * DO NOT SAVE YET.
+   * ============================================================
+   */
 
-    getCars: function () {
-      return cars;
-    },
+  /*
+   * ------------------------------------------------------------
+   * BUILDING MATERIAL PALETTE
+   * ------------------------------------------------------------
+   */
 
-    getPedestrians: function () {
-      return pedestrians;
-    },
+  const BUILDING_PALETTE = {
 
-    getStatus: function () {
+    concrete: [
+      0x9ba6ad,
+      0xaeb7bc,
+      0x87939b,
+      0xb9b2a6,
+      0x8e9b87
+    ],
 
-      return {
-        started: started,
-        buildings:
-          cityRoot
-            ? cityRoot.children.length
-            : 0,
-        cars: cars.length,
-        pedestrians: pedestrians.length
-      };
-    }
+    corporate: [
+      0x4c6576,
+      0x607d8b,
+      0x718d9b,
+      0x3f5868,
+      0x6a7d88
+    ],
+
+    residential: [
+      0xc6b49c,
+      0xb9a89c,
+      0xa7b3a4,
+      0xc5c0ae,
+      0x9eaeb3
+    ],
+
+    commercial: [
+      0x8c7664,
+      0x9d826a,
+      0x667d83,
+      0xa68b68,
+      0x6c7278
+    ],
+
+    industrial: [
+      0x77736c,
+      0x686d70,
+      0x858078,
+      0x62666a
+    ],
+
+    glass: [
+      0x5e8da8,
+      0x6fa4bd,
+      0x78afc7,
+      0x4f819b
+    ],
+
+    roof: [
+      0x454c52,
+      0x555c61,
+      0x3f464b
+    ]
 
   };
 
-})();
+  /*
+   * ------------------------------------------------------------
+   * GENERIC MATERIAL HELPERS
+   * ------------------------------------------------------------
+   */
+
+  function pickColor(array) {
+
+    return array[
+      Math.floor(
+        Math.random() *
+        array.length
+      )
+    ];
+
+  }
+
+  function addBox(
+
+    parent,
+    width,
+    height,
+    depth,
+    color,
+    x,
+    y,
+    z
+
+  ) {
+
+    return createBox(
+
+      width,
+      height,
+      depth,
+      color,
+      x,
+      y,
+      z,
+      parent
+
+    );
+
+  }
+
+  function addWindow(
+
+    parent,
+    width,
+    height,
+    x,
+    y,
+    z,
+    rotationY
+
+  ) {
+
+    const glass =
+      new THREE.Mesh(
+
+        new THREE.BoxGeometry(
+
+          width,
+          height,
+          0.10
+
+        ),
+
+        material(
+
+          pickColor(
+            BUILDING_PALETTE.glass
+          ),
+
+          0.22,
+          0.08
+
+        )
+
+      );
+
+    glass.position.set(
+
+      x,
+      y,
+      z
+
+    );
+
+    if (
+      rotationY != null
+    ) {
+
+      glass.rotation.y =
+        rotationY;
+
+    }
+
+    parent.add(
+      glass
+    );
+
+    return glass;
+
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * BUILDING BASE
+   * ------------------------------------------------------------
+   */
+
+  function createBuildingBase(
+
+    width,
+    depth,
+    floors,
+    type,
+    options
+
+  ) {
+
+    options =
+      options || {};
+
+    const root =
+      new THREE.Group();
+
+    root.name =
+      options.name ||
+      "CityBuilding";
+
+    root.userData = {
+
+      buildingType:
+        type,
+
+      floors:
+        floors,
+
+      width:
+        width,
+
+      depth:
+        depth,
+
+      propertyId:
+        options.propertyId ||
+        null,
+
+      companyId:
+        options.companyId ||
+        null,
+
+      businessType:
+        options.businessType ||
+        null
+
+    };
+
+    const floorHeight =
+      options.floorHeight ||
+      4.0;
+
+    const totalHeight =
+      floors *
+      floorHeight;
+
+    let baseColor =
+      pickColor(
+        BUILDING_PALETTE.concrete
+      );
+
+    if (
+      type === "corporate"
+    ) {
+
+      baseColor =
+        pickColor(
+          BUILDING_PALETTE.corporate
+        );
+
+    }
+
+    if (
+      type === "residential"
+    ) {
+
+      baseColor =
+        pickColor(
+          BUILDING_PALETTE.residential
+        );
+
+    }
+
+    if (
+      type === "commercial"
+    ) {
+
+      baseColor =
+        pickColor(
+          BUILDING_PALETTE.commercial
+        );
+
+    }
+
+    if (
+      type === "industrial"
+    ) {
+
+      baseColor =
+        pickColor(
+          BUILDING_PALETTE.industrial
+        );
+
+    }
+
+    /*
+     * Main structure.
+     */
+
+    addBox(
+
+      root,
+
+      width,
+
+      totalHeight,
+
+      depth,
+
+      baseColor,
+
+      0,
+
+      totalHeight / 2,
+
+      0
+
+    );
+
+    /*
+     * Ground plinth.
+     */
+
+    addBox(
+
+      root,
+
+      width + 0.7,
+
+      0.35,
+
+      depth + 0.7,
+
+      0x62676b,
+
+      0,
+
+      0.18,
+
+      0
+
+    );
+
+    /*
+     * Floor separation.
+     */
+
+    for (
+      let floor = 1;
+      floor < floors;
+      floor++
+    ) {
+
+      addBox(
+
+        root,
+
+        width + 0.15,
+
+        0.10,
+
+        depth + 0.15,
+
+        0x687178,
+
+        0,
+
+        floor *
+          floorHeight,
+
+        0
+
+      );
+
+    }
+
+    /*
+     * Roof.
+     */
+
+    addBox(
+
+      root,
+
+      width + 0.8,
+
+      0.35,
+
+      depth + 0.8,
+
+      pickColor(
+        BUILDING_PALETTE.roof
+      ),
+
+      0,
+
+      totalHeight + 0.18,
+
+      0
+
+    );
+
+    /*
+     * Main façade windows.
+     */
+
+    createFrontWindows(
+
+      root,
+
+      width,
+
+      depth,
+
+      floors,
+
+      floorHeight,
+
+      type
+
+    );
+
+    createSideWindows(
+
+      root,
+
+      width,
+
+      depth,
+
+      floors,
+
+      floorHeight,
+
+      type
+
+    );
+
+    /*
+     * Ground-floor entrance.
+     */
+
+    createBuildingEntrance(
+
+      root,
+
+      width,
+
+      depth,
+
+      type
+
+    );
+
+    /*
+     * Rooftop details.
+     */
+
+    createRoofDetails(
+
+      root,
+
+      width,
+
+      depth,
+
+      totalHeight,
+
+      type
+
+    );
+
+    return root;
+
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * FRONT WINDOWS
+   * ------------------------------------------------------------
+   */
+
+  function createFrontWindows(
+
+    root,
+    width,
+    depth,
+    floors,
+    floorHeight,
+    type
+
+  ) {
+
+    const rows =
+      Math.max(
+        1,
+        floors
+      );
+
+    const columns =
+      Math.max(
+        2,
+        Math.floor(
+          width / 3.4
+        )
+      );
+
+    for (
+      let row = 0;
+      row < rows;
+      row++
+    ) {
+
+      const y =
+        1.35 +
+        row *
+        floorHeight;
+
+      /*
+       * Ground floor is treated separately.
+       */
+
+      for (
+        let col = 0;
+        col < columns;
+        col++
+      ) {
+
+        const x =
+          -width / 2 +
+          1.5 +
+          col *
+          (
+            (width - 3) /
+            Math.max(
+              1,
+              columns - 1
+            )
+          );
+
+        if (
+          row === 0 &&
+          col ===
+            Math.floor(
+              columns / 2
+            )
+        ) {
+
+          continue;
+
+        }
+
+        addWindow(
+
+          root,
+
+          type === "corporate"
+            ? 1.55
+            : 1.30,
+
+          type === "corporate"
+            ? 1.85
+            : 1.55,
+
+          x,
+
+          y,
+
+          depth / 2 +
+            0.07,
+
+          0
+
+        );
+
+      }
+
+    }
+
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * SIDE WINDOWS
+   * ------------------------------------------------------------
+   */
+
+  function createSideWindows(
+
+    root,
+    width,
+    depth,
+    floors,
+    floorHeight,
+    type
+
+  ) {
+
+    const rows =
+      Math.max(
+        1,
+        floors
+      );
+
+    const columns =
+      Math.max(
+        2,
+        Math.floor(
+          depth / 3.5
+        )
+      );
+
+    for (
+      let row = 0;
+      row < rows;
+      row++
+    ) {
+
+      const y =
+        1.35 +
+        row *
+        floorHeight;
+
+      for (
+        let col = 0;
+        col < columns;
+        col++
+      ) {
+
+        const z =
+          -depth / 2 +
+          1.5 +
+          col *
+          (
+            (depth - 3) /
+            Math.max(
+              1,
+              columns - 1
+            )
+          );
+
+        addWindow(
+
+          root,
+
+          0.10,
+
+          type === "corporate"
+            ? 1.85
+            : 1.55,
+
+          width / 2 +
+            0.07,
+
+          y,
+
+          z,
+
+          Math.PI / 2
+
+        );
+
+      }
+
+    }
+
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * BUILDING ENTRANCE
+   * ------------------------------------------------------------
+   */
+
+  function createBuildingEntrance(
+
+    root,
+    width,
+    depth,
+    type
+
+  ) {
+
+    const entranceWidth =
+      type === "corporate"
+        ? Math.min(
+            5.2,
+            width * 0.38
+          )
+        : Math.min(
+            4.0,
+            width * 0.32
+          );
+
+    const entranceHeight =
+      type === "corporate"
+        ? 3.4
+        : 2.8;
+
+    /*
+     * Glass entrance.
+     */
+
+    addBox(
+
+      root,
+
+      entranceWidth,
+
+      entranceHeight,
+
+      0.18,
+
+      0x243945,
+
+      0,
+
+      entranceHeight / 2,
+
+      depth / 2 +
+        0.16
+
+    );
+
+    /*
+     * Entrance canopy.
+     */
+
+    addBox(
+
+      root,
+
+      entranceWidth + 1.2,
+
+      0.20,
+
+      1.8,
+
+      type === "corporate"
+        ? 0x455d6b
+        : 0x666b70,
+
+      0,
+
+      entranceHeight + 0.25,
+
+      depth / 2 +
+        0.85
+
+    );
+
+    /*
+     * Steps.
+     */
+
+    addBox(
+
+      root,
+
+      entranceWidth + 1.2,
+
+      0.18,
+
+      0.7,
+
+      0x777b7e,
+
+      0,
+
+      0.28,
+
+      depth / 2 +
+        0.55
+
+    );
+
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * ROOF DETAILS
+   * ------------------------------------------------------------
+   */
+
+  function createRoofDetails(
+
+    root,
+    width,
+    depth,
+    height,
+    type
+
+  ) {
+
+    if (
+      type === "residential"
+    ) {
+
+      /*
+       * Small rooftop utility units.
+       */
+
+      for (
+        let i = 0;
+        i < 2;
+        i++
+      ) {
+
+        addBox(
+
+          root,
+
+          1.8,
+          1.0,
+          1.8,
+
+          0x62686b,
+
+          -width / 4 +
+            i *
+            width / 2,
+
+          height + 0.65,
+
+          0
+
+        );
+
+      }
+
+    }
+
+    if (
+      type === "corporate"
+    ) {
+
+      /*
+       * Corporate rooftop mechanical core.
+       */
+
+      addBox(
+
+        root,
+
+        Math.min(
+          5,
+          width * 0.30
+        ),
+
+        1.5,
+
+        Math.min(
+          5,
+          depth * 0.30
+        ),
+
+        0x4b555b,
+
+        0,
+
+        height + 0.9,
+
+        0
+
+      );
+
+    }
+
+    if (
+      type === "industrial"
+    ) {
+
+      /*
+       * Industrial ventilation units.
+       */
+
+      for (
+        let i = -1;
+        i <= 1;
+        i++
+      ) {
+
+        addBox(
+
+          root,
+
+          1.8,
+          1.2,
+          1.8,
+
+          0x555b5e,
+
+          i * 3,
+
+          height + 0.75,
+
+          0
+
+        );
+
+      }
+
+    }
+
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * COMMERCIAL BUILDING
+   * ------------------------------------------------------------
+   */
+
+  function createCommercialBuilding(
+
+    property
+
+  ) {
+
+    const width =
+      property.userData.width;
+
+    const depth =
+      property.userData.depth;
+
+    const floors =
+      Math.floor(
+        2 +
+        Math.random() * 3
+      );
+
+    const building =
+      createBuildingBase(
+
+        width * 0.78,
+
+        depth * 0.76,
+
+        floors,
+
+        "commercial",
+
+        {
+
+          name:
+            "CommercialProperty_" +
+            property.userData.propertyId,
+
+          propertyId:
+            property.userData.propertyId
+
+        }
+
+      );
+
+    building.position.set(
+
+      property.position.x,
+
+      0.28,
+
+      property.position.z
+
+    );
+
+    property.userData.occupied =
+      true;
+
+    property.userData.building =
+      building;
+
+    cityRoot.add(
+      building
+    );
+
+    createCommercialFrontage(
+      property,
+      building
+    );
+
+    return building;
+
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * COMMERCIAL FRONTAGE
+   * ------------------------------------------------------------
+   */
+
+  function createCommercialFrontage(
+
+    property,
+    building
+
+  ) {
+
+    const width =
+      building.userData.width;
+
+    const depth =
+      building.userData.depth;
+
+    /*
+     * Shop awning.
+     */
+
+    addBox(
+
+      building,
+
+      width * 0.65,
+
+      0.18,
+
+      1.0,
+
+      pickColor([
+        0x2f6f8f,
+        0x7c4c4c,
+        0x4e7651,
+        0x8a704d
+      ]),
+
+      0,
+
+      2.9,
+
+      depth / 2 +
+        0.45
+
+    );
+
+    /*
+     * Display windows.
+     */
+
+    addWindow(
+
+      building,
+
+      Math.min(
+        4.5,
+        width * 0.42
+      ),
+
+      1.6,
+
+      -width * 0.20,
+
+      1.3,
+
+      depth / 2 +
+        0.12,
+
+      0
+
+    );
+
+    addWindow(
+
+      building,
+
+      Math.min(
+        4.5,
+        width * 0.42
+      ),
+
+      1.6,
+
+      width * 0.20,
+
+      1.3,
+
+      depth / 2 +
+        0.12,
+
+      0
+
+    );
+
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * RESIDENTIAL BUILDING
+   * ------------------------------------------------------------
+   */
+
+  function createResidentialBuilding(
+
+    property
+
+  ) {
+
+    const width =
+      property.userData.width;
+
+    const depth =
+      property.userData.depth;
+
+    const floors =
+      Math.floor(
+        3 +
+        Math.random() * 4
+      );
+
+    const building =
+      createBuildingBase(
+
+        width * 0.72,
+
+        depth * 0.72,
+
+        floors,
+
+        "residential",
+
+        {
+
+          name:
+            "ResidentialBuilding_" +
+            property.userData.propertyId,
+
+          propertyId:
+            property.userData.propertyId
+
+        }
+
+      );
+
+    building.position.set(
+
+      property.position.x,
+
+      0.28,
+
+      property.position.z
+
+    );
+
+    property.userData.occupied =
+      true;
+
+    property.userData.building =
+      building;
+
+    cityRoot.add(
+      building
+    );
+
+    createResidentialBalconies(
+      building
+    );
+
+    return building;
+
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * RESIDENTIAL BALCONIES
+   * ------------------------------------------------------------
+   */
+
+  function createResidentialBalconies(
+
+    building
+
+  ) {
+
+    const width =
+      building.userData.width;
+
+    const depth =
+      building.userData.depth;
+
+    const floors =
+      building.userData.floors;
+
+    const floorHeight =
+      4.0;
+
+    for (
+      let floor = 1;
+      floor < floors;
+      floor += 2
+    ) {
+
+      addBox(
+
+        building,
+
+        Math.min(
+          4.5,
+          width * 0.35
+        ),
+
+        0.18,
+
+        1.15,
+
+        0x70777a,
+
+        -width * 0.20,
+
+        floor *
+          floorHeight +
+          0.5,
+
+        depth / 2 +
+          0.55
+
+      );
+
+      addBox(
+
+        building,
+
+        Math.min(
+          4.5,
+          width * 0.35
+        ),
+
+        0.18,
+
+        1.15,
+
+        0x70777a,
+
+        width * 0.20,
+
+        floor *
+          floorHeight +
+          0.5,
+
+        depth / 2 +
+          0.55
+
+      );
+
+    }
+
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * CORPORATE BUILDING
+   * ------------------------------------------------------------
+   */
+
+  function createCorporateBuilding(
+
+    property
+
+  ) {
+
+    const width =
+      property.userData.width;
+
+    const depth =
+      property.userData.depth;
+
+    /*
+     * Corporate district buildings are taller.
+     */
+
+    const floors =
+      Math.floor(
+        5 +
+        Math.random() * 7
+      );
+
+    const building =
+      createBuildingBase(
+
+        width * 0.76,
+
+        depth * 0.76,
+
+        floors,
+
+        "corporate",
+
+        {
+
+          name:
+            "CorporateBuilding_" +
+            property.userData.propertyId,
+
+          propertyId:
+            property.userData.propertyId,
+
+          floorHeight:
+            4.2
+
+        }
+
+      );
+
+    building.position.set(
+
+      property.position.x,
+
+      0.28,
+
+      property.position.z
+
+    );
+
+    property.userData.occupied =
+      true;
+
+    property.userData.building =
+      building;
+
+    cityRoot.add(
+      building
+    );
+
+    createCorporateFacade(
+      building
+    );
+
+    return building;
+
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * CORPORATE FACADE
+   * ------------------------------------------------------------
+   */
+
+  function createCorporateFacade(
+
+    building
+
+  ) {
+
+    const width =
+      building.userData.width;
+
+    const depth =
+      building.userData.depth;
+
+    const floors =
+      building.userData.floors;
+
+    /*
+     * Vertical glass strips.
+     */
+
+    const strips =
+      Math.max(
+        2,
+        Math.floor(
+          width / 5
+        )
+      );
+
+    for (
+      let i = 0;
+      i < strips;
+      i++
+    ) {
+
+      const x =
+        -width / 2 +
+        2.2 +
+        i *
+        (
+          (width - 4.4) /
+          Math.max(
+            1,
+            strips - 1
+          )
+        );
+
+      addBox(
+
+        building,
+
+        0.28,
+
+        floors * 4.2 -
+          0.8,
+
+        0.12,
+
+        pickColor(
+          BUILDING_PALETTE.glass
+        ),
+
+        x,
+
+        0.6 +
+          (floors * 4.2 -
+            0.8) / 2,
+
+        depth / 2 +
+          0.13
+
+      );
+
+    }
+
+    /*
+     * Corporate entrance frame.
+     */
+
+    addBox(
+
+      building,
+
+      Math.min(
+        width * 0.48,
+        6
+      ),
+
+      0.25,
+
+      0.30,
+
+      0x243946,
+
+      0,
+
+      3.65,
+
+      depth / 2 +
+        0.25
+
+    );
+
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * INDUSTRIAL BUILDING
+   * ------------------------------------------------------------
+   */
+
+  function createIndustrialBuilding(
+
+    property
+
+  ) {
+
+    const width =
+      property.userData.width;
+
+    const depth =
+      property.userData.depth;
+
+    const building =
+      createBuildingBase(
+
+        width * 0.86,
+
+        depth * 0.84,
+
+        1,
+
+        "industrial",
+
+        {
+
+          name:
+            "IndustrialBuilding_" +
+            property.userData.propertyId,
+
+          propertyId:
+            property.userData.propertyId,
+
+          floorHeight:
+            6.0
+
+        }
+
+      );
+
+    building.position.set(
+
+      property.position.x,
+
+      0.28,
+
+      property.position.z
+
+    );
+
+    property.userData.occupied =
+      true;
+
+    property.userData.building =
+      building;
+
+    cityRoot.add(
+      building
+    );
+
+    createIndustrialRoof(
+      building
+    );
+
+    createLoadingBay(
+      building
+    );
+
+    return building;
+
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * INDUSTRIAL ROOF
+   * ------------------------------------------------------------
+   */
+
+  function createIndustrialRoof(
+
+    building
+
+  ) {
+
+    const width =
+      building.userData.width;
+
+    const depth =
+      building.userData.depth;
+
+    /*
+     * Roof beams.
+     */
+
+    for (
+      let x = -width / 2 + 3;
+      x < width / 2;
+      x += 5
+    ) {
+
+      addBox(
+
+        building,
+
+        0.35,
+
+        1.0,
+
+        depth * 0.75,
+
+        0x4f5558,
+
+        x,
+
+        6.45,
+
+        0
+
+      );
+
+    }
+
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * LOADING BAY
+   * ------------------------------------------------------------
+   */
+
+  function createLoadingBay(
+
+    building
+
+  ) {
+
+    const width =
+      building.userData.width;
+
+    const depth =
+      building.userData.depth;
+
+    addBox(
+
+      building,
+
+      Math.min(
+        5.5,
+        width * 0.40
+      ),
+
+      3.5,
+
+      0.22,
+
+      0x30363a,
+
+      width * 0.18,
+
+      1.75,
+
+      -depth / 2 -
+        0.18
+
+    );
+
+    addBox(
+
+      building,
+
+      Math.min(
+        6,
+        width * 0.45
+      ),
+
+      0.20,
+
+      3.0,
+
+      0x5e6264,
+
+      width * 0.18,
+
+      0.30,
+
+      -depth / 2 -
+        1.55
+
+    );
+
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * PLAYER PROPERTY / HQ PLOT
+   * ------------------------------------------------------------
+   */
+
+  function createPlayerProperty(
+
+    property
+
+  ) {
+
+    if (
+      property.userData.playerPrepared
+    ) {
+
+      return;
+
+    }
+
+    property.userData.playerPrepared =
+      true;
+
+    property.userData.zoning =
+      "player";
+
+    /*
+     * Premium property boundary.
+     */
+
+    createPlayerPropertyBoundary(
+      property
+    );
+
+    /*
+     * Front driveway.
+     */
+
+    createPlayerDriveway(
+      property
+    );
+
+    /*
+     * Parking foundation.
+     */
+
+    createPlayerParking(
+      property
+    );
+
+    /*
+     * Landscaping.
+     */
+
+    createPlayerLandscaping(
+      property
+    );
+
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * PLAYER PROPERTY BOUNDARY
+   * ------------------------------------------------------------
+   */
+
+  function createPlayerPropertyBoundary(
+
+    property
+
+  ) {
+
+    const width =
+      property.userData.width;
+
+    const depth =
+      property.userData.depth;
+
+    const fenceColor =
+      0x50585c;
+
+    addBox(
+
+      property,
+
+      width,
+      0.16,
+      0.30,
+
+      fenceColor,
+
+      0,
+
+      0.42,
+
+      -depth / 2
+
+    );
+
+    addBox(
+
+      property,
+
+      width,
+      0.16,
+      0.30,
+
+      fenceColor,
+
+      0,
+
+      0.42,
+
+      depth / 2
+
+    );
+
+    addBox(
+
+      property,
+
+      0.30,
+      0.16,
+      depth,
+
+      fenceColor,
+
+      -width / 2,
+
+      0.42,
+
+      0
+
+    );
+
+    addBox(
+
+      property,
+
+      0.30,
+      0.16,
+      depth,
+
+      fenceColor,
+
+      width / 2,
+
+      0.42,
+
+      0
+
+    );
+
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * PLAYER DRIVEWAY
+   * ------------------------------------------------------------
+   */
+
+  function createPlayerDriveway(
+
+    property
+
+  ) {
+
+    const width =
+      property.userData.width;
+
+    const depth =
+      property.userData.depth;
+
+    addBox(
+
+      property,
+
+      6.5,
+
+      0.06,
+
+      Math.min(
+        13,
+        depth * 0.45
+      ),
+
+      0x666b6e,
+
+      0,
+
+      0.30,
+
+      -depth / 2 +
+        5
+
+    );
+
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * PLAYER PARKING
+   * ------------------------------------------------------------
+   */
+
+  function createPlayerParking(
+
+    property
+
+  ) {
+
+    const width =
+      property.userData.width;
+
+    const depth =
+      property.userData.depth;
+
+    addBox(
+
+      property,
+
+      width * 0.62,
+
+      0.06,
+
+      depth * 0.35,
+
+      0x4a4e52,
+
+      0,
+
+      0.30,
+
+      -depth * 0.18
+
+    );
+
+    /*
+     * Parking separators.
+     */
+
+    const parkingWidth =
+      width * 0.62;
+
+    for (
+      let x =
+        -parkingWidth / 2 + 4;
+      x <
+        parkingWidth / 2;
+      x += 4.2
+    ) {
+
+      addBox(
+
+        property,
+
+        0.10,
+
+        0.04,
+
+        depth * 0.28,
+
+        0xe3e3dd,
+
+        x,
+
+        0.38,
+
+        -depth * 0.18
+
+      );
+
+    }
+
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * PLAYER LANDSCAPING
+   * ------------------------------------------------------------
+   */
+
+  function createPlayerLandscaping(
+
+    property
+
+  ) {
+
+    const width =
+      property.userData.width;
+
+    const depth =
+      property.userData.depth;
+
+    /*
+     * Small decorative grass beds.
+     */
+
+    addBox(
+
+      property,
+
+      width * 0.18,
+
+      0.06,
+
+      depth * 0.18,
+
+      0x5c8d56,
+
+      -width * 0.32,
+
+      0.31,
+
+      depth * 0.27
+
+    );
+
+    addBox(
+
+      property,
+
+      width * 0.18,
+
+      0.06,
+
+      depth * 0.18,
+
+      0x5c8d56,
+
+      width * 0.32,
+
+      0.31,
+
+      depth * 0.27
+
+    );
+
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * PARK FOUNDATION
+   * ------------------------------------------------------------
+   */
+
+  function createParkVisual(
+
+    property
+
+  ) {
+
+    const width =
+      property.userData.width;
+
+    const depth =
+      property.userData.depth;
+
+    property.userData.park =
+      true;
+
+    /*
+     * Grass surface.
+     */
+
+    addBox(
+
+      property,
+
+      width,
+      0.12,
+      depth,
+
+      0x61945a,
+
+      0,
+
+      0.28,
+
+      0
+
+    );
+
+    /*
+     * Cross paths.
+     */
+
+    addBox(
+
+      property,
+
+      2.8,
+      0.06,
+      depth - 4,
+
+      0xd7c49a,
+
+      0,
+
+      0.38,
+
+      0
+
+    );
+
+    addBox(
+
+      property,
+
+      width - 4,
+      0.06,
+      2.8,
+
+      0xd7c49a,
+
+      0,
+
+      0.39,
+
+      0
+
+    );
+
+    /*
+     * Park plaza.
+     */
+
+    addBox(
+
+      property,
+
+      8,
+      0.08,
+      8,
+
+      0xb9ab88,
+
+      0,
+
+      0.40,
+
+      0
+
+    );
+
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * PROPERTY VISUALIZATION
+   * ------------------------------------------------------------
+   */
+
+  function populateDistrictProperties() {
+
+    if (!plotRoot) {
+
+      return;
+
+    }
+
+    const plots =
+      getPropertyPlots();
+
+    plots.forEach(
+      function (property) {
+
+        const type =
+          property.userData.zoning;
+
+        /*
+         * Park.
+         */
+
+        if (
+          type === "park"
+        ) {
+
+          createParkVisual(
+            property
+          );
+
+          return;
+
+        }
+
+        /*
+         * Player district.
+         */
+
+        if (
+          type === "player"
+        ) {
+
+          createPlayerProperty(
+            property
+          );
+
+          return;
+
+        }
+
+        /*
+         * Commercial.
+         */
+
+        if (
+          type === "commercial"
+        ) {
+
+          createCommercialBuilding(
+            property
+          );
+
+          return;
+
+        }
+
+        /*
+         * Corporate.
+         */
+
+        if (
+          type === "corporate"
+        ) {
+
+          createCorporateBuilding(
+            property
+          );
+
+          return;
+
+        }
+
+        /*
+         * Industrial.
+         */
+
+        if (
+          type === "industrial"
+        ) {
+
+          createIndustrialBuilding(
+            property
+          );
+
+          return;
+
+        }
+
+        /*
+         * Residential.
+         */
+
+        if (
+          type === "residential"
+        ) {
+
+          createResidentialBuilding(
+            property
+          );
+
+          return;
+
+        }
+
+      }
+    );
+
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * PROPERTY / BUILDING LOOKUP
+   * ------------------------------------------------------------
+   */
+
+  function getBuildingForProperty(
+    propertyId
+  ) {
+
+    const plots =
+      getPropertyPlots();
+
+    for (
+      let i = 0;
+      i < plots.length;
+      i++
+    ) {
+
+      const property =
+        plots[i];
+
+      if (
+        property.userData.propertyId ===
+        propertyId
+      ) {
+
+        return (
+          property.userData.building ||
+          null
+        );
+
+      }
+
+    }
+
+    return null;
+
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * BUILDING COLLISION / ROAD SAFETY
+   * ------------------------------------------------------------
+   */
+
+  function isPointInsideBuilding(
+    x,
+    z
+  ) {
+
+    if (!cityRoot) {
+
+      return false;
+
+    }
+
+    const buildings = [];
+
+    cityRoot.traverse(
+      function (object) {
+
+        if (
+          object.userData &&
+          object.userData.buildingType
+        ) {
+
+          buildings.push(
+            object
+          );
+
+        }
+
+      }
+    );
+
+    for (
+      let i = 0;
+      i < buildings.length;
+      i++
+    ) {
+
+      const building =
+        buildings[i];
+
+      const width =
+        building.userData.width ||
+        0;
+
+      const depth =
+        building.userData.depth ||
+        0;
+
+      const worldPos =
+        new THREE.Vector3();
+
+      building.getWorldPosition(
+        worldPos
+      );
+
+      const insideX =
+        Math.abs(
+          x -
+          worldPos.x
+        ) <
+        width / 2;
+
+      const insideZ =
+        Math.abs(
+          z -
+          worldPos.z
+        ) <
+        depth / 2;
+
+      if (
+        insideX &&
+        insideZ
+      ) {
+
+        return true;
+
+      }
+
+    }
+
+    return false;
+
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * DISTRICT VISUALIZATION
+   * ------------------------------------------------------------
+   */
+
+  function buildDistrictArchitecture() {
+
+    populateDistrictProperties();
+
+    console.log(
+      "[Empire Rush] District architecture populated."
+    );
+
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * PUBLIC EXTENSION
+   * ------------------------------------------------------------
+   *
+   * Part 3 will attach additional methods to
+   * window.EmpireLivingCity.
+   * ------------------------------------------------------------
+   */
+
+  if (
+    window.EmpireLivingCity
+  ) {
+
+    window.EmpireLivingCity.buildArchitecture =
+      buildDistrictArchitecture;
+
+    window.EmpireLivingCity.getBuildingForProperty =
+      getBuildingForProperty;
+
+    window.EmpireLivingCity.isPointInsideBuilding =
+      isPointInsideBuilding;
+
+  }
+
+  /*
+   * ============================================================
+   * END PART 2 / 3
+   * ============================================================
+   *
+   * IMPORTANT:
+   *
+   * DO NOT SAVE YET.
+   *
+   * PART 3 continues directly after this block.
+   * ============================================================
+     /*
+   * ============================================================
+   * EMPIRE RUSH
+   * LIVING CITY SYSTEM
+   * ============================================================
+   *
+   * COMPLETE FILE — PART 3 / 3
+   *
+   * FINAL VISUAL + LIVING WORLD LAYER
+   *
+   * Includes:
+   *  - Trees
+   *  - Street lights
+   *  - Benches
+   *  - Traffic signs
+   *  - Traffic vehicles
+   *  - Pedestrians
+   *  - Parking
+   *  - City animation
+   *  - HQ connection
+   *  - Business property hooks
+   *  - Final public API
+   *  - Initialization
+   *
+   * ============================================================
+   */
+
+  /*
+   * ------------------------------------------------------------
+   * TREE
+   * ------------------------------------------------------------
+   */
+
+  function createTree(
+    parent,
+    x,
+    z,
+    scale
+  ) {
+
+    const tree =
+      new THREE.Group();
+
+    tree.position.set(
+      x,
+      0.30,
+      z
+    );
+
+    tree.scale.setScalar(
+      scale || 1
+    );
+
+    /*
+     * Trunk.
+     */
+
+    const trunk =
+      new THREE.Mesh(
+
+        new THREE.CylinderGeometry(
+          0.28,
+          0.38,
+          2.2,
+          8
+        ),
+
+        material(
+          0x6c4932,
+          0.95,
+          0
+        )
+
+      );
+
+    trunk.position.y =
+      1.1;
+
+    tree.add(
+      trunk
+    );
+
+    /*
+     * Lower foliage.
+     */
+
+    const lower =
+      new THREE.Mesh(
+
+        new THREE.SphereGeometry(
+          1.35,
+          12,
+          9
+        ),
+
+        material(
+          0x4e8a52,
+          0.95,
+          0
+        )
+
+      );
+
+    lower.position.y =
+      2.35;
+
+    tree.add(
+      lower
+    );
+
+    /*
+     * Upper foliage.
+     */
+
+    const upper =
+      new THREE.Mesh(
+
+        new THREE.SphereGeometry(
+          1.05,
+          12,
+          9
+        ),
+
+        material(
+          0x649e5b,
+          0.95,
+          0
+        )
+
+      );
+
+    upper.position.set(
+      -0.45,
+      3.05,
+      0.15
+    );
+
+    tree.add(
+      upper
+    );
+
+    parent.add(
+      tree
+    );
+
+    return tree;
+
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * STREET LANDSCAPING
+   * ------------------------------------------------------------
+   */
+
+  function createStreetLandscaping() {
+
+    const spacing =
+      24;
+
+    /*
+     * Along vertical roads.
+     */
+
+    CITY.arterialX.forEach(
+      function (x) {
+
+        for (
+          let z = -156;
+          z <= 156;
+          z += spacing
+        ) {
+
+          /*
+           * Keep intersections clear.
+           */
+
+          if (
+            Math.abs(z % 120) <
+            16
+          ) {
+
+            continue;
+
+          }
+
+          createTree(
+
+            decorationRoot,
+
+            x -
+              CITY.arterialWidth / 2 -
+              2.2,
+
+            z,
+
+            0.72
+
+          );
+
+          createTree(
+
+            decorationRoot,
+
+            x +
+              CITY.arterialWidth / 2 +
+              2.2,
+
+            z,
+
+            0.72
+
+          );
+
+        }
+
+      }
+    );
+
+    /*
+     * Along horizontal roads.
+     */
+
+    CITY.arterialZ.forEach(
+      function (z) {
+
+        for (
+          let x = -156;
+          x <= 156;
+          x += spacing
+        ) {
+
+          if (
+            Math.abs(x % 120) <
+            16
+          ) {
+
+            continue;
+
+          }
+
+          createTree(
+
+            decorationRoot,
+
+            x,
+
+            z -
+              CITY.arterialWidth / 2 -
+              2.2,
+
+            0.72
+
+          );
+
+          createTree(
+
+            decorationRoot,
+
+            x,
+
+            z +
+              CITY.arterialWidth / 2 +
+              2.2,
+
+            0.72
+
+          );
+
+        }
+
+      }
+    );
+
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * STREET LIGHT
+   * ------------------------------------------------------------
+   */
+
+  function createStreetLight(
+    x,
+    z,
+    rotation
+  ) {
+
+    const root =
+      new THREE.Group();
+
+    root.position.set(
+      x,
+      0.25,
+      z
+    );
+
+    root.rotation.y =
+      rotation || 0;
+
+    /*
+     * Pole.
+     */
+
+    const pole =
+      new THREE.Mesh(
+
+        new THREE.CylinderGeometry(
+          0.09,
+          0.14,
+          4.4,
+          10
+        ),
+
+        material(
+          0x30363a,
+          0.78,
+          0.15
+        )
+
+      );
+
+    pole.position.y =
+      2.2;
+
+    root.add(
+      pole
+    );
+
+    /*
+     * Arm.
+     */
+
+    addBox(
+
+      root,
+
+      1.2,
+      0.10,
+      0.10,
+
+      0x30363a,
+
+      0.55,
+      4.25,
+      0
+
+    );
+
+    /*
+     * Light head.
+     */
+
+    const lamp =
+      new THREE.Mesh(
+
+        new THREE.SphereGeometry(
+          0.20,
+          10,
+          8
+        ),
+
+        material(
+          0xffe8a5,
+          0.35,
+          0.05
+        )
+
+      );
+
+    lamp.position.set(
+      1.12,
+      4.08,
+      0
+    );
+
+    root.add(
+      lamp
+    );
+
+    decorationRoot.add(
+      root
+    );
+
+    return root;
+
+  }
+
+  function createStreetLighting() {
+
+    CITY.arterialX.forEach(
+      function (x) {
+
+        for (
+          let z = -150;
+          z <= 150;
+          z += 30
+        ) {
+
+          createStreetLight(
+            x -
+              CITY.arterialWidth / 2 -
+              0.8,
+            z,
+            0
+          );
+
+          createStreetLight(
+            x +
+              CITY.arterialWidth / 2 +
+              0.8,
+            z,
+            Math.PI
+          );
+
+        }
+
+      }
+    );
+
+    CITY.arterialZ.forEach(
+      function (z) {
+
+        for (
+          let x = -150;
+          x <= 150;
+          x += 30
+        ) {
+
+          createStreetLight(
+            x,
+            z -
+              CITY.arterialWidth / 2 -
+              0.8,
+            Math.PI / 2
+          );
+
+          createStreetLight(
+            x,
+            z +
+              CITY.arterialWidth / 2 +
+              0.8,
+            -Math.PI / 2
+          );
+
+        }
+
+      }
+    );
+
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * TRAFFIC SIGN
+   * ------------------------------------------------------------
+   */
+
+  function createTrafficSign(
+    x,
+    z,
+    type
+  ) {
+
+    const root =
+      new THREE.Group();
+
+    root.position.set(
+      x,
+      0.25,
+      z
+    );
+
+    const pole =
+      new THREE.Mesh(
+
+        new THREE.CylinderGeometry(
+          0.06,
+          0.08,
+          2.2,
+          8
+        ),
+
+        material(
+          0x555a5d,
+          0.85,
+          0.10
+        )
+
+      );
+
+    pole.position.y =
+      1.1;
+
+    root.add(
+      pole
+    );
+
+    const sign =
+      new THREE.Mesh(
+
+        new THREE.CylinderGeometry(
+          0.40,
+          0.40,
+          0.08,
+          12
+        ),
+
+        material(
+          type === "stop"
+            ? 0xc43c35
+            : 0x3e78a0,
+          0.65,
+          0
+        )
+
+      );
+
+    sign.rotation.z =
+      Math.PI / 2;
+
+    sign.position.y =
+      2.25;
+
+    root.add(
+      sign
+    );
+
+    decorationRoot.add(
+      root
+    );
+
+  }
+
+  function createTrafficSigns() {
+
+    CITY.arterialX.forEach(
+      function (x) {
+
+        CITY.arterialZ.forEach(
+          function (z) {
+
+            createTrafficSign(
+              x - 10,
+              z - 10,
+              "stop"
+            );
+
+          }
+        );
+
+      }
+    );
+
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * BENCH
+   * ------------------------------------------------------------
+   */
+
+  function createBench(
+    parent,
+    x,
+    z,
+    rotation
+  ) {
+
+    const root =
+      new THREE.Group();
+
+    root.position.set(
+      x,
+      0.30,
+      z
+    );
+
+    root.rotation.y =
+      rotation || 0;
+
+    addBox(
+
+      root,
+      3.0,
+      0.22,
+      0.72,
+
+      0x765039,
+
+      0,
+      1.0,
+      0
+
+    );
+
+    addBox(
+
+      root,
+      0.18,
+      1.0,
+      0.18,
+
+      0x3e4447,
+
+      -1.0,
+      0.05,
+      0
+
+    );
+
+    addBox(
+
+      root,
+      0.18,
+      1.0,
+      0.18,
+
+      0x3e4447,
+
+      1.0,
+      0.05,
+      0
+
+    );
+
+    parent.add(
+      root
+    );
+
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * PARK DETAIL
+   * ------------------------------------------------------------
+   */
+
+  function addParkDetails() {
+
+    const parks =
+      plotRoot.children
+        .filter(
+          function (plot) {
+
+            return (
+              plot.userData &&
+              plot.userData.zoning ===
+                "park"
+            );
+
+          }
+        );
+
+    parks.forEach(
+      function (park) {
+
+        const width =
+          park.userData.width;
+
+        const depth =
+          park.userData.depth;
+
+        /*
+         * Trees.
+         */
+
+        const treePositions = [
+
+          [
+            -width * 0.32,
+            -depth * 0.30
+          ],
+
+          [
+            width * 0.32,
+            -depth * 0.30
+          ],
+
+          [
+            -width * 0.32,
+            depth * 0.30
+          ],
+
+          [
+            width * 0.32,
+            depth * 0.30
+          ]
+
+        ];
+
+        treePositions.forEach(
+          function (p) {
+
+            createTree(
+
+              park,
+
+              p[0],
+              p[1],
+
+              0.78
+
+            );
+
+          }
+        );
+
+        /*
+         * Benches.
+         */
+
+        createBench(
+          park,
+          -5,
+          0,
+          Math.PI / 2
+        );
+
+        createBench(
+          park,
+          5,
+          0,
+          Math.PI / 2
+        );
+
+      }
+    );
+
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * CAR SYSTEM
+   * ------------------------------------------------------------
+   */
+
+  const cityCars = [];
+
+  function createVehicle(
+    x,
+    z,
+    rotation,
+    type,
+    color
+  ) {
+
+    const car =
+      new THREE.Group();
+
+    car.position.set(
+      x,
+      0.42,
+      z
+    );
+
+    car.rotation.y =
+      rotation || 0;
+
+    car.userData = {
+
+      vehicleType:
+        type || "sedan",
+
+      speed:
+        4 +
+        Math.random() * 3,
+
+      direction:
+        rotation || 0,
+
+      active:
+        true
+
+    };
+
+    let length = 5.0;
+    let width = 2.2;
+    let height = 0.72;
+
+    if (
+      type === "suv"
+    ) {
+
+      length = 5.4;
+      width = 2.35;
+      height = 0.86;
+
+    }
+
+    if (
+      type === "van"
+    ) {
+
+      length = 5.8;
+      width = 2.3;
+      height = 1.15;
+
+    }
+
+    if (
+      type === "truck"
+    ) {
+
+      length = 7.2;
+      width = 2.5;
+      height = 1.2;
+
+    }
+
+    /*
+     * Lower body.
+     */
+
+    addBox(
+
+      car,
+
+      width,
+      height,
+      length,
+
+      color,
+
+      0,
+      0.35,
+      0
+
+    );
+
+    /*
+     * Upper cabin.
+     */
+
+    if (
+      type !== "truck"
+    ) {
+
+      addBox(
+
+        car,
+
+        width * 0.82,
+
+        height * 0.78,
+
+        length * 0.48,
+
+        0x3c5665,
+
+        0,
+
+        0.98,
+
+        -0.10
+
+      );
+
+    }
+
+    /*
+     * Truck cargo box.
+     */
+
+    if (
+      type === "truck"
+    ) {
+
+      addBox(
+
+        car,
+
+        width * 0.92,
+
+        1.55,
+
+        length * 0.54,
+
+        0xc5c8c6,
+
+        0,
+
+        1.05,
+
+        0.65
+
+      );
+
+    }
+
+    /*
+     * Roof.
+     */
+
+    if (
+      type !== "truck"
+    ) {
+
+      addBox(
+
+        car,
+
+        width * 0.70,
+
+        0.10,
+
+        length * 0.38,
+
+        color,
+
+        0,
+
+        1.58,
+
+        -0.10
+
+      );
+
+    }
+
+    /*
+     * Wheels.
+     */
+
+    const wheelPositions = [
+
+      [
+        -width / 2 - 0.05,
+        0.35,
+        -length * 0.31
+      ],
+
+      [
+        width / 2 + 0.05,
+        0.35,
+        -length * 0.31
+      ],
+
+      [
+        -width / 2 - 0.05,
+        0.35,
+        length * 0.31
+      ],
+
+      [
+        width / 2 + 0.05,
+        0.35,
+        length * 0.31
+      ]
+
+    ];
+
+    wheelPositions.forEach(
+      function (p) {
+
+        const wheel =
+          new THREE.Mesh(
+
+            new THREE.CylinderGeometry(
+              0.46,
+              0.46,
+              0.32,
+              12
+            ),
+
+            material(
+              0x181a1c,
+              0.95,
+              0
+            )
+
+          );
+
+        wheel.rotation.z =
+          Math.PI / 2;
+
+        wheel.position.set(
+          p[0],
+          p[1],
+          p[2]
+        );
+
+        car.add(
+          wheel
+        );
+
+      }
+    );
+
+    /*
+     * Headlights.
+     */
+
+    addBox(
+
+      car,
+      0.38,
+      0.18,
+      0.10,
+
+      0xffedb0,
+
+      -width * 0.28,
+      0.66,
+      -length / 2 -
+        0.06
+
+    );
+
+    addBox(
+
+      car,
+      0.38,
+      0.18,
+      0.10,
+
+      0xffedb0,
+
+      width * 0.28,
+      0.66,
+      -length / 2 -
+        0.06
+
+    );
+
+    /*
+     * Tail lights.
+     */
+
+    addBox(
+
+      car,
+      0.36,
+      0.18,
+      0.10,
+
+      0xa5252c,
+
+      -width * 0.28,
+      0.66,
+      length / 2 +
+        0.06
+
+    );
+
+    addBox(
+
+      car,
+      0.36,
+      0.18,
+      0.10,
+
+      0xa5252c,
+
+      width * 0.28,
+      0.66,
+      length / 2 +
+        0.06
+
+    );
+
+    trafficRoot.add(
+      car
+    );
+
+    cityCars.push(
+      car
+    );
+
+    return car;
+
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * TRAFFIC SPAWN
+   * ------------------------------------------------------------
+   */
+
+  function createTrafficFleet() {
+
+    const vehicleTypes = [
+
+      "sedan",
+      "sedan",
+      "suv",
+      "van",
+      "sedan",
+      "suv",
+      "truck"
+
+    ];
+
+    /*
+     * North/south traffic.
+     */
+
+    CITY.arterialX.forEach(
+      function (x) {
+
+        for (
+          let i = 0;
+          i < 3;
+          i++
+        ) {
+
+          createVehicle(
+
+            x - 4.5,
+
+            -150 +
+              i * 92,
+
+            0,
+
+            vehicleTypes[
+              Math.floor(
+                Math.random() *
+                vehicleTypes.length
+              )
+            ],
+
+            pickColor([
+              0xb63e3e,
+              0x3e79a6,
+              0xd5a52f,
+              0x4f8156,
+              0x59636b,
+              0x8a5a8a
+            ])
+
+          );
+
+          createVehicle(
+
+            x + 4.5,
+
+            150 -
+              i * 92,
+
+            Math.PI,
+
+            vehicleTypes[
+              Math.floor(
+                Math.random() *
+                vehicleTypes.length
+              )
+            ],
+
+            pickColor([
+              0xb63e3e,
+              0x3e79a6,
+              0xd5a52f,
+              0x4f8156,
+              0x59636b,
+              0x8a5a8a
+            ])
+
+          );
+
+        }
+
+      }
+    );
+
+    /*
+     * East/west traffic.
+     */
+
+    CITY.arterialZ.forEach(
+      function (z) {
+
+        for (
+          let i = 0;
+          i < 3;
+          i++
+        ) {
+
+          createVehicle(
+
+            -150 +
+              i * 92,
+
+            z - 4.5,
+
+            Math.PI / 2,
+
+            vehicleTypes[
+              Math.floor(
+                Math.random() *
+                vehicleTypes.length
+              )
+            ],
+
+            pickColor([
+              0xb63e3e,
+              0x3e79a6,
+              0xd5a52f,
+              0x4f8156,
+              0x59636b,
+              0x8a5a8a
+            ])
+
+          );
+
+          createVehicle(
+
+            150 -
+              i * 92,
+
+            z + 4.5,
+
+            -Math.PI / 2,
+
+            vehicleTypes[
+              Math.floor(
+                Math.random() *
+                vehicleTypes.length
+              )
+            ],
+
+            pickColor([
+              0xb63e3e,
+              0x3e79a6,
+              0xd5a52f,
+              0x4f8156,
+              0x59636b,
+              0x8a5a8a
+            ])
+
+          );
+
+        }
+
+      }
+    );
+
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * TRAFFIC UPDATE
+   * ------------------------------------------------------------
+   */
+
+  function updateTraffic(
+    delta
+  ) {
+
+    cityCars.forEach(
+      function (car) {
+
+        if (
+          !car.userData.active
+        ) {
+
+          return;
+
+        }
+
+        const speed =
+          car.userData.speed *
+          delta;
+
+        const direction =
+          car.userData.direction;
+
+        car.position.x +=
+          Math.sin(
+            direction
+          ) *
+          speed;
+
+        car.position.z +=
+          Math.cos(
+            direction
+          ) *
+          speed;
+
+        /*
+         * Wrap vehicles around city limits.
+         */
+
+        if (
+          car.position.x >
+          CITY.maxX + 20
+        ) {
+
+          car.position.x =
+            CITY.minX - 20;
+
+        }
+
+        if (
+          car.position.x <
+          CITY.minX - 20
+        ) {
+
+          car.position.x =
+            CITY.maxX + 20;
+
+        }
+
+        if (
+          car.position.z >
+          CITY.maxZ + 20
+        ) {
+
+          car.position.z =
+            CITY.minZ - 20;
+
+        }
+
+        if (
+          car.position.z <
+          CITY.minZ - 20
+        ) {
+
+          car.position.z =
+            CITY.maxZ + 20;
+
+        }
+
+      }
+    );
+
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * PEDESTRIAN SYSTEM
+   * ------------------------------------------------------------
+   */
+
+  const cityPedestrians = [];
+
+  function createPedestrian(
+    x,
+    z,
+    rotation
+  ) {
+
+    const person =
+      new THREE.Group();
+
+    person.position.set(
+      x,
+      0.30,
+      z
+    );
+
+    person.rotation.y =
+      rotation ||
+      Math.random() *
+      Math.PI *
+      2;
+
+    person.userData = {
+
+      speed:
+        0.7 +
+        Math.random() * 0.7,
+
+      direction:
+        person.rotation.y,
+
+      active:
+        true
+
+    };
+
+    const skin =
+      pickColor([
+        0xb97959,
+        0xc9906e,
+        0xa96f52,
+        0xd5a078
+      ]);
+
+    const shirt =
+      pickColor([
+        0x38556b,
+        0x6a4f63,
+        0x4f7051,
+        0x6c5c43,
+        0x3e424a
+      ]);
+
+    /*
+     * Body.
+     */
+
+    const body =
+      new THREE.Mesh(
+
+        new THREE.CylinderGeometry(
+          0.20,
+          0.26,
+          1.05,
+          8
+        ),
+
+        material(
+          shirt,
+          0.9,
+          0
+        )
+
+      );
+
+    body.position.y =
+      0.55;
+
+    person.add(
+      body
+    );
+
+    /*
+     * Head.
+     */
+
+    const head =
+      new THREE.Mesh(
+
+        new THREE.SphereGeometry(
+          0.23,
+          10,
+          8
+        ),
+
+        material(
+          skin,
+          0.9,
+          0
+        )
+
+      );
+
+    head.position.y =
+      1.35;
+
+    person.add(
+      head
+    );
+
+    /*
+     * Legs.
+     */
+
+    addBox(
+
+      person,
+
+      0.13,
+      0.65,
+      0.13,
+
+      0x252a2e,
+
+      -0.10,
+      0.05,
+      0
+
+    );
+
+    addBox(
+
+      person,
+
+      0.13,
+      0.65,
+      0.13,
+
+      0x252a2e,
+
+      0.10,
+      0.05,
+      0
+
+    );
+
+    pedestrianRoot.add(
+      person
+    );
+
+    cityPedestrians.push(
+      person
+    );
+
+    return person;
+
+  }
+
+  function createPedestrianPopulation() {
+
+    /*
+     * Sidewalk population.
+     */
+
+    for (
+      let i = 0;
+      i < 42;
+      i++
+    ) {
+
+      const vertical =
+        Math.random() >
+        0.5;
+
+      if (vertical) {
+
+        const road =
+          CITY.arterialX[
+            Math.floor(
+              Math.random() *
+              CITY.arterialX.length
+            )
+          ];
+
+        const side =
+          Math.random() >
+          0.5
+            ? 1
+            : -1;
+
+        createPedestrian(
+
+          road +
+            side *
+            (
+              CITY.arterialWidth /
+                2 +
+              2.2
+            ),
+
+          -150 +
+            Math.random() *
+            300,
+
+          side > 0
+            ? Math.PI / 2
+            : -Math.PI / 2
+
+        );
+
+      } else {
+
+        const road =
+          CITY.arterialZ[
+            Math.floor(
+              Math.random() *
+              CITY.arterialZ.length
+            )
+          ];
+
+        const side =
+          Math.random() >
+          0.5
+            ? 1
+            : -1;
+
+        createPedestrian(
+
+          -150 +
+            Math.random() *
+            300,
+
+          road +
+            side *
+            (
+              CITY.arterialWidth /
+                2 +
+              2.2
+            ),
+
+          side > 0
+            ? 0
+            : Math.PI
+
+        );
+
+      }
+
+    }
+
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * PEDESTRIAN UPDATE
+   * ------------------------------------------------------------
+   */
+
+  function updatePedestrians(
+    delta
+  ) {
+
+    cityPedestrians.forEach(
+      function (person) {
+
+        if (
+          !person.userData.active
+        ) {
+
+          return;
+
+        }
+
+        const speed =
+          person.userData.speed *
+          delta;
+
+        const direction =
+          person.userData.direction;
+
+        person.position.x +=
+          Math.sin(
+            direction
+          ) *
+          speed;
+
+        person.position.z +=
+          Math.cos(
+            direction
+          ) *
+          speed;
+
+        /*
+         * Keep pedestrians inside city.
+         */
+
+        if (
+          Math.abs(
+            person.position.x
+          ) > 168 ||
+          Math.abs(
+            person.position.z
+          ) > 168
+        ) {
+
+          person.position.x =
+            Math.random() *
+            260 -
+            130;
+
+          person.position.z =
+            Math.random() *
+            260 -
+            130;
+
+        }
+
+        /*
+         * Occasionally change walking direction.
+         */
+
+        if (
+          Math.random() <
+          0.004
+        ) {
+
+          person.userData.direction +=
+            (
+              Math.random() -
+              0.5
+            ) *
+            0.7;
+
+          person.rotation.y =
+            person.userData.direction;
+
+        }
+
+      }
+    );
+
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * HQ CONNECTION
+   * ------------------------------------------------------------
+   */
+
+  function connectHQToCity() {
+
+    if (
+      !WORLD ||
+      !WORLD.HQ
+    ) {
+
+      return;
+
+    }
+
+    const hq =
+      WORLD.HQ;
+
+    hq.userData =
+      hq.userData || {};
+
+    hq.userData.cityConnected =
+      true;
+
+    /*
+     * The existing HQ remains in control of
+     * world3d.html.
+     *
+     * We do not reposition it automatically.
+     *
+     * Future property placement can use:
+     *
+     * EmpireLivingCity.reservePlayerProperty()
+     */
+
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * BUSINESS PROPERTY HOOK
+   * ------------------------------------------------------------
+   */
+
+  function attachBusinessToProperty(
+    propertyId,
+    companyId,
+    businessType
+  ) {
+
+    const plot =
+      reservePlayerProperty(
+        propertyId,
+        companyId,
+        businessType
+      );
+
+    if (!plot) {
+
+      return null;
+
+    }
+
+    plot.userData.businessAttached =
+      true;
+
+    /*
+     * Business-specific rendering will be
+     * implemented in the next architecture phase.
+     */
+
+    return plot;
+
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * CITY ANIMATION LOOP
+   * ------------------------------------------------------------
+   */
+
+  let animationRunning =
+    false;
+
+  let lastAnimationTime =
+    performance.now();
+
+  function cityAnimationLoop() {
+
+    const now =
+      performance.now();
+
+    const delta =
+      Math.min(
+        0.05,
+        (
+          now -
+          lastAnimationTime
+        ) /
+        1000
+      );
+
+    lastAnimationTime =
+      now;
+
+    if (
+      cityStarted
+    ) {
+
+      updateTraffic(
+        delta
+      );
+
+      updatePedestrians(
+        delta
+      );
+
+    }
+
+    requestAnimationFrame(
+      cityAnimationLoop
+    );
+
+  }
+
+  function startAnimation() {
+
+    if (
+      animationRunning
+    ) {
+
+      return;
+
+    }
+
+    animationRunning =
+      true;
+
+    lastAnimationTime =
+      performance.now();
+
+    cityAnimationLoop();
+
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * FINAL CITY BUILD
+   * ------------------------------------------------------------
+   */
+
+  function buildFinalCity() {
+
+    /*
+     * PART 1:
+     * terrain + roads + plots
+     */
+
+    buildFoundation();
+
+    /*
+     * PART 2:
+     * buildings + parks + property architecture
+     */
+
+    buildDistrictArchitecture();
+
+    /*
+     * PART 3:
+     * visual life
+     */
+
+    createStreetLandscaping();
+
+    createStreetLighting();
+
+    createTrafficSigns();
+
+    addParkDetails();
+
+    createTrafficFleet();
+
+    createPedestrianPopulation();
+
+    connectHQToCity();
+
+    cityStarted =
+      true;
+
+    startAnimation();
+
+    console.log(
+      "[Empire Rush] Living city fully initialized."
+    );
+
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * REBUILD
+   * ------------------------------------------------------------
+   */
+
+  function rebuildCity() {
+
+    cityStarted =
+      false;
+
+    cityCars.length =
+      0;
+
+    cityPedestrians.length =
+      0;
+
+    if (
+      cityRoot &&
+      cityRoot.parent
+    ) {
+
+      cityRoot.parent.remove(
+        cityRoot
+      );
+
+    }
+
+    cityRoot =
+      null;
+
+    terrainRoot =
+      null;
+
+    roadRoot =
+      null;
+
+    plotRoot =
+      null;
+
+    decorationRoot =
+      null;
+
+    trafficRoot =
+      null;
+
+    pedestrianRoot =
+      null;
+
+    setTimeout(
+      startCity,
+      150
+    );
+
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * START CITY
+   * ------------------------------------------------------------
+   */
+
+  function startCity() {
+
+    if (
+      cityStarted
+    ) {
+
+      return;
+
+    }
+
+    waitForWorld(
+      function (world) {
+
+        WORLD =
+          world;
+
+        THREE =
+          world.THREE;
+
+        scene =
+          world.scene;
+
+        if (
+          !THREE ||
+          !scene
+        ) {
+
+          console.warn(
+            "[Empire Rush] THREE/scene unavailable."
+          );
+
+          return;
+
+        }
+
+        buildFinalCity();
+
+      }
+    );
+
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * WORLD EVENT
+   * ------------------------------------------------------------
+   */
+
+  window.addEventListener(
+    "EmpireWorldReady",
+    function () {
+
+      setTimeout(
+        startCity,
+        350
+      );
+
+    }
+  );
+
+  /*
+   * ------------------------------------------------------------
+   * FALLBACK
+   * ------------------------------------------------------------
+   */
+
+  setTimeout(
+    function () {
+
+      if (
+        !cityStarted
+      ) {
+
+        startCity();
+
+      }
+
+    },
+    1200
+  );
+
+  /*
+   * ------------------------------------------------------------
+   * FINAL PUBLIC API
+   * ------------------------------------------------------------
+   */
+
+  window.EmpireLivingCity = {
+
+    start:
+      startCity,
+
+    rebuild:
+      rebuildCity,
+
+    getRoot:
+      function () {
+
+        return cityRoot;
+
+      },
+
+    getDistricts:
+      function () {
+
+        return CITY.districts;
+
+      },
+
+    getDistrictAt:
+      getDistrictAt,
+
+    getPropertyPlots:
+      getPropertyPlots,
+
+    getBuildingForProperty:
+      getBuildingForProperty,
+
+    reservePlayerProperty:
+      reservePlayerProperty,
+
+    attachBusinessToProperty:
+      attachBusinessToProperty,
+
+    isPointInsideBuilding:
+      isPointInsideBuilding,
+
+    getCars:
+      function () {
+
+        return cityCars;
+
+      },
+
+    getPedestrians:
+      function () {
+
+        return cityPedestrians;
+
+      },
+
+    getStatus:
+      function () {
+
+        return {
+
+          started:
+            cityStarted,
+
+          districts:
+            CITY.districts.length,
+
+          properties:
+            getPropertyPlots().length,
+
+          vehicles:
+            cityCars.length,
+
+          pedestrians:
+            cityPedestrians.length
+
+        };
+
+      },
+
+    getCityConfig:
+      function () {
+
+        return CITY;
+
+      }
+
+  };
+
+  /*
+   * ============================================================
+   * END OF COMPLETE FILE
+   * ============================================================
+   *
+   * NOW:
+   *
+   * 1. Make sure PART 1 + PART 2 + PART 3 are all in the
+   *    SAME living-city-system.js file.
+   *
+   * 2. There should be ONLY ONE final:
+   *
+   *       (function () {
+   *
+   *    at the beginning.
+   *
+   * 3. And ONLY ONE final:
+   *
+   *       })();
+   *
+   *    at the very end.
+   *
+   * 4. NOW SAVE.
+   *
+   * 5. RELOAD THE GAME.
+   *
+   * 6. SEND ME A SCREENSHOT.
+   *
+   * DO NOT COMMIT YET.
+   * ============================================================
+   */
