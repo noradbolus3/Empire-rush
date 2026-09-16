@@ -1,15 +1,24 @@
 # Empire Rush
 
-## Android-first repository layout
+Empire Rush is a React Native business tycoon game built with Expo. The app is designed to compile into a standard Android APK through the generated Gradle project, without a game-engine license.
 
-Empire Rush is being migrated from the original browser/3D prototype to an Android-first game. The repository now keeps the reusable Unity-oriented simulation core at `Assets/Scripts/Core/EmpireRushCore.cs` and moves the old browser implementation into [`legacy-web/`](legacy-web/README.md) as a reversible archive. This avoids deleting prior work while making it clear that new production gameplay should not be added to the web shell.
+## Current app
 
-The repository does not yet contain a complete Unity project or exported Android Gradle project. In particular, it currently has no `ProjectSettings/`, Unity solution/project files, `android/gradlew`, React Native/Expo package manifest, or native Android source tree. The existing C# core is therefore the starting point for the native client, not a release-ready Android build.
+`App.tsx` contains the functional mobile game shell with a persistent in-memory player wallet, daily business income, market exchange, portfolio tracking, property marketplace, mortgage purchase option, and ledger. The bottom navigation exposes Home, Market, Portfolio, Property, and Ledger screens. The market includes eight fictional companies, sector movement, price-history bars, buy/sell actions, average-buy tracking, and unrealized P&L. Real estate includes apartments, shops, warehouses, land, and office towers with rent, maintenance, appreciation, and 20% down-payment flows.
 
-## Build automation
+Rewarded-video actions are represented in the UI for Emergency Funding, 2x Business Boost, and Tax Audit Shield. The next native integration step is to connect `react-native-google-mobile-ads` and replace Google test IDs before production release.
 
-[`.github/workflows/build-android.yml`](.github/workflows/build-android.yml) now performs a successful readiness check on every push and only runs APK/AAB Gradle steps when an executable `android/gradlew` exists. This prevents misleading failed Android runs while the native client is being created. Once the Android project is added, the workflow builds a debug APK and release AAB targeting SDK 34, using GitHub Actions secrets for the production keystore.
+## Android build
 
-## Migration rule
+The GitHub Actions workflow at `.github/workflows/build-android.yml` performs a real build. It checks out the repository, installs Node.js and JDK 17, configures the Android SDK, runs `npm ci`, runs `npx expo prebuild --platform android --non-interactive --no-install`, runs `./gradlew assembleDebug` inside `android`, and uploads `android/app/build/outputs/apk/debug/app-debug.apk` through `actions/upload-artifact@v4`.
 
-The legacy browser files are retained for reference and possible logic extraction. New systems such as financial markets, real estate, IPOs, and monetization should be ported into the native client rather than extended inside `legacy-web/`.
+Run locally with:
+
+```bash
+npm ci
+npx expo prebuild --platform android --non-interactive --no-install
+cd android
+./gradlew assembleDebug
+```
+
+The previous browser prototype is retained under `legacy-web/` for reference only. New screens and game logic belong in the Expo app, not in that archive.
