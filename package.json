@@ -9,7 +9,7 @@
     "expo-status-bar": "~57.0.1",
     "react": "19.2.3",
     "react-native": "0.86.3",
-    "react-native-google-mobile-ads": "^16.4.0",
+    "react-native-google-mobile-ads": "^15.8.3",
     "react-native-iap": "^16.6.1",
     "react-native-nitro-modules": "^0.36.5",
     "react-native-svg": "15.15.4"
