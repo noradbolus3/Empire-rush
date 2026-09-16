@@ -8,20 +8,26 @@ on:
 jobs:
   native-project-check:
     runs-on: ubuntu-latest
+    outputs:
+      native_ready: ${{ steps.detect.outputs.native_ready }}
     steps:
       - uses: actions/checkout@v4
-      - name: Check native Android project readiness
+      - id: detect
+        name: Check native Android project readiness
+        shell: bash
         run: |
           if [ -x android/gradlew ]; then
+            echo "native_ready=true" >> "$GITHUB_OUTPUT"
             echo "Native Android project detected; build job will run."
           else
-            echo "No android/gradlew found yet. This repository currently contains the Unity-ready core only."
-            echo "Add the Android/Unity export before enabling APK/AAB builds."
+            echo "native_ready=false" >> "$GITHUB_OUTPUT"
+            echo "No android/gradlew found yet. The Unity/Android client is still being created."
+            echo "Readiness check passed; APK/AAB build is intentionally skipped."
           fi
 
   android-build:
     needs: native-project-check
-    if: ${{ hashFiles('android/gradlew') != '' }}
+    if: ${{ needs.native-project-check.outputs.native_ready == 'true' }}
     runs-on: ubuntu-latest
     env:
       TARGET_SDK_VERSION: '34'
