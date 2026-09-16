@@ -10,7 +10,7 @@ Rewarded-video actions are represented in the UI for Emergency Funding, 2x Busin
 
 ## Android build
 
-The GitHub Actions workflow at `.github/workflows/build-android.yml` performs a real build. It checks out the repository, installs Node.js and JDK 17, configures the Android SDK, runs `npm ci`, runs `npx expo prebuild --platform android --non-interactive --no-install`, runs `./gradlew assembleDebug` inside `android`, and uploads `android/app/build/outputs/apk/debug/app-debug.apk` through `actions/upload-artifact@v4`.
+The GitHub Actions workflow at `.github/workflows/build-android.yml` performs a real standalone build. It checks out the repository, installs Node.js and JDK 17, configures the Android SDK, runs `npm ci`, runs `npx expo prebuild --platform android --no-install`, generates a production Android bundle with `npx expo export:embed` into `android/app/src/main/assets/index.android.bundle`, disables Metro-only debug variants, runs `./gradlew clean && ./gradlew assembleDebug` inside `android`, verifies that `assets/index.android.bundle` is inside the APK, and uploads `android/app/build/outputs/apk/debug/app-debug.apk` through `actions/upload-artifact@v4`. The resulting debug APK is intended to launch without Metro or localhost access.
 
 Run locally with:
 

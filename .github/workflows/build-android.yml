@@ -37,9 +37,29 @@ jobs:
           CI: '1'
         run: npx expo prebuild --platform android --no-install
 
-      - name: Build debug APK
+      - name: Enable standalone offline JavaScript bundle
         working-directory: android
-        run: ./gradlew assembleDebug --no-daemon --stacktrace
+        run: |
+          # Expo/RN skips JS bundling for debug by default because it expects Metro.
+          # An APK distributed for device testing must contain the bundle instead.
+          sed -i '/^[[:space:]]*debuggableVariants[[:space:]]*=/d' app/build.gradle
+          sed -i '/^[[:space:]]*react[[:space:]]*{/a\    debuggableVariants = []' app/build.gradle
+
+      - name: Generate offline JavaScript bundle
+        run: |
+          mkdir -p android/app/src/main/assets
+          npx expo export:embed --platform android --dev false --entry-file index.ts \
+            --bundle-output android/app/src/main/assets/index.android.bundle \
+            --assets-dest android/app/src/main/res/
+
+      - name: Clean and build standalone debug APK
+        working-directory: android
+        run: ./gradlew clean && ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Verify embedded JavaScript bundle
+        run: |
+          test -f android/app/build/outputs/apk/debug/app-debug.apk
+          unzip -l android/app/build/outputs/apk/debug/app-debug.apk | grep -q 'assets/index.android.bundle'
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
