@@ -4,11 +4,11 @@ Empire Rush is a React Native business tycoon simulator built with Expo and desi
 
 ## 2026 fintech simulator systems
 
-The mobile client uses an ultra-deep obsidian, emerald, cyan, crimson, and titanium-slate design system. Home includes an embossed black-and-gold titanium wealth card, formatted USD balances, net worth metrics, a live capital accelerator with $100/$500 touch actions, and haptic feedback.
+The mobile client uses an ultra-deep obsidian, emerald, cyan, crimson, and titanium-slate design system. The current production scope is Module 1: a safe-area protected titanium VIZA card, USD balance, capped clicker upgrades, animated haptic tap feedback, and a fully accounted Retail Shop.
 
 The exchange simulates eight fictional equities and six crypto assets with one-second oscillating prices, volatility, live SVG area charts, 1D/1W/1M range controls, breaking market news, buy/sell execution, average entry price, realized P&L, and unrealized P&L percentages. The business ecosystem covers Coffee Kiosk, E-Commerce Drop-shipping, Local Taxi, Cloud Kitchen Chain, Logistics Fleet, Construction Agency, Private Bank, EV Factory, and Aerospace Research. Each unlocked business has revenue, rent/electricity/material/salary operating costs represented in OPEX, dynamic pricing controls, levels, and auto-restock automation toggles.
 
-The Prestige marketplace adds supercars, hypercars, yachts, penthouses, and private jets as net-worth sinks with passive reputation, influence, revenue, operating-cost, and expansion perks. The economy runs on a one-second tick, persists state through AsyncStorage, and calculates up to 24 hours of offline earnings when the app is reopened.
+The Module 1 economy persists cash, click level, click value, Retail Shop ownership, inventory, and staff through AsyncStorage. Offline settlement is capped at two hours.
 
 ## Android build
 
@@ -19,7 +19,7 @@ Local validation commands:
 ```bash
 npm ci
 npx tsc --noEmit
-npx expo export:embed --platform android --dev false --entry-file index.ts \
+npx react-native bundle --platform android --dev false --entry-file index.js \
   --bundle-output /tmp/index.android.bundle
 ```
 
@@ -28,4 +28,4 @@ The previous browser prototype remains under `legacy-web/` for reference only. N
 
 ## Foundation modules
 
-The app now includes typed player, business, stock, lifestyle, and election models under `src/`, USD formatting in `src/utils/formatCurrency.ts`, a safe-area/network provider with a two-hour offline cap and clock-tamper freeze, the legal-versus-shadow accounting engine with police heat and raid resolution, UTC election war-room screens, luxury/presidential fleet registry, SVG sparkline component, and local-fallback IPO/chat syndicate screen.
+The app now includes the typed Retail Shop model under `src/types/retail.ts`, USD formatting in `src/utils/formatCurrency.ts`, safe-area Home and Business screens, AsyncStorage persistence, exact inventory/COGS/rent/payroll accounting, and the standalone Android bundle pipeline.
