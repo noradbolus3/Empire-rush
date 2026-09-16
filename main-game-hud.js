@@ -614,6 +614,44 @@
               <button
                 type="button"
                 class="er-module"
+                data-module="finance"
+              >
+
+                <span>📈</span>
+
+                <b>
+                  Exchange
+                </b>
+
+                <small>
+                  Stocks & IPO
+                </small>
+
+              </button>
+
+
+              <button
+                type="button"
+                class="er-module"
+                data-module="realestate"
+              >
+
+                <span>🏙️</span>
+
+                <b>
+                  Property
+                </b>
+
+                <small>
+                  Real estate
+                </small>
+
+              </button>
+
+
+              <button
+                type="button"
+                class="er-module"
                 data-module="save"
               >
 
@@ -2546,6 +2584,17 @@
         economics: [
           "EmpireAccountingUI",
           "EmpireEconomicsUI"
+        ],
+
+        finance: [
+          "EmpireFinanceUI",
+          "EmpireBankingUI",
+          "EmpireFinance"
+        ],
+
+        realestate: [
+          "EmpireFinanceUI",
+          "EmpireRealEstateUI"
         ]
 
       };
