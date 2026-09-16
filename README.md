@@ -1,24 +1,26 @@
 # Empire Rush
 
-Empire Rush is a React Native business tycoon game built with Expo. The app is designed to compile into a standard Android APK through the generated Gradle project, without a game-engine license.
+Empire Rush is a React Native business tycoon simulator built with Expo and designed to compile into a standalone Android APK through Gradle.
 
-## Current app
+## 2026 fintech simulator systems
 
-`App.tsx` contains the functional mobile game shell with a persistent in-memory player wallet, daily business income, market exchange, portfolio tracking, property marketplace, mortgage purchase option, and ledger. The bottom navigation exposes Home, Market, Portfolio, Property, and Ledger screens. The market includes eight fictional companies, sector movement, price-history bars, buy/sell actions, average-buy tracking, and unrealized P&L. Real estate includes apartments, shops, warehouses, land, and office towers with rent, maintenance, appreciation, and 20% down-payment flows.
+The mobile client uses an ultra-deep obsidian, emerald, cyan, crimson, and titanium-slate design system. Home includes an embossed black-and-gold titanium wealth card, formatted INR balances, net worth metrics, a live capital accelerator with ₹100/₹500 touch actions, and haptic feedback.
 
-Rewarded-video actions are represented in the UI for Emergency Funding, 2x Business Boost, and Tax Audit Shield. The next native integration step is to connect `react-native-google-mobile-ads` and replace Google test IDs before production release.
+The exchange simulates eight fictional equities and six crypto assets with one-second oscillating prices, volatility, live SVG area charts, 1D/1W/1M range controls, breaking market news, buy/sell execution, average entry price, realized P&L, and unrealized P&L percentages. The business ecosystem covers Coffee Kiosk, E-Commerce Drop-shipping, Local Taxi, Cloud Kitchen Chain, Logistics Fleet, Construction Agency, Private Bank, EV Factory, and Aerospace Research. Each unlocked business has revenue, rent/electricity/material/salary operating costs represented in OPEX, dynamic pricing controls, levels, and auto-restock automation toggles.
+
+The Prestige marketplace adds supercars, hypercars, yachts, penthouses, and private jets as net-worth sinks with passive reputation, influence, revenue, operating-cost, and expansion perks. The economy runs on a one-second tick, persists state through AsyncStorage, and calculates up to 24 hours of offline earnings when the app is reopened.
 
 ## Android build
 
-The GitHub Actions workflow at `.github/workflows/build-android.yml` performs a real standalone build. It checks out the repository, installs Node.js and JDK 17, configures the Android SDK, runs `npm ci`, runs `npx expo prebuild --platform android --no-install`, generates a production Android bundle with `npx expo export:embed` into `android/app/src/main/assets/index.android.bundle`, disables Metro-only debug variants, runs `./gradlew clean && ./gradlew assembleDebug` inside `android`, verifies that `assets/index.android.bundle` is inside the APK, and uploads `android/app/build/outputs/apk/debug/app-debug.apk` through `actions/upload-artifact@v4`. The resulting debug APK is intended to launch without Metro or localhost access.
+The GitHub Actions workflow at `.github/workflows/build-android.yml` sets up Node.js and JDK 17, configures the Android SDK, installs dependencies, runs Expo prebuild, generates a production JavaScript bundle into `android/app/src/main/assets/index.android.bundle`, disables Metro-only debug variants, runs `./gradlew clean && ./gradlew assembleDebug`, verifies the bundle is inside the APK, and uploads `app-debug.apk` through `actions/upload-artifact@v4`.
 
-Run locally with:
+Local validation commands:
 
 ```bash
 npm ci
-npx expo prebuild --platform android --non-interactive --no-install
-cd android
-./gradlew assembleDebug
+npx tsc --noEmit
+npx expo export:embed --platform android --dev false --entry-file index.ts \
+  --bundle-output /tmp/index.android.bundle
 ```
 
-The previous browser prototype is retained under `legacy-web/` for reference only. New screens and game logic belong in the Expo app, not in that archive.
+The previous browser prototype remains under `legacy-web/` for reference only. New production features belong in the Expo app.
