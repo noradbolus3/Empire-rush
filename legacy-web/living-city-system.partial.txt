@@ -6558,3 +6558,5 @@
    * DO NOT COMMIT YET.
    * ============================================================
    */
+
+Archived note: this file was an incomplete multi-part browser prototype and is not part of the Android client.

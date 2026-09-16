@@ -1,27 +1,15 @@
 # Empire Rush
 
-## Implemented in this repository
+## Android-first repository layout
 
-This repository is a vanilla browser/3D game, not a React Native/Expo Android project. The following modules are implemented in the existing `EmpireGameState` and HUD architecture:
+Empire Rush is being migrated from the original browser/3D prototype to an Android-first game. The repository now keeps the reusable Unity-oriented simulation core at `Assets/Scripts/Core/EmpireRushCore.cs` and moves the old browser implementation into [`legacy-web/`](legacy-web/README.md) as a reversible archive. This avoids deleting prior work while making it clear that new production gameplay should not be added to the web shell.
 
-- `financial-markets-real-estate.js`
-  - Eight fictional stocks across Tech, Energy, Pharma, Auto, and Banking.
-  - Volatility-driven price ticks and event headlines such as tech regulation, pharma approvals, and energy policy.
-  - Inline SVG price-history charts.
-  - Buy/sell trading, average buy price, unrealized P&L, and quarterly dividend payouts.
-  - Player-company IPO API gated at ₹5Cr valuation.
-  - Residential, commercial, warehouse, land, and office-tower properties.
-  - Rent, maintenance, appreciation, 20% down-payment mortgages, and EMI tracking.
-  - Finance and Property modules wired into the existing HUD drawer and Finance tab.
+The repository does not yet contain a complete Unity project or exported Android Gradle project. In particular, it currently has no `ProjectSettings/`, Unity solution/project files, `android/gradlew`, React Native/Expo package manifest, or native Android source tree. The existing C# core is therefore the starting point for the native client, not a release-ready Android build.
 
-- `admob-placements.js`
-  - Shared placement contract for Emergency Angel Funding, 2x Business Boost, Tax Audit Shield, and milestone-only interstitials.
-  - Uses Google's official test ad IDs; replace them in the future native shell before release.
+## Build automation
 
-- `.github/workflows/build-android.yml`
-  - Guarded workflow for debug APK and release AAB builds once an `android/` Gradle project exists.
-  - Targets Android SDK 34 and expects keystore values through GitHub Actions secrets.
+[`.github/workflows/build-android.yml`](.github/workflows/build-android.yml) now performs a successful readiness check on every push and only runs APK/AAB Gradle steps when an executable `android/gradlew` exists. This prevents misleading failed Android runs while the native client is being created. Once the Android project is added, the workflow builds a debug APK and release AAB targeting SDK 34, using GitHub Actions secrets for the production keystore.
 
-## Native Android boundary
+## Migration rule
 
-There is no `package.json`, `android/`, Gradle wrapper, React Native app, or Expo app in the current repository. Therefore this change does not claim to produce a production Android APK/AAB or install `react-native-google-mobile-ads`. The gameplay is complete in the current browser architecture, while the workflow and AdMob contract provide the handoff boundary for a future React Native/Expo port.
+The legacy browser files are retained for reference and possible logic extraction. New systems such as financial markets, real estate, IPOs, and monetization should be ported into the native client rather than extended inside `legacy-web/`.

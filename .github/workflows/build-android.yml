@@ -6,9 +6,21 @@ on:
     branches: [main]
 
 jobs:
-  android:
-    # This repository is currently a vanilla browser game. The job intentionally
-    # fails fast until the React Native/Expo Android project is added.
+  native-project-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check native Android project readiness
+        run: |
+          if [ -x android/gradlew ]; then
+            echo "Native Android project detected; build job will run."
+          else
+            echo "No android/gradlew found yet. This repository currently contains the Unity-ready core only."
+            echo "Add the Android/Unity export before enabling APK/AAB builds."
+          fi
+
+  android-build:
+    needs: native-project-check
     if: ${{ hashFiles('android/gradlew') != '' }}
     runs-on: ubuntu-latest
     env:
