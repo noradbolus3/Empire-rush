@@ -4,7 +4,7 @@ Empire Rush is a React Native business tycoon simulator built with Expo and desi
 
 ## 2026 fintech simulator systems
 
-The mobile client uses an ultra-deep obsidian, emerald, cyan, crimson, and titanium-slate design system. Home includes an embossed black-and-gold titanium wealth card, formatted INR balances, net worth metrics, a live capital accelerator with ₹100/₹500 touch actions, and haptic feedback.
+The mobile client uses an ultra-deep obsidian, emerald, cyan, crimson, and titanium-slate design system. Home includes an embossed black-and-gold titanium wealth card, formatted USD balances, net worth metrics, a live capital accelerator with $100/$500 touch actions, and haptic feedback.
 
 The exchange simulates eight fictional equities and six crypto assets with one-second oscillating prices, volatility, live SVG area charts, 1D/1W/1M range controls, breaking market news, buy/sell execution, average entry price, realized P&L, and unrealized P&L percentages. The business ecosystem covers Coffee Kiosk, E-Commerce Drop-shipping, Local Taxi, Cloud Kitchen Chain, Logistics Fleet, Construction Agency, Private Bank, EV Factory, and Aerospace Research. Each unlocked business has revenue, rent/electricity/material/salary operating costs represented in OPEX, dynamic pricing controls, levels, and auto-restock automation toggles.
 
@@ -24,3 +24,8 @@ npx expo export:embed --platform android --dev false --entry-file index.ts \
 ```
 
 The previous browser prototype remains under `legacy-web/` for reference only. New production features belong in the Expo app.
+
+
+## Foundation modules
+
+The app now includes typed player, business, stock, lifestyle, and election models under `src/`, USD formatting in `src/utils/formatCurrency.ts`, a safe-area/network provider with a two-hour offline cap and clock-tamper freeze, the legal-versus-shadow accounting engine with police heat and raid resolution, UTC election war-room screens, luxury/presidential fleet registry, SVG sparkline component, and local-fallback IPO/chat syndicate screen.
