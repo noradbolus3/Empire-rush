@@ -12,7 +12,7 @@ export type BusinessSector = 'Retail' | 'Mobility' | 'Logistics' | 'Tech_SaaS' |
 export type OperatingMode = 'Licensed_Legal' | 'Shadow_Underground';
 export type HygieneRating = 'A' | 'B' | 'C' | 'F';
 export interface WorkforceState { headcount: number; morale: number; automationManagerHired: boolean; }
-export interface RetailResources { kind: 'retail'; stockUnits: number; maxCapacity: number; wholesaleRestockContract: boolean; automatedPOSShelving: boolean; profitMarginPercent: number; floorStage: 'Corner Kiosk' | 'Convenience Store' | 'Supermarket'; customerFootfallPerHour: number; }
+export interface RetailResources { kind: 'retail'; stockUnits: number; maxCapacity: number; wholesaleRestockContract: boolean; automatedPOSShelving: boolean; profitMarginPercent: number; unitSellingPrice: number; autoOrderWhenLow: boolean; floorStage: 'Corner Kiosk' | 'Convenience Store' | 'Supermarket' | 'Hypermarket'; customerFootfallPerHour: number; }
 export interface MobilityResources { kind: 'mobility'; fleetCondition: number; economySedans: number; executiveEVs: number; luxuryCabs: number; gpsAIDispatcher: boolean; evSuperchargers: boolean; serviceDue: boolean; surgePricing: boolean; customerRating: number; }
 export interface LogisticsResources { kind: 'logistics'; warehouseCapacityBoxes: number; warehouseUsedBoxes: number; activeTrucks: number; dispatchedTrucks: number; longHaulSemis: number; automatedSortingConveyor: boolean; delayedShipmentPenalty: number; }
 export interface TechResources { kind: 'tech'; serverBandwidthUsers: number; activeUsers: number; techDebtBugs: number; seniorEngineers: number; devOpsLead: boolean; }
