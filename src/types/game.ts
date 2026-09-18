@@ -12,7 +12,7 @@ export type BusinessSector = 'Retail' | 'Mobility' | 'Logistics' | 'Tech_SaaS' |
 export type OperatingMode = 'Licensed_Legal' | 'Shadow_Underground';
 export type HygieneRating = 'A' | 'B' | 'C' | 'F';
 export interface WorkforceState { headcount: number; morale: number; automationManagerHired: boolean; }
-export interface RetailResources { kind: 'retail'; stockUnits: number; maxCapacity: number; wholesaleRestockContract: boolean; automatedPOSShelving: boolean; profitMarginPercent: number; unitSellingPrice: number; autoOrderWhenLow: boolean; floorStage: 'Corner Kiosk' | 'Convenience Store' | 'Supermarket' | 'Hypermarket'; customerFootfallPerHour: number; }
+export interface RetailResources { kind: 'retail'; stockUnits: number; maxCapacity: number; wholesaleRestockContract: boolean; automatedPOSShelving: boolean; profitMarginPercent: number; unitSellingPrice: number; autoOrderWhenLow: boolean; floorStage: 'Corner Kiosk' | 'Convenience Store' | 'Supermarket' | 'Hypermarket'; customerFootfallPerHour: number; autoOrderThresholdPercent?: number; }
 export interface MobilityResources { kind: 'mobility'; fleetCondition: number; economySedans: number; executiveEVs: number; luxuryCabs: number; gpsAIDispatcher: boolean; evSuperchargers: boolean; serviceDue: boolean; surgePricing: boolean; customerRating: number; }
 export interface LogisticsResources { kind: 'logistics'; warehouseCapacityBoxes: number; warehouseUsedBoxes: number; activeTrucks: number; dispatchedTrucks: number; longHaulSemis: number; automatedSortingConveyor: boolean; delayedShipmentPenalty: number; }
 export interface TechResources { kind: 'tech'; serverBandwidthUsers: number; activeUsers: number; techDebtBugs: number; seniorEngineers: number; devOpsLead: boolean; }
@@ -20,9 +20,11 @@ export interface ManufacturingResources { kind: 'manufacturing'; rawMaterialPall
 export interface RestaurantResources { kind: 'restaurant'; freshIngredientsShelfLifeSeconds: number; ingredientUnits: number; hygieneRating: HygieneRating; executiveHeadChef: boolean; sousChefs: number; dishwashers: number; }
 export interface ConstructionResources { kind: 'construction'; heavyEquipmentCranes: number; activeMilestoneContracts: number; maintainedEquipment: boolean; safetyIncidentDue: boolean; }
 export type BusinessResources = RetailResources | MobilityResources | LogisticsResources | TechResources | ManufacturingResources | RestaurantResources | ConstructionResources;
+export type TransactionType = 'restock' | 'sale' | 'payroll' | 'expansion' | 'marketing';
+export interface BusinessTransaction { id: string; at: number; type: TransactionType; amount: number; label: string; }
 
 export interface BusinessEntity {
-  id: string; name: string; registeredName?: string; sector: BusinessSector; icon: string; operatingMode: OperatingMode; stage: number; stageName: string; isOwned: boolean; baseCost: number; baseHourlyRevenue: number; monthlyExpenses: { rent: number; payroll: number; maintenance: number; inventoryOrCloudCOGS: number }; policeHeat: number; stabilityIndex: number; workforce: WorkforceState; operationalLog: string[]; resources: BusinessResources; frozenUntil?: number;
+  id: string; name: string; registeredName?: string; sector: BusinessSector; icon: string; operatingMode: OperatingMode; stage: number; stageName: string; isOwned: boolean; baseCost: number; baseHourlyRevenue: number; monthlyExpenses: { rent: number; payroll: number; maintenance: number; inventoryOrCloudCOGS: number }; policeHeat: number; stabilityIndex: number; workforce: WorkforceState; operationalLog: string[]; resources: BusinessResources; transactionLedger?: BusinessTransaction[]; frozenUntil?: number;
 }
 export interface StockItem { ticker: string; name: string; type: 'Stock' | 'Crypto'; price: number; history: number[]; sharesOwned: number; avgBuyPrice: number; }
 export interface LifestyleItem { id: string; name: string; brand: string; category: 'Hypercar' | 'Aviation' | 'Yacht' | 'Real_Estate' | 'State_Asset'; price: number; monthlyUpkeep: number; prestigePoints: number; imageUrl: string; isOwned: boolean; requiresOffice?: 'President_USA'; }
