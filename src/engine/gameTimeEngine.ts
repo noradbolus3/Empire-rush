@@ -50,13 +50,6 @@ function getQuarter(month: number): string {
   return `Q${Math.floor(month / 3) + 1}`;
 }
 
-function ordinalDay(day: number): string {
-  if (day % 10 === 1 && day % 100 !== 11) return `${day}ST`;
-  if (day % 10 === 2 && day % 100 !== 12) return `${day}ND`;
-  if (day % 10 === 3 && day % 100 !== 13) return `${day}RD`;
-  return `${day}TH`;
-}
-
 export function formatSimulatedGameTime(timestamp: number): string {
   const date = new Date(timestamp);
   const quarter = getQuarter(date.getUTCMonth());
@@ -64,5 +57,5 @@ export function formatSimulatedGameTime(timestamp: number): string {
   const hour12 = hour24 % 12 || 12;
   const minute = String(date.getUTCMinutes()).padStart(2, '0');
   const meridiem = hour24 >= 12 ? 'PM' : 'AM';
-  return `[${quarter} ${date.getUTCFullYear()}] DAY ${ordinalDay(date.getUTCDate())} • ${hour12}:${minute} ${meridiem}`;
+  return `[${quarter} ${date.getUTCFullYear()}] DAY ${date.getUTCDate()} • ${hour12}:${minute} ${meridiem}`;
 }
