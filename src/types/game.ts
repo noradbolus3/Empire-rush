@@ -21,7 +21,7 @@ export interface RestaurantResources { kind: 'restaurant'; freshIngredientsShelf
 export interface ConstructionResources { kind: 'construction'; heavyEquipmentCranes: number; activeMilestoneContracts: number; maintainedEquipment: boolean; safetyIncidentDue: boolean; }
 export type BusinessResources = RetailResources | MobilityResources | LogisticsResources | TechResources | ManufacturingResources | RestaurantResources | ConstructionResources;
 export type TransactionType = 'restock' | 'sale' | 'payroll' | 'expansion' | 'marketing';
-export interface BusinessTransaction { id: string; at: number; type: TransactionType; amount: number; label: string; }
+export interface BusinessTransaction { id: string; at: number; type: TransactionType; amount: number; label: string; units?: number; revenue?: number; timestamp?: number; }
 
 export interface BusinessEntity {
   id: string; name: string; registeredName?: string; sector: BusinessSector; icon: string; operatingMode: OperatingMode; stage: number; stageName: string; isOwned: boolean; baseCost: number; baseHourlyRevenue: number; monthlyExpenses: { rent: number; payroll: number; maintenance: number; inventoryOrCloudCOGS: number }; policeHeat: number; stabilityIndex: number; workforce: WorkforceState; operationalLog: string[]; resources: BusinessResources; transactionLedger?: BusinessTransaction[]; frozenUntil?: number;
