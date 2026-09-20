@@ -17,7 +17,7 @@ export interface BaseBusiness {
   hourlyNetProfit: number;
 }
 export interface RetailData extends BaseBusiness {
-  sector: 'Retail'; stockUnits: number; maxStockCapacity: number; pricingTier: 'Discount' | 'Standard' | 'Luxury'; hasSecurity: boolean; hasManager: boolean;
+  sector: 'Retail'; stockUnits: number; maxStockCapacity: number; pricingTier: 'Discount' | 'Standard' | 'Luxury'; hasSecurity: boolean; hasManager: boolean; unitWholesaleCost?: number; monthlyRent?: number; monthlyPayroll?: number;
 }
 export interface MobilityData extends BaseBusiness {
   sector: 'Mobility'; economySedans: number; electricEVs: number; luxuryLimos: number; fleetHealth: number; surgeActive: boolean;
