@@ -1,16 +1,16 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { BUSINESS_CATALOG } from '../data/businesses';
-import { BusinessEntity } from '../types/game';
+import { BUSINESS_SIMULATION_SAVE, DEFAULT_BUSINESSES, loadBusinessSimulation, persistBusinessSimulation } from '../engine/businessSimulation';
+import { BusinessEntity } from '../types/business';
 
-const SAVE = 'empire-rush-game-businesses-v1';
-const fallbackBusinesses: BusinessEntity[] = BUSINESS_CATALOG.length > 0 ? BUSINESS_CATALOG : [];
-type GameContextValue = { businesses: BusinessEntity[]; setBusinesses: React.Dispatch<React.SetStateAction<BusinessEntity[]>> };
-const GameContext = createContext<GameContextValue>({ businesses: fallbackBusinesses, setBusinesses: () => undefined });
+type GameContextValue = { businesses: BusinessEntity[]; setBusinesses: React.Dispatch<React.SetStateAction<BusinessEntity[]>>; resetBusinesses: () => void };
+const GameContext = createContext<GameContextValue>({ businesses: DEFAULT_BUSINESSES, setBusinesses: () => undefined, resetBusinesses: () => undefined });
 export function GameProvider({ children }: { children: React.ReactNode }) {
-  const [businesses, setBusinesses] = useState<BusinessEntity[]>(fallbackBusinesses);
-  useEffect(() => { let active = true; AsyncStorage.getItem(SAVE).then(raw => { if (!active) return; try { const parsed = raw ? JSON.parse(raw) : []; if (Array.isArray(parsed) && parsed.length > 0) setBusinesses(parsed); else { setBusinesses(fallbackBusinesses); void AsyncStorage.setItem(SAVE, JSON.stringify(fallbackBusinesses)); } } catch { setBusinesses(fallbackBusinesses); void AsyncStorage.setItem(SAVE, JSON.stringify(fallbackBusinesses)); } }).catch(() => { if (active) setBusinesses(fallbackBusinesses); }); return () => { active = false; }; }, []);
-  const value = useMemo(() => ({ businesses: businesses.length > 0 ? businesses : fallbackBusinesses, setBusinesses }), [businesses]);
+  const [businesses, setBusinesses] = useState<BusinessEntity[]>(DEFAULT_BUSINESSES);
+  useEffect(() => { let active = true; void loadBusinessSimulation().then(value => { if (active) setBusinesses(value); }); return () => { active = false; }; }, []);
+  useEffect(() => { void persistBusinessSimulation(businesses).catch(() => undefined); }, [businesses]);
+  const resetBusinesses = () => { setBusinesses(DEFAULT_BUSINESSES); void AsyncStorage.setItem(BUSINESS_SIMULATION_SAVE, JSON.stringify(DEFAULT_BUSINESSES)); };
+  const value = useMemo(() => ({ businesses: businesses.length ? businesses : DEFAULT_BUSINESSES, setBusinesses, resetBusinesses }), [businesses]);
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
 }
 export function useGame() { return useContext(GameContext); }
