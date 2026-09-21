@@ -18,6 +18,8 @@ const businessScreen = read('src/screens/BusinessScreen.tsx');
 const homeScreen = read('src/screens/HomeScreen.tsx');
 const registration = read('src/components/modals/BusinessRegistrationModal.tsx');
 const network = read('src/context/NetworkContext.tsx');
+const businessHub = read('src/screens/business/BusinessMasterHubScreen.tsx');
+const ipoModal = read('src/components/modals/IPOLaunchModal.tsx');
 
 assert.match(app, /AsyncStorage\.getItem\(SAVE\)/, 'save/load: AsyncStorage load path missing');
 assert.match(app, /JSON\.parse\(raw\)/, 'save/load: JSON parse path missing');
@@ -80,4 +82,10 @@ assert.match(app, /showTestRewardedAd/, 'monetization: rewarded test placement m
 assert.match(app, /soundEnabled/, 'settings: sound toggle is not wired');
 assert.match(app, /maxExposure = 50000/, 'casino: session wager cap missing');
 assert.match(read('src/services/notifications.ts'), /scheduleNotificationAsync/, 'notifications: scheduled reminder missing');
+assert.match(homeScreen, /tapUpgradeLevel/, 'progression: tap value and upgrade level are not separate');
+assert.match(homeScreen, /onWatchBoost/, 'monetization: Home rewarded placement missing');
+assert.match(app, /CONFIRM REBIRTH/, 'progression: rebirth confirmation missing');
+assert.match(ipoModal, /CONFIRM PUBLIC OFFERING/, 'IPO: confirmation dialog missing');
+assert.match(businessHub, /lockedReason/, 'business UI: locked-action explanation missing');
+assert.match(app, /ownedSectors/, 'events: owned-sector scoping missing');
 console.log('Round 2 baseline regression matrix passed');
