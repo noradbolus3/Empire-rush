@@ -7,7 +7,8 @@ import { advanceGameTime, createInitialGameTime } from '../src/engine/gameTimeEn
 import { DEFAULT_BUSINESSES, simulateBusinessTick } from '../src/engine/businessSimulation';
 import { DEFAULT_PROGRESSION, hydrateDailyProgress } from '../src/types/progression';
 import { businessValuation, createIPOListing, getIPOEligibility } from '../src/engine/ipoEngine';
-import { MARKET_EVENTS, applyMarketEvent, calculateQuarterlyDividends } from '../src/engine/marketEngine';
+import { MARKET_EVENTS, applyMarketEvent, appendPortfolioPoint, calculateQuarterlyDividends, matchLimitOrders } from '../src/engine/marketEngine';
+import { LimitOrder } from '../src/types/market';
 
 const root = process.cwd();
 const read = (file: string) => fs.readFileSync(path.join(root, file), 'utf8');
@@ -68,4 +69,11 @@ const marketAsset = { id: 'market-test', symbol: 'MKT', name: 'Market Test', kin
 assert.equal(applyMarketEvent([marketAsset], MARKET_EVENTS.find(event => event.id === 'ev-credit')!)[0].price, 108, 'market: EV shock failed');
 assert.equal(calculateQuarterlyDividends([marketAsset], { 'market-test': { shares: 10 } }), 10, 'market: quarterly dividend failed');
 assert.match(app, /watchlist/, 'market: watchlist is not persisted');
+const limitOrder: LimitOrder = { id: 'limit-test', assetId: 'market-test', side: 'BUY', quantity: 2, limitPrice: 101, createdAt: 1, status: 'OPEN' };
+const matchedLimit = matchLimitOrders([marketAsset], [limitOrder], 2);
+assert.equal(matchedLimit.fills.length, 1, 'market: buy limit did not fill at or below target');
+assert.equal(appendPortfolioPoint([], 2, 120).length, 1, 'market: portfolio history point missing');
+assert.match(app, /onCreateLimitOrder/, 'market: limit-order callback missing');
+assert.match(app, /portfolioHistory/, 'market: portfolio history persistence missing');
+assert.match(read('src/screens/MarketScreen.tsx'), /AI RIVAL INVESTORS/, 'market: rival leaderboard missing');
 console.log('Round 2 baseline regression matrix passed');

@@ -1,3 +1,5 @@
+import { LimitOrder, PortfolioPoint } from '../types/market';
+
 export type MarketSector = 'TECH' | 'ENERGY' | 'PHARMA' | 'MOBILITY' | 'BANKING' | 'RETAIL' | 'CRYPTO';
 export type MarketAsset = { id: string; symbol: string; name: string; kind: 'STOCK' | 'CRYPTO'; price: number; change: number; dividend: number; volatility: number; history: number[]; sector?: MarketSector; maxShares?: number; isPlayerCompany?: boolean };
 export type MarketEvent = { id: string; headline: string; sector: MarketSector | 'ALL'; shock: number };
@@ -40,4 +42,28 @@ export function calculateQuarterlyDividends<T extends MarketAsset>(assets: T[], 
 export function quarterKey(timestamp: number): string {
   const date = new Date(timestamp);
   return `${date.getUTCFullYear()}-Q${Math.floor(date.getUTCMonth() / 3) + 1}`;
+}
+
+export function matchLimitOrders<T extends MarketAsset>(assets: T[], orders: LimitOrder[], gameTimestamp: number): { orders: LimitOrder[]; fills: LimitOrder[] } {
+  const fills: LimitOrder[] = [];
+  const nextOrders = orders.map(order => {
+    if (order.status !== 'OPEN') return order;
+    const asset = assets.find(item => item.id === order.assetId);
+    if (!asset) return order;
+    const canFill = order.side === 'BUY' ? asset.price <= order.limitPrice : asset.price >= order.limitPrice;
+    if (!canFill) return order;
+    const filled = { ...order, status: 'FILLED' as const, filledAt: gameTimestamp, filledPrice: asset.price };
+    fills.push(filled);
+    return filled;
+  });
+  return { orders: nextOrders, fills };
+}
+
+export function portfolioValue<T extends MarketAsset>(assets: T[], holdings: Record<string, { shares: number }>): number {
+  return Number(Object.entries(holdings).reduce((sum, [id, holding]) => sum + holding.shares * (assets.find(asset => asset.id === id)?.price || 0), 0).toFixed(2));
+}
+
+export function appendPortfolioPoint(points: PortfolioPoint[], timestamp: number, value: number): PortfolioPoint[] {
+  const next = [...points.filter(point => point.timestamp !== timestamp), { timestamp, value }];
+  return next.slice(-48);
 }
