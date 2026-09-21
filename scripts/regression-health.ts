@@ -7,6 +7,7 @@ import { advanceGameTime, createInitialGameTime } from '../src/engine/gameTimeEn
 import { DEFAULT_BUSINESSES, simulateBusinessTick } from '../src/engine/businessSimulation';
 import { DEFAULT_PROGRESSION, hydrateDailyProgress } from '../src/types/progression';
 import { businessValuation, createIPOListing, getIPOEligibility } from '../src/engine/ipoEngine';
+import { MARKET_EVENTS, applyMarketEvent, calculateQuarterlyDividends } from '../src/engine/marketEngine';
 
 const root = process.cwd();
 const read = (file: string) => fs.readFileSync(path.join(root, file), 'utf8');
@@ -59,4 +60,8 @@ assert.match(app, /return \(\) => clearInterval\(timer\)/, 'timers: App cleanup 
 assert.match(businessScreen, /return \(\) => clearInterval\(timer\)/, 'timers: business cleanup missing');
 assert.match(registration, /clearTimeout\(incorporationTimer\.current\)/, 'timers: registration cleanup missing');
 assert.match(network, /clearInterval\(timer\)/, 'timers: clock observer cleanup missing');
+const marketAsset = { id: 'market-test', symbol: 'MKT', name: 'Market Test', kind: 'STOCK' as const, price: 100, change: 0, dividend: 4, volatility: .02, history: [98, 100], sector: 'MOBILITY' as const };
+assert.equal(applyMarketEvent([marketAsset], MARKET_EVENTS.find(event => event.id === 'ev-credit')!)[0].price, 108, 'market: EV shock failed');
+assert.equal(calculateQuarterlyDividends([marketAsset], { 'market-test': { shares: 10 } }), 10, 'market: quarterly dividend failed');
+assert.match(app, /watchlist/, 'market: watchlist is not persisted');
 console.log('Round 2 baseline regression matrix passed');
