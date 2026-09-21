@@ -4,7 +4,7 @@ import { BusinessEntity, ConstructionData, MobilityData, RetailData, SaaSData } 
 export const BUSINESS_SIMULATION_SAVE = 'empire-rush-unified-businesses-v2';
 export const BUSINESS_SIMULATION_SAVE_VERSION = 2;
 export const DEFAULT_BUSINESSES: BusinessEntity[] = [
-  { id: 'apex-retail', name: 'Apex Retail Supermarket', sector: 'Retail', isUnlocked: true, unlockNetWorthRequired: 0, isAcquired: false, acquisitionCost: 2500, legalStatus: 'Licensed_Legal', policeHeat: 0, stability: 92, hourlyNetProfit: 0, stockUnits: 0, maxStockCapacity: 2500, pricingTier: 'Standard', hasSecurity: false, hasManager: false, unitWholesaleCost: 2, monthlyRent: 800, monthlyPayroll: 1200 },
+  { id: 'apex-retail', name: 'Apex Retail Supermarket', sector: 'Retail', isUnlocked: true, unlockNetWorthRequired: 0, isAcquired: false, acquisitionCost: 2500, legalStatus: 'Licensed_Legal', policeHeat: 0, stability: 92, hourlyNetProfit: 0, stockUnits: 0, maxStockCapacity: 2500, pricingTier: 'Standard', hasSecurity: false, hasManager: false, onboardingStep: 'ORDER_STOCK', unitWholesaleCost: 2, monthlyRent: 800, monthlyPayroll: 1200 },
   { id: 'metro-mobility', name: 'Metro Mobility Taxi Fleet', sector: 'Mobility', isUnlocked: false, unlockNetWorthRequired: 25000, isAcquired: false, acquisitionCost: 25000, legalStatus: 'Licensed_Legal', policeHeat: 0, stability: 90, hourlyNetProfit: 0, economySedans: 10, electricEVs: 0, luxuryLimos: 0, fleetHealth: 100, surgeActive: false },
   { id: 'cyberpulse-saas', name: 'CyberPulse SaaS Studio', sector: 'Tech_SaaS', isUnlocked: false, unlockNetWorthRequired: 100000, isAcquired: false, acquisitionCost: 100000, legalStatus: 'Licensed_Legal', policeHeat: 0, stability: 88, hourlyNetProfit: 0, activeSubscribers: 0, serverCapacity: 25000, openBugs: 0 },
   { id: 'titan-infrastructure', name: 'Titan Mega Infrastructure', sector: 'Construction_Mega', isUnlocked: false, unlockNetWorthRequired: 500000, isAcquired: false, acquisitionCost: 50000, legalStatus: 'Licensed_Legal', policeHeat: 0, stability: 85, hourlyNetProfit: 0, activeTenderName: null, projectPhase: 0, phaseProgressPercent: 0, projectEscrowPayout: 1200000, machineryDispatched: false, safetyCleared: false },
@@ -24,7 +24,7 @@ function retailTick(business: RetailData, seconds: number, events: string[]): { 
   const netCashDelta = Number((revenueEarned - cogs - fixedCosts - tax).toFixed(2));
   const hourlyNetProfit = Number((netCashDelta * 3600 / Math.max(1, seconds)).toFixed(2));
   if (business.stockUnits - unitsDeducted === 0) events.push(`${business.name}: shelves empty; sales halted.`);
-  return { business: { ...business, stockUnits: business.stockUnits - unitsDeducted, hourlyNetProfit, policeHeat: business.legalStatus === 'Shadow_Underground' ? Math.min(100, business.policeHeat + 0.02) : 0 }, cashDelta: netCashDelta };
+  return { business: { ...business, stockUnits: business.stockUnits - unitsDeducted, onboardingStep: business.onboardingStep === 'WATCH_FIRST_SALE' && unitsDeducted > 0 ? 'COMPLETE' : business.onboardingStep, hourlyNetProfit, policeHeat: business.legalStatus === 'Shadow_Underground' ? Math.min(100, business.policeHeat + 0.02) : 0 }, cashDelta: netCashDelta };
 }
 function mobilityTick(business: MobilityData, seconds: number): { business: MobilityData; cashDelta: number } {
   if (!business.isAcquired) return { business: { ...business, hourlyNetProfit: 0 }, cashDelta: 0 };
