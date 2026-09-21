@@ -6,9 +6,9 @@
 
 **Feature commit:** `1def20f` (`Fix Round 4 phone UI and progression gates`)
 
-**Bundle commit:** `0281753` (`Bundle corrected tap cap`)
+**Bundle commit:** `7deed3e` (`Pin APK build identity`)
 
-**Android workflow:** [GitHub Actions run 35583839666](https://github.com/noradbolus3/Empire-rush/actions/runs/35583839666)
+**Android workflow:** [GitHub Actions run 35586753580](https://github.com/noradbolus3/Empire-rush/actions/runs/35586753580)
 
 ## Verification summary
 
@@ -59,11 +59,11 @@ CI run `35581151553` passed all of these steps:
 
 ## APK
 
-The final corrected-cap Round 4 APK was downloaded from the successful workflow `35583839666` and verified locally.
+The final corrected-cap Round 4 APK was downloaded from the successful workflow `35586753580` and verified locally.
 
 - File: `empire-rush-round4-debug.apk`
 - Size: approximately 252 MB
-- SHA-256: `19c77e02a2026570f72bbcfae2eeb14fcd56edab810a0aab84be3b6eca8943e5`
+- SHA-256: `fd5b3597f0a2f7bc108c965b62715b882c5c5a36e9245bbeedd63aa9f08aff97`
 
 ## Screenshot follow-up
 
