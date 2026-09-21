@@ -4,6 +4,22 @@ export type MarketSector = 'TECH' | 'ENERGY' | 'PHARMA' | 'MOBILITY' | 'BANKING'
 export type MarketAsset = { id: string; symbol: string; name: string; kind: 'STOCK' | 'CRYPTO'; price: number; change: number; dividend: number; volatility: number; history: number[]; sector?: MarketSector; maxShares?: number; isPlayerCompany?: boolean };
 export type MarketEvent = { id: string; headline: string; sector: MarketSector | 'ALL'; shock: number };
 
+
+export function createSeededHistory(seed: string, price: number, volatility: number, length = 18): number[] {
+  let state = Array.from(seed).reduce((value, character) => (value * 31 + character.charCodeAt(0)) >>> 0, 2166136261);
+  let current = price * (0.94 + (state % 7) * 0.01);
+  const values: number[] = [];
+  for (let index = 0; index < length; index += 1) {
+    state = (1664525 * state + 1013904223) >>> 0;
+    const random = state / 4294967296;
+    const drift = (random - 0.5) * volatility * 1.8 + (index % 5 === 0 ? 0.002 : -0.0005);
+    current = Math.max(price * 0.72, Math.min(price * 1.12, current * (1 + drift)));
+    values.push(Number(current.toFixed(2)));
+  }
+  values[values.length - 1] = Number(price.toFixed(2));
+  return values;
+}
+
 export const MARKET_EVENTS: MarketEvent[] = [
   { id: 'fed-rate', headline: 'Fed holds rates higher for longer: growth stocks slide 6%', sector: 'TECH', shock: -0.06 },
   { id: 'ev-credit', headline: 'EV tax credit extended: U.S. mobility demand accelerates', sector: 'MOBILITY', shock: 0.08 },
@@ -19,7 +35,7 @@ export function applyMarketEvent<T extends MarketAsset>(assets: T[], event: Mark
   return assets.map(asset => {
     const matches = event.sector === 'ALL' || asset.kind === 'CRYPTO' && event.sector === 'CRYPTO' || asset.sector === event.sector;
     if (!matches) return asset;
-    const price = Math.max(asset.kind === 'CRYPTO' ? 1 : 5, asset.price * (1 + event.shock));
+    const price = Math.max(asset.kind === 'CRYPTO' ? 0.01 : 5, asset.price * (1 + event.shock));
     return { ...asset, price, change: event.shock * 100, history: [...asset.history.slice(-14), price] };
   });
 }
@@ -29,7 +45,7 @@ export function advanceMarketTick<T extends MarketAsset>(assets: T[], tick: numb
   const moved = assets.map(asset => {
     const wave = Math.sin(tick * 0.71 + asset.id.length) * asset.volatility * 0.45;
     const drift = (asset.kind === 'CRYPTO' ? 0.0004 : 0.00015) + wave;
-    const price = Math.max(asset.kind === 'CRYPTO' ? 1 : 5, asset.price * (1 + drift));
+    const price = Math.max(asset.kind === 'CRYPTO' ? 0.01 : 5, asset.price * (1 + drift));
     return { ...asset, price, change: drift * 100, history: [...asset.history.slice(-14), price] };
   });
   return { assets: event ? applyMarketEvent(moved, event) : moved, event };
