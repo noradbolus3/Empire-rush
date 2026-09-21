@@ -14,6 +14,7 @@ const read = (file: string) => fs.readFileSync(path.join(root, file), 'utf8');
 const app = read('App.tsx');
 const gameContext = read('src/context/GameContext.tsx');
 const businessScreen = read('src/screens/BusinessScreen.tsx');
+const homeScreen = read('src/screens/HomeScreen.tsx');
 const registration = read('src/components/modals/BusinessRegistrationModal.tsx');
 const network = read('src/context/NetworkContext.tsx');
 
@@ -44,6 +45,9 @@ assert.equal(firstLogin.loginStreak, 1, 'progression: first streak failed');
 assert.equal(nextLogin.loginStreak, 2, 'progression: consecutive streak failed');
 assert.equal(missedLogin.loginStreak, 1, 'progression: missed streak reset failed');
 assert.match(app, /missionClaimed/, 'progression: mission state missing');
+assert.ok(DEFAULT_PROGRESSION.achievements.length === 0 && DEFAULT_PROGRESSION.prestigeLevel === 0, 'progression: late-game defaults missing');
+assert.match(homeScreen, /REBIRTH EMPIRE/, 'progression: prestige control missing');
+assert.match(homeScreen, /WEEKLY EVENT/, 'progression: weekly event UI missing');
 const ipoBusiness = { ...retail, hourlyNetProfit: 2000 };
 assert.equal(getIPOEligibility({ ...ipoBusiness, isAcquired: false }, null).eligible, false, 'IPO: unacquired company was eligible');
 assert.equal(getIPOEligibility(ipoBusiness, null).eligible, true, 'IPO: eligible company was blocked');

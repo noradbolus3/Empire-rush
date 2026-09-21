@@ -6,6 +6,9 @@ export interface ProgressionState {
   missionClaimed: boolean;
   totalTaps: number;
   totalUpgrades: number;
+  achievements: string[];
+  prestigeLevel: number;
+  weeklyEventKey: string;
 }
 
 export const DEFAULT_PROGRESSION: ProgressionState = {
@@ -16,6 +19,9 @@ export const DEFAULT_PROGRESSION: ProgressionState = {
   missionClaimed: false,
   totalTaps: 0,
   totalUpgrades: 0,
+  achievements: [],
+  prestigeLevel: 0,
+  weeklyEventKey: '',
 };
 
 export function dayKey(timestamp = Date.now()): string {
