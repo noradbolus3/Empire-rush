@@ -95,7 +95,10 @@ assert(tapUpgradeCost(17) >= 48000 && tapUpgradeCost(17) <= 50000, 'tap ROI: lev
 assert.match(homeScreen, /tapUpgradeGain/, 'tap UI: next-level ROI is not visible');
 assert.match(read('src/config/buildInfo.ts'), /BUILD_VERSION/, 'settings: build version missing');
 assert.match(read('src/config/buildInfo.ts'), /BUILD_COMMIT/, 'settings: build commit missing');
-assert.match(app, /BrightGrid Energy/, 'migration: legacy BrightGrid name is not normalized');
+assert.match(app, /BrightGrid Energy/, 'migration: legacy BrightGrid asset name is not normalized');
+assert.match(read('src/engine/businessSimulation.ts'), /normalizeBusinessNames/, 'migration: legacy business name is not normalized');
+assert.match(read('src/engine/businessSimulation.ts'), /SunPeak Energy/, 'business: US energy company name missing');
+assert.match(businessScreen, /minHeight: 164/, 'business UI: header hero gap remains oversized');
 assert.match(read('src/screens/BusinessScreen.tsx'), /flexShrink: 0/, 'business UI: active badge still lacks edge protection');
 assert.match(read('src/screens/business/BusinessMasterHubScreen.tsx'), /IPO LOCKED/, 'IPO UI: pre-net-worth lock copy missing');
 assert.match(homeScreen, /REBIRTH LOCKED/, 'rebirth UI: pre-net-worth lock copy missing');
