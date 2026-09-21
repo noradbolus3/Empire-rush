@@ -41,7 +41,7 @@ assert.equal(DEFAULT_BUSINESSES.length, 10, 'businesses: ten-sector catalog miss
 const expansion = DEFAULT_BUSINESSES.find(item => item.sector === 'Energy')!;
 assert.equal(simulateBusinessTick([{ ...expansion, isAcquired: true }], 2).businesses[0].isAcquired, true, 'businesses: expansion sector tick failed');
 assert.match(businessScreen, /Math\.max\(0, value \+ result\.cashDelta\)/, 'wallet: passive payout clamp missing');
-assert.match(app, /Math\.max\(0, n - a\.price\)/, 'wallet: trade spend clamp missing');
+assert.match(app, /Math\.max\(0, n - total\)/, 'wallet: trade spend clamp missing');
 const firstLogin = hydrateDailyProgress(DEFAULT_PROGRESSION, Date.UTC(2026, 0, 1));
 const nextLogin = hydrateDailyProgress(firstLogin, Date.UTC(2026, 0, 2));
 const missedLogin = hydrateDailyProgress(nextLogin, Date.UTC(2026, 0, 4));
@@ -82,6 +82,9 @@ assert.match(app, /onCreateLimitOrder/, 'market: limit-order callback missing');
 assert.match(app, /portfolioHistory/, 'market: portfolio history persistence missing');
 assert.match(read('src/screens/MarketScreen.tsx'), /AI RIVAL INVESTORS/, 'market: rival leaderboard missing');
 assert.match(read('src/engine/marketEngine.ts'), /createSeededHistory/, 'market: seeded random-walk history missing');
+assert.match(app, /toFixed\(8\)/, 'market: fractional crypto precision missing');
+assert.match(app, /Math.min\(100, cash \/ Math.max/, 'market: small-balance crypto buy path missing');
+assert.match(read('src/screens/MarketScreen.tsx'), /Fractional units supported/, 'market: fractional crypto UI copy missing');
 assert.match(app, /Gridline Power/, 'market: stock and business names are not separated');
 assert.match(app, /67500/, 'market: crypto scale is not sensible');
 assert.match(read('src/engine/marketEngine.ts'), /asset\.kind === 'CRYPTO' \? 0\.01/, 'market: sub-dollar crypto floor is not supported');
