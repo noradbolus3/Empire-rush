@@ -6,7 +6,7 @@
 
 **Feature commit:** `1def20f` (`Fix Round 4 phone UI and progression gates`)
 
-**Bundle commit:** `f425234` (`Bundle Round 4 phone fixes`)
+**Bundle commit:** `f425234` (`Bundle Round 4 phone fixes`); a follow-up cap correction is being rebuilt after review of the level-17 save case.
 
 **Android workflow:** [GitHub Actions run 35581151553](https://github.com/noradbolus3/Empire-rush/actions/runs/35581151553)
 
@@ -20,7 +20,7 @@ The sandbox had no connected Android device or emulator (`adb` and `emulator` we
 
 | Requested item | Status | Implementation proof | Screenshot proof |
 |---|---|---|---|
-| Tap upgrade cost and ROI curve | **Fixed** | `src/engine/tapUpgradeEngine.ts` now uses `cost = round(32 × 1.4^level)` and `gain = min(10 − currentValue, 0.5 × 1.08^level)`. At level 17, the next gain is **$1.85**, not $0.50. Home displays `UPGRADE LEVEL … · +$1.85 NEXT`. The regression gate asserts level 17 gain is greater than $0.50. | **Partial**: verified in source, bundle, and regression; no physical device screenshot was possible in this sandbox. |
+| Tap upgrade cost and ROI curve | **Fixed** | `src/engine/tapUpgradeEngine.ts` now uses `cost = round(32 × 1.4^level)` and `gain = min(25 − currentValue, 0.5 × 1.08^level)`. The tap cap is now **$25.00**, so an old level-17 save at `$9.50` receives **+$1.85**, not a flat +$0.50. Home displays `UPGRADE LEVEL … · +$1.85 NEXT` and `MAX $25.00`. The regression gate asserts level 17 gain is greater than $0.50. | **Partial**: verified in source and regression; the corrected-cap APK is being rebuilt, and no physical device screenshot was possible in this sandbox. |
 | Lifestyle icons: car, jet, yacht, penthouse | **Fixed** | `LifestyleVisual` now receives the complete lifestyle item and selects a dedicated SVG icon by item category: car body and wheels, aircraft fuselage and wings, yacht hull and sail, or penthouse facade. Supercars can no longer fall through to the yacht path. | **Partial**: icon paths are in the generated bundle; no connected-device screenshot was available. |
 | Upkeep row/button spacing | **Fixed** | The lifestyle `upkeepRow` now has larger horizontal spacing plus bottom margin, and the acquire button has a dedicated top margin. | **Partial**: layout styles are bundled and typechecked; physical screenshot unavailable. |
 | US-style stock names / BrightGrid rename | **Fixed** | Current seed is `SunPeak Energy`, `Vantage Motors`, and `Beacon Bank` in `App.tsx`. The legacy business entry is also `SunPeak Energy` in `src/engine/businessSimulation.ts`. Persisted old names are normalized during hydration: `BrightGrid Energy → SunPeak Energy`, `Surya Energy → SunPeak Energy`, `Vahana Motors → Vantage Motors`, `Bharat Bank → Beacon Bank`. The previous BrightGrid screenshot was from an older installed build, not the new Round 4 APK. | **Partial**: source and bundle proof available; no device screenshot available. |

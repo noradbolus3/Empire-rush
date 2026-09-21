@@ -1,4 +1,4 @@
-export const TAP_VALUE_CAP = 10;
+export const TAP_VALUE_CAP = 25;
 export const INITIAL_TAP_VALUE = 1;
 
 export function tapUpgradeCost(level: number): number {
