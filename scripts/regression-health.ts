@@ -76,4 +76,8 @@ assert.equal(appendPortfolioPoint([], 2, 120).length, 1, 'market: portfolio hist
 assert.match(app, /onCreateLimitOrder/, 'market: limit-order callback missing');
 assert.match(app, /portfolioHistory/, 'market: portfolio history persistence missing');
 assert.match(read('src/screens/MarketScreen.tsx'), /AI RIVAL INVESTORS/, 'market: rival leaderboard missing');
+assert.match(app, /showTestRewardedAd/, 'monetization: rewarded test placement missing');
+assert.match(app, /soundEnabled/, 'settings: sound toggle is not wired');
+assert.match(app, /maxExposure = 50000/, 'casino: session wager cap missing');
+assert.match(read('src/services/notifications.ts'), /scheduleNotificationAsync/, 'notifications: scheduled reminder missing');
 console.log('Round 2 baseline regression matrix passed');
