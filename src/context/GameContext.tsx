@@ -10,7 +10,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => { let active = true; void loadBusinessSimulation().then(value => { if (active) { setBusinesses(value); setHydrated(true); } }); return () => { active = false; }; }, []);
   useEffect(() => { if (hydrated) void persistBusinessSimulation(businesses).catch(() => undefined); }, [businesses, hydrated]);
-  const resetBusinesses = () => { setBusinesses(DEFAULT_BUSINESSES); void AsyncStorage.setItem(BUSINESS_SIMULATION_SAVE, JSON.stringify(DEFAULT_BUSINESSES)); };
+  const resetBusinesses = () => { setBusinesses(DEFAULT_BUSINESSES); void AsyncStorage.setItem(BUSINESS_SIMULATION_SAVE, JSON.stringify({ schemaVersion: 2, businesses: DEFAULT_BUSINESSES })); };
   const value = useMemo(() => ({ businesses: businesses.length ? businesses : DEFAULT_BUSINESSES, setBusinesses, resetBusinesses }), [businesses]);
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
 }

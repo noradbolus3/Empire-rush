@@ -1,6 +1,6 @@
 export type OperatingStructure = 'Licensed_Legal' | 'Shadow_Underground';
 export type LegalStatus = OperatingStructure;
-export type SectorType = 'Retail' | 'Mobility' | 'Tech_SaaS' | 'Construction_Mega';
+export type SectorType = 'Retail' | 'Mobility' | 'Tech_SaaS' | 'Construction_Mega' | 'Real_Estate' | 'Energy' | 'Pharma' | 'Media' | 'Sports' | 'Airline';
 export type BusinessCategory = SectorType;
 
 export interface BaseBusiness {
@@ -15,6 +15,15 @@ export interface BaseBusiness {
   policeHeat: number;
   stability: number;
   hourlyNetProfit: number;
+  branchCount?: number;
+  staffCount?: number;
+  managerHired?: boolean;
+  upgradeLevel?: number;
+  reputation?: number;
+  customerSatisfaction?: number;
+  contractSecondsRemaining?: number;
+  contractReward?: number;
+  activeEvent?: string;
 }
 export interface RetailData extends BaseBusiness {
   sector: 'Retail'; stockUnits: number; maxStockCapacity: number; pricingTier: 'Discount' | 'Standard' | 'Luxury'; hasSecurity: boolean; hasManager: boolean; onboardingStep?: 'ORDER_STOCK' | 'WATCH_FIRST_SALE' | 'COMPLETE'; unitWholesaleCost?: number; monthlyRent?: number; monthlyPayroll?: number;
@@ -28,7 +37,20 @@ export interface SaaSData extends BaseBusiness {
 export interface ConstructionData extends BaseBusiness {
   sector: 'Construction_Mega'; activeTenderName: string | null; projectPhase: 0 | 1 | 2 | 3; phaseProgressPercent: number; projectEscrowPayout: number; machineryDispatched?: boolean; safetyCleared?: boolean;
 }
-export type BusinessEntity = RetailData | MobilityData | SaaSData | ConstructionData;
+export type ExpansionSector = 'Real_Estate' | 'Energy' | 'Pharma' | 'Media' | 'Sports' | 'Airline';
+export interface ExpansionData extends BaseBusiness {
+  sector: ExpansionSector;
+  branchCount: number;
+  staffCount: number;
+  managerHired: boolean;
+  upgradeLevel: number;
+  reputation: number;
+  customerSatisfaction: number;
+  contractSecondsRemaining: number;
+  contractReward: number;
+  activeEvent: string;
+}
+export type BusinessEntity = RetailData | MobilityData | SaaSData | ConstructionData | ExpansionData;
 
 /** Legacy detailed retail model used by the first playable retail hub. */
 export interface RetailBusinessState {

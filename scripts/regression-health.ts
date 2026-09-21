@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 import { calculateOfflineReward, calculateOfflineSeconds, MAX_OFFLINE_SECONDS } from '../src/engine/offlineEarnings';
 import { advanceGameTime, createInitialGameTime } from '../src/engine/gameTimeEngine';
-import { simulateBusinessTick } from '../src/engine/businessSimulation';
+import { DEFAULT_BUSINESSES, simulateBusinessTick } from '../src/engine/businessSimulation';
 import { DEFAULT_PROGRESSION, hydrateDailyProgress } from '../src/types/progression';
 import { businessValuation, createIPOListing, getIPOEligibility } from '../src/engine/ipoEngine';
 
@@ -31,6 +31,9 @@ const retailTick = simulateBusinessTick([retail], 2);
 assert.equal((retailTick.businesses[0] as typeof retail).stockUnits, 5, 'retail: stock deduction failed');
 assert.equal(retailTick.cashDelta, 6.15, 'retail: COGS/tax settlement failed');
 assert.equal(simulateBusinessTick([{ ...retail, stockUnits: 0 }], 2).cashDelta, 0, 'retail: empty inventory payout failed');
+assert.equal(DEFAULT_BUSINESSES.length, 10, 'businesses: ten-sector catalog missing');
+const expansion = DEFAULT_BUSINESSES.find(item => item.sector === 'Energy')!;
+assert.equal(simulateBusinessTick([{ ...expansion, isAcquired: true }], 2).businesses[0].isAcquired, true, 'businesses: expansion sector tick failed');
 assert.match(businessScreen, /Math\.max\(0, value \+ result\.cashDelta\)/, 'wallet: passive payout clamp missing');
 assert.match(app, /Math\.max\(0, n - a\.price\)/, 'wallet: trade spend clamp missing');
 const firstLogin = hydrateDailyProgress(DEFAULT_PROGRESSION, Date.UTC(2026, 0, 1));
