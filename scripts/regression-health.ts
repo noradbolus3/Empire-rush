@@ -9,6 +9,7 @@ import { DEFAULT_PROGRESSION, hydrateDailyProgress } from '../src/types/progress
 import { businessValuation, createIPOListing, getIPOEligibility } from '../src/engine/ipoEngine';
 import { MARKET_EVENTS, applyMarketEvent, appendPortfolioPoint, calculateQuarterlyDividends, matchLimitOrders } from '../src/engine/marketEngine';
 import { LimitOrder } from '../src/types/market';
+import { tapUpgradeCost, tapUpgradeGain } from '../src/engine/tapUpgradeEngine';
 
 const root = process.cwd();
 const read = (file: string) => fs.readFileSync(path.join(root, file), 'utf8');
@@ -88,4 +89,14 @@ assert.match(app, /CONFIRM REBIRTH/, 'progression: rebirth confirmation missing'
 assert.match(ipoModal, /CONFIRM PUBLIC OFFERING/, 'IPO: confirmation dialog missing');
 assert.match(businessHub, /lockedReason/, 'business UI: locked-action explanation missing');
 assert.match(app, /ownedSectors/, 'events: owned-sector scoping missing');
+assert(tapUpgradeGain(17, 5) > 0.5, 'tap ROI: level 17 gain is still flat at $0.50');
+assert(tapUpgradeCost(17) > tapUpgradeCost(16), 'tap ROI: upgrade cost curve is not increasing');
+assert.match(homeScreen, /tapUpgradeGain/, 'tap UI: next-level ROI is not visible');
+assert.match(read('src/config/buildInfo.ts'), /BUILD_VERSION/, 'settings: build version missing');
+assert.match(read('src/config/buildInfo.ts'), /BUILD_COMMIT/, 'settings: build commit missing');
+assert.match(app, /BrightGrid Energy/, 'migration: legacy BrightGrid name is not normalized');
+assert.match(read('src/screens/BusinessScreen.tsx'), /flexShrink: 0/, 'business UI: active badge still lacks edge protection');
+assert.match(read('src/screens/business/BusinessMasterHubScreen.tsx'), /IPO LOCKED/, 'IPO UI: pre-net-worth lock copy missing');
+assert.match(homeScreen, /REBIRTH LOCKED/, 'rebirth UI: pre-net-worth lock copy missing');
+assert.match(app, /<LifestyleVisual item=\{x\}/, 'lifestyle UI: visuals are not item-specific');
 console.log('Round 2 baseline regression matrix passed');
