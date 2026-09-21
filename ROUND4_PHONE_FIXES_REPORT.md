@@ -28,7 +28,7 @@ The sandbox had no connected Android device or emulator (`adb` and `emulator` we
 | Empty gap below business header | **Fixed** | Business content top padding is reduced to 8px and hero minimum height is reduced from 214px to 198px, keeping the first goal card closer to the header without collapsing safe-area content. | **Partial**: layout code and CI bundle verified; no device screenshot available. |
 | Rebirth locked before net-worth gate | **Fixed** | Home now renders a disabled `REBIRTH LOCKED · NEED $X` button while net worth is below $1,000,000. The existing confirmation/reward preview remains available only after the gate. | **Partial**: source, regression marker, and bundle verified; no physical screenshot available. |
 | IPO locked before net-worth gate | **Fixed** | Business operations show a locked IPO card with `Need $X more net worth` below the shared `$500,000` IPO gate. The public-offering card/action is shown only after the gate or for an existing public listing. | **Partial**: source, regression marker, and bundle verified; no physical screenshot available. |
-| Settings build version and commit hash | **Fixed** | `src/config/buildInfo.ts` displays `Version 1.0.0-round4` and source commit `1def20f`. Settings renders both values under **BUILD IDENTITY**. The APK bundle contains `1def20f`. | **Partial**: bundle string verified; no device screenshot available. |
+| Settings build version and commit hash | **Fixed** | `src/config/buildInfo.ts` displays `Version 1.0.0-round4` and source commit `3dcd017`. Settings renders both values under **BUILD IDENTITY**. The APK bundle contains `3dcd017`. | **Partial**: bundle string verified; no device screenshot available. |
 
 ## Regression and build evidence
 
