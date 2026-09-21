@@ -6,9 +6,9 @@
 
 **Feature commit:** `1def20f` (`Fix Round 4 phone UI and progression gates`)
 
-**Bundle commit:** `90a88dc` (`Pin Settings to exact CI head`)
+**Bundle commit:** `245d8f1` (`Bundle preserved tap cost`)
 
-**Android workflow:** [GitHub Actions run 35589802813](https://github.com/noradbolus3/Empire-rush/actions/runs/35589802813)
+**Android workflow:** [GitHub Actions run 35592728721](https://github.com/noradbolus3/Empire-rush/actions/runs/35592728721)
 
 ## Verification summary
 
@@ -20,7 +20,7 @@ The sandbox had no connected Android device or emulator (`adb` and `emulator` we
 
 | Requested item | Status | Implementation proof | Screenshot proof |
 |---|---|---|---|
-| Tap upgrade cost and ROI curve | **Fixed** | `src/engine/tapUpgradeEngine.ts` now uses `cost = round(32 × 1.4^level)` and `gain = min(25 − currentValue, 0.5 × 1.08^level)`. The tap cap is now **$25.00**, so an old level-17 save at `$9.50` receives **+$1.85**, not a flat +$0.50. Home displays `UPGRADE LEVEL … · +$1.85 NEXT` and `MAX $25.00`. The regression gate asserts level 17 gain is greater than $0.50. | **Partial**: verified in source and regression; the corrected-cap APK is verified in CI, and no physical device screenshot was possible in this sandbox. |
+| Tap upgrade cost and ROI curve | **Fixed** | `src/engine/tapUpgradeEngine.ts` now uses `cost = round(160 × 1.4^level)` and `gain = min(25 − currentValue, 0.5 × 1.08^level)`. This preserves the user-observed level-17 cost at approximately **$48,786** while making the next gain **+$1.85**, not a flat +$0.50. The tap cap is **$25.00**. Home displays `UPGRADE LEVEL … · +$1.85 NEXT` and `MAX $25.00`. | **Partial**: verified in source and regression; the preserved-cost APK is verified in CI, and no physical device screenshot was possible in this sandbox. |
 | Lifestyle icons: car, jet, yacht, penthouse | **Fixed** | `LifestyleVisual` now receives the complete lifestyle item and selects a dedicated SVG icon by item category: car body and wheels, aircraft fuselage and wings, yacht hull and sail, or penthouse facade. Supercars can no longer fall through to the yacht path. | **Partial**: icon paths are in the generated bundle; no connected-device screenshot was available. |
 | Upkeep row/button spacing | **Fixed** | The lifestyle `upkeepRow` now has larger horizontal spacing plus bottom margin, and the acquire button has a dedicated top margin. | **Partial**: layout styles are bundled and typechecked; physical screenshot unavailable. |
 | US-style stock names / BrightGrid rename | **Fixed** | Current seed is `SunPeak Energy`, `Vantage Motors`, and `Beacon Bank` in `App.tsx`. The legacy business entry is also `SunPeak Energy` in `src/engine/businessSimulation.ts`. Persisted old names are normalized during hydration: `BrightGrid Energy → SunPeak Energy`, `Surya Energy → SunPeak Energy`, `Vahana Motors → Vantage Motors`, `Bharat Bank → Beacon Bank`. The previous BrightGrid screenshot was from an older installed build, not the new Round 4 APK. | **Partial**: source and bundle proof available; no device screenshot available. |
@@ -59,11 +59,11 @@ CI run `35581151553` passed all of these steps:
 
 ## APK
 
-The final corrected-cap Round 4 APK was downloaded from the successful workflow `35589802813` and verified locally.
+The final corrected-cap Round 4 APK was downloaded from the successful workflow `35592728721` and verified locally.
 
 - File: `empire-rush-round4-debug.apk`
 - Size: approximately 252 MB
-- SHA-256: `db64653dbc79f731bc28f93d09c6fa275bb24a4ffe7f39ae31274937eb41b5fa`
+- SHA-256: `5f57847253858f5e0074ddc63ba70ced7ba9d5eb0669de1bb523314e992e45c7`
 
 ## Screenshot follow-up
 

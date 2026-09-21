@@ -91,6 +91,7 @@ assert.match(businessHub, /lockedReason/, 'business UI: locked-action explanatio
 assert.match(app, /ownedSectors/, 'events: owned-sector scoping missing');
 assert(tapUpgradeGain(17, 5) > 0.5, 'tap ROI: level 17 gain is still flat at $0.50');
 assert(tapUpgradeCost(17) > tapUpgradeCost(16), 'tap ROI: upgrade cost curve is not increasing');
+assert(tapUpgradeCost(17) >= 48000 && tapUpgradeCost(17) <= 50000, 'tap ROI: level 17 cost left the expected ~$49K range');
 assert.match(homeScreen, /tapUpgradeGain/, 'tap UI: next-level ROI is not visible');
 assert.match(read('src/config/buildInfo.ts'), /BUILD_VERSION/, 'settings: build version missing');
 assert.match(read('src/config/buildInfo.ts'), /BUILD_COMMIT/, 'settings: build commit missing');
