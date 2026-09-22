@@ -90,7 +90,6 @@ jobs:
           api-level: 35
           target: google_apis
           arch: x86_64
-          profile: Pixel_6
           script: bash scripts/capture-emulator-screenshots.sh artifacts/apk/app-debug.apk artifacts/screenshots
 
       - name: Upload emulator screenshots
