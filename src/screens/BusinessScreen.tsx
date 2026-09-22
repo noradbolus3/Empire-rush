@@ -5,6 +5,7 @@ import Svg, { Circle, Defs, LinearGradient, Path, Rect, Stop } from 'react-nativ
 import BusinessRegistrationModal from '../components/modals/BusinessRegistrationModal';
 import { useGame } from '../context/GameContext';
 import { simulateBusinessTick } from '../engine/businessSimulation';
+import { founderOwnershipFraction } from '../engine/ipoEngine';
 import { BusinessEntity, OperatingStructure, RetailBusinessState } from '../types/business';
 import { IPOListing } from '../types/ipo';
 import { RetailShopState } from '../types/retail';
@@ -25,7 +26,7 @@ export function BusinessScreen({ cash, netWorth, gameTimestamp, ipoListing, onIP
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [registrationId, setRegistrationId] = useState<string | null>(null);
   const constructionElapsed = useRef(0);
-  useEffect(() => { const timer = setInterval(() => { constructionElapsed.current += 2; const constructionSeconds = constructionElapsed.current >= 3 ? 3 : 0; if (constructionSeconds) constructionElapsed.current -= 3; const result = simulateBusinessTick(businesses, 2, constructionSeconds, cash); if (result.cashDelta !== 0) { onCashChange(value => Math.max(0, value + result.cashDelta)); onIncome(); } if (result.businesses !== businesses) setBusinesses(result.businesses); onProfitChange(result.businesses.reduce((sum, item) => sum + (item.isAcquired ? item.hourlyNetProfit : 0), 0)); }, 2000); return () => clearInterval(timer); }, [businesses, onCashChange, onIncome, onProfitChange, setBusinesses]);
+  useEffect(() => { const timer = setInterval(() => { constructionElapsed.current += 2; const constructionSeconds = constructionElapsed.current >= 3 ? 3 : 0; if (constructionSeconds) constructionElapsed.current -= 3; const ownershipFractions = ipoListing ? { [ipoListing.companyId]: founderOwnershipFraction(ipoListing) } : {}; const result = simulateBusinessTick(businesses, 2, constructionSeconds, cash, ownershipFractions, netWorth); if (result.cashDelta !== 0) { onCashChange(value => Math.max(0, value + result.cashDelta)); onIncome(); } if (result.businesses !== businesses) setBusinesses(result.businesses); onProfitChange(result.businesses.reduce((sum, item) => sum + (item.isAcquired ? item.hourlyNetProfit : 0), 0)); }, 2000); return () => clearInterval(timer); }, [businesses, cash, ipoListing, netWorth, onCashChange, onIncome, onProfitChange, setBusinesses]);
   const selected = useMemo(() => businesses.find(item => item.id === selectedId && item.isAcquired) || null, [businesses, selectedId]);
   const registrationTarget = businesses.find(item => item.id === registrationId) || null;
   useEffect(() => { if (!focusRetail) return; const retail = businesses.find(item => item.sector === 'Retail'); if (retail?.isAcquired) setSelectedId(retail.id); else if (retail) setRegistrationId(retail.id); onRetailFocusHandled?.(); }, [businesses, focusRetail, onRetailFocusHandled]);

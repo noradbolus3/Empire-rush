@@ -4,6 +4,7 @@ import { IPOEligibility, IPOListing } from '../types/ipo';
 
 export const IPO_MIN_VALUATION = 500000;
 export const IPO_PUBLIC_OFFERING_PERCENT = 0.2;
+export const IPO_MAX_NET_WORTH_PROCEEDS_MULTIPLE = 3;
 
 export function businessValuation(business: BusinessEntity): number {
   const annualizedProfit = Math.max(0, business.hourlyNetProfit) * 24 * 365;
@@ -25,14 +26,28 @@ export function normalizeTicker(name: string): string {
   return (letters.slice(0, 3) || 'EMR').padEnd(3, 'X');
 }
 
-export function createIPOListing(business: BusinessEntity, gameTimestamp: number, tickerOverride?: string): IPOListing {
+export function createIPOListing(business: BusinessEntity, gameTimestamp: number, tickerOverride?: string, netWorth?: number): IPOListing {
   const valuation = businessValuation(business);
   const publicShares = Math.max(1000, Math.floor(valuation / 10));
   const founderShares = publicShares * 4;
   const sharesOutstanding = founderShares + publicShares;
   const ipoPrice = Number((valuation / sharesOutstanding).toFixed(2));
   const ticker = normalizeTicker(tickerOverride || business.name);
-  return { companyId: business.id, companyName: business.name, ticker, sector: business.sector, sharesOutstanding, founderShares, publicShares, ipoPrice, currentPrice: ipoPrice, capitalRaised: Number((publicShares * ipoPrice).toFixed(2)), valuationAtIPO: valuation, stage: 'public', listedAtGameTimestamp: gameTimestamp, history: [ipoPrice * .96, ipoPrice * .98, ipoPrice, ipoPrice * 1.01, ipoPrice * 1.015] };
+  const grossProceeds = Number((publicShares * ipoPrice).toFixed(2));
+  const proceedsCap = Number.isFinite(netWorth) ? Math.max(0, Number(netWorth)) * IPO_MAX_NET_WORTH_PROCEEDS_MULTIPLE : grossProceeds;
+  return { companyId: business.id, companyName: business.name, ticker, sector: business.sector, sharesOutstanding, founderShares, publicShares, ipoPrice, currentPrice: ipoPrice, capitalRaised: Number(Math.min(grossProceeds, proceedsCap).toFixed(2)), founderOwnershipFraction: 1 - IPO_PUBLIC_OFFERING_PERCENT, valuationAtIPO: valuation, stage: 'public', listedAtGameTimestamp: gameTimestamp, history: [ipoPrice * .96, ipoPrice * .98, ipoPrice, ipoPrice * 1.01, ipoPrice * 1.015] };
+}
+
+export function founderOwnershipFraction(listing?: IPOListing | null): number {
+  if (!listing) return 1;
+  if (Number.isFinite(listing.founderOwnershipFraction)) return Math.min(1, Math.max(0, Number(listing.founderOwnershipFraction)));
+  const inferred = listing.sharesOutstanding > 0 ? listing.founderShares / listing.sharesOutstanding : 1 - IPO_PUBLIC_OFFERING_PERCENT;
+  return Math.min(1, Math.max(0, inferred));
+}
+
+export function capIPOProceeds(listing: IPOListing, netWorth: number): IPOListing {
+  const safeNetWorth = Number.isFinite(netWorth) ? Math.max(0, netWorth) : 0;
+  return { ...listing, capitalRaised: Number(Math.min(Math.max(0, listing.capitalRaised), safeNetWorth * IPO_MAX_NET_WORTH_PROCEEDS_MULTIPLE).toFixed(2)), founderOwnershipFraction: founderOwnershipFraction(listing) };
 }
 
 export function listingToAsset(listing: IPOListing): Asset {

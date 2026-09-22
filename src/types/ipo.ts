@@ -11,6 +11,7 @@ export interface IPOListing {
   ipoPrice: number;
   currentPrice: number;
   capitalRaised: number;
+  founderOwnershipFraction?: number;
   valuationAtIPO: number;
   stage: IPOStage;
   listedAtGameTimestamp: number;
