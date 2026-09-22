@@ -1,0 +1,67 @@
+name: Android emulator screenshots
+
+on:
+  workflow_dispatch:
+    inputs:
+      apk_run_id:
+        description: Successful build-android workflow run ID containing empire-rush-debug-apk
+        required: true
+        type: string
+  workflow_run:
+    workflows: [Android debug APK]
+    types: [completed]
+
+jobs:
+  emulator-screenshots:
+    if: >-
+      (github.event_name == 'workflow_dispatch') ||
+      (github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Resolve APK workflow run
+        id: run
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_RUN_ID: ${{ inputs.apk_run_id }}
+          EVENT_RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            echo "run_id=$INPUT_RUN_ID" >> "$GITHUB_OUTPUT"
+          else
+            echo "run_id=$EVENT_RUN_ID" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download debug APK
+        uses: actions/download-artifact@v4
+        with:
+          name: empire-rush-debug-apk
+          path: artifacts/apk
+          run-id: ${{ steps.run.outputs.run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Run Android emulator and capture UI proof
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          disable-animations: true
+          cores: 4
+          ram-size: 4096M
+          script: bash scripts/capture-emulator-screenshots.sh artifacts/apk/app-debug.apk artifacts/screenshots
+
+      - name: Upload emulator screenshots and diagnostics
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: empire-rush-emulator-screenshots
+          path: artifacts/screenshots
+          if-no-files-found: warn

@@ -119,7 +119,7 @@ assert.match(app, /<LifestyleVisual item=\{x\}/, 'lifestyle UI: visuals are not 
 assert.match(read('src/screens/business/BusinessMasterHubScreen.tsx'), /scrollTo\(\{ y: 260/, 'retail: next-goal stock-order autofocus missing');
 assert.match(read('src/screens/business/BusinessMasterHubScreen.tsx'), /saleFlash/, 'retail: sale feedback animation missing');
 assert.match(homeScreen, /Share\.share/, 'virality: organic milestone share action missing');
-assert.match(read('.github/workflows/build-android.yml'), /emulator-screenshots/, 'build: emulator screenshot artifact missing');
+assert.match(read('.github/workflows/emulator-screenshots.yml'), /emulator-screenshots/, 'build: emulator screenshot artifact missing');
 assert.match(read('src/engine/businessSimulation.ts'), /salesRemainder/, 'retail: fractional sales accumulator missing');
 assert.match(read('src/engine/businessSimulation.ts'), /demandEvent/, 'retail: timed demand pulse state missing');
 assert.match(read('src/engine/businessSimulation.ts'), /unitsDeducted > 0 \? Number/, 'retail: empty-shelf operating bleed guard missing');
