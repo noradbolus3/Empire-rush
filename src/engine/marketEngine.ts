@@ -20,6 +20,11 @@ export function createSeededHistory(seed: string, price: number, volatility: num
   return values;
 }
 
+
+export function normalizeAssetHistories<T extends MarketAsset>(assets: T[]): T[] {
+  return assets.map(asset => ({ ...asset, history: asset.history.length < 2 || new Set(asset.history.map(value => value.toFixed(4))).size < Math.min(4, asset.history.length) ? createSeededHistory(`${asset.id}:${asset.symbol}:${asset.name}`, asset.price, asset.volatility) : asset.history }));
+}
+
 export const MARKET_EVENTS: MarketEvent[] = [
   { id: 'fed-rate', headline: 'Fed holds rates higher for longer: growth stocks slide 6%', sector: 'TECH', shock: -0.06 },
   { id: 'ev-credit', headline: 'EV tax credit extended: U.S. mobility demand accelerates', sector: 'MOBILITY', shock: 0.08 },
@@ -43,8 +48,9 @@ export function applyMarketEvent<T extends MarketAsset>(assets: T[], event: Mark
 export function advanceMarketTick<T extends MarketAsset>(assets: T[], tick: number): { assets: T[]; event: MarketEvent | null } {
   const event = tick > 0 && tick % 15 === 0 ? MARKET_EVENTS[(tick / 15 - 1) % MARKET_EVENTS.length] : null;
   const moved = assets.map(asset => {
-    const wave = Math.sin(tick * 0.71 + asset.id.length) * asset.volatility * 0.45;
-    const drift = (asset.kind === 'CRYPTO' ? 0.0004 : 0.00015) + wave;
+    const seed = Array.from(`${asset.id}:${asset.symbol}`).reduce((value, character) => (value * 33 + character.charCodeAt(0)) >>> 0, tick + 17);
+    const random = ((1664525 * seed + 1013904223) >>> 0) / 4294967296;
+    const drift = (asset.kind === 'CRYPTO' ? 0.0004 : 0.00015) + (random - 0.5) * asset.volatility * 1.5;
     const price = Math.max(asset.kind === 'CRYPTO' ? 0.01 : 5, asset.price * (1 + drift));
     return { ...asset, price, change: drift * 100, history: [...asset.history.slice(-14), price] };
   });

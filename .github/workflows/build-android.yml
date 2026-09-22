@@ -37,6 +37,9 @@ jobs:
           CI: '1'
         run: npx expo prebuild --platform android --no-install
 
+      - name: Inject exact build identity
+        run: sed -i "s/BUILD_COMMIT = '.*'/BUILD_COMMIT = '${GITHUB_SHA:0:7}'/" src/config/buildInfo.ts
+
       - name: Enable standalone offline JavaScript bundle
         working-directory: android
         run: |
@@ -66,4 +69,33 @@ jobs:
         with:
           name: empire-rush-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+  emulator-screenshots:
+    needs: build-android
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download debug APK
+        uses: actions/download-artifact@v4
+        with:
+          name: empire-rush-debug-apk
+          path: artifacts/apk
+
+      - name: Run Android emulator and capture UI proof
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: Pixel_6
+          script: bash scripts/capture-emulator-screenshots.sh artifacts/apk/app-debug.apk artifacts/screenshots
+
+      - name: Upload emulator screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: empire-rush-emulator-screenshots
+          path: artifacts/screenshots
           if-no-files-found: error

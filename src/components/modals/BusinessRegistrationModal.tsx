@@ -6,7 +6,7 @@ import { formatCurrency } from '../../utils/formatCurrency';
 const C = { bg: '#08111F', card: '#122238', green: '#28E39A', red: '#FF647F', cyan: '#49C8FF', white: '#F8FAFC', muted: '#8EA4BA', slate: '#29425D', gold: '#FFC857' };
 type Props = { visible: boolean; cash: number; suggestedName?: string; onClose: () => void; onIncorporate: (name: string, structure: OperatingStructure, fee: number) => void };
 
-export function BusinessRegistrationModal({ visible, cash, suggestedName = 'Apex Retail Corp', onClose, onIncorporate }: Props) {
+export function BusinessRegistrationModal({ visible, cash, suggestedName = 'Copper & Bloom Market', onClose, onIncorporate }: Props) {
   const [name, setName] = useState(suggestedName); const [structure, setStructure] = useState<OperatingStructure>('Licensed_Legal'); const [certified, setCertified] = useState(false); const incorporationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => { if (visible) { setName(suggestedName); setStructure('Licensed_Legal'); setCertified(false); } return () => { if (incorporationTimer.current) clearTimeout(incorporationTimer.current); }; }, [visible, suggestedName]);
   const submit = () => { const fee = structure === 'Licensed_Legal' ? 2500 : 0; if (!name.trim()) return Alert.alert('Name your company', 'Choose a registered company name to continue.'); if (cash < fee) return Alert.alert('Insufficient cash', `This charter requires ${formatCurrency(fee)} in filing fees.`); if (incorporationTimer.current) clearTimeout(incorporationTimer.current); setCertified(true); incorporationTimer.current = setTimeout(() => { incorporationTimer.current = null; onIncorporate(name.trim(), structure, fee); }, 450); };

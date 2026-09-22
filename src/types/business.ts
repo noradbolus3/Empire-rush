@@ -26,7 +26,7 @@ export interface BaseBusiness {
   activeEvent?: string;
 }
 export interface RetailData extends BaseBusiness {
-  sector: 'Retail'; stockUnits: number; maxStockCapacity: number; pricingTier: 'Discount' | 'Standard' | 'Luxury'; hasSecurity: boolean; hasManager: boolean; onboardingStep?: 'ORDER_STOCK' | 'WATCH_FIRST_SALE' | 'COMPLETE'; unitWholesaleCost?: number; monthlyRent?: number; monthlyPayroll?: number;
+  sector: 'Retail'; stockUnits: number; maxStockCapacity: number; pricingTier: 'Discount' | 'Standard' | 'Luxury'; hasSecurity: boolean; hasManager: boolean; onboardingStep?: 'ORDER_STOCK' | 'WATCH_FIRST_SALE' | 'COMPLETE'; unitWholesaleCost?: number; monthlyRent?: number; monthlyPayroll?: number; salesRemainder?: number; autoRestockEnabled?: boolean; demandEvent?: 'None' | 'Morning Rush' | 'Viral Drop' | 'Rain Delay'; demandEventSeconds?: number; demandClockSeconds?: number; pulseChain?: number; lastSaleSequence?: number; lastSaleRevenue?: number;
 }
 export interface MobilityData extends BaseBusiness {
   sector: 'Mobility'; economySedans: number; electricEVs: number; luxuryLimos: number; fleetHealth: number; surgeActive: boolean;
