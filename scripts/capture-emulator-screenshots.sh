@@ -22,7 +22,7 @@ if [[ -z "$launcher" || "$launcher" == "No activity found" ]]; then
   exit 1
 fi
 echo "Launching $launcher"
-$ADB shell am start -W -n "$launcher" || $ADB shell monkey -p "$PACKAGE" -c android.intent.category.LAUNCHER 1
+$ADB shell am start -n "$launcher" >/dev/null 2>&1 || $ADB shell monkey -p "$PACKAGE" -c android.intent.category.LAUNCHER 1
 
 app_in_focus() {
   $ADB shell dumpsys activity activities 2>/dev/null | grep -E "mResumedActivity|mFocusedApp" | grep -q "$PACKAGE"
