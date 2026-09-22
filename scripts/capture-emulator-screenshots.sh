@@ -6,27 +6,36 @@ OUT_DIR="${2:-artifacts/screenshots}"
 mkdir -p "$OUT_DIR"
 ADB="adb"
 PACKAGE="com.empirerush.tycoon"
-ACTIVITY="$PACKAGE/.MainActivity"
 
+$ADB wait-for-device
 $ADB install -r "$APK_PATH" >/dev/null
+$ADB shell pm clear "$PACKAGE" >/dev/null || true
 $ADB shell settings put global window_animation_scale 0
 $ADB shell settings put global transition_animation_scale 0
 $ADB shell settings put global animator_duration_scale 0
 $ADB shell am force-stop "$PACKAGE"
-$ADB shell am start -n "$ACTIVITY" >/dev/null
+
+launcher="$($ADB shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.LAUNCHER "$PACKAGE" | tr -d '\r' | tail -1)"
+if [[ -z "$launcher" || "$launcher" == "No activity found" ]]; then
+  echo "Unable to resolve launcher activity for $PACKAGE" >&2
+  $ADB shell pm path "$PACKAGE" >&2 || true
+  exit 1
+fi
+echo "Launching $launcher"
+$ADB shell am start -W -n "$launcher" || $ADB shell monkey -p "$PACKAGE" -c android.intent.category.LAUNCHER 1
 
 app_in_focus() {
-  $ADB shell dumpsys window windows 2>/dev/null | grep -E "mCurrentFocus|mFocusedApp" | grep -q "$PACKAGE"
+  $ADB shell dumpsys activity activities 2>/dev/null | grep -E "mResumedActivity|mFocusedApp" | grep -q "$PACKAGE"
 }
 
 wait_for_app() {
-  for _ in $(seq 1 45); do
+  for _ in $(seq 1 60); do
     if app_in_focus; then return 0; fi
-    $ADB shell input keyevent KEYCODE_BACK >/dev/null 2>&1 || true
-    sleep 2
+    sleep 1
   done
   echo "App did not reach foreground focus" >&2
-  $ADB shell dumpsys window windows | tail -80 >&2 || true
+  $ADB shell dumpsys activity activities | grep -E "mResumedActivity|mFocusedApp|$PACKAGE|topResumedActivity" | tail -50 >&2 || true
+  $ADB logcat -d -t 500 > "$OUT_DIR/emulator-logcat.txt" || true
   exit 1
 }
 
