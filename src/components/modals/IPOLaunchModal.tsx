@@ -13,7 +13,7 @@ export function IPOLaunchModal({ visible, business, listing, cash, netWorth, gam
   const [ticker, setTicker] = useState('');
   useEffect(() => { if (visible && business) setTicker(normalizeTicker(business.name)); }, [visible, business]);
   if (!business) return <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}><View style={styles.shade}><View style={styles.unavailable}><Text style={styles.title}>Company data unavailable</Text><Text style={styles.copy}>Close this window and reopen the business operations screen.</Text><Pressable onPress={onClose} style={styles.launch}><Text style={styles.launchText}>CLOSE</Text></Pressable></View></View></Modal>;
-  const eligibility = getIPOEligibility(business, listing);
+  const eligibility = getIPOEligibility(business, listing, netWorth);
   const isPublic = listing?.stage === 'public'; const netWorthLocked = !isPublic && netWorth < IPO_MIN_NET_WORTH;
   const preview = listing || createIPOListing(business, gameTimestamp, ticker || undefined, netWorth);
   const launch = () => { if (netWorthLocked) return Alert.alert('IPO NET-WORTH GATE', `Need ${formatCurrency(IPO_MIN_NET_WORTH - netWorth)} more net worth before an IPO can open.`); if (!eligibility.eligible) return Alert.alert('IPO WINDOW CLOSED', eligibility.reason); Alert.alert('CONFIRM PUBLIC OFFERING', `Reward preview:\n• Raise ${formatCurrency(preview.capitalRaised)} growth capital\n• Sell 20% public float\n• Retain 80% founder ownership\n• Keep 80% of this business's future cashflow\n• Unlock Public Company Founder rank\n\nRing the opening bell?`, [{ text: 'CANCEL', style: 'cancel' }, { text: 'CONFIRM IPO', onPress: () => onLaunch({ ...preview, ticker: normalizeTicker(ticker) }) }]); };

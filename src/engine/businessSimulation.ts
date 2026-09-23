@@ -29,7 +29,7 @@ const expansionProfiles: Record<ExpansionSector, { baseHourly: number; event: st
   Airline: { baseHourly: 55000, event: 'HOLIDAY TRAVEL RUSH', eventMultiplier: 1.35, contractSeconds: 86400 },
 };
 
-function applySynergy<T extends BusinessEntity>(result: { business: T; cashDelta: number }, acquiredCount: number): { business: T; cashDelta: number } { const multiplier = 1 + Math.min(0.2, Math.max(0, acquiredCount - 1) * 0.04); return { business: { ...result.business, hourlyNetProfit: Number((result.business.hourlyNetProfit * multiplier).toFixed(2)) }, cashDelta: Number((result.cashDelta * multiplier).toFixed(2)) }; }
+function applySynergy<T extends BusinessEntity>(result: { business: T; cashDelta: number }, acquiredCount: number): { business: T; cashDelta: number } { const multiplier = 1 + Math.min(0.2, Math.max(0, acquiredCount - 1) * 0.04); return { business: { ...result.business, hourlyNetProfit: Number((result.business.hourlyNetProfit * multiplier).toFixed(2)), baseHourlyNetProfit: result.business.baseHourlyNetProfit }, cashDelta: Number((result.cashDelta * multiplier).toFixed(2)) }; }
 
 function expansionTick(business: ExpansionData, seconds: number, events: string[]): { business: ExpansionData; cashDelta: number } {
   if (!business.isAcquired) return { business: { ...business, hourlyNetProfit: 0 }, cashDelta: 0 };
@@ -46,7 +46,7 @@ function expansionTick(business: ExpansionData, seconds: number, events: string[
   const nextEvent = eventActive ? 'None' : Math.random() < 0.012 ? profile.event : 'None';
   if (nextEvent !== 'None') events.push(`${business.name}: ${nextEvent} · customer demand is surging.`);
   if (contractComplete) events.push(`${business.name}: customer contract completed · ${business.contractReward.toLocaleString()} bonus deposited.`);
-  return { business: { ...business, hourlyNetProfit: Number(hourly.toFixed(2)), contractSecondsRemaining: contractComplete ? profile.contractSeconds : remaining, activeEvent: nextEvent, reputation: Math.max(0, Math.min(100, business.reputation + (business.managerHired ? 0.02 : -0.01) * seconds)), customerSatisfaction: Math.max(0, Math.min(100, business.customerSatisfaction + (business.staffCount >= business.branchCount * 12 ? 0.015 : -0.02) * seconds)) }, cashDelta: Number((operatingDelta + (contractComplete ? business.contractReward : 0)).toFixed(2)) };
+  return { business: { ...business, hourlyNetProfit: Number(hourly.toFixed(2)), baseHourlyNetProfit: Number(hourly.toFixed(2)), contractSecondsRemaining: contractComplete ? profile.contractSeconds : remaining, activeEvent: nextEvent, reputation: Math.max(0, Math.min(100, business.reputation + (business.managerHired ? 0.02 : -0.01) * seconds)), customerSatisfaction: Math.max(0, Math.min(100, business.customerSatisfaction + (business.staffCount >= business.branchCount * 12 ? 0.015 : -0.02) * seconds)) }, cashDelta: Number((operatingDelta + (contractComplete ? business.contractReward : 0)).toFixed(2)) };
 }
 
 
@@ -83,34 +83,34 @@ function retailTick(business: RetailData, seconds: number, events: string[], liq
   if (business.stockUnits > 0 && business.stockUnits - unitsDeducted === 0) events.push(`${business.name}: shelves empty; sales paused without operating-cost bleed.`);
   const sequence = (business.lastSaleSequence ?? 0) + (unitsDeducted > 0 ? 1 : 0);
   if (canAutoRestock) events.push(`${business.name}: Shelf Runner auto-ordered 125 units for $250.`);
-  return { business: { ...business, stockUnits: business.stockUnits - unitsDeducted + restockUnits, onboardingStep: business.onboardingStep === 'WATCH_FIRST_SALE' && unitsDeducted > 0 ? 'COMPLETE' : business.onboardingStep, unitWholesaleCost: business.unitWholesaleCost ?? 2, hourlyNetProfit, salesRemainder, demandEvent: nextEvent, demandEventSeconds: nextEventSeconds, demandClockSeconds: shouldStartPulse ? 0 : nextDemandClock, pulseChain: pulse, lastSaleSequence: sequence, lastSaleRevenue: revenueEarned, policeHeat: business.legalStatus === 'Shadow_Underground' ? Math.min(100, business.policeHeat + 0.02) : 0 }, cashDelta };
+  return { business: { ...business, stockUnits: business.stockUnits - unitsDeducted + restockUnits, baseHourlyNetProfit: hourlyNetProfit, onboardingStep: business.onboardingStep === 'WATCH_FIRST_SALE' && unitsDeducted > 0 ? 'COMPLETE' : business.onboardingStep, unitWholesaleCost: business.unitWholesaleCost ?? 2, hourlyNetProfit, salesRemainder, demandEvent: nextEvent, demandEventSeconds: nextEventSeconds, demandClockSeconds: shouldStartPulse ? 0 : nextDemandClock, pulseChain: pulse, lastSaleSequence: sequence, lastSaleRevenue: revenueEarned, policeHeat: business.legalStatus === 'Shadow_Underground' ? Math.min(100, business.policeHeat + 0.02) : 0 }, cashDelta };
 }
 function mobilityTick(business: MobilityData, seconds: number): { business: MobilityData; cashDelta: number } {
   if (!business.isAcquired) return { business: { ...business, hourlyNetProfit: 0 }, cashDelta: 0 };
   const baseHourly = business.economySedans * 2200 + business.electricEVs * 6000 + business.luxuryLimos * 12000;
   const surged = business.surgeActive ? baseHourly * 1.7 : baseHourly;
   const adjusted = business.fleetHealth < 30 ? surged * .5 : surged;
-  return { business: { ...business, fleetHealth: Math.max(0, Number((business.fleetHealth - .05).toFixed(2))), hourlyNetProfit: Number(adjusted.toFixed(2)) }, cashDelta: Number((adjusted * seconds / 3600).toFixed(2)) };
+  return { business: { ...business, fleetHealth: Math.max(0, Number((business.fleetHealth - .05).toFixed(2))), hourlyNetProfit: Number(adjusted.toFixed(2)), baseHourlyNetProfit: Number(adjusted.toFixed(2)) }, cashDelta: Number((adjusted * seconds / 3600).toFixed(2)) };
 }
 function saasTick(business: SaaSData, seconds: number, events: string[]): { business: SaaSData; cashDelta: number } {
   if (!business.isAcquired) return { business: { ...business, hourlyNetProfit: 0 }, cashDelta: 0 };
   let subscribers = business.activeSubscribers;
   if (subscribers > business.serverCapacity) { subscribers = Math.floor(subscribers * .95); events.push(`${business.name}: SERVER OVERLOAD · 5% subscriber churn.`); }
   const hourly = subscribers * 3.5;
-  return { business: { ...business, activeSubscribers: subscribers, hourlyNetProfit: Number(hourly.toFixed(2)) }, cashDelta: Number((hourly * seconds / 3600).toFixed(2)) };
+  return { business: { ...business, activeSubscribers: subscribers, hourlyNetProfit: Number(hourly.toFixed(2)), baseHourlyNetProfit: Number(hourly.toFixed(2)) }, cashDelta: Number((hourly * seconds / 3600).toFixed(2)) };
 }
 function constructionTick(business: ConstructionData, elapsedSeconds: number, events: string[]): { business: ConstructionData; cashDelta: number } {
   if (!business.isAcquired) return { business: { ...business, hourlyNetProfit: 0 }, cashDelta: 0 };
-  if (!business.activeTenderName || business.projectPhase === 0) return { business: { ...business, hourlyNetProfit: 250000 }, cashDelta: Number((250000 * elapsedSeconds / 3600).toFixed(2)) };
+  if (!business.activeTenderName || business.projectPhase === 0) return { business: { ...business, hourlyNetProfit: 250000, baseHourlyNetProfit: 250000 }, cashDelta: Number((250000 * elapsedSeconds / 3600).toFixed(2)) };
   let next = { ...business }; let cashDelta = 0; let progress = next.phaseProgressPercent;
   if (elapsedSeconds >= 3) progress += 1;
   if (progress >= 100) { if (next.projectPhase < 3) { next = { ...next, projectPhase: (next.projectPhase + 1) as ConstructionData['projectPhase'], phaseProgressPercent: 0 }; events.push(`${next.name}: advanced to construction phase ${next.projectPhase}.`); } else { cashDelta = next.projectEscrowPayout + 50000; events.push(`${next.name}: tender complete; escrow and contractor bonus deposited.`); next = { ...next, activeTenderName: null, projectPhase: 0, phaseProgressPercent: 0, machineryDispatched: false, safetyCleared: false }; } } else next = { ...next, phaseProgressPercent: progress };
-  return { business: next, cashDelta };
+  return { business: { ...next, baseHourlyNetProfit: next.activeTenderName ? 0 : 250000 }, cashDelta };
 }
 
 export function simulateBusinessTick(businesses: BusinessEntity[], seconds = 2, constructionElapsedSeconds = seconds, liquidCash = Number.MAX_SAFE_INTEGER, ownershipFractions: Record<string, number> = {}, playerNetWorth = 0): SimulationResult {
   const events: string[] = []; let cashDelta = 0;
-  const acquiredCount = businesses.filter(item => item.isAcquired).length; const wealthMultiplier = passiveIncomeMultiplier(playerNetWorth); const next = businesses.map(item => { const result = item.sector === 'Retail' ? applySynergy(retailTick(item, seconds, events, liquidCash), acquiredCount) : item.sector === 'Mobility' ? applySynergy(mobilityTick(item, seconds), acquiredCount) : item.sector === 'Tech_SaaS' ? applySynergy(saasTick(item, seconds, events), acquiredCount) : item.sector === 'Construction_Mega' ? applySynergy(constructionTick(item, constructionElapsedSeconds, events), acquiredCount) : applySynergy(expansionTick(item, seconds, events), acquiredCount); const founderShare = Math.min(1, Math.max(0, Number(ownershipFractions[item.id] ?? 1))); const rampMultiplier = item.isAcquired && Number.isFinite(item.operatingRampSeconds) ? Math.min(1, Math.max(0.02, (Number(item.operatingRampSeconds) + seconds) / (4 * 3600))) : 1; const adjustedCashDelta = result.cashDelta * rampMultiplier * founderShare * wealthMultiplier; cashDelta += adjustedCashDelta; return { ...result.business, operatingRampSeconds: item.isAcquired && Number.isFinite(item.operatingRampSeconds) ? Math.min(4 * 3600, Number(item.operatingRampSeconds) + seconds) : result.business.operatingRampSeconds, hourlyNetProfit: Number((result.business.hourlyNetProfit * rampMultiplier * founderShare * wealthMultiplier).toFixed(2)) }; });
+  const acquiredCount = businesses.filter(item => item.isAcquired).length; const wealthMultiplier = passiveIncomeMultiplier(playerNetWorth); const next = businesses.map(item => { const result = item.sector === 'Retail' ? applySynergy(retailTick(item, seconds, events, liquidCash), acquiredCount) : item.sector === 'Mobility' ? applySynergy(mobilityTick(item, seconds), acquiredCount) : item.sector === 'Tech_SaaS' ? applySynergy(saasTick(item, seconds, events), acquiredCount) : item.sector === 'Construction_Mega' ? applySynergy(constructionTick(item, constructionElapsedSeconds, events), acquiredCount) : applySynergy(expansionTick(item, seconds, events), acquiredCount); const founderShare = Math.min(1, Math.max(0, Number(ownershipFractions[item.id] ?? 1))); const rampMultiplier = item.isAcquired && Number.isFinite(item.operatingRampSeconds) ? Math.min(1, Math.max(0.02, (Number(item.operatingRampSeconds) + seconds) / (4 * 3600))) : 1; const adjustedCashDelta = result.cashDelta * rampMultiplier * founderShare * wealthMultiplier; cashDelta += adjustedCashDelta; return { ...result.business, operatingRampSeconds: item.isAcquired && Number.isFinite(item.operatingRampSeconds) ? Math.min(4 * 3600, Number(item.operatingRampSeconds) + seconds) : result.business.operatingRampSeconds, baseHourlyNetProfit: Number((result.business.baseHourlyNetProfit ?? result.business.hourlyNetProfit).toFixed(2)), hourlyNetProfit: Number((result.business.hourlyNetProfit * rampMultiplier * founderShare * wealthMultiplier).toFixed(2)) }; });
   return { businesses: next, cashDelta: Number(cashDelta.toFixed(2)), events };
 }
 
