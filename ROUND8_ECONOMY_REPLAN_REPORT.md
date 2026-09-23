@@ -90,7 +90,7 @@ The regression gate reported:
 Round 2 baseline regression matrix passed
 ```
 
-The Android build completed successfully on GitHub Actions run `35802546979`. The workflow generated the standalone offline bundle, verified the embedded JavaScript bundle, built the debug APK, and uploaded the artifact. A device screenshot is not claimed for this economy-only round because the emulator screenshot workflow was not part of this run.
+The final Android build completed successfully on GitHub Actions run `35805024434`. The workflow generated the standalone offline bundle, verified the embedded JavaScript bundle, built the debug APK, and uploaded the artifact. A device screenshot is not claimed for this economy-only round because the emulator screenshot workflow was not part of this run.
 
 ## Changed files
 
@@ -104,4 +104,4 @@ The implementation adds `src/engine/economyPlan.ts`, `scripts/economy-pacing-rou
 
 ## Android artifact
 
-The verified APK is 252 MB. Its SHA-256 is `725b73546e261bc0669586222b4c90ad2f96cb91225729ff34e473c3630871c8`. The merged state is tagged `stable-round-8`.
+The verified final hotfix APK is 252 MB. Its SHA-256 is `955c0906be5f9e16002d10ad7ad05b87d9488bf5271f2474b139063a0a79ffeb`. The corrected merged state is tagged `stable-round-8.1`.
