@@ -1,8 +1,10 @@
-export const TAP_VALUE_CAP = 25;
+import { TAP_VALUE_CAP } from './economyPlan';
+
+export { TAP_VALUE_CAP } from './economyPlan';
 export const INITIAL_TAP_VALUE = 1;
 
 export function tapUpgradeCost(level: number): number {
-  return Math.round(100 * Math.pow(1.25, Math.max(0, level)));
+  return Math.round(100 * Math.pow(1.27, Math.max(0, level)));
 }
 
 export function tapUpgradeGain(level: number, currentValue: number): number {

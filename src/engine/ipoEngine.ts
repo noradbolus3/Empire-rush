@@ -1,10 +1,10 @@
 import { BusinessEntity } from '../types/business';
 import { Asset } from '../types/ipoAssets';
 import { IPOEligibility, IPOListing } from '../types/ipo';
+import { IPO_MAX_NET_WORTH_PROCEEDS_MULTIPLE, IPO_MIN_NET_WORTH, IPO_MIN_VALUATION } from './economyPlan';
 
-export const IPO_MIN_VALUATION = 500000;
 export const IPO_PUBLIC_OFFERING_PERCENT = 0.2;
-export const IPO_MAX_NET_WORTH_PROCEEDS_MULTIPLE = 3;
+export { IPO_MAX_NET_WORTH_PROCEEDS_MULTIPLE, IPO_MIN_NET_WORTH, IPO_MIN_VALUATION } from './economyPlan';
 
 export function businessValuation(business: BusinessEntity): number {
   const annualizedProfit = Math.max(0, business.hourlyNetProfit) * 24 * 365;

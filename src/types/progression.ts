@@ -2,6 +2,7 @@ export interface ProgressionState {
   lastLoginDay: string;
   loginStreak: number;
   tapsToday: number;
+  tapCashToday: number;
   dailyTapGoal: number;
   missionClaimed: boolean;
   totalTaps: number;
@@ -15,6 +16,7 @@ export const DEFAULT_PROGRESSION: ProgressionState = {
   lastLoginDay: '',
   loginStreak: 0,
   tapsToday: 0,
+  tapCashToday: 0,
   dailyTapGoal: 25,
   missionClaimed: false,
   totalTaps: 0,
@@ -36,5 +38,5 @@ export function hydrateDailyProgress(saved: Partial<ProgressionState> | null | u
   const previousDate = new Date(`${previous.lastLoginDay}T00:00:00.000Z`).getTime();
   const todayDate = new Date(`${today}T00:00:00.000Z`).getTime();
   const isConsecutive = todayDate - previousDate === 86400000;
-  return { ...previous, lastLoginDay: today, loginStreak: isConsecutive ? previous.loginStreak + 1 : 1, tapsToday: 0, missionClaimed: false };
+  return { ...previous, lastLoginDay: today, loginStreak: isConsecutive ? previous.loginStreak + 1 : 1, tapsToday: 0, tapCashToday: 0, missionClaimed: false };
 }

@@ -5,7 +5,7 @@ export interface RetailShopState {
   lastAccountingAt: number;
 }
 
-export const RETAIL_SETUP_COST = 5000;
+export const RETAIL_SETUP_COST = 1500;
 export const RETAIL_RENT_UTILITIES_MONTHLY = 800;
 export const RETAIL_BATCH_COST = 500;
 export const RETAIL_BATCH_UNITS = 100;
