@@ -2,7 +2,7 @@
 
 ## Status
 
-**Fixed in progress branch; regression and valuation proofs pass.** The fix is not yet merged or APK-built in this round. The previous implementation changed the proceeds cap but still allowed valuation to be calculated from a contaminated runtime profit field. This round fixes that root cause structurally.
+**Fixed and merged.** The structural fix is in `main` at merge commit `ad6c7a5`. Regression, valuation, and standalone Android build verification all pass. The previous implementation changed the proceeds cap but still allowed valuation to be calculated from a contaminated runtime profit field. This round fixes that root cause structurally.
 
 ## Root cause
 
@@ -125,7 +125,7 @@ Regression output:
 Round 2 baseline regression matrix passed
 ```
 
-The item remains **not merged and not APK-built** until the user-visible review of this structural change is complete. The current branch is `round-9-ipo-valuation-structure`.
+The item is now **merged and APK-built**. GitHub Actions run `35853382259` generated the standalone offline bundle, verified the embedded JavaScript bundle, built the debug APK, and uploaded the artifact. The corrected behavior is tagged `stable-round-9`.
 
 ## Changed files
 
@@ -135,3 +135,7 @@ The structural implementation changes `src/engine/ipoEngine.ts`, `src/engine/bus
 
 [1]: https://github.com/noradbolus3/Empire-rush "Empire Rush source repository"
 [2]: https://github.com/noradbolus3/Empire-rush/actions "Empire Rush GitHub Actions workflows"
+
+## Verified Android artifact
+
+The Round 9 APK is 252 MB. Its SHA-256 is `5b789cfa71072ddf877f8db5085f15f1319855e6aac406b1caf99b80f51367ee`.
