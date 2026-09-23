@@ -64,7 +64,7 @@ const cappedListing = capIPOProceeds(createIPOListing(ipoBusiness, Date.UTC(2026
 assert.equal(founderOwnershipFraction(cappedListing), 0.8, 'IPO: founder ownership was not diluted to 80%');
 assert(cappedListing.capitalRaised <= 3_000_000, 'IPO: proceeds exceeded 3x net worth cap');
 assert.equal(STARTING_CASH, 1_000, 'economy: new founder starting cash drifted');
-assert.equal(RETAIL_ENTRY_COST, 1_500, 'economy: Retail entry cost drifted');
+assert.equal(RETAIL_ENTRY_COST, 500, 'economy: Retail entry cost drifted');
 assert.equal(IPO_MIN_NET_WORTH, 10_000_000, 'IPO: late-game net-worth gate drifted');
 assert.equal(IPO_MAX_NET_WORTH_PROCEEDS_MULTIPLE, 0.5, 'IPO: proceeds shortcut cap drifted');
 assert.equal(CASINO_UNLOCK_NET_WORTH, 100_000, 'casino: late-game unlock drifted');

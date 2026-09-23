@@ -1,5 +1,5 @@
 export const STARTING_CASH = 1_000;
-export const RETAIL_ENTRY_COST = 1_500;
+export const RETAIL_ENTRY_COST = 500;
 export const RETAIL_INITIAL_STOCK_COST = 500;
 export const IPO_MIN_NET_WORTH = 10_000_000;
 export const IPO_MIN_VALUATION = 10_000_000;
