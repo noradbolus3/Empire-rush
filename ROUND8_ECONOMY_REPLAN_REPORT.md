@@ -4,7 +4,7 @@
 
 The economy has been replanned around a **single-player zero-to-billionaire journey** rather than a ten-minute wealth jump. The new deterministic simulation meets the requested casual-player targets: **$1 million at hour 20 and $1 billion at hour 54**. Regular and hardcore profiles reach the same milestones at hours 19/53 and 18/52 respectively. No profile falls below its starting net worth, and the maximum one-hour net-worth step is 2.0x.
 
-The work is isolated on the `round-8-economy-replan` branch. The previous verified baseline is preserved by `stable-round-7`. The final changes are ready for the regression-gated merge and Android CI build after the final review.
+The work is isolated on the `round-8-economy-replan` branch. The previous verified baseline is preserved by `stable-round-7`. The regression-gated merge completed at `90b5bb6`, and Android CI run `35802546979` completed successfully.
 
 ## Target curve and simulation result
 
@@ -90,7 +90,7 @@ The regression gate reported:
 Round 2 baseline regression matrix passed
 ```
 
-The final Android build still requires the normal GitHub Actions release step. A device screenshot is not claimed for this economy-only round until that CI build and emulator screenshot workflow complete.
+The Android build completed successfully on GitHub Actions run `35802546979`. The workflow generated the standalone offline bundle, verified the embedded JavaScript bundle, built the debug APK, and uploaded the artifact. A device screenshot is not claimed for this economy-only round because the emulator screenshot workflow was not part of this run.
 
 ## Changed files
 
@@ -100,3 +100,8 @@ The implementation adds `src/engine/economyPlan.ts`, `scripts/economy-pacing-rou
 
 [1]: https://github.com/noradbolus3/Empire-rush "Empire Rush source repository"
 [2]: https://github.com/noradbolus3/Empire-rush/actions "Empire Rush GitHub Actions workflows"
+
+
+## Android artifact
+
+The verified APK is 252 MB. Its SHA-256 is `725b73546e261bc0669586222b4c90ad2f96cb91225729ff34e473c3630871c8`. The merged state is tagged `stable-round-8`.
