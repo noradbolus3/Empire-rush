@@ -9,7 +9,7 @@ const profiles: Profile[] = [
   { label: 'hardcore', tapsPerActiveMinute: 30, activeMinutesPerHour: 40, reinvestmentRate: 0.92 },
 ];
 const businesses = [
-  { id: 'retail', name: 'Copper & Bloom Market', unlock: 0, cost: 1_500, profit: 6_000 },
+  { id: 'retail', name: 'Copper & Bloom Market', unlock: 0, cost: 1_000, profit: 6_000 },
   { id: 'mobility', name: 'Neon Mile Fleet', unlock: 15_000, cost: 12_000, profit: 22_000 },
   { id: 'saas', name: 'SignalForge Cloud', unlock: 75_000, cost: 60_000, profit: 70_000 },
   { id: 'construction', name: 'Ironline Civic Works', unlock: 250_000, cost: 180_000, profit: 250_000 },

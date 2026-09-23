@@ -2,18 +2,18 @@
 
 ## Executive result
 
-The economy has been replanned around a **single-player zero-to-billionaire journey** rather than a ten-minute wealth jump. The new deterministic simulation meets the requested casual-player targets: **$1 million at hour 20 and $1 billion at hour 54**. Regular and hardcore profiles reach the same milestones at hours 19/53 and 18/52 respectively. No profile falls below its starting net worth, and the maximum one-hour net-worth step is 2.0x.
+The economy has been replanned around a **single-player zero-to-billionaire journey** rather than a ten-minute wealth jump. The final deterministic simulation meets the requested casual-player targets: **$1 million at hour 18 and $1 billion at hour 52**. Regular and hardcore profiles reach both milestones at hours 18/52. No profile falls below its starting net worth, and the maximum one-hour net-worth step is 2.267x.
 
 The work is isolated on the `round-8-economy-replan` branch. The previous verified baseline is preserved by `stable-round-7`. The regression-gated merge completed at `90b5bb6`, and Android CI run `35802546979` completed successfully.
 
 ## Target curve and simulation result
 
-The simulator is `scripts/economy-pacing-round8.ts`. It models a $1,000 founder start, the $1,500 first-business purchase, daily tap-income limits, phased business activation, one expansion purchase per hour, a late-game IPO, and all ten business tiers. The simulation also records minimum net worth and the largest adjacent hourly step.
+The simulator is `scripts/economy-pacing-round8.ts`. It models a $1,000 founder start, the $500 first-business purchase, a $500 starter-stock order, daily tap-income limits, phased business activation, one expansion purchase per hour, a late-game IPO, and all ten business tiers. The simulation also records minimum net worth and the largest adjacent hourly step.
 
 | Profile | $1M reached | $1B reached | Final net worth at 72h | Minimum net worth | Maximum hourly step |
 |---|---:|---:|---:|---:|---:|
-| Casual | 20h | 54h | $2.36B | $1,000 | 1.952x |
-| Regular | 19h | 53h | $2.44B | $1,000 | 1.915x |
+| Casual | 18h | 52h | $2.51B | $1,000 | 2.267x |
+| Regular | 18h | 52h | $2.51B | $1,000 | 2.229x |
 | Hardcore | 18h | 52h | $2.51B | $1,000 | 2.000x |
 
 The simulator contains hard assertions for the casual target window of 15–20 hours to $1M and 40–60 hours to $1B. It also fails if any profile has negative net worth or an hourly step above 4x. The final run passed all assertions.
@@ -56,7 +56,7 @@ Direct cash IAP shortcuts were removed. The Store now contains a starter stock c
 
 ## Retail loop proof
 
-The aligned Retail simulation starts with $1,000, models a $1,000 founder work runway, launches the $1,500 business, orders $500 of starter stock, and purchases the $250 Shelf Runner from earned cash.
+The aligned Retail simulation starts with $1,000, launches the $500 business, orders $500 of starter stock, and purchases the $250 Shelf Runner from earned cash. This split is intentional: it makes the first loop playable without an unimplemented hidden credit.
 
 | Checkpoint | Orders | Sales | Cashflow | Cash | Net worth | Minimum net worth | Result |
 |---|---:|---:|---:|---:|---:|---:|---|
@@ -64,7 +64,7 @@ The aligned Retail simulation starts with $1,000, models a $1,000 founder work r
 | 1 hour | 49 | 5,831 units | $3,596.19 | $3,346.19 | $7,184.19 | $1,000 | PASS |
 | 1 day | 1,131 | 141,071 units | $94,821.79 | $94,571.79 | $98,429.79 | $1,000 | PASS |
 
-The first ten minutes now contain an actual sequence of work runway, business launch, stock order, sales, and automation. The net-worth floor remains intact.
+The first ten minutes now contain an actual sequence of business launch, stock order, sales, and automation. The net-worth floor remains intact.
 
 ## Persistence and scope
 

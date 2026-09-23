@@ -19,7 +19,6 @@ const checkpoints = new Map([[10 * 60, '10 minutes'], [60 * 60, '1 hour'], [24 *
 function netWorth() { return cash + business.acquisitionCost + business.stockUnits * (business.unitWholesaleCost ?? 2) + (autoRestock ? 1500 : 0); }
 function orderStock(units: number, cost: number) { if (cash < cost || business.stockUnits + units > business.maxStockCapacity) return false; cash -= cost; business = { ...business, stockUnits: business.stockUnits + units, onboardingStep: business.onboardingStep === 'ORDER_STOCK' ? 'WATCH_FIRST_SALE' : business.onboardingStep, unitWholesaleCost: cost / units }; orders += 1; return true; }
 
-cash += 1000;
 cash -= retail.acquisitionCost;
 orderStock(250, 500);
 for (let elapsed = 2; elapsed <= 24 * 60 * 60; elapsed += 2) {
@@ -41,4 +40,4 @@ for (let elapsed = 2; elapsed <= 24 * 60 * 60; elapsed += 2) {
   const label = checkpoints.get(elapsed);
   if (label) snapshots.push({ checkpoint: label, orders, salesUnits, cashflow: Number(cashflow.toFixed(2)), cash: Number(cash.toFixed(2)), netWorth: Number(netWorth().toFixed(2)), minNetWorth: Number(minNetWorth.toFixed(2)), autoRestock, demandEvents, flag: minNetWorth < STARTING_CASH ? 'FAIL: net worth fell' : 'PASS' });
 }
-console.log(JSON.stringify({ startingCash: STARTING_CASH, starterTapRunway: '$1,000 founder work credit', initialBusinessPurchase: retail.acquisitionCost, initialOrder: '$500 for 250 units', snapshots }, null, 2));
+console.log(JSON.stringify({ startingCash: STARTING_CASH, initialBusinessPurchase: retail.acquisitionCost, initialOrder: '$500 for 250 units', snapshots }, null, 2));
