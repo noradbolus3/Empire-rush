@@ -15,6 +15,7 @@ export interface BaseBusiness {
   policeHeat: number;
   stability: number;
   hourlyNetProfit: number;
+  operatingRampSeconds?: number;
   branchCount?: number;
   staffCount?: number;
   managerHired?: boolean;
