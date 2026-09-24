@@ -153,4 +153,12 @@ assert.match(read('src/engine/businessSimulation.ts'), /demandEvent/, 'retail: t
 assert.match(read('src/engine/businessSimulation.ts'), /unitsDeducted > 0 \? Number/, 'retail: empty-shelf operating bleed guard missing');
 assert.match(app, /businessAssetValue/, 'net worth: acquired business book value missing');
 assert.match(businessHub, /PULSE CHAIN/, 'retail: customer pulse UI missing');
+assert.match(app, /incomeEvents/, 'income ledger: source event state missing');
+assert.match(app, /Tap actions/, 'income ledger: tap source missing');
+assert.match(app, /Stocks · quarterly dividends/, 'income ledger: stock dividend source missing');
+assert.match(homeScreen, /Tap to see Tap · Businesses · Stocks/, 'income ledger: Home breakdown affordance missing');
+assert.match(read('src/components/modals/EarningsBreakdownModal.tsx'), /ACTIVE INCOME SOURCES/, 'income ledger: breakdown modal missing');
+assert.match(read('src/engine/businessSimulation.ts'), /incomeByBusiness/, 'income ledger: per-business attribution missing');
+assert.match(read('src/screens/MarketScreen.tsx'), /FOUNDER MARKET DESK/, 'visual system: market command-deck header missing');
+assert.match(businessScreen, /#07130F/, 'visual system: business command-deck palette missing');
 console.log('Round 2 baseline regression matrix passed');
