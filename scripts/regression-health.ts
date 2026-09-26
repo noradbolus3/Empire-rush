@@ -10,7 +10,7 @@ import { businessValuation, capIPOProceeds, createIPOListing, founderOwnershipFr
 import { MARKET_EVENTS, applyMarketEvent, appendPortfolioPoint, calculateQuarterlyDividends, matchLimitOrders } from '../src/engine/marketEngine';
 import { LimitOrder } from '../src/types/market';
 import { tapUpgradeCost, tapUpgradeGain } from '../src/engine/tapUpgradeEngine';
-import { CASINO_UNLOCK_NET_WORTH, IPO_MAX_NET_WORTH_PROCEEDS_MULTIPLE, IPO_MIN_NET_WORTH, PASSIVE_INCOME_CAP, RETAIL_ENTRY_COST, STARTING_CASH, tapDailyCashCap } from '../src/engine/economyPlan';
+import { CASINO_UNLOCK_NET_WORTH, IPO_MAX_NET_WORTH_PROCEEDS_MULTIPLE, IPO_MIN_NET_WORTH, PASSIVE_INCOME_CAP, RETAIL_ENTRY_COST, STARTING_CASH, TAP_REWARD_FLOOR, TAP_SOFT_START_TAPS, tapRewardMultiplier } from '../src/engine/economyPlan';
 
 const root = process.cwd();
 const read = (file: string) => fs.readFileSync(path.join(root, file), 'utf8');
@@ -78,8 +78,9 @@ assert.equal(RETAIL_ENTRY_COST, 500, 'economy: Retail entry cost drifted');
 assert.equal(IPO_MIN_NET_WORTH, 10_000_000, 'IPO: late-game net-worth gate drifted');
 assert.equal(IPO_MAX_NET_WORTH_PROCEEDS_MULTIPLE, 0.5, 'IPO: proceeds shortcut cap drifted');
 assert.equal(CASINO_UNLOCK_NET_WORTH, 100_000, 'casino: late-game unlock drifted');
-assert.equal(tapDailyCashCap(1_000), 1_000, 'tap: early daily cap failed');
-assert(tapDailyCashCap(1_000_000) <= 20_000, 'tap: daily cap bypassed the 2% wealth budget');
+assert.equal(tapRewardMultiplier(TAP_SOFT_START_TAPS), 1, 'tap: soft curve should start at full reward');
+assert.equal(tapRewardMultiplier(10_000), TAP_REWARD_FLOOR, 'tap: reward floor should prevent zero-income dead stop');
+assert(tapRewardMultiplier(20) < 1 && tapRewardMultiplier(20) > TAP_REWARD_FLOOR, 'tap: soft diminishing returns are not active');
 assert(PASSIVE_INCOME_CAP <= 4, 'economy: passive-income ceiling is too high');
 assert(passiveIncomeMultiplier(1_000_000) > passiveIncomeMultiplier(25_000), 'passive income: wealth scaling is not increasing');
 assert.match(app, /requestPurchase/, 'purchase: request missing');
