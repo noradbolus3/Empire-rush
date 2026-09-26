@@ -112,8 +112,7 @@ assert.match(read('src/screens/MarketScreen.tsx'), /Fractional units supported/,
 assert.match(app, /Gridline Power/, 'market: stock and business names are not separated');
 assert.match(app, /67500/, 'market: crypto scale is not sensible');
 assert.match(read('src/engine/marketEngine.ts'), /asset\.kind === 'CRYPTO' \? 0\.01/, 'market: sub-dollar crypto floor is not supported');
-assert.match(lifestyleScreen, /icon === 'car'/, 'lifestyle: car visual is missing');
-assert.match(lifestyleScreen, /icon === 'jet'/, 'lifestyle: jet visual is missing');
+assert.match(lifestyleScreen, /imageBrand/, 'lifestyle: branded asset treatment is missing');
 assert.match(read('src/screens/MarketScreen.tsx'), /playerNetWorth/, 'market: YOU row is not using player net worth');
 assert.match(app, /showTestRewardedAd/, 'monetization: rewarded test placement missing');
 assert.match(app, /soundEnabled/, 'settings: sound toggle is not wired');
@@ -146,6 +145,12 @@ assert.match(read('src/screens/BusinessScreen.tsx'), /flexShrink: 0/, 'business 
 assert.match(read('src/screens/business/BusinessMasterHubScreen.tsx'), /IPO LOCKED/, 'IPO UI: pre-net-worth lock copy missing');
 assert.match(homeScreen, /REBIRTH LOCKED/, 'rebirth UI: pre-net-worth lock copy missing');
 assert.match(lifestyleScreen, /<LifestyleVisual item/, 'lifestyle UI: visuals are not item-specific');
+assert.match(lifestyleScreen, /Image source=\{item\.image\}/, 'lifestyle UI: bundled image rendering missing');
+assert.doesNotMatch(lifestyleScreen, /react-native-svg/, 'lifestyle UI: generic SVG asset visual remains');
+const lifestyleCatalog = read('src/data/lifestyleCatalog.ts');
+assert.doesNotMatch(lifestyleCatalog, /unsplash\.com/, 'lifestyle assets: remote image dependency remains');
+assert.equal((lifestyleCatalog.match(/category: 'PRIVATE AVIATION'/g) || []).length, 2, 'lifestyle assets: aviation range missing');
+assert.equal((lifestyleCatalog.match(/category: 'YACHTS & MARINE'/g) || []).length, 2, 'lifestyle assets: yacht range missing');
 assert.match(read('src/screens/business/BusinessMasterHubScreen.tsx'), /scrollTo\(\{ y: 260/, 'retail: next-goal stock-order autofocus missing');
 assert.match(read('src/screens/business/BusinessMasterHubScreen.tsx'), /saleFlash/, 'retail: sale feedback animation missing');
 assert.match(homeScreen, /Share\.share/, 'virality: organic milestone share action missing');
