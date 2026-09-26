@@ -10,7 +10,7 @@ import { businessValuation, capIPOProceeds, createIPOListing, founderOwnershipFr
 import { MARKET_EVENTS, applyMarketEvent, appendPortfolioPoint, calculateQuarterlyDividends, matchLimitOrders } from '../src/engine/marketEngine';
 import { LimitOrder } from '../src/types/market';
 import { tapUpgradeCost, tapUpgradeGain } from '../src/engine/tapUpgradeEngine';
-import { CASINO_UNLOCK_NET_WORTH, IPO_MAX_NET_WORTH_PROCEEDS_MULTIPLE, IPO_MIN_NET_WORTH, PASSIVE_INCOME_CAP, RETAIL_ENTRY_COST, STARTING_CASH, tapDailyCashCap } from '../src/engine/economyPlan';
+import { CASINO_UNLOCK_NET_WORTH, IPO_MAX_NET_WORTH_PROCEEDS_MULTIPLE, IPO_MIN_NET_WORTH, PASSIVE_INCOME_CAP, RETAIL_ENTRY_COST, STARTING_CASH, TAP_REWARD_FLOOR, TAP_SOFT_START_TAPS, tapRewardMultiplier } from '../src/engine/economyPlan';
 
 const root = process.cwd();
 const read = (file: string) => fs.readFileSync(path.join(root, file), 'utf8');
@@ -22,6 +22,8 @@ const registration = read('src/components/modals/BusinessRegistrationModal.tsx')
 const network = read('src/context/NetworkContext.tsx');
 const businessHub = read('src/screens/business/BusinessMasterHubScreen.tsx');
 const ipoModal = read('src/components/modals/IPOLaunchModal.tsx');
+const lifestyleScreen = read('src/screens/LifestyleScreen.tsx');
+const casinoScreen = read('src/screens/CasinoScreen.tsx');
 
 assert.match(app, /AsyncStorage\.getItem\(SAVE\)/, 'save/load: AsyncStorage load path missing');
 assert.match(app, /JSON\.parse\(raw\)/, 'save/load: JSON parse path missing');
@@ -76,8 +78,9 @@ assert.equal(RETAIL_ENTRY_COST, 500, 'economy: Retail entry cost drifted');
 assert.equal(IPO_MIN_NET_WORTH, 10_000_000, 'IPO: late-game net-worth gate drifted');
 assert.equal(IPO_MAX_NET_WORTH_PROCEEDS_MULTIPLE, 0.5, 'IPO: proceeds shortcut cap drifted');
 assert.equal(CASINO_UNLOCK_NET_WORTH, 100_000, 'casino: late-game unlock drifted');
-assert.equal(tapDailyCashCap(1_000), 1_000, 'tap: early daily cap failed');
-assert(tapDailyCashCap(1_000_000) <= 20_000, 'tap: daily cap bypassed the 2% wealth budget');
+assert.equal(tapRewardMultiplier(TAP_SOFT_START_TAPS), 1, 'tap: soft curve should start at full reward');
+assert.equal(tapRewardMultiplier(10_000), TAP_REWARD_FLOOR, 'tap: reward floor should prevent zero-income dead stop');
+assert(tapRewardMultiplier(20) < 1 && tapRewardMultiplier(20) > TAP_REWARD_FLOOR, 'tap: soft diminishing returns are not active');
 assert(PASSIVE_INCOME_CAP <= 4, 'economy: passive-income ceiling is too high');
 assert(passiveIncomeMultiplier(1_000_000) > passiveIncomeMultiplier(25_000), 'passive income: wealth scaling is not increasing');
 assert.match(app, /requestPurchase/, 'purchase: request missing');
@@ -110,12 +113,11 @@ assert.match(read('src/screens/MarketScreen.tsx'), /Fractional units supported/,
 assert.match(app, /Gridline Power/, 'market: stock and business names are not separated');
 assert.match(app, /67500/, 'market: crypto scale is not sensible');
 assert.match(read('src/engine/marketEngine.ts'), /asset\.kind === 'CRYPTO' \? 0\.01/, 'market: sub-dollar crypto floor is not supported');
-assert.match(app, /icon === 'car'/, 'lifestyle: car visual is missing');
-assert.match(app, /icon === 'jet'/, 'lifestyle: jet visual is missing');
+assert.match(lifestyleScreen, /imageBrand/, 'lifestyle: branded asset treatment is missing');
 assert.match(read('src/screens/MarketScreen.tsx'), /playerNetWorth/, 'market: YOU row is not using player net worth');
 assert.match(app, /showTestRewardedAd/, 'monetization: rewarded test placement missing');
 assert.match(app, /soundEnabled/, 'settings: sound toggle is not wired');
-assert.match(app, /Math\.min\(50000, Math\.max\(100, Math\.floor\(netWorth \* 0\.01\)\)\)/, 'casino: net-worth-scaled session wager cap missing');
+assert.match(casinoScreen, /Math\.min\(50000, Math\.max\(100, Math\.floor\(netWorth \* 0\.01\)\)\)/, 'casino: net-worth-scaled session wager cap missing');
 assert.match(read('src/services/notifications.ts'), /scheduleNotificationAsync/, 'notifications: scheduled reminder missing');
 assert.match(homeScreen, /tapUpgradeLevel/, 'progression: tap value and upgrade level are not separate');
 assert.match(homeScreen, /onWatchBoost/, 'monetization: Home rewarded placement missing');
@@ -143,7 +145,13 @@ assert.match(businessScreen, /minHeight: 164/, 'business UI: header hero gap rem
 assert.match(read('src/screens/BusinessScreen.tsx'), /flexShrink: 0/, 'business UI: active badge still lacks edge protection');
 assert.match(read('src/screens/business/BusinessMasterHubScreen.tsx'), /IPO LOCKED/, 'IPO UI: pre-net-worth lock copy missing');
 assert.match(homeScreen, /REBIRTH LOCKED/, 'rebirth UI: pre-net-worth lock copy missing');
-assert.match(app, /<LifestyleVisual item=\{x\}/, 'lifestyle UI: visuals are not item-specific');
+assert.match(lifestyleScreen, /<LifestyleVisual item/, 'lifestyle UI: visuals are not item-specific');
+assert.match(lifestyleScreen, /Image source=\{item\.image\}/, 'lifestyle UI: bundled image rendering missing');
+assert.doesNotMatch(lifestyleScreen, /react-native-svg/, 'lifestyle UI: generic SVG asset visual remains');
+const lifestyleCatalog = read('src/data/lifestyleCatalog.ts');
+assert.doesNotMatch(lifestyleCatalog, /unsplash\.com/, 'lifestyle assets: remote image dependency remains');
+assert.equal((lifestyleCatalog.match(/category: 'PRIVATE AVIATION'/g) || []).length, 2, 'lifestyle assets: aviation range missing');
+assert.equal((lifestyleCatalog.match(/category: 'YACHTS & MARINE'/g) || []).length, 2, 'lifestyle assets: yacht range missing');
 assert.match(read('src/screens/business/BusinessMasterHubScreen.tsx'), /scrollTo\(\{ y: 260/, 'retail: next-goal stock-order autofocus missing');
 assert.match(read('src/screens/business/BusinessMasterHubScreen.tsx'), /saleFlash/, 'retail: sale feedback animation missing');
 assert.match(homeScreen, /Share\.share/, 'virality: organic milestone share action missing');
