@@ -14,7 +14,7 @@ export interface IPOListing {
   founderOwnershipFraction?: number;
   valuationAtIPO: number;
   stage: IPOStage;
-  listedAtGameTimestamp: number;
+  listedAtTimestamp: number;
   history: number[];
 }
 

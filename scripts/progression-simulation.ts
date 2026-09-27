@@ -1,4 +1,4 @@
-import { DEFAULT_BUSINESSES, simulateBusinessTick } from '../src/engine/businessSimulation';
+import { DEFAULT_BUSINESSES, simulateBusinessOperations } from '../src/engine/businessSimulation';
 
 const horizons = [
   { label: '1 hour', seconds: 60 * 60 },
@@ -39,9 +39,8 @@ for (let elapsed = stepSeconds; elapsed <= horizons[horizons.length - 1].seconds
       businesses = businesses.map(item => item.id === retail.id ? ({ ...item, stockUnits: retailStock + 1000 } as typeof item) : item);
     }
   }
-  const result = simulateBusinessTick(businesses, stepSeconds, stepSeconds);
+  const result = simulateBusinessOperations(businesses, stepSeconds, stepSeconds);
   businesses = result.businesses;
-  cash = Math.max(0, cash + result.cashDelta);
   if (elapsed >= horizons[nextHorizon].seconds) {
     const netWorth = cash + businesses.reduce((sum, item) => sum + (item.isAcquired ? item.acquisitionCost : 0), 0);
     const next = businesses.filter(item => !item.isAcquired).sort((a, b) => a.unlockNetWorthRequired - b.unlockNetWorthRequired)[0];

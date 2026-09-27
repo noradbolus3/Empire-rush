@@ -63,10 +63,10 @@ export function calculateQuarterlyDividends<T extends MarketAsset>(assets: T[], 
 
 export function quarterKey(timestamp: number): string {
   const date = new Date(timestamp);
-  return `${date.getUTCFullYear()}-Q${Math.floor(date.getUTCMonth() / 3) + 1}`;
+  return `${date.getFullYear()}-Q${Math.floor(date.getMonth() / 3) + 1}`;
 }
 
-export function matchLimitOrders<T extends MarketAsset>(assets: T[], orders: LimitOrder[], gameTimestamp: number): { orders: LimitOrder[]; fills: LimitOrder[] } {
+export function matchLimitOrders<T extends MarketAsset>(assets: T[], orders: LimitOrder[], timestamp: number): { orders: LimitOrder[]; fills: LimitOrder[] } {
   const fills: LimitOrder[] = [];
   const nextOrders = orders.map(order => {
     if (order.status !== 'OPEN') return order;
@@ -74,7 +74,7 @@ export function matchLimitOrders<T extends MarketAsset>(assets: T[], orders: Lim
     if (!asset) return order;
     const canFill = order.side === 'BUY' ? asset.price <= order.limitPrice : asset.price >= order.limitPrice;
     if (!canFill) return order;
-    const filled = { ...order, status: 'FILLED' as const, filledAt: gameTimestamp, filledPrice: asset.price };
+    const filled = { ...order, status: 'FILLED' as const, filledAt: timestamp, filledPrice: asset.price };
     fills.push(filled);
     return filled;
   });

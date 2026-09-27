@@ -70,7 +70,7 @@ export function normalizeTicker(name: string): string {
   return (letters.slice(0, 3) || 'EMR').padEnd(3, 'X');
 }
 
-export function createIPOListing(business: BusinessEntity, gameTimestamp: number, tickerOverride: string | undefined, playerNetWorth: number): IPOListing {
+export function createIPOListing(business: BusinessEntity, timestamp: number, tickerOverride: string | undefined, playerNetWorth: number): IPOListing {
   const valuation = businessValuation(business, playerNetWorth);
   const publicShares = Math.max(1000, Math.floor(valuation / 10));
   const founderShares = publicShares * 4;
@@ -79,7 +79,7 @@ export function createIPOListing(business: BusinessEntity, gameTimestamp: number
   const ticker = normalizeTicker(tickerOverride || business.name);
   const grossProceeds = Number((publicShares * ipoPrice).toFixed(2));
   const proceedsCap = Math.max(0, Number(playerNetWorth)) * IPO_MAX_NET_WORTH_PROCEEDS_MULTIPLE;
-  return { companyId: business.id, companyName: business.name, ticker, sector: business.sector, sharesOutstanding, founderShares, publicShares, ipoPrice, currentPrice: ipoPrice, capitalRaised: Number(Math.min(grossProceeds, proceedsCap).toFixed(2)), founderOwnershipFraction: 1 - IPO_PUBLIC_OFFERING_PERCENT, valuationAtIPO: valuation, stage: 'public', listedAtGameTimestamp: gameTimestamp, history: [ipoPrice * .96, ipoPrice * .98, ipoPrice, ipoPrice * 1.01, ipoPrice * 1.015] };
+  return { companyId: business.id, companyName: business.name, ticker, sector: business.sector, sharesOutstanding, founderShares, publicShares, ipoPrice, currentPrice: ipoPrice, capitalRaised: Number(Math.min(grossProceeds, proceedsCap).toFixed(2)), founderOwnershipFraction: 1 - IPO_PUBLIC_OFFERING_PERCENT, valuationAtIPO: valuation, stage: 'public', listedAtTimestamp: timestamp, history: [ipoPrice * .96, ipoPrice * .98, ipoPrice, ipoPrice * 1.01, ipoPrice * 1.015] };
 }
 
 export function founderOwnershipFraction(listing?: IPOListing | null): number {

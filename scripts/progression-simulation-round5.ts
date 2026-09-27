@@ -1,4 +1,4 @@
-import { DEFAULT_BUSINESSES, simulateBusinessTick } from '../src/engine/businessSimulation';
+import { DEFAULT_BUSINESSES, simulateBusinessOperations } from '../src/engine/businessSimulation';
 import { TAP_VALUE_CAP } from '../src/engine/tapUpgradeEngine';
 
 type Profile = { label: string; tapsPerActiveMinute: number; activeMinutesPerHour: number };
@@ -46,9 +46,8 @@ function run(profile: Profile) {
       cash -= 2000;
       businesses = businesses.map(item => item.id === retail.id ? ({ ...item, stockUnits: retailStock + 1000 } as typeof item) : item);
     }
-    const result = simulateBusinessTick(businesses, 60, 60);
+    const result = simulateBusinessOperations(businesses, 60, 60);
     businesses = result.businesses;
-    cash = Math.max(0, cash + result.cashDelta);
 
     if (checkpointIndex < checkpoints.length && minute >= checkpoints[checkpointIndex].minutes) {
       const currentNetWorth = cash + businesses.reduce((sum, item) => sum + (item.isAcquired ? item.acquisitionCost : 0), 0);

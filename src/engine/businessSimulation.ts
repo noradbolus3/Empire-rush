@@ -29,10 +29,19 @@ const expansionProfiles: Record<ExpansionSector, { baseHourly: number; event: st
   Airline: { baseHourly: 55000, event: 'HOLIDAY TRAVEL RUSH', eventMultiplier: 1.35, contractSeconds: 86400 },
 };
 
-function applySynergy<T extends BusinessEntity>(result: { business: T; cashDelta: number }, acquiredCount: number): { business: T; cashDelta: number } { const multiplier = 1 + Math.min(0.2, Math.max(0, acquiredCount - 1) * 0.04); return { business: { ...result.business, hourlyNetProfit: Number((result.business.hourlyNetProfit * multiplier).toFixed(2)), baseHourlyNetProfit: result.business.baseHourlyNetProfit }, cashDelta: Number((result.cashDelta * multiplier).toFixed(2)) }; }
+type OperationResult<T extends BusinessEntity> = { business: T; hourlyRate: number; pendingAmount?: number };
 
-function expansionTick(business: ExpansionData, seconds: number, events: string[]): { business: ExpansionData; cashDelta: number } {
-  if (!business.isAcquired) return { business: { ...business, hourlyNetProfit: 0 }, cashDelta: 0 };
+function applySynergy(result: OperationResult<BusinessEntity>, acquiredCount: number): OperationResult<BusinessEntity> {
+  const multiplier = 1 + Math.min(0.2, Math.max(0, acquiredCount - 1) * 0.04);
+  return {
+    business: { ...result.business, hourlyNetProfit: Number((result.hourlyRate * multiplier).toFixed(2)) },
+    hourlyRate: Number((result.hourlyRate * multiplier).toFixed(2)),
+    pendingAmount: Number(((result.pendingAmount ?? 0) * multiplier).toFixed(2)),
+  };
+}
+
+function expansionOperations(business: ExpansionData, seconds: number, events: string[]): OperationResult<ExpansionData> {
+  if (!business.isAcquired) return { business: { ...business, hourlyNetProfit: 0 }, hourlyRate: 0 };
   const profile = expansionProfiles[business.sector];
   const eventActive = business.activeEvent !== 'None';
   const serviceQuality = Math.max(0.45, Math.min(1.2, (business.reputation / 100) * (business.customerSatisfaction / 100)));
@@ -40,39 +49,32 @@ function expansionTick(business: ExpansionData, seconds: number, events: string[
   const upgradeBoost = 1 + business.upgradeLevel * 0.18;
   const eventBoost = eventActive ? profile.eventMultiplier : 1;
   const hourly = profile.baseHourly * Math.max(1, business.branchCount) * managerBoost * upgradeBoost * serviceQuality * eventBoost;
-  const operatingDelta = Number((hourly * seconds / 3600).toFixed(2));
   const remaining = Math.max(0, business.contractSecondsRemaining - seconds);
   const contractComplete = remaining === 0;
   const nextEvent = eventActive ? 'None' : Math.random() < 0.012 ? profile.event : 'None';
   if (nextEvent !== 'None') events.push(`${business.name}: ${nextEvent} · customer demand is surging.`);
-  if (contractComplete) events.push(`${business.name}: customer contract completed · ${business.contractReward.toLocaleString()} bonus deposited.`);
-  return { business: { ...business, hourlyNetProfit: Number(hourly.toFixed(2)), baseHourlyNetProfit: Number(hourly.toFixed(2)), contractSecondsRemaining: contractComplete ? profile.contractSeconds : remaining, activeEvent: nextEvent, reputation: Math.max(0, Math.min(100, business.reputation + (business.managerHired ? 0.02 : -0.01) * seconds)), customerSatisfaction: Math.max(0, Math.min(100, business.customerSatisfaction + (business.staffCount >= business.branchCount * 12 ? 0.015 : -0.02) * seconds)) }, cashDelta: Number((operatingDelta + (contractComplete ? business.contractReward : 0)).toFixed(2)) };
+  if (contractComplete) events.push(`${business.name}: customer contract completed · bonus is queued for the next settlement.`);
+  const nextBusiness = { ...business, hourlyNetProfit: Number(hourly.toFixed(2)), baseHourlyNetProfit: Number(hourly.toFixed(2)), contractSecondsRemaining: contractComplete ? profile.contractSeconds : remaining, activeEvent: nextEvent, reputation: Math.max(0, Math.min(100, business.reputation + (business.managerHired ? 0.02 : -0.01) * seconds)), customerSatisfaction: Math.max(0, Math.min(100, business.customerSatisfaction + (business.staffCount >= business.branchCount * 12 ? 0.015 : -0.02) * seconds)) };
+  return { business: nextBusiness, hourlyRate: Number(hourly.toFixed(2)) };
 }
 
-
-export type SimulationResult = { businesses: BusinessEntity[]; cashDelta: number; events: string[]; incomeByBusiness: Record<string, number> };
-
-function retailTick(business: RetailData, seconds: number, events: string[], liquidCash: number): { business: RetailData; cashDelta: number } {
-  if (!business.isAcquired) return { business: { ...business, hourlyNetProfit: 0 }, cashDelta: 0 };
+function retailOperations(business: RetailData, seconds: number, events: string[], liquidCash: number): OperationResult<RetailData> {
+  if (!business.isAcquired) return { business: { ...business, hourlyNetProfit: 0 }, hourlyRate: 0 };
   const modeMultiplier = business.pricingTier === 'Discount' ? 1.55 : business.pricingTier === 'Luxury' ? 0.55 : 1;
   const event = business.demandEvent && business.demandEventSeconds && business.demandEventSeconds > 0 ? business.demandEvent : 'None';
   const eventMultiplier = event === 'Morning Rush' ? 1.8 : event === 'Viral Drop' ? 2.4 : event === 'Rain Delay' ? 0.7 : 1;
-  const baseUnitsPerHour = retailUnits[business.pricingTier] * 1800;
-  const demandUnits = baseUnitsPerHour * modeMultiplier * eventMultiplier;
+  const unitsPerHour = retailUnits[business.pricingTier] * 1800 * modeMultiplier * eventMultiplier;
+  const price = retailPrices[business.pricingTier];
+  const revenuePerHour = unitsPerHour * price;
+  const cogsPerHour = unitsPerHour * (business.unitWholesaleCost ?? 2);
+  const fixedCostsPerHour = ((business.monthlyRent ?? 800) + (business.monthlyPayroll ?? 1200)) / (30 * 24);
+  const taxPerHour = business.legalStatus === 'Licensed_Legal' ? revenuePerHour * 0.15 : 0;
+  const declaredHourlyRate = business.stockUnits > 0 ? Math.max(0, revenuePerHour - cogsPerHour - fixedCostsPerHour - taxPerHour) : 0;
   const priorRemainder = business.salesRemainder ?? 0;
-  const desiredUnits = demandUnits * seconds / 3600 + priorRemainder;
+  const desiredUnits = unitsPerHour * seconds / 3600 + priorRemainder;
   const unitsDeducted = Math.min(business.stockUnits, Math.max(0, Math.floor(desiredUnits)));
   const salesRemainder = Math.max(0, desiredUnits - unitsDeducted);
-  const restockCost = 250;
-  const canAutoRestock = Boolean(business.autoRestockEnabled) && business.stockUnits < business.maxStockCapacity * 0.15 && business.stockUnits + 125 <= business.maxStockCapacity && liquidCash >= restockCost;
-  const restockUnits = canAutoRestock ? 125 : 0;
-  const revenueEarned = Number((unitsDeducted * retailPrices[business.pricingTier]).toFixed(2));
-  const cogs = Number((unitsDeducted * (business.unitWholesaleCost ?? 2)).toFixed(2));
-  const fixedCosts = Number((((business.monthlyRent ?? 800) + (business.monthlyPayroll ?? 1200)) / (30 * 24) * seconds / 3600).toFixed(2));
-  const tax = business.legalStatus === 'Licensed_Legal' ? Number((revenueEarned * 0.15).toFixed(2)) : 0;
-  const netCashDelta = Number(((unitsDeducted > 0 ? revenueEarned - cogs - fixedCosts - tax : 0) - (canAutoRestock ? restockCost : 0)).toFixed(2));
-  const cashDelta = netCashDelta;
-  const hourlyNetProfit = unitsDeducted > 0 ? Number((netCashDelta * 3600 / Math.max(1, seconds)).toFixed(2)) : 0;
+  const revenueEarned = Number((unitsDeducted * price).toFixed(2));
   const nextDemandClock = (business.demandClockSeconds ?? 0) + seconds;
   const eventRemaining = Math.max(0, (business.demandEventSeconds ?? 0) - seconds);
   const shouldStartPulse = eventRemaining === 0 && nextDemandClock >= 60;
@@ -82,36 +84,57 @@ function retailTick(business: RetailData, seconds: number, events: string[], liq
   if (shouldStartPulse) events.push(`${business.name}: ${nextEvent} demand pulse activated.`);
   if (business.stockUnits > 0 && business.stockUnits - unitsDeducted === 0) events.push(`${business.name}: shelves empty; sales paused without operating-cost bleed.`);
   const sequence = (business.lastSaleSequence ?? 0) + (unitsDeducted > 0 ? 1 : 0);
-  if (canAutoRestock) events.push(`${business.name}: Shelf Runner auto-ordered 125 units for $250.`);
-  return { business: { ...business, stockUnits: business.stockUnits - unitsDeducted + restockUnits, baseHourlyNetProfit: hourlyNetProfit, onboardingStep: business.onboardingStep === 'WATCH_FIRST_SALE' && unitsDeducted > 0 ? 'COMPLETE' : business.onboardingStep, unitWholesaleCost: business.unitWholesaleCost ?? 2, hourlyNetProfit, salesRemainder, demandEvent: nextEvent, demandEventSeconds: nextEventSeconds, demandClockSeconds: shouldStartPulse ? 0 : nextDemandClock, pulseChain: pulse, lastSaleSequence: sequence, lastSaleRevenue: revenueEarned, policeHeat: business.legalStatus === 'Shadow_Underground' ? Math.min(100, business.policeHeat + 0.02) : 0 }, cashDelta };
-}
-function mobilityTick(business: MobilityData, seconds: number): { business: MobilityData; cashDelta: number } {
-  if (!business.isAcquired) return { business: { ...business, hourlyNetProfit: 0 }, cashDelta: 0 };
-  const baseHourly = business.economySedans * 2200 + business.electricEVs * 6000 + business.luxuryLimos * 12000;
-  const surged = business.surgeActive ? baseHourly * 1.7 : baseHourly;
-  const adjusted = business.fleetHealth < 30 ? surged * .5 : surged;
-  return { business: { ...business, fleetHealth: Math.max(0, Number((business.fleetHealth - .05).toFixed(2))), hourlyNetProfit: Number(adjusted.toFixed(2)), baseHourlyNetProfit: Number(adjusted.toFixed(2)) }, cashDelta: Number((adjusted * seconds / 3600).toFixed(2)) };
-}
-function saasTick(business: SaaSData, seconds: number, events: string[]): { business: SaaSData; cashDelta: number } {
-  if (!business.isAcquired) return { business: { ...business, hourlyNetProfit: 0 }, cashDelta: 0 };
-  let subscribers = business.activeSubscribers;
-  if (subscribers > business.serverCapacity) { subscribers = Math.floor(subscribers * .95); events.push(`${business.name}: SERVER OVERLOAD · 5% subscriber churn.`); }
-  const hourly = subscribers * 3.5;
-  return { business: { ...business, activeSubscribers: subscribers, hourlyNetProfit: Number(hourly.toFixed(2)), baseHourlyNetProfit: Number(hourly.toFixed(2)) }, cashDelta: Number((hourly * seconds / 3600).toFixed(2)) };
-}
-function constructionTick(business: ConstructionData, elapsedSeconds: number, events: string[]): { business: ConstructionData; cashDelta: number } {
-  if (!business.isAcquired) return { business: { ...business, hourlyNetProfit: 0 }, cashDelta: 0 };
-  if (!business.activeTenderName || business.projectPhase === 0) return { business: { ...business, hourlyNetProfit: 250000, baseHourlyNetProfit: 250000 }, cashDelta: Number((250000 * elapsedSeconds / 3600).toFixed(2)) };
-  let next = { ...business }; let cashDelta = 0; let progress = next.phaseProgressPercent;
-  if (elapsedSeconds >= 3) progress += 1;
-  if (progress >= 100) { if (next.projectPhase < 3) { next = { ...next, projectPhase: (next.projectPhase + 1) as ConstructionData['projectPhase'], phaseProgressPercent: 0 }; events.push(`${next.name}: advanced to construction phase ${next.projectPhase}.`); } else { cashDelta = next.projectEscrowPayout + 50000; events.push(`${next.name}: tender complete; escrow and contractor bonus deposited.`); next = { ...next, activeTenderName: null, projectPhase: 0, phaseProgressPercent: 0, machineryDispatched: false, safetyCleared: false }; } } else next = { ...next, phaseProgressPercent: progress };
-  return { business: { ...next, baseHourlyNetProfit: next.activeTenderName ? 0 : 250000 }, cashDelta };
+  const nextBusiness = { ...business, stockUnits: business.stockUnits - unitsDeducted, baseHourlyNetProfit: Number(declaredHourlyRate.toFixed(2)), onboardingStep: business.onboardingStep === 'WATCH_FIRST_SALE' && unitsDeducted > 0 ? 'COMPLETE' : business.onboardingStep, unitWholesaleCost: business.unitWholesaleCost ?? 2, hourlyNetProfit: Number(declaredHourlyRate.toFixed(2)), salesRemainder, demandEvent: nextEvent, demandEventSeconds: nextEventSeconds, demandClockSeconds: shouldStartPulse ? 0 : nextDemandClock, pulseChain: pulse, lastSaleSequence: sequence, lastSaleRevenue: revenueEarned, policeHeat: business.legalStatus === 'Shadow_Underground' ? Math.min(100, business.policeHeat + 0.02) : 0 };
+  const taxPerUnit = business.legalStatus === 'Licensed_Legal' ? price * 0.15 : 0;
+  const netSaleAmount = unitsDeducted * (price - (business.unitWholesaleCost ?? 2) - taxPerUnit);
+  const fixedCostForPeriod = business.stockUnits > 0 ? fixedCostsPerHour * seconds / 3600 : 0;
+  return { business: nextBusiness, hourlyRate: Number(declaredHourlyRate.toFixed(2)), pendingAmount: Math.max(0, netSaleAmount - fixedCostForPeriod) };
 }
 
-export function simulateBusinessTick(businesses: BusinessEntity[], seconds = 2, constructionElapsedSeconds = seconds, liquidCash = Number.MAX_SAFE_INTEGER, ownershipFractions: Record<string, number> = {}, playerNetWorth = 0): SimulationResult {
-  const events: string[] = []; let cashDelta = 0; const incomeByBusiness: Record<string, number> = {};
-  const acquiredCount = businesses.filter(item => item.isAcquired).length; const wealthMultiplier = passiveIncomeMultiplier(playerNetWorth); const next = businesses.map(item => { const result = item.sector === 'Retail' ? applySynergy(retailTick(item, seconds, events, liquidCash), acquiredCount) : item.sector === 'Mobility' ? applySynergy(mobilityTick(item, seconds), acquiredCount) : item.sector === 'Tech_SaaS' ? applySynergy(saasTick(item, seconds, events), acquiredCount) : item.sector === 'Construction_Mega' ? applySynergy(constructionTick(item, constructionElapsedSeconds, events), acquiredCount) : applySynergy(expansionTick(item, seconds, events), acquiredCount); const founderShare = Math.min(1, Math.max(0, Number(ownershipFractions[item.id] ?? 1))); const rampMultiplier = item.isAcquired && Number.isFinite(item.operatingRampSeconds) ? Math.min(1, Math.max(0.02, (Number(item.operatingRampSeconds) + seconds) / (4 * 3600))) : 1; const adjustedCashDelta = result.cashDelta * rampMultiplier * founderShare * wealthMultiplier; cashDelta += adjustedCashDelta; incomeByBusiness[item.id] = Number(adjustedCashDelta.toFixed(2)); return { ...result.business, operatingRampSeconds: item.isAcquired && Number.isFinite(item.operatingRampSeconds) ? Math.min(4 * 3600, Number(item.operatingRampSeconds) + seconds) : result.business.operatingRampSeconds, baseHourlyNetProfit: Number((result.business.baseHourlyNetProfit ?? result.business.hourlyNetProfit).toFixed(2)), hourlyNetProfit: Number((result.business.hourlyNetProfit * rampMultiplier * founderShare * wealthMultiplier).toFixed(2)) }; });
-  return { businesses: next, cashDelta: Number(cashDelta.toFixed(2)), events, incomeByBusiness };
+function mobilityOperations(business: MobilityData, seconds: number): OperationResult<MobilityData> {
+  if (!business.isAcquired) return { business: { ...business, hourlyNetProfit: 0 }, hourlyRate: 0 };
+  const baseHourly = business.economySedans * 2200 + business.electricEVs * 6000 + business.luxuryLimos * 12000;
+  const surged = business.surgeActive ? baseHourly * 1.7 : baseHourly;
+  const adjusted = business.fleetHealth < 30 ? surged * 0.5 : surged;
+  const hourlyRate = Number(adjusted.toFixed(2));
+  return { business: { ...business, fleetHealth: Math.max(0, Number((business.fleetHealth - 0.05 * seconds / 2).toFixed(2))), hourlyNetProfit: hourlyRate, baseHourlyNetProfit: hourlyRate }, hourlyRate, pendingAmount: adjusted * seconds / 3600 };
+}
+
+function saasOperations(business: SaaSData, seconds: number, events: string[]): OperationResult<SaaSData> {
+  if (!business.isAcquired) return { business: { ...business, hourlyNetProfit: 0 }, hourlyRate: 0 };
+  let subscribers = business.activeSubscribers;
+  if (subscribers > business.serverCapacity) { subscribers = Math.floor(subscribers * 0.95); events.push(`${business.name}: SERVER OVERLOAD · 5% subscriber churn.`); }
+  const hourlyRate = Number((subscribers * 3.5).toFixed(2));
+  return { business: { ...business, activeSubscribers: subscribers, hourlyNetProfit: hourlyRate, baseHourlyNetProfit: hourlyRate }, hourlyRate, pendingAmount: hourlyRate * seconds / 3600 };
+}
+
+function constructionOperations(business: ConstructionData, elapsedSeconds: number, events: string[]): OperationResult<ConstructionData> {
+  if (!business.isAcquired) return { business: { ...business, hourlyNetProfit: 0 }, hourlyRate: 0 };
+  if (!business.activeTenderName || business.projectPhase === 0) return { business: { ...business, hourlyNetProfit: 250000, baseHourlyNetProfit: 250000 }, hourlyRate: 250000 };
+  let next = { ...business }; let progress = next.phaseProgressPercent;
+  if (elapsedSeconds >= 3) progress += 1;
+  if (progress >= 100) { if (next.projectPhase < 3) { next = { ...next, projectPhase: (next.projectPhase + 1) as ConstructionData['projectPhase'], phaseProgressPercent: 0 }; events.push(`${next.name}: advanced to construction phase ${next.projectPhase}.`); } else { events.push(`${next.name}: tender complete; settlement bonus is queued.`); next = { ...next, activeTenderName: null, projectPhase: 0, phaseProgressPercent: 0, machineryDispatched: false, safetyCleared: false }; } } else next = { ...next, phaseProgressPercent: progress };
+  const hourlyRate = next.activeTenderName ? 0 : 250000;
+  return { business: { ...next, baseHourlyNetProfit: hourlyRate, hourlyNetProfit: hourlyRate }, hourlyRate, pendingAmount: hourlyRate * elapsedSeconds / 3600 };
+}
+
+export type SimulationResult = { businesses: BusinessEntity[]; events: string[]; hourlyByBusiness: Record<string, number> };
+
+export function simulateBusinessOperations(businesses: BusinessEntity[], seconds = 2, constructionElapsedSeconds = seconds, liquidCash = Number.MAX_SAFE_INTEGER, ownershipFractions: Record<string, number> = {}, playerNetWorth = 0): SimulationResult {
+  const events: string[] = []; const hourlyByBusiness: Record<string, number> = {};
+  const acquiredCount = businesses.filter(item => item.isAcquired).length;
+  const wealthMultiplier = passiveIncomeMultiplier(playerNetWorth);
+  const next = businesses.map(item => {
+    const operation = item.sector === 'Retail' ? retailOperations(item, seconds, events, liquidCash) : item.sector === 'Mobility' ? mobilityOperations(item, seconds) : item.sector === 'Tech_SaaS' ? saasOperations(item, seconds, events) : item.sector === 'Construction_Mega' ? constructionOperations(item, constructionElapsedSeconds, events) : expansionOperations(item, seconds, events);
+    const synergized = applySynergy(operation, acquiredCount);
+    const founderShare = Math.min(1, Math.max(0, Number(ownershipFractions[item.id] ?? 1)));
+    const rampMultiplier = item.isAcquired && Number.isFinite(item.operatingRampSeconds) ? Math.min(1, Math.max(0.02, (Number(item.operatingRampSeconds) + seconds) / (4 * 3600))) : 1;
+    const declaredHourlyRate = Number((synergized.hourlyRate * rampMultiplier * founderShare * wealthMultiplier).toFixed(2));
+    const pendingAmount = Number(((item.pendingSettlementAmount ?? 0) + (synergized.pendingAmount ?? 0) * rampMultiplier * founderShare * wealthMultiplier).toFixed(2));
+    hourlyByBusiness[item.id] = declaredHourlyRate;
+    return { ...synergized.business, operatingRampSeconds: item.isAcquired && Number.isFinite(item.operatingRampSeconds) ? Math.min(4 * 3600, Number(item.operatingRampSeconds) + seconds) : synergized.business.operatingRampSeconds, baseHourlyNetProfit: Number((synergized.business.baseHourlyNetProfit ?? synergized.business.hourlyNetProfit).toFixed(2)), hourlyNetProfit: declaredHourlyRate, pendingSettlementAmount: pendingAmount, settlementAccruedSeconds: (item.settlementAccruedSeconds ?? 0) + (item.isAcquired ? seconds : 0) };
+  });
+  return { businesses: next, events, hourlyByBusiness };
 }
 
 const normalizeBusinessNames = (businesses: BusinessEntity[]): BusinessEntity[] => businesses.map(item => { const baseline = DEFAULT_BUSINESSES.find(candidate => candidate.id === item.id); const merged = baseline ? { ...baseline, ...item, unlockNetWorthRequired: baseline.unlockNetWorthRequired, acquisitionCost: baseline.acquisitionCost } : item; return merged.id === 'brightgrid-energy' || (merged.sector === 'Energy' && ['BrightGrid Energy', 'Surya Energy'].includes(merged.name)) ? { ...merged, name: 'Sunward Gridworks' } : merged; });

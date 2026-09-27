@@ -1,4 +1,4 @@
-export const GAME_SAVE_VERSION = 3;
+export const GAME_SAVE_VERSION = 5;
 
 export type GameSaveRecord = Record<string, any> & { schemaVersion: number };
 
@@ -14,6 +14,17 @@ export function migrateGameSave(input: unknown): GameSaveRecord {
   }
   if (version < 3) {
     migrated.progression = { ...(source.progression || {}), tapCashToday: Number.isFinite(source.progression?.tapCashToday) ? source.progression.tapCashToday : 0 };
+  }
+  if (version < 4) {
+    migrated.timeModel = "system-clock-v1";
+    if (migrated.ipoListing && !migrated.ipoListing.listedAtTimestamp && Number.isFinite(migrated.ipoListing.listedAtGameTimestamp)) {
+      migrated.ipoListing.listedAtTimestamp = migrated.ipoListing.listedAtGameTimestamp;
+    }
+    if (migrated.ipoListing && "listedAtGameTimestamp" in migrated.ipoListing) delete migrated.ipoListing.listedAtGameTimestamp;
+  }
+  if (version < 5) {
+    migrated.timeModel = "system-clock-v1";
+    migrated.settlementAt = Number.isFinite(source.settlementAt) ? source.settlementAt : Number.isFinite(source.saved) ? source.saved : Date.now();
   }
   return migrated;
 }
