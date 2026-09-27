@@ -45,17 +45,23 @@ jobs:
           run-id: ${{ steps.run.outputs.run_id }}
           github-token: ${{ github.token }}
 
+      - name: Prepare screenshot diagnostics
+        run: |
+          mkdir -p artifacts/screenshots
+          printf 'Screenshot run %s\nAPK run %s\n' '${{ github.run_id }}' '${{ steps.run.outputs.run_id }}' > artifacts/screenshots/runner-start.txt
+
       - name: Run Android emulator and capture UI proof
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 30
+          api-level: 35
           target: google_apis
           arch: x86_64
           profile: pixel_2
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -no-snapshot-save
           disable-animations: true
           cores: 4
-          ram-size: 4096M
+          ram-size: 6144M
+          disk-size: 8192M
           script: bash scripts/capture-emulator-screenshots.sh artifacts/apk/app-debug.apk artifacts/screenshots
 
       - name: Upload emulator screenshots and diagnostics

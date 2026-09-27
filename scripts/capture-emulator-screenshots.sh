@@ -29,7 +29,7 @@ $ADB shell input keyevent 82 >/dev/null 2>&1 || true
 install_ok=0
 for attempt in 1 2 3 4; do
   echo "Installing APK (attempt $attempt/4)"
-  if $ADB install -r -d "$APK_PATH"; then install_ok=1; break; fi
+  if $ADB install --no-streaming -r -d "$APK_PATH"; then install_ok=1; break; fi
   echo "APK install attempt $attempt failed; refreshing package service and retrying" >&2
   $ADB shell cmd package list packages >/dev/null 2>&1 || true
   sleep 6
