@@ -27,7 +27,8 @@ export const DEFAULT_PROGRESSION: ProgressionState = {
 };
 
 export function dayKey(timestamp = Date.now()): string {
-  return new Date(timestamp).toISOString().slice(0, 10);
+  const date = new Date(timestamp);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
 export function hydrateDailyProgress(saved: Partial<ProgressionState> | null | undefined, timestamp = Date.now()): ProgressionState {
@@ -35,8 +36,8 @@ export function hydrateDailyProgress(saved: Partial<ProgressionState> | null | u
   const today = dayKey(timestamp);
   if (!previous.lastLoginDay) return { ...previous, lastLoginDay: today, loginStreak: 1 };
   if (previous.lastLoginDay === today) return previous;
-  const previousDate = new Date(`${previous.lastLoginDay}T00:00:00.000Z`).getTime();
-  const todayDate = new Date(`${today}T00:00:00.000Z`).getTime();
+  const previousDate = new Date(`${previous.lastLoginDay}T00:00:00`).getTime();
+  const todayDate = new Date(`${today}T00:00:00`).getTime();
   const isConsecutive = todayDate - previousDate === 86400000;
   return { ...previous, lastLoginDay: today, loginStreak: isConsecutive ? previous.loginStreak + 1 : 1, tapsToday: 0, tapCashToday: 0, missionClaimed: false };
 }

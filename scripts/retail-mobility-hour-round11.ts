@@ -85,7 +85,7 @@ const output = {
     'The old Retail path omitted inventory COGS and legal tax from the cashflow comparison.',
   ],
   fixes: [
-    'New businesses ramp over four in-game hours.',
+    'New businesses ramp over four real-time hours.',
     'Retail subtracts $2/unit COGS, 15% legal tax, and prorated rent/payroll.',
     'Empty Retail shelves produce $0 and do not bleed rent/payroll in the simulation.',
     'The actual entry split is $500 business acquisition plus $500 starter stock.',
