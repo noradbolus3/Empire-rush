@@ -108,6 +108,14 @@ npx tsx scripts/retail-mobility-hour-round11.ts PASS
 
 The emulator screenshot workflow is not treated as successful proof in this report. The prior runs failed at emulator/ADB setup rather than at the app test assertion. The resulting APK is therefore delivered for direct phone validation without claiming an emulator screenshot.
 
+## Android artifact
+
+GitHub Actions run `36298894257` completed successfully for merge commit `cba832e9f9329e4af911f0b0b1f17f84dc1c09fb`. The workflow generated the standalone offline bundle, built the debug APK, verified the embedded JavaScript bundle, and uploaded the artifact.
+
+- APK size: `311,636,112` bytes
+- SHA-256: `2aef919f8e4c6a3f25864dfe611ca24aff64bcd7fad1e93cc9741c32622fe52a`
+- Workflow: https://github.com/noradbolus3/Empire-rush/actions/runs/36298894257
+
 ## References
 
 [1]: https://github.com/noradbolus3/Empire-rush "Empire Rush source repository"
