@@ -7,15 +7,14 @@ import { formatCurrency } from '../../utils/formatCurrency';
 type Props = { visible: boolean; onClose: () => void; sources: IncomeSource[] };
 
 export function EarningsBreakdownModal({ visible, onClose, sources }: Props) {
-  const total = sources.reduce((sum, source) => sum + source.perSecond, 0);
-  const positiveTotal = sources.filter(source => source.perSecond > 0).reduce((sum, source) => sum + source.perSecond, 0);
-  const hour = total * 3600;
+  const total = sources.reduce((sum, source) => sum + source.hourlyProjected, 0);
+  const positiveTotal = sources.filter(source => source.hourlyProjected > 0).reduce((sum, source) => sum + source.hourlyProjected, 0);
   return <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
     <View style={styles.shade}><SafeAreaView edges={['bottom', 'left', 'right']} style={styles.sheet}>
-      <View style={styles.grabber} /><View style={styles.header}><View><Text style={styles.eyebrow}>LIVE LEDGER / CASHFLOW</Text><Text style={styles.title}>REAL-TIME EARNINGS BREAKDOWN</Text></View><Pressable onPress={onClose} style={styles.close}><Text style={styles.closeText}>×</Text></Pressable></View>
-      <View style={styles.total}><Text style={styles.totalLabel}>TOTAL AGGREGATE NET YIELD</Text><Text style={[styles.totalValue, total < 0 && styles.negative]}>⚡ {total >= 0 ? '+' : ''}{formatCurrency(total)} / sec</Text><Text style={styles.hour}>{total >= 0 ? '+' : ''}{formatCurrency(hour)} / hour</Text></View>
-      <Text style={styles.section}>ACTIVE INCOME SOURCES</Text>
-      {sources.length ? sources.map(source => { const share = positiveTotal > 0 && source.perSecond > 0 ? Math.round(source.perSecond / positiveTotal * 100) : 0; return <View key={source.label} style={styles.row}><View style={styles.rowTop}><View style={styles.sourceWrap}><Text style={styles.source}>{source.label}</Text>{source.note && <Text style={styles.note}>{source.note}</Text>}</View><Text style={[styles.amount, source.perSecond < 0 && styles.negative]}>{source.perSecond >= 0 ? '+' : ''}{formatCurrency(source.perSecond)} / sec</Text></View><View style={styles.track}><View style={[styles.fill, { width: `${Math.min(100, share)}%`, backgroundColor: source.color }]} /></View><Text style={styles.share}>{share}% of positive cashflow</Text></View>; }) : <Text style={styles.empty}>No active income source is currently being generated.</Text>}
+      <View style={styles.grabber} /><View style={styles.header}><View><Text style={styles.eyebrow}>SETTLEMENT LEDGER / CASHFLOW</Text><Text style={styles.title}>HOURLY EARNINGS BREAKDOWN</Text></View><Pressable onPress={onClose} style={styles.close}><Text style={styles.closeText}>×</Text></Pressable></View>
+      <View style={styles.total}><Text style={styles.totalLabel}>PROJECTED BUSINESS CASHFLOW</Text><Text style={[styles.totalValue, total < 0 && styles.negative]}>+{formatCurrency(total)} / hour</Text><Text style={styles.hour}>Businesses credit at whole-hour settlement; taps credit instantly.</Text></View>
+      <Text style={styles.section}>INCOME SOURCES</Text>
+      {sources.length ? sources.map(source => { const share = positiveTotal > 0 && source.hourlyProjected > 0 ? Math.round(source.hourlyProjected / positiveTotal * 100) : 0; return <View key={source.label} style={styles.row}><View style={styles.rowTop}><View style={styles.sourceWrap}><Text style={styles.source}>{source.label}</Text>{source.note && <Text style={styles.note}>{source.note}</Text>}</View><Text style={[styles.amount, source.hourlyProjected < 0 && styles.negative]}>{source.hourlyProjected >= 0 ? '+' : ''}{formatCurrency(source.hourlyProjected)} / hr</Text></View><View style={styles.track}><View style={[styles.fill, { width: `${Math.min(100, share)}%`, backgroundColor: source.color }]} /></View><Text style={styles.share}>{share}% of positive projected cashflow</Text></View>; }) : <Text style={styles.empty}>No active income source is currently being generated.</Text>}
       <Pressable onPress={onClose} style={styles.done}><Text style={styles.doneText}>CLOSE BREAKDOWN</Text></Pressable>
     </SafeAreaView></View>
   </Modal>;

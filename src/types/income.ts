@@ -13,7 +13,7 @@ export type IncomeEvent = IncomeEventInput & {
 
 export type IncomeSource = {
   label: string;
-  perSecond: number;
+  hourlyProjected: number;
   color: string;
   note?: string;
 };

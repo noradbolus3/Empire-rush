@@ -4,18 +4,17 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle, Defs, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
 import BusinessRegistrationModal from '../components/modals/BusinessRegistrationModal';
 import { useGame } from '../context/GameContext';
-import { simulateBusinessTick } from '../engine/businessSimulation';
+import { simulateBusinessOperations } from '../engine/businessSimulation';
 import { CommandDeckPulse } from '../components/CommandDeckPulse';
 import { founderOwnershipFraction } from '../engine/ipoEngine';
 import { BusinessEntity, OperatingStructure, RetailBusinessState } from '../types/business';
 import { IPOListing } from '../types/ipo';
 import { RetailShopState } from '../types/retail';
 import { formatCurrency } from '../utils/formatCurrency';
-import { IncomeEventInput } from '../types/income';
 import BusinessMasterHubScreen from './business/BusinessMasterHubScreen';
 
 const C = { bg: '#07130F', surface: '#0D241A', card: '#102B20', cardBorder: '#236A45', white: '#F7FFF9', muted: '#8FB5A4', green: '#16E98A', cyan: '#61E8FF', red: '#FF6D62', gold: '#FFC928', violet: '#B59CFF', ink: '#08110E' };
-type Props = { state?: RetailShopState; cash: number; netWorth: number; timestamp: number; ipoListing?: IPOListing | null; onIPOComplete: (listing: IPOListing) => void; onStateChange?: React.Dispatch<React.SetStateAction<RetailShopState>>; onCashChange: React.Dispatch<React.SetStateAction<number>>; onProfitChange: (profit: number) => void; onIncome: (event?: IncomeEventInput) => void; focusRetail?: boolean; onRetailFocusHandled?: () => void };
+type Props = { state?: RetailShopState; cash: number; netWorth: number; timestamp: number; ipoListing?: IPOListing | null; onIPOComplete: (listing: IPOListing) => void; onStateChange?: React.Dispatch<React.SetStateAction<RetailShopState>>; onCashChange: React.Dispatch<React.SetStateAction<number>>; focusRetail?: boolean; onRetailFocusHandled?: () => void };
 const accent: Record<BusinessEntity['sector'], string> = { Retail: C.green, Mobility: C.gold, Tech_SaaS: C.violet, Construction_Mega: C.cyan, Real_Estate: '#38BDF8', Energy: '#FACC15', Pharma: '#FB7185', Media: '#C084FC', Sports: '#FB923C', Airline: '#60A5FA' };
 const iconAccent: Record<BusinessEntity['sector'], string> = { Retail: '#28E39A', Mobility: '#FFC857', Tech_SaaS: '#B59CFF', Construction_Mega: '#49C8FF', Real_Estate: '#38BDF8', Energy: '#FACC15', Pharma: '#FB7185', Media: '#C084FC', Sports: '#FB923C', Airline: '#60A5FA' };
 const sectorLabel: Record<BusinessEntity['sector'], string> = { Retail: 'RETAIL', Mobility: 'MOBILITY', Tech_SaaS: 'TECH', Construction_Mega: 'INFRASTRUCTURE', Real_Estate: 'REAL ESTATE', Energy: 'ENERGY', Pharma: 'PHARMA', Media: 'MEDIA', Sports: 'SPORTS', Airline: 'AIRLINE' };
@@ -23,12 +22,12 @@ const tierLabel: Record<BusinessEntity['sector'], string> = { Retail: 'STARTER',
 const sectorDescription: Record<BusinessEntity['sector'], string> = { Retail: 'Stock shelves, price smart, and compound daily footfall.', Mobility: 'Build a city fleet where surge pricing meets reliability.', Tech_SaaS: 'Turn subscribers and uptime into recurring software cashflow.', Construction_Mega: 'Win tenders, manage phases, and release escrow payouts.', Real_Estate: 'Own property branches and capture dependable rental demand.', Energy: 'Sell grid capacity as American infrastructure modernizes.', Pharma: 'Fund trials, protect trust, and commercialize breakthroughs.', Media: 'Convert attention, contracts, and viral reach into revenue.', Sports: 'Monetize fans, events, and championship momentum.', Airline: 'Operate a national route network with premium demand.' };
 const unlockMilestones = [{ amount: 5000, label: 'Founder runway', copy: 'Unlocks the first upgrade rhythm.' }, { amount: 10000, label: 'Local operator', copy: 'A second branch becomes realistic.' }, { amount: 50000, label: 'Regional scale', copy: 'Mobility and construction decisions open up.' }, { amount: 250000, label: 'Growth company', copy: 'SaaS and real-estate capital become reachable.' }, { amount: 750000, label: 'Institutional capital', copy: 'Prepare for the first public-company valuation.' }];
 
-export function BusinessScreen({ cash, netWorth, timestamp, ipoListing, onIPOComplete, onCashChange, onProfitChange, onIncome, focusRetail = false, onRetailFocusHandled }: Props) {
+export function BusinessScreen({ cash, netWorth, timestamp, ipoListing, onIPOComplete, onCashChange, focusRetail = false, onRetailFocusHandled }: Props) {
   const { businesses, setBusinesses } = useGame();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [registrationId, setRegistrationId] = useState<string | null>(null);
   const constructionElapsed = useRef(0);
-  useEffect(() => { const timer = setInterval(() => { constructionElapsed.current += 2; const constructionSeconds = constructionElapsed.current >= 3 ? 3 : 0; if (constructionSeconds) constructionElapsed.current -= 3; const ownershipFractions = ipoListing ? { [ipoListing.companyId]: founderOwnershipFraction(ipoListing) } : {}; const result = simulateBusinessTick(businesses, 2, constructionSeconds, cash, ownershipFractions, netWorth); if (result.cashDelta !== 0) { onCashChange(value => Math.max(0, value + result.cashDelta)); Object.entries(result.incomeByBusiness).filter(([, amount]) => amount > 0).forEach(([businessId, amount]) => { const source = result.businesses.find(item => item.id === businessId); if (source) onIncome({ source: source.name, amount, category: 'business' }); }); } if (result.businesses !== businesses) setBusinesses(result.businesses); onProfitChange(result.businesses.reduce((sum, item) => sum + (item.isAcquired ? item.hourlyNetProfit : 0), 0)); }, 2000); return () => clearInterval(timer); }, [businesses, cash, ipoListing, netWorth, onCashChange, onIncome, onProfitChange, setBusinesses]);
+  useEffect(() => { const timer = setInterval(() => { constructionElapsed.current += 2; const constructionSeconds = constructionElapsed.current >= 3 ? 3 : 0; if (constructionSeconds) constructionElapsed.current -= 3; const ownershipFractions = ipoListing ? { [ipoListing.companyId]: founderOwnershipFraction(ipoListing) } : {}; const result = simulateBusinessOperations(businesses, 2, constructionSeconds, cash, ownershipFractions, netWorth); if (result.businesses !== businesses) setBusinesses(result.businesses); }, 2000); return () => clearInterval(timer); }, [businesses, cash, ipoListing, netWorth, setBusinesses]);
   const selected = useMemo(() => businesses.find(item => item.id === selectedId && item.isAcquired) || null, [businesses, selectedId]);
   const registrationTarget = businesses.find(item => item.id === registrationId) || null;
   useEffect(() => { if (!focusRetail) return; const retail = businesses.find(item => item.sector === 'Retail'); if (retail?.isAcquired) setSelectedId(retail.id); else if (retail) setRegistrationId(retail.id); onRetailFocusHandled?.(); }, [businesses, focusRetail, onRetailFocusHandled]);

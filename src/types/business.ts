@@ -16,6 +16,8 @@ export interface BaseBusiness {
   stability: number;
   hourlyNetProfit: number;
   baseHourlyNetProfit?: number;
+  pendingSettlementAmount?: number;
+  settlementAccruedSeconds?: number;
   operatingRampSeconds?: number;
   branchCount?: number;
   staffCount?: number;

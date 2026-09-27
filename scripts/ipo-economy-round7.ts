@@ -1,5 +1,5 @@
 import { businessValuation, capIPOProceeds, createIPOListing, founderOwnershipFraction } from '../src/engine/ipoEngine';
-import { DEFAULT_BUSINESSES, passiveIncomeMultiplier, simulateBusinessTick } from '../src/engine/businessSimulation';
+import { DEFAULT_BUSINESSES, passiveIncomeMultiplier, simulateBusinessOperations } from '../src/engine/businessSimulation';
 import { tapUpgradeCost, tapUpgradeGain } from '../src/engine/tapUpgradeEngine';
 import { RetailData } from '../src/types/business';
 
@@ -16,9 +16,8 @@ function netWorth() { return cash + business.acquisitionCost + business.stockUni
 function snapshot(target: Point[], phase: string, founderShare = 1) { target.push({ phase, netWorth: Number(netWorth().toFixed(2)), cash: Number(cash.toFixed(2)), hourlyProfit: Number((business.hourlyNetProfit * founderShare).toFixed(2)), founderShare }); }
 
 for (let minute = 1; minute <= 6; minute += 1) {
-  const result = simulateBusinessTick([business], 60, 60, cash, {}, netWorth());
+  const result = simulateBusinessOperations([business], 60, 60, cash, {}, netWorth());
   business = result.businesses[0] as RetailData;
-  cash += result.cashDelta;
   snapshot(before, `pre-IPO minute ${minute}`);
 }
 // Normalize the deterministic event to the requested $1M gate so the comparison is easy to audit.
@@ -33,9 +32,8 @@ const fixedBeforeIPO = netWorth();
 cash += safeListing.capitalRaised;
 snapshot(after, 'IPO close · immediately after capital raise', founderShare);
 for (let minute = 1; minute <= 6; minute += 1) {
-  const result = simulateBusinessTick([business], 60, 60, cash, { [business.id]: founderShare }, netWorth());
+  const result = simulateBusinessOperations([business], 60, 60, cash, { [business.id]: founderShare }, netWorth());
   business = result.businesses[0] as RetailData;
-  cash += result.cashDelta;
   snapshot(after, `post-IPO minute ${minute}`, founderShare);
 }
 const allPoints = [...before, ...after];
