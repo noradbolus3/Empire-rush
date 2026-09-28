@@ -15,7 +15,7 @@ export type AssetCardProps = {
 export function AssetCard({ item, owned, canAfford, onAcquire }: AssetCardProps) {
   return (
     <View style={styles.card}>
-      <Image source={item.image} resizeMode="cover" style={styles.image} />
+      {item.image ? <Image source={item.image} resizeMode="cover" style={styles.image} /> : <View style={[styles.image, styles.imageUnavailable]}><Text style={styles.unavailableText}>IMAGE UNAVAILABLE</Text></View>}
       <View style={styles.imageShade}>
         <Text style={styles.type}>{item.type.toUpperCase()}</Text>
         <Text style={styles.prestige}>PRESTIGE +{item.prestige}</Text>
@@ -48,6 +48,8 @@ export function AssetCard({ item, owned, canAfford, onAcquire }: AssetCardProps)
 const styles = StyleSheet.create({
   card: { backgroundColor: C.panel, borderRadius: 18, borderWidth: 1, borderColor: C.slate, overflow: 'hidden', marginBottom: 14 },
   image: { width: '100%', height: 154, backgroundColor: C.panel2 },
+  imageUnavailable: { alignItems: 'center', justifyContent: 'center', borderBottomWidth: 1, borderBottomColor: C.slate },
+  unavailableText: { color: C.muted, fontSize: 11, fontWeight: '900', letterSpacing: 1.2 },
   imageShade: { position: 'absolute', left: 0, right: 0, top: 124, minHeight: 30, paddingHorizontal: 12, paddingVertical: 7, backgroundColor: 'rgba(4,16,11,.72)', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   type: { color: C.cyan, fontSize: 9, fontWeight: '900', letterSpacing: 1.2 },
   prestige: { color: C.gold, fontSize: 9, fontWeight: '900' },

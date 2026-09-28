@@ -1,4 +1,4 @@
-export type MarketSector = 'TECH' | 'ENERGY' | 'PHARMA' | 'MOBILITY' | 'BANKING' | 'RETAIL' | 'CRYPTO' | 'AEROSPACE' | 'MEDIA' | 'REAL_ESTATE' | 'CONSUMER';
+export type MarketSector = 'TECH' | 'ENERGY' | 'PHARMA' | 'MOBILITY' | 'BANKING' | 'RETAIL' | 'CRYPTO';
 
 export interface Asset {
   id: string;
@@ -11,7 +11,6 @@ export interface Asset {
   volatility: number;
   history: number[];
   sector?: MarketSector;
-  description?: string;
   maxShares?: number;
   isPlayerCompany?: boolean;
 }

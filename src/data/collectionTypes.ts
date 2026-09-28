@@ -7,6 +7,6 @@ export interface CollectionItem {
   price: number;
   upkeep: number;
   prestige: number;
-  image: number;
+  image?: number;
   category: CollectionCategory;
 }
