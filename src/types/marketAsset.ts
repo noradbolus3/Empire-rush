@@ -19,4 +19,5 @@ export interface Holding {
   shares: number;
   avgPrice: number;
   realized: number;
+  realizedPnl?: number;
 }

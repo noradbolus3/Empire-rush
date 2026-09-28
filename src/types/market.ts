@@ -13,6 +13,20 @@ export interface LimitOrder {
   filledPrice?: number;
 }
 
+export interface TradeRecord {
+  id: string;
+  assetId: string;
+  symbol: string;
+  name: string;
+  side: LimitOrderSide;
+  quantity: number;
+  price: number;
+  notional: number;
+  realizedPnl: number;
+  timestamp: number;
+  source: 'MARKET' | 'LIMIT';
+}
+
 export interface PortfolioPoint {
   timestamp: number;
   value: number;
