@@ -3,8 +3,6 @@ type Snapshot = { hour: number; netWorth: number; cash: number; businesses: stri
 const STARTING_CASH = 1_000;
 const IPO_GATE = 10_000_000;
 const IPO_CAP_MULTIPLE = 0.5;
-const TAP_SOFT_START = 10;
-const TAP_REWARD_FLOOR = 0.25;
 const profiles: Profile[] = [
   { label: 'casual', tapsPerActiveMinute: 10, activeMinutesPerHour: 20, reinvestmentRate: 0.72 },
   { label: 'regular', tapsPerActiveMinute: 20, activeMinutesPerHour: 20, reinvestmentRate: 0.84 },
@@ -30,8 +28,7 @@ function run(profile: Profile) {
   for (let hour = 1; hour <= 72; hour += 1) {
     if ((hour - 1) % 24 === 0) tapCashToday = 0;
     const currentNetWorth = cash + owned.reduce((sum, business) => sum + business.cost, 0);
-    const tapReward = Math.max(TAP_REWARD_FLOOR, 1 - Math.max(0, taps - TAP_SOFT_START) * 0.025);
-    const tapCash = tapGain(tapValue, profile, hour) * tapReward;
+    const tapCash = tapGain(tapValue, profile, hour);
     tapCashToday += tapCash;
     taps += profile.activeMinutesPerHour * profile.tapsPerActiveMinute;
     cash += tapCash;

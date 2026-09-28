@@ -11,7 +11,7 @@ import { businessValuation, capIPOProceeds, createIPOListing, founderOwnershipFr
 import { MARKET_EVENTS, applyMarketEvent, appendPortfolioPoint, calculateQuarterlyDividends, matchLimitOrders } from '../src/engine/marketEngine';
 import { LimitOrder } from '../src/types/market';
 import { tapUpgradeCost, tapUpgradeGain } from '../src/engine/tapUpgradeEngine';
-import { CASINO_UNLOCK_NET_WORTH, IPO_MAX_NET_WORTH_PROCEEDS_MULTIPLE, IPO_MIN_NET_WORTH, PASSIVE_INCOME_CAP, RETAIL_ENTRY_COST, STARTING_CASH, TAP_REWARD_FLOOR, TAP_SOFT_START_TAPS, tapRewardMultiplier } from '../src/engine/economyPlan';
+import { CASINO_UNLOCK_NET_WORTH, IPO_MAX_NET_WORTH_PROCEEDS_MULTIPLE, IPO_MIN_NET_WORTH, PASSIVE_INCOME_CAP, RETAIL_ENTRY_COST, STARTING_CASH, TAP_VALUE_CAP } from '../src/engine/economyPlan';
 import { GAME_SAVE_VERSION } from '../src/engine/saveMigration';
 
 const root = process.cwd();
@@ -108,9 +108,10 @@ assert.equal(RETAIL_ENTRY_COST, 500, 'economy: Retail entry cost drifted');
 assert.equal(IPO_MIN_NET_WORTH, 10_000_000, 'IPO: late-game net-worth gate drifted');
 assert.equal(IPO_MAX_NET_WORTH_PROCEEDS_MULTIPLE, 0.5, 'IPO: proceeds shortcut cap drifted');
 assert.equal(CASINO_UNLOCK_NET_WORTH, 100_000, 'casino: late-game unlock drifted');
-assert.equal(tapRewardMultiplier(TAP_SOFT_START_TAPS), 1, 'tap: soft curve should start at full reward');
-assert.equal(tapRewardMultiplier(10_000), TAP_REWARD_FLOOR, 'tap: reward floor should prevent zero-income dead stop');
-assert(tapRewardMultiplier(20) < 1 && tapRewardMultiplier(20) > TAP_REWARD_FLOOR, 'tap: soft diminishing returns are not active');
+assert.equal(TAP_VALUE_CAP, 10, 'tap: hard per-tap value cap drifted');
+assert.doesNotMatch(app, /tapRewardMultiplier|TAP_SOFT_START_TAPS|TAP_REWARD_FLOOR/, 'tap: App still applies tap-count diminishing returns');
+assert.doesNotMatch(homeScreen, /tapRewardMultiplier|% REWARD|after momentum|reward never reaches zero/, 'tap: Home still displays tap-count reduction language');
+assert.match(homeScreen, /no daily value reduction/, 'tap: unlimited-value explanation missing');
 assert(PASSIVE_INCOME_CAP <= 4, 'economy: passive-income ceiling is too high');
 assert(passiveIncomeMultiplier(1_000_000) > passiveIncomeMultiplier(25_000), 'passive income: wealth scaling is not increasing');
 assert.match(app, /requestPurchase/, 'purchase: request missing');
@@ -204,6 +205,8 @@ assert.match(read('src/components/modals/EarningsBreakdownModal.tsx'), /INCOME S
 assert.match(read('src/engine/businessSimulation.ts'), /hourlyByBusiness/, 'income ledger: per-business attribution missing');
 assert.match(app, /buildIncomeSources\(\{ businesses, assets, holdings, businessProfitPerHour: profit \}\)/, 'income ledger: projected cashflow must use only business/investment inputs');
 assert.match(read('scripts/tap-income-isolation-round14.ts'), /zeroTapVsThousandTap/, 'income ledger: tap-isolation proof missing');
+assert.match(read('scripts/real-ledger-proof-round15.ts'), /1328\.92/, 'income ledger: real Copper & Bloom plus Ammu cab proof missing');
+assert.match(read('scripts/economy-pacing-round8.ts'), /const tapCash = tapGain\(tapValue, profile, hour\);/, 'tap: pacing simulator still reduces value by tap count');
 assert.match(read('src/screens/MarketScreen.tsx'), /FOUNDER COMMAND DECK/, 'visual system: market command-deck header missing');
 assert.match(businessScreen, /#07130F/, 'visual system: business command-deck palette missing');
 assert.match(read('src/screens/BusinessScreen.tsx'), /CommandDeckPulse/, 'visual system: Business shared pulse missing');
