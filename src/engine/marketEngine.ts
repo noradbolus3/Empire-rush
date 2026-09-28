@@ -1,7 +1,7 @@
 import { LimitOrder, PortfolioPoint } from '../types/market';
 
-export type MarketSector = 'TECH' | 'ENERGY' | 'PHARMA' | 'MOBILITY' | 'BANKING' | 'RETAIL' | 'CRYPTO';
-export type MarketAsset = { id: string; symbol: string; name: string; kind: 'STOCK' | 'CRYPTO'; price: number; change: number; dividend: number; volatility: number; history: number[]; sector?: MarketSector; maxShares?: number; isPlayerCompany?: boolean };
+export type MarketSector = 'TECH' | 'ENERGY' | 'PHARMA' | 'MOBILITY' | 'BANKING' | 'RETAIL' | 'CRYPTO' | 'AEROSPACE' | 'MEDIA' | 'REAL_ESTATE' | 'CONSUMER';
+export type MarketAsset = { id: string; symbol: string; name: string; kind: 'STOCK' | 'CRYPTO'; price: number; change: number; dividend: number; volatility: number; history: number[]; sector?: MarketSector; description?: string; maxShares?: number; isPlayerCompany?: boolean };
 export type MarketEvent = { id: string; headline: string; sector: MarketSector | 'ALL'; shock: number };
 
 

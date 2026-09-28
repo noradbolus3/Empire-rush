@@ -35,7 +35,7 @@ assert.equal(cryptoBuy!.holding.shares, maxCryptoQuantity);
 assert.equal(cryptoPreview.cashAfter, 0);
 
 const migrated = migrateGameSave({ schemaVersion: 5, assets: [stock], holdings: { 'proof-stock': { shares: 2, realized: 0 } } });
-assert.equal(GAME_SAVE_VERSION, 6);
+assert.equal(GAME_SAVE_VERSION, 7);
 assert.equal(migrated.holdings['proof-stock'].avgPrice, 100, 'legacy holdings must start basis at current price');
 assert.deepEqual(migrated.tradeHistory, []);
 
