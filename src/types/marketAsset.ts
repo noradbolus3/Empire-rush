@@ -11,6 +11,7 @@ export interface Asset {
   volatility: number;
   history: number[];
   sector?: MarketSector;
+  logo?: number;
   maxShares?: number;
   isPlayerCompany?: boolean;
 }

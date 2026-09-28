@@ -16,6 +16,7 @@ import { CARS_DATA } from "./src/data/carsData";
 import { YACHTS_DATA } from "./src/data/yachtsData";
 import { JETS_DATA } from "./src/data/jetsData";
 import { PROPERTIES_DATA } from "./src/data/propertiesData";
+import { STOCK_LOGOS } from "./src/data/stockLogoData";
 import { formatSystemDateTime, readSystemTimeMs, weekKeyFromSystemTime } from "./src/engine/realTimeEngine";
 import { IPOListing } from "./src/types/ipo";
 import { DEFAULT_PROGRESSION, dayKey, hydrateDailyProgress, ProgressionState } from "./src/types/progression";
@@ -43,12 +44,12 @@ const short = (n: number) => { const safe = Number.isFinite(n) ? n : 0; const ab
 const pct = (n: number) => `${n >= 0 ? "+" : ""}${n.toFixed(2)}%`;
 const stockSeed: [string, string, string, number, number, number, number, Asset["sector"]][] = [["arclight", "ARC", "ArcLight Systems", 920, 2.1, 1.8, .021, "TECH"], ["quanta", "QNT", "Quanta Grid", 540, -1.4, .8, .026, "TECH"], ["sunpeak", "SPK", "Gridline Power", 410, 3.6, 2.4, .03, "ENERGY"], ["northstar", "NST", "Northstar Pharma", 690, 4.2, 1.4, .024, "PHARMA"], ["vantage", "VGT", "Vantage Motors", 275, -2.8, .6, .035, "MOBILITY"], ["beacon", "BCN", "Beacon Bank", 355, .8, 2.8, .018, "BANKING"], ["terrapower", "TRP", "TerraPower Renewables", 625, 5.4, 1.6, .032, "ENERGY"], ["orbit", "ORB", "Orbit Mobility", 190, -1.9, .5, .04, "MOBILITY"]];
 const cryptoSeed: [string, string, string, number, number, number, number, Asset["sector"]][] = [["btc", "BTC", "Bitcoin", 67500, 3.8, 0, .026, "CRYPTO"], ["eth", "ETH", "Ethereum", 3450, -2.2, 0, .03, "CRYPTO"], ["sol", "SOL", "Solana", 148, 6.4, 0, .035, "CRYPTO"], ["matic", "MTC", "Polygon", 0.72, 1.5, 0, .04, "CRYPTO"], ["avax", "AVX", "Avalanche", 36, -4.1, 0, .045, "CRYPTO"], ["neon", "NEON", "Neon Protocol", 12.5, 8.8, 0, .05, "CRYPTO"]];
-const seedAssets = (seed: typeof stockSeed, kind: Asset["kind"]) => seed.map(([id, symbol, name, price, change, dividend, volatility, sector]) => ({ id, symbol, name, kind, sector: sector || (kind === "CRYPTO" ? "CRYPTO" : "TECH"), price, change, dividend, volatility, history: createSeededHistory(id, price, volatility) }));
+const seedAssets = (seed: typeof stockSeed, kind: Asset["kind"]) => seed.map(([id, symbol, name, price, change, dividend, volatility, sector]) => ({ id, symbol, name, kind, sector: sector || (kind === "CRYPTO" ? "CRYPTO" : "TECH"), price, change, dividend, volatility, logo: STOCK_LOGOS[id], history: createSeededHistory(id, price, volatility) }));
 const lifestyleAssets = [...CARS_DATA, ...YACHTS_DATA, ...JETS_DATA, ...PROPERTIES_DATA];
 const headlines = ["Fed signals a softer landing: Growth stocks rally", "Wall Street opens higher as clean energy leads", "EV tax credits extended: Mobility stocks jump", "Main Street spending rises: Retail margins improve"];
 const SAVE = "empire-rush-richman-v3";
 const sensibleCryptoPrices: Record<string, number> = { btc: 67500, eth: 3450, sol: 148, matic: 0.72, avax: 36, neon: 12.5 };
-const normalizeMarketAsset = (asset: Asset): Asset => { const target = asset.kind === 'CRYPTO' ? sensibleCryptoPrices[asset.id] : undefined; if (!target || asset.price <= target * 4) return { ...asset, name: asset.id === 'sunpeak' ? 'Gridline Power' : asset.name }; const ratio = target / asset.price; return { ...asset, price: target, name: asset.id === 'sunpeak' ? 'Gridline Power' : asset.name, history: asset.history.map(value => Number((value * ratio).toFixed(2))) }; };
+const normalizeMarketAsset = (asset: Asset): Asset => { const target = asset.kind === 'CRYPTO' ? sensibleCryptoPrices[asset.id] : undefined; const visual = { ...asset, logo: asset.logo ?? STOCK_LOGOS[asset.id], name: asset.id === 'sunpeak' ? 'Gridline Power' : asset.name }; if (!target || asset.price <= target * 4) return visual; const ratio = target / asset.price; return { ...visual, price: target, history: asset.history.map(value => Number((value * ratio).toFixed(2))) }; };
 
 function AppContent() {
   const insets = useSafeAreaInsets(); const { resetBusinesses, businesses, setBusinesses } = useGame(); const { isOnline, clockTampered } = useNetwork(); const clockTamperedRef = useRef(clockTampered);
