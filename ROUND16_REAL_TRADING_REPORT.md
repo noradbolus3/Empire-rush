@@ -179,7 +179,7 @@ src/utils/formatCurrency.ts
 
 ## Android and merge status
 
-At this checkpoint, the Round 16 branch has passed local validation but has not yet been built. The next safe action is to push this branch, dispatch `.github/workflows/build-android.yml` against `round-16-real-trading`, download the resulting standalone APK, and hand that artifact to the user for phone testing. `main` remains unchanged pending that test.
+The combined branch build passed in GitHub Actions: [workflow run 36415728243](https://github.com/noradbolus3/Empire-rush/actions/runs/36415728243). The verified artifact is `empire-rush-round16-real-trading-debug.apk`, size 311,652,396 bytes, SHA-256 `ef28a26cb4d20505e66bb4cd6df0c51ae056f39d481760b347e8f1ccd0471960`. The APK contains `assets/index.android.bundle`, so it is packaged for standalone offline launch. `main` remains unchanged pending phone verification.
 
 ## References
 
