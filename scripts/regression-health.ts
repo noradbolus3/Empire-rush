@@ -207,10 +207,10 @@ assert.match(homeScreen, /REBIRTH LOCKED/, 'rebirth UI: pre-net-worth lock copy 
 const assetCard = read('src/screens/AssetCard.tsx');
 assert.match(assetCard, /Image source=\{item\.image\}/, 'lifestyle UI: bundled image rendering missing');
 assert.doesNotMatch(lifestyleScreen, /react-native-svg/, 'lifestyle UI: generic SVG asset visual remains');
-assert.match(read('src/data/carsData.ts'), /car-30\.webp/, 'lifestyle assets: cars collection missing');
-assert.match(read('src/data/yachtsData.ts'), /yacht-30\.webp/, 'lifestyle assets: yachts collection missing');
-assert.match(read('src/data/jetsData.ts'), /jet-30\.webp/, 'lifestyle assets: jets collection missing');
-assert.match(read('src/data/propertiesData.ts'), /propertie-30\.webp/, 'lifestyle assets: properties collection missing');
+	assert.match(read('src/data/carsData.ts'), /zenith-crown\.webp/, 'lifestyle assets: cars collection missing');
+	assert.match(read('src/data/yachtsData.ts'), /eternal-tide\.webp/, 'lifestyle assets: yachts collection missing');
+	assert.match(read('src/data/jetsData.ts'), /sovereign-skytown\.webp/, 'lifestyle assets: jets collection missing');
+	assert.match(read('src/data/propertiesData.ts'), /sovereign-private-island\.webp/, 'lifestyle assets: properties collection missing');
 assert.match(read('src/screens/business/BusinessMasterHubScreen.tsx'), /scrollTo\(\{ y: 260/, 'retail: next-goal stock-order autofocus missing');
 assert.match(read('src/screens/business/BusinessMasterHubScreen.tsx'), /saleFlash/, 'retail: sale feedback animation missing');
 assert.match(homeScreen, /Share\.share/, 'virality: organic milestone share action missing');
