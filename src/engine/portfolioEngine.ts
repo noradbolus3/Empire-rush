@@ -1,5 +1,5 @@
 import { Asset, Holding } from '../types/marketAsset';
-import { TradeRecord } from '../types/market';
+import { PortfolioPoint, TradeRecord } from '../types/market';
 
 export type PortfolioSummary = {
   totalInvested: number;
@@ -7,6 +7,28 @@ export type PortfolioSummary = {
   unrealizedPnl: number;
   realizedPnl: number;
 };
+
+export type PortfolioRange = '1D' | '1W' | '1M';
+export type PortfolioAllocation = { id: string; label: string; value: number; percentage: number; color: string };
+
+export function portfolioRangePoints(points: PortfolioPoint[], range: PortfolioRange, now: number): PortfolioPoint[] {
+  const duration = range === '1D' ? 24 * 60 * 60 * 1000 : range === '1W' ? 7 * 24 * 60 * 60 * 1000 : 30 * 24 * 60 * 60 * 1000;
+  return points.filter(point => point.timestamp >= now - duration);
+}
+
+export function portfolioAllocation(assets: Asset[], holdings: Record<string, Holding>, cash: number): PortfolioAllocation[] {
+  const groups = new Map<string, number>();
+  for (const [assetId, holding] of Object.entries(holdings)) {
+    const asset = assets.find(item => item.id === assetId);
+    if (!asset || holding.shares <= 0) continue;
+    const key = asset.sector || asset.kind;
+    groups.set(key, (groups.get(key) || 0) + holdingCurrentValue(holding, asset.price));
+  }
+  if (cash > 0) groups.set('CASH', cash);
+  const total = [...groups.values()].reduce((sum, value) => sum + value, 0);
+  const colors = ['#61E8FF', '#16E98A', '#FFC928', '#FF6D62', '#B78CFF', '#8FB5A4'];
+  return [...groups.entries()].sort((a, b) => b[1] - a[1]).map(([label, value], index) => ({ id: label, label, value: Number(value.toFixed(2)), percentage: total > 0 ? Number((value / total * 100).toFixed(1)) : 0, color: colors[index % colors.length] }));
+}
 
 export function normalizeHoldings(holdings: Record<string, Partial<Holding>> | undefined, assets: Asset[]): Record<string, Holding> {
   const next: Record<string, Holding> = {};

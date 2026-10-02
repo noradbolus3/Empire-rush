@@ -50,7 +50,7 @@ assert.doesNotMatch(app, /gameTimeEngine|SimulatedGameTime|formatSimulatedGameTi
 assert.match(realTimeEngine, /return Date\.now\(\)/, 'clock: real-time engine must read system time');
 assert.match(app, /formatSystemDateTime\(systemTimeMs\)/, 'clock: App must render system date/time');
 assert.match(app, /timeModel: "system-clock-v1"/, 'save migration: system clock marker missing');
-assert.equal(GAME_SAVE_VERSION, 8, 'save migration: Round 21 market state schema version missing');
+assert.equal(GAME_SAVE_VERSION, 9, 'save migration: Round 22 market UX schema version missing');
 assert.match(read('src/engine/saveMigration.ts'), /marketCatalogVersion/, 'save migration: canonical market catalog marker missing');
 assert.match(read('src/engine/saveMigration.ts'), /settlementAt/, 'save migration: settlement cursor migration missing');
 assert.equal(fs.existsSync(path.join(root, 'src/engine/gameTimeEngine.ts')), false, 'clock: obsolete simulated clock file remains');
@@ -166,8 +166,14 @@ const pulseCheck = calculateMarketPulse([{ id: 'pulse', symbol: 'PLS', name: 'Pu
 assert.equal(pulseCheck.direction, 'BULLISH', 'market: pulse must follow recent price history');
 assert.match(read('src/screens/MarketScreen.tsx'), /calculateMarketPulse/, 'market: live pulse calculation is not wired to the screen');
 assert.match(read('src/screens/MarketScreen.tsx'), /newest first/, 'market: trade log must be newest first');
+assert.match(read('src/screens/MarketScreen.tsx'), /tradeFilter/, 'market: trade log filters missing');
+assert.match(read('src/screens/MarketScreen.tsx'), /Realized P&L/, 'market: trade log totals missing');
+assert.match(read('src/screens/MarketScreen.tsx'), /REMOVE ALL/, 'market: watchlist remove action missing');
+assert.match(read('src/screens/MarketScreen.tsx'), /1D.*1W.*1M/, 'market: portfolio range controls missing');
+assert.match(read('src/screens/MarketScreen.tsx'), /ALLOCATION/, 'market: portfolio allocation breakdown missing');
 assert.match(app, /toggleWatchlist/, 'market: persisted watchlist toggle callback missing');
 assert.match(read('src/engine/saveMigration.ts'), /migrated\.watchlist/, 'market: watchlist migration missing');
+assert.match(read('src/engine/saveMigration.ts'), /migrated\.limitOrders/, 'market: limit-order migration missing');
 assert.match(app, /toFixed\(8\)/, 'market: fractional crypto precision missing');
 assert.match(read('src/engine/tradeEngine.ts'), /asset\.kind === 'CRYPTO' \? Number\(quantity\.toFixed\(8\)\)/, 'market: fractional crypto precision helper missing');
 assert.match(read('src/screens/MarketScreen.tsx'), /fractional units/, 'market: fractional crypto UI copy missing');

@@ -5,6 +5,10 @@ import { buyHolding, sellHolding } from './portfolioEngine';
 export const TRADE_QUANTITY_PRESETS = [1, 10, 100] as const;
 export const LARGE_ORDER_CASH_RATIO = 0.5;
 
+export function isDuplicateTrade(last: { assetId: string; side: LimitOrderSide; quantity: number; at: number } | undefined, assetId: string, side: LimitOrderSide, quantity: number, now: number, windowMs = 500): boolean {
+  return Boolean(last && last.assetId === assetId && last.side === side && last.quantity === quantity && now - last.at < windowMs);
+}
+
 export function normalizeTradeQuantity(asset: Asset, quantity: number): number {
   if (!Number.isFinite(quantity) || quantity <= 0) return 0;
   return asset.kind === 'CRYPTO' ? Number(quantity.toFixed(8)) : Math.floor(quantity);

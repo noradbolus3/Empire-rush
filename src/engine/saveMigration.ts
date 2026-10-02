@@ -1,4 +1,4 @@
-export const GAME_SAVE_VERSION = 8;
+export const GAME_SAVE_VERSION = 9;
 
 export type GameSaveRecord = Record<string, any> & { schemaVersion: number };
 
@@ -46,6 +46,12 @@ export function migrateGameSave(input: unknown): GameSaveRecord {
   if (version < 8) {
     migrated.tradeHistory = Array.isArray(source.tradeHistory) ? source.tradeHistory.filter((record: any) => record && typeof record === 'object' && typeof record.assetId === 'string') : [];
     migrated.watchlist = Array.isArray(source.watchlist) ? source.watchlist.filter((assetId: any) => typeof assetId === 'string') : [];
+  }
+  if (version < 9) {
+    migrated.tradeHistory = Array.isArray(migrated.tradeHistory) ? migrated.tradeHistory.filter((record: any) => record && typeof record.assetId === 'string' && (record.side === 'BUY' || record.side === 'SELL') && Number.isFinite(record.quantity) && Number.isFinite(record.price)) : [];
+    migrated.watchlist = Array.isArray(migrated.watchlist) ? [...new Set(migrated.watchlist.filter((assetId: any) => typeof assetId === 'string'))] : [];
+    migrated.limitOrders = Array.isArray(source.limitOrders) ? source.limitOrders.filter((order: any) => order && typeof order.assetId === 'string' && (order.side === 'BUY' || order.side === 'SELL') && (order.status === 'OPEN' || order.status === 'FILLED' || order.status === 'CANCELLED') && Number.isFinite(order.quantity) && Number.isFinite(order.limitPrice)) : [];
+    migrated.portfolioHistory = Array.isArray(source.portfolioHistory) ? source.portfolioHistory.filter((point: any) => point && Number.isFinite(point.timestamp) && Number.isFinite(point.value)).slice(-48) : [];
   }
   return migrated;
 }
