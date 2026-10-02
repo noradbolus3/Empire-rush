@@ -16,4 +16,11 @@ export type IncomeSource = {
   hourlyProjected: number;
   color: string;
   note?: string;
+  cadence?: 'hour' | 'event';
+};
+
+export type GameplayActivity = {
+  taps: number;
+  cashEarned: number;
+  currentReward: number;
 };

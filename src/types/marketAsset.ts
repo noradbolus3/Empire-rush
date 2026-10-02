@@ -11,6 +11,7 @@ export interface Asset {
   volatility: number;
   history: number[];
   sector?: MarketSector;
+  logo?: number;
   maxShares?: number;
   isPlayerCompany?: boolean;
 }
@@ -19,4 +20,5 @@ export interface Holding {
   shares: number;
   avgPrice: number;
   realized: number;
+  realizedPnl?: number;
 }

@@ -6,3 +6,5 @@ export * from './incomeLedger';
 export * from './tapBoostEngine';
 export * from './realTimeEngine';
 export * from './settlementEngine';
+export * from './portfolioEngine';
+export * from './tradeEngine';

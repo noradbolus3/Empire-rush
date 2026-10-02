@@ -3,6 +3,29 @@ import { LimitOrder, PortfolioPoint } from '../types/market';
 export type MarketSector = 'TECH' | 'ENERGY' | 'PHARMA' | 'MOBILITY' | 'BANKING' | 'RETAIL' | 'CRYPTO';
 export type MarketAsset = { id: string; symbol: string; name: string; kind: 'STOCK' | 'CRYPTO'; price: number; change: number; dividend: number; volatility: number; history: number[]; sector?: MarketSector; maxShares?: number; isPlayerCompany?: boolean };
 export type MarketEvent = { id: string; headline: string; sector: MarketSector | 'ALL'; shock: number };
+export type MarketPulseSector = { sector: MarketSector; trendPct: number; positiveAssets: number; assetCount: number };
+export type MarketPulse = { direction: 'BULLISH' | 'BEARISH' | 'MIXED'; averageTrendPct: number; positiveBreadthPct: number; sectors: MarketPulseSector[] };
+
+export function recentAssetTrend(asset: Pick<MarketAsset, 'history' | 'change'>): number {
+  const points = asset.history.slice(-6);
+  if (points.length < 2 || points[0] <= 0) return Number(asset.change.toFixed(2));
+  return Number((((points[points.length - 1] - points[0]) / points[0]) * 100).toFixed(2));
+}
+
+export function calculateMarketPulse<T extends MarketAsset>(assets: T[]): MarketPulse {
+  const tracked = assets.filter(asset => asset.history.length > 0);
+  if (!tracked.length) return { direction: 'MIXED', averageTrendPct: 0, positiveBreadthPct: 0, sectors: [] };
+  const trends = tracked.map(asset => recentAssetTrend(asset));
+  const averageTrendPct = Number((trends.reduce((sum, trend) => sum + trend, 0) / trends.length).toFixed(2));
+  const positiveBreadthPct = Number(((trends.filter(trend => trend > 0).length / trends.length) * 100).toFixed(1));
+  const direction = positiveBreadthPct >= 60 && averageTrendPct > 0 ? 'BULLISH' : positiveBreadthPct <= 40 && averageTrendPct < 0 ? 'BEARISH' : 'MIXED';
+  const sectors = [...new Set(tracked.map(asset => asset.sector).filter(Boolean) as MarketSector[])].map(sector => {
+    const sectorAssets = tracked.filter(asset => asset.sector === sector);
+    const sectorTrends = sectorAssets.map(asset => recentAssetTrend(asset));
+    return { sector, trendPct: Number((sectorTrends.reduce((sum, trend) => sum + trend, 0) / sectorTrends.length).toFixed(2)), positiveAssets: sectorTrends.filter(trend => trend > 0).length, assetCount: sectorAssets.length };
+  }).sort((a, b) => b.trendPct - a.trendPct);
+  return { direction, averageTrendPct, positiveBreadthPct, sectors };
+}
 
 
 export function createSeededHistory(seed: string, price: number, volatility: number, length = 18): number[] {
