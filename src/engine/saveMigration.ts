@@ -1,4 +1,4 @@
-export const GAME_SAVE_VERSION = 9;
+export const GAME_SAVE_VERSION = 10;
 
 export type GameSaveRecord = Record<string, any> & { schemaVersion: number };
 
@@ -52,6 +52,11 @@ export function migrateGameSave(input: unknown): GameSaveRecord {
     migrated.watchlist = Array.isArray(migrated.watchlist) ? [...new Set(migrated.watchlist.filter((assetId: any) => typeof assetId === 'string'))] : [];
     migrated.limitOrders = Array.isArray(source.limitOrders) ? source.limitOrders.filter((order: any) => order && typeof order.assetId === 'string' && (order.side === 'BUY' || order.side === 'SELL') && (order.status === 'OPEN' || order.status === 'FILLED' || order.status === 'CANCELLED') && Number.isFinite(order.quantity) && Number.isFinite(order.limitPrice)) : [];
     migrated.portfolioHistory = Array.isArray(source.portfolioHistory) ? source.portfolioHistory.filter((point: any) => point && Number.isFinite(point.timestamp) && Number.isFinite(point.value)).slice(-48) : [];
+  }
+  if (version < 10) {
+    migrated.priceAlerts = Array.isArray(source.priceAlerts) ? source.priceAlerts.filter((alert: any) => alert && typeof alert.assetId === 'string' && typeof alert.symbol === 'string' && (alert.condition === 'ABOVE' || alert.condition === 'BELOW' || alert.condition === 'PCT_MOVE') && Number.isFinite(alert.target) && Number.isFinite(alert.baselinePrice)).slice(-50) : [];
+  } else {
+    migrated.priceAlerts = Array.isArray(source.priceAlerts) ? source.priceAlerts.filter((alert: any) => alert && typeof alert.assetId === 'string' && typeof alert.symbol === 'string' && (alert.condition === 'ABOVE' || alert.condition === 'BELOW' || alert.condition === 'PCT_MOVE') && Number.isFinite(alert.target) && Number.isFinite(alert.baselinePrice)).slice(-50) : [];
   }
   return migrated;
 }

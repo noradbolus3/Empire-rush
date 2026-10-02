@@ -50,7 +50,7 @@ assert.doesNotMatch(app, /gameTimeEngine|SimulatedGameTime|formatSimulatedGameTi
 assert.match(realTimeEngine, /return Date\.now\(\)/, 'clock: real-time engine must read system time');
 assert.match(app, /formatSystemDateTime\(systemTimeMs\)/, 'clock: App must render system date/time');
 assert.match(app, /timeModel: "system-clock-v1"/, 'save migration: system clock marker missing');
-assert.equal(GAME_SAVE_VERSION, 9, 'save migration: Round 22 market UX schema version missing');
+assert.equal(GAME_SAVE_VERSION, 10, 'save migration: Round 23 market intelligence schema version missing');
 assert.match(read('src/engine/saveMigration.ts'), /marketCatalogVersion/, 'save migration: canonical market catalog marker missing');
 assert.match(read('src/engine/saveMigration.ts'), /settlementAt/, 'save migration: settlement cursor migration missing');
 assert.equal(fs.existsSync(path.join(root, 'src/engine/gameTimeEngine.ts')), false, 'clock: obsolete simulated clock file remains');
@@ -145,6 +145,7 @@ assert.equal(portfolioSummary([{ ...marketAsset, price: 110 }], { 'market-test':
 assert.match(app, /watchlist/, 'market: watchlist is not persisted');
 assert.match(app, /tradeHistory/, 'market: trade history is not persisted');
 assert.match(read('src/engine/saveMigration.ts'), /migrated\.holdings/, 'market: legacy holdings migration missing');
+assert.match(read('src/engine/saveMigration.ts'), /migrated\.priceAlerts/, 'market: price-alert migration missing');
 assert.match(read('src/engine/portfolioEngine.ts'), /weighted|avgPrice/, 'market: weighted average cost basis missing');
 assert.match(read('src/engine/tradeEngine.ts'), /quantityFromCashPercent|quantityFromHoldingPercent/, 'market: bulk quantity controls missing');
 assert.match(read('src/engine/tradeEngine.ts'), /estimatePriceImpact/, 'market: price impact formula missing');
@@ -171,6 +172,10 @@ assert.match(read('src/screens/MarketScreen.tsx'), /Realized P&L/, 'market: trad
 assert.match(read('src/screens/MarketScreen.tsx'), /REMOVE ALL/, 'market: watchlist remove action missing');
 assert.match(read('src/screens/MarketScreen.tsx'), /1D.*1W.*1M/, 'market: portfolio range controls missing');
 assert.match(read('src/screens/MarketScreen.tsx'), /ALLOCATION/, 'market: portfolio allocation breakdown missing');
+assert.match(read('src/screens/TechnicalChartModal.tsx'), /TECHNICAL DESK/, 'market: technical chart modal missing');
+assert.match(read('src/screens/TechnicalChartModal.tsx'), /SET ALERT/, 'market: price-alert control missing');
+assert.match(read('src/engine/marketIntelligenceEngine.ts'), /relativeStrengthIndex/, 'market: RSI indicator missing');
+assert.match(read('src/engine/marketIntelligenceEngine.ts'), /bollingerBands/, 'market: Bollinger indicator missing');
 assert.match(app, /toggleWatchlist/, 'market: persisted watchlist toggle callback missing');
 assert.match(read('src/engine/saveMigration.ts'), /migrated\.watchlist/, 'market: watchlist migration missing');
 assert.match(read('src/engine/saveMigration.ts'), /migrated\.limitOrders/, 'market: limit-order migration missing');
