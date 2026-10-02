@@ -5,7 +5,7 @@ type CommandDeckPulseProps = {
   label: string;
   value: string;
   detail: string;
-  accent?: '#16E98A' | '#61E8FF' | '#FFC928';
+  accent?: '#16E98A' | '#61E8FF' | '#FFC928' | '#FF6D62';
 };
 
 export function CommandDeckPulse({ label, value, detail, accent = '#16E98A' }: CommandDeckPulseProps) {

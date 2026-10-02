@@ -8,7 +8,7 @@ import { formatSystemDateTime, readSystemTimeMs, weekKeyFromSystemTime } from '.
 import { DEFAULT_BUSINESSES, passiveIncomeMultiplier, simulateBusinessOperations } from '../src/engine/businessSimulation';
 import { DEFAULT_PROGRESSION, hydrateDailyProgress } from '../src/types/progression';
 import { businessValuation, capIPOProceeds, createIPOListing, founderOwnershipFraction, getIPOEligibility } from '../src/engine/ipoEngine';
-import { MARKET_EVENTS, applyMarketEvent, appendPortfolioPoint, calculateQuarterlyDividends, matchLimitOrders } from '../src/engine/marketEngine';
+import { MARKET_EVENTS, applyMarketEvent, appendPortfolioPoint, calculateMarketPulse, calculateQuarterlyDividends, matchLimitOrders } from '../src/engine/marketEngine';
 import { LimitOrder } from '../src/types/market';
 import { tapUpgradeCost, tapUpgradeGain } from '../src/engine/tapUpgradeEngine';
 import { CASINO_UNLOCK_NET_WORTH, IPO_MAX_NET_WORTH_PROCEEDS_MULTIPLE, IPO_MIN_NET_WORTH, PASSIVE_INCOME_CAP, RETAIL_ENTRY_COST, STARTING_CASH, TAP_VALUE_CAP } from '../src/engine/economyPlan';
@@ -50,7 +50,7 @@ assert.doesNotMatch(app, /gameTimeEngine|SimulatedGameTime|formatSimulatedGameTi
 assert.match(realTimeEngine, /return Date\.now\(\)/, 'clock: real-time engine must read system time');
 assert.match(app, /formatSystemDateTime\(systemTimeMs\)/, 'clock: App must render system date/time');
 assert.match(app, /timeModel: "system-clock-v1"/, 'save migration: system clock marker missing');
-assert.equal(GAME_SAVE_VERSION, 7, 'save migration: Round 17 market catalog schema version missing');
+assert.equal(GAME_SAVE_VERSION, 8, 'save migration: Round 21 market state schema version missing');
 assert.match(read('src/engine/saveMigration.ts'), /marketCatalogVersion/, 'save migration: canonical market catalog marker missing');
 assert.match(read('src/engine/saveMigration.ts'), /settlementAt/, 'save migration: settlement cursor migration missing');
 assert.equal(fs.existsSync(path.join(root, 'src/engine/gameTimeEngine.ts')), false, 'clock: obsolete simulated clock file remains');
@@ -162,6 +162,12 @@ assert.match(app, /portfolioHistory/, 'market: portfolio history persistence mis
 assert.match(read('src/screens/MarketScreen.tsx'), /LOCAL AI RIVALS/, 'market: local rival leaderboard missing');
 assert.match(read('src/engine/marketEngine.ts'), /createSeededHistory/, 'market: seeded random-walk history missing');
 assert.match(read('src/engine/marketEngine.ts'), /normalizeAssetHistories/, 'market: per-asset history normalization missing');
+const pulseCheck = calculateMarketPulse([{ id: 'pulse', symbol: 'PLS', name: 'Pulse Test', kind: 'STOCK', price: 110, change: 1, dividend: 0, volatility: .02, history: [100, 105, 110], sector: 'TECH' }]);
+assert.equal(pulseCheck.direction, 'BULLISH', 'market: pulse must follow recent price history');
+assert.match(read('src/screens/MarketScreen.tsx'), /calculateMarketPulse/, 'market: live pulse calculation is not wired to the screen');
+assert.match(read('src/screens/MarketScreen.tsx'), /newest first/, 'market: trade log must be newest first');
+assert.match(app, /toggleWatchlist/, 'market: persisted watchlist toggle callback missing');
+assert.match(read('src/engine/saveMigration.ts'), /migrated\.watchlist/, 'market: watchlist migration missing');
 assert.match(app, /toFixed\(8\)/, 'market: fractional crypto precision missing');
 assert.match(read('src/engine/tradeEngine.ts'), /asset\.kind === 'CRYPTO' \? Number\(quantity\.toFixed\(8\)\)/, 'market: fractional crypto precision helper missing');
 assert.match(read('src/screens/MarketScreen.tsx'), /fractional units/, 'market: fractional crypto UI copy missing');

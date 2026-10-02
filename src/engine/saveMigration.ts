@@ -1,4 +1,4 @@
-export const GAME_SAVE_VERSION = 7;
+export const GAME_SAVE_VERSION = 8;
 
 export type GameSaveRecord = Record<string, any> & { schemaVersion: number };
 
@@ -42,6 +42,10 @@ export function migrateGameSave(input: unknown): GameSaveRecord {
   if (version < 7) {
     migrated.marketCatalogVersion = 'round17-fictional-v1';
     migrated.assets = Array.isArray(source.assets) ? source.assets : [];
+  }
+  if (version < 8) {
+    migrated.tradeHistory = Array.isArray(source.tradeHistory) ? source.tradeHistory.filter((record: any) => record && typeof record === 'object' && typeof record.assetId === 'string') : [];
+    migrated.watchlist = Array.isArray(source.watchlist) ? source.watchlist.filter((assetId: any) => typeof assetId === 'string') : [];
   }
   return migrated;
 }
