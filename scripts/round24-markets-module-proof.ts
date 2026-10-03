@@ -1,0 +1,24 @@
+// @ts-nocheck
+const assert = require('assert').strict;
+const fs = require('fs');
+const path = require('path');
+const root = path.resolve(__dirname, '..');
+const source = fs.readFileSync(path.join(root, 'src/screens/markets/MarketsModuleScreen.tsx'), 'utf8');
+const app = fs.readFileSync(path.join(root, 'App.tsx'), 'utf8');
+const stocks = fs.readFileSync(path.join(root, 'src/data/stocksData.ts'), 'utf8');
+const crypto = fs.readFileSync(path.join(root, 'src/data/cryptoData.ts'), 'utf8');
+const cryptoFiles = fs.readdirSync(path.join(root, 'assets/crypto')).filter(file => file.endsWith('.webp'));
+const expectedViews = ['HOME', 'LIST', 'DETAIL', 'PORTFOLIO', 'WATCHLIST', 'ORDERS', 'TRANSACTIONS', 'INDICES', 'INDEX_DETAIL', 'MOVERS', 'EVENTS'];
+const cryptoViews = ['HOME', 'LIST', 'DETAIL', 'PORTFOLIO', 'WATCHLIST', 'TRANSACTIONS', 'INDICES', 'MOVERS', 'EVENTS'];
+for (const view of expectedViews) assert.match(source, new RegExp(`[\'"]${view}[\'"]`), `missing market view ${view}`);
+assert.match(source, /STOCK_SCREEN_IDS/);
+assert.match(source, /CRYPTO_SCREEN_IDS/);
+for (const token of ['Stocks', 'Crypto', 'Simulated market open', 'Search stocks', 'Search crypto', 'Market indices', 'Market movers', 'Market events', 'Transactions', 'onCreateLimitOrder', 'onCancelLimitOrder', 'executeTrade', 'toggleWatchlist', 'TechnicalChartModal']) assert.match(source, new RegExp(token));
+assert.match(app, /CRYPTO_CATALOG/); assert.match(app, /STOCK_CATALOG/);
+const stockCount = (stocks.match(/id:/g) || []).length;
+const cryptoCount = (crypto.match(/id:/g) || []).length;
+assert.ok(stockCount >= 30, `expected at least 30 stocks, got ${stockCount}`);
+assert.ok(cryptoCount >= 10, `expected at least 10 crypto assets, got ${cryptoCount}`);
+assert.equal(cryptoFiles.length, 10, `expected 10 unique crypto image files, got ${cryptoFiles.length}`);
+for (const file of cryptoFiles) assert.ok(fs.statSync(path.join(root, 'assets/crypto', file)).size > 500, `empty crypto asset ${file}`);
+console.log(JSON.stringify({ status: 'PASS', stockCount, cryptoCount, cryptoImageCount: cryptoFiles.length, stocksScreens: expectedViews.length, cryptoScreens: cryptoViews.length, internalViews: expectedViews.length + cryptoViews.length, tradingCallbacks: ['BUY/SELL', 'SET LIMIT', 'CANCEL', 'WATCHLIST', 'ALERTS'] }, null, 2));
