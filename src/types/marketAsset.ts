@@ -1,4 +1,4 @@
-export type MarketSector = 'TECH' | 'ENERGY' | 'PHARMA' | 'MOBILITY' | 'BANKING' | 'RETAIL' | 'CRYPTO';
+export type MarketSector = 'TECH' | 'ENERGY' | 'PHARMA' | 'MOBILITY' | 'BANKING' | 'RETAIL' | 'CRYPTO' | 'AEROSPACE' | 'MEDIA' | 'REAL_ESTATE' | 'CONSUMER' | 'AI_CHIP' | 'CONSUMER_TECH' | 'ELECTRONICS' | 'SOFTWARE' | 'SOCIAL_TECH' | 'FINTECH' | 'PAYMENTS' | 'FINANCE' | 'TRAVEL';
 
 export interface Asset {
   id: string;

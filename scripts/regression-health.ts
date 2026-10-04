@@ -182,7 +182,8 @@ assert.match(read('src/engine/saveMigration.ts'), /migrated\.limitOrders/, 'mark
 assert.match(app, /toFixed\(8\)/, 'market: fractional crypto precision missing');
 assert.match(read('src/engine/tradeEngine.ts'), /asset\.kind === 'CRYPTO' \? Number\(quantity\.toFixed\(8\)\)/, 'market: fractional crypto precision helper missing');
 assert.match(read('src/screens/MarketScreen.tsx'), /fractional units/, 'market: fractional crypto UI copy missing');
-assert.match(app, /Gridline Power/, 'market: stock and business names are not separated');
+assert.match(read('src/data/stocksData.ts'), /name:'Amazone'/, 'market: immutable stock catalog missing Amazone');
+assert.match(read('src/data/stocksData.ts'), /name:'Toyoda Motors'/, 'market: immutable stock catalog missing Toyoda Motors');
 assert.match(app, /67500/, 'market: crypto scale is not sensible');
 assert.match(read('src/engine/marketEngine.ts'), /asset\.kind === 'CRYPTO' \? 0\.01/, 'market: sub-dollar crypto floor is not supported');
 assert.match(lifestyleScreen, /CarsTab/ , 'lifestyle: Cars tab is not connected');

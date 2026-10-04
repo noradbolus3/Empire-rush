@@ -1,6 +1,6 @@
 import { LimitOrder, PortfolioPoint } from '../types/market';
 
-export type MarketSector = 'TECH' | 'ENERGY' | 'PHARMA' | 'MOBILITY' | 'BANKING' | 'RETAIL' | 'CRYPTO';
+export type MarketSector = 'TECH' | 'ENERGY' | 'PHARMA' | 'MOBILITY' | 'BANKING' | 'RETAIL' | 'CRYPTO' | 'AEROSPACE' | 'MEDIA' | 'REAL_ESTATE' | 'CONSUMER' | 'AI_CHIP' | 'CONSUMER_TECH' | 'ELECTRONICS' | 'SOFTWARE' | 'SOCIAL_TECH' | 'FINTECH' | 'PAYMENTS' | 'FINANCE' | 'TRAVEL';
 export type MarketAsset = { id: string; symbol: string; name: string; kind: 'STOCK' | 'CRYPTO'; price: number; change: number; dividend: number; volatility: number; history: number[]; sector?: MarketSector; maxShares?: number; isPlayerCompany?: boolean };
 export type MarketEvent = { id: string; headline: string; sector: MarketSector | 'ALL'; shock: number };
 export type MarketPulseSector = { sector: MarketSector; trendPct: number; positiveAssets: number; assetCount: number };
@@ -27,6 +27,53 @@ export function calculateMarketPulse<T extends MarketAsset>(assets: T[]): Market
   return { direction, averageTrendPct, positiveBreadthPct, sectors };
 }
 
+
+
+export const SIMULATED_INDEX_DEFINITIONS: Record<string, { sectors?: MarketSector[]; kind?: 'STOCK' | 'CRYPTO' }> = {
+  'Empire Global': { kind: 'STOCK' },
+  'North America': { sectors: ['TECH', 'BANKING', 'ENERGY', 'RETAIL', 'CONSUMER'] },
+  'Asia Pacific': { sectors: ['ELECTRONICS', 'MOBILITY', 'CONSUMER'] as MarketSector[] },
+  'Europe 50': { sectors: ['PHARMA', 'FINANCE', 'TRAVEL', 'AEROSPACE'] as MarketSector[] },
+  'Tech Index': { sectors: ['TECH', 'AI_CHIP', 'CONSUMER_TECH', 'SOFTWARE', 'SOCIAL_TECH'] as MarketSector[] },
+  'Energy Index': { sectors: ['MOBILITY', 'AEROSPACE'] },
+  'Banking Index': { sectors: ['BANKING', 'FINANCE', 'FINTECH', 'PAYMENTS'] as MarketSector[] },
+  'Consumer Index': { sectors: ['CONSUMER', 'RETAIL'] },
+  'Industrial Index': { sectors: ['MOBILITY', 'AEROSPACE', 'REAL_ESTATE'] as MarketSector[] },
+};
+
+export function indexConstituents<T extends MarketAsset>(name: string, assets: T[]): T[] {
+  const definition = SIMULATED_INDEX_DEFINITIONS[name] || {};
+  return assets.filter(asset => (!definition.kind || asset.kind === definition.kind) && (!definition.sectors || definition.sectors.includes(asset.sector as MarketSector)));
+}
+
+export function calculateSimulatedIndex<T extends MarketAsset>(name: string, assets: T[]): { value: number; changePct: number; constituents: T[] } {
+  const constituents = indexConstituents(name, assets);
+  if (!constituents.length) return { value: 0, changePct: 0, constituents };
+  const weighted = constituents.reduce((sum, asset) => sum + asset.price, 0) / constituents.length;
+  const changePct = constituents.reduce((sum, asset) => sum + recentAssetTrend(asset), 0) / constituents.length;
+  return { value: Number((weighted * 10).toFixed(2)), changePct: Number(changePct.toFixed(2)), constituents };
+}
+
+export const SIMULATED_MARKET_EVENT_HEADLINES: Partial<Record<MarketSector | 'CRYPTO', string[]>> = {
+  TECH: ['Enterprise software bookings accelerate after a large contract win.'],
+  BANKING: ['Regional lending demand improves as small-business deposits recover.'],
+  ENERGY: ['Grid storage deployments expand across three new operating regions.'],
+  PHARMA: ['A clinical research milestone moves the healthcare pipeline forward.'],
+  RETAIL: ['Holiday basket size rises as neighborhood commerce gains momentum.'],
+  MOBILITY: ['Fleet orders increase after a new urban mobility partnership.'],
+  AEROSPACE: ['Launch logistics capacity expands at a new private spaceport.'],
+  MEDIA: ['Subscriber engagement reaches a new quarterly high.'],
+  REAL_ESTATE: ['Occupancy improves across the simulated property market.'],
+  CONSUMER: ['Consumer demand strengthens in the latest simulated session.'],
+  CRYPTO: ['Network activity accelerates as ecosystem participation grows.'],
+};
+
+export function simulatedEventForAsset<T extends MarketAsset>(asset: T, tick: number): { headline: string; sector: string; impactPct: number; assetId: string; timestampKey: number } {
+  const sector = (asset.kind === 'CRYPTO' ? 'CRYPTO' : asset.sector || 'CONSUMER') as MarketSector | 'CRYPTO';
+  const headlines = SIMULATED_MARKET_EVENT_HEADLINES[sector] || ['Simulated market activity shifts as game conditions evolve.'];
+  const impactPct = Number((recentAssetTrend(asset) * 0.35).toFixed(2));
+  return { headline: headlines[tick % headlines.length], sector, impactPct, assetId: asset.id, timestampKey: tick };
+}
 
 export function createSeededHistory(seed: string, price: number, volatility: number, length = 18): number[] {
   let state = Array.from(seed).reduce((value, character) => (value * 31 + character.charCodeAt(0)) >>> 0, 2166136261);
