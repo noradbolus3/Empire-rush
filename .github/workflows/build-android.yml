@@ -2,15 +2,24 @@ name: Android debug APK
 
 on:
   workflow_dispatch:
+    inputs:
+      source_ref:
+        description: 'Exact commit, tag, or branch to checkout and build'
+        required: false
+        default: ''
+        type: string
   push:
     branches: [main]
 
 jobs:
   build-android:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_ref || github.sha }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -38,7 +47,9 @@ jobs:
         run: npx expo prebuild --platform android --no-install
 
       - name: Inject exact build identity
-        run: sed -i "s/BUILD_COMMIT = '.*'/BUILD_COMMIT = '${GITHUB_SHA:0:7}'/" src/config/buildInfo.ts
+        run: |
+          SOURCE_SHA=$(git rev-parse HEAD)
+          sed -i "s/BUILD_COMMIT = '.*'/BUILD_COMMIT = '${SOURCE_SHA:0:7}'/" src/config/buildInfo.ts
 
       - name: Enable standalone offline JavaScript bundle
         working-directory: android
