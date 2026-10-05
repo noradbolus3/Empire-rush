@@ -1,0 +1,36 @@
+name: GitHub Actions runner diagnostic
+
+on:
+  workflow_dispatch:
+
+jobs:
+  runner-diagnostic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Node and npm versions
+        run: |
+          node --version
+          npm --version
+
+      - name: Java and Android environment check
+        run: |
+          java -version
+          printf 'JAVA_HOME=%s\n' "${JAVA_HOME:-<unset>}"
+          printf 'ANDROID_HOME=%s\n' "${ANDROID_HOME:-<unset>}"
+          printf 'ANDROID_SDK_ROOT=%s\n' "${ANDROID_SDK_ROOT:-<unset>}"
+          if [ -n "${ANDROID_HOME:-}" ] && [ -d "$ANDROID_HOME" ]; then
+            printf 'ANDROID_HOME_EXISTS=true\n'
+          elif [ -n "${ANDROID_SDK_ROOT:-}" ] && [ -d "$ANDROID_SDK_ROOT" ]; then
+            printf 'ANDROID_SDK_ROOT_EXISTS=true\n'
+          else
+            printf 'ANDROID_SDK_PATH_NOT_PRECONFIGURED=true\n'
+          fi
