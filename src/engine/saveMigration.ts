@@ -1,4 +1,4 @@
-export const GAME_SAVE_VERSION = 10;
+export const GAME_SAVE_VERSION = 11;
 
 export type GameSaveRecord = Record<string, any> & { schemaVersion: number };
 
@@ -58,5 +58,9 @@ export function migrateGameSave(input: unknown): GameSaveRecord {
   } else {
     migrated.priceAlerts = Array.isArray(source.priceAlerts) ? source.priceAlerts.filter((alert: any) => alert && typeof alert.assetId === 'string' && typeof alert.symbol === 'string' && (alert.condition === 'ABOVE' || alert.condition === 'BELOW' || alert.condition === 'PCT_MOVE') && Number.isFinite(alert.target) && Number.isFinite(alert.baselinePrice)).slice(-50) : [];
   }
+  migrated.lastDividendQuarter = typeof source.lastDividendQuarter === 'string' ? source.lastDividendQuarter : '';
+  migrated.marketEventHistory = Array.isArray(source.marketEventHistory)
+    ? source.marketEventHistory.filter((event: any) => event && typeof event.id === 'string' && typeof event.headline === 'string' && Number.isFinite(event.tick)).slice(-24)
+    : [];
   return migrated;
 }

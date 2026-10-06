@@ -1,4 +1,5 @@
 import { LimitOrder, PortfolioPoint } from '../types/market';
+import { applyScheduledEvent, scheduledEventForTick } from './marketEventEngine';
 
 export type MarketSector = 'TECH' | 'ENERGY' | 'PHARMA' | 'MOBILITY' | 'BANKING' | 'RETAIL' | 'CRYPTO' | 'AEROSPACE' | 'MEDIA' | 'REAL_ESTATE' | 'CONSUMER' | 'AI_CHIP' | 'CONSUMER_TECH' | 'ELECTRONICS' | 'SOFTWARE' | 'SOCIAL_TECH' | 'FINTECH' | 'PAYMENTS' | 'FINANCE' | 'TRAVEL';
 export type MarketAsset = { id: string; symbol: string; name: string; kind: 'STOCK' | 'CRYPTO'; price: number; change: number; dividend: number; volatility: number; history: number[]; sector?: MarketSector; maxShares?: number; isPlayerCompany?: boolean };
@@ -116,7 +117,8 @@ export function applyMarketEvent<T extends MarketAsset>(assets: T[], event: Mark
 }
 
 export function advanceMarketTick<T extends MarketAsset>(assets: T[], tick: number): { assets: T[]; event: MarketEvent | null } {
-  const event = tick > 0 && tick % 15 === 0 ? MARKET_EVENTS[(tick / 15 - 1) % MARKET_EVENTS.length] : null;
+  const scheduled = scheduledEventForTick(tick);
+  const event = scheduled ? { id: scheduled.id, headline: scheduled.headline, sector: (scheduled.sectors?.[0] || 'ALL') as MarketEvent['sector'], shock: scheduled.shock } : null;
   const moved = assets.map(asset => {
     const seed = Array.from(`${asset.id}:${asset.symbol}`).reduce((value, character) => (value * 33 + character.charCodeAt(0)) >>> 0, tick + 17);
     const random = ((1664525 * seed + 1013904223) >>> 0) / 4294967296;
@@ -124,7 +126,7 @@ export function advanceMarketTick<T extends MarketAsset>(assets: T[], tick: numb
     const price = Math.max(asset.kind === 'CRYPTO' ? 0.01 : 5, asset.price * (1 + drift));
     return { ...asset, price, change: drift * 100, history: [...asset.history.slice(-14), price] };
   });
-  return { assets: event ? applyMarketEvent(moved, event) : moved, event };
+  return { assets: scheduled ? applyScheduledEvent(moved as any, scheduled) as T[] : moved, event };
 }
 
 export function calculateQuarterlyDividends<T extends MarketAsset>(assets: T[], holdings: Record<string, { shares: number }>): number {
