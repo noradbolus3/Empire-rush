@@ -37,7 +37,7 @@ assert.match(moduleSource, /channelHoldings/);
 assert.match(moduleSource, /channelSummary/);
 assert.match(moduleSource, /calculateIndex/);
 assert.match(moduleSource, /No positions/);
-assert.match(moduleSource, /paddingBottom:92/);
+assert.match(moduleSource, /paddingBottom:76/);
 assert.match(appSource, /processQuarterlyDividends/);
 assert.match(appSource, /marketEventHistory/);
 assert.doesNotMatch(moduleSource, /paddingBottom:150/);
