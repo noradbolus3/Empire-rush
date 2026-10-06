@@ -2,15 +2,23 @@ name: Android debug APK
 
 on:
   workflow_dispatch:
+    inputs:
+      source_ref:
+        description: 'Exact application commit or ref to build'
+        required: true
+        default: 'main'
   push:
     branches: [main]
 
 jobs:
   build-android:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_ref || github.ref }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
