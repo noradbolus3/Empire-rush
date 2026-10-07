@@ -17,7 +17,7 @@ assert.doesNotMatch(moduleSource, /const usable=values\.length\?values:\[/, 'por
 assert.match(moduleSource, /function PriceText/, 'price transitions use an interpolated display value');
 assert.match(moduleSource, /Animated\.timing\(opacity/, 'chart entry has a subtle animation');
 assert.match(appSource, /paddingTop: 9, paddingBottom: 5/, 'global HUD vertical spacing is compressed');
-assert.match(appSource, /paddingVertical: 2, paddingHorizontal: 6/, 'bottom navigation spacing is compact');
+assert.match(appSource, /height: 54, backgroundColor: "#0D141F"/, 'bottom navigation has a bounded compact height');
 
 console.log(JSON.stringify({
   navigation: { horizontalOnly: true, compactTabHeight: 42, selectedTabAutoScroll: true },
