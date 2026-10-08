@@ -5,10 +5,10 @@ const assert = require('node:assert/strict');
 const moduleSource = fs.readFileSync('src/screens/markets/MarketsModuleScreen.tsx', 'utf8');
 const appSource = fs.readFileSync('App.tsx', 'utf8');
 
-assert.match(moduleSource, /ref=\{navRef\}/, 'secondary navigation keeps a scroll ref');
+assert(moduleSource.includes('scrollRef={navRef}'), 'secondary navigation keeps a shared scroll ref');
 assert.match(moduleSource, /scrollTo\(\{x:Math\.max\(0,index\*92-24\),animated:true\}\)/, 'selected secondary tab scrolls into view');
 assert.match(moduleSource, /navButton:\{height:42/, 'secondary tabs are compact phone-height controls');
-assert.match(moduleSource, /showsHorizontalScrollIndicator=\{false\}/, 'secondary rail is horizontal-only');
+assert.match(moduleSource, /ChipRow/, 'secondary rail uses the shared horizontal ChipRow');
 assert.match(moduleSource, /asset\.kind==='CRYPTO'\?`\$\{asset\.symbol\} · Rank/, 'crypto list uses crypto-specific rank/volume metadata');
 assert.match(moduleSource, /DividendPanel/, 'stock detail exposes a dividend experience');
 assert.match(moduleSource, /Network activity/, 'crypto detail exposes network activity');

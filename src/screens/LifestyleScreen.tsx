@@ -1,6 +1,7 @@
 import * as Haptics from 'expo-haptics';
 import React, { useMemo, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ChipRow } from '../components/ChipRow';
 import { CarsTab } from './CarsTab';
 import { YachtsTab } from './YachtsTab';
 import { JetsTab } from './JetsTab';
@@ -28,21 +29,21 @@ export function LifestyleScreen({ owned, cash, setCash, setOwned }: Props) {
     setOwned(value => value.includes(item.id) ? value : [...value, item.id]);
   };
   const tabProps = { owned, cash, onAcquire: acquire };
-  return <View style={styles.root}>
+  return <ScrollView style={styles.root} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
     <View style={styles.hero}><View style={styles.heroCopy}><Text style={styles.eyebrow}>FOUNDER LIFESTYLE DESK · FOUR COLLECTIONS</Text><Text style={styles.title}>Build your signature.</Text><Text style={styles.subtitle}>Acquire original road, sea, air, and property assets. Every item has its own upkeep and prestige footprint.</Text></View><View style={styles.badge}><Text style={styles.badgeValue}>{owned.length}</Text><Text style={styles.badgeLabel}>OWNED</Text></View></View>
-    <View style={styles.tabRow}>{TABS.map(tab => <Pressable key={tab.id} onPress={() => setActiveTab(tab.id)} style={({ pressed }) => [styles.tab, activeTab === tab.id && styles.tabOn, pressed && styles.pressed]}><Text style={[styles.tabText, activeTab === tab.id && styles.tabTextOn]}>{tab.label.toUpperCase()}</Text></Pressable>)}</View>
+    <ChipRow items={TABS.map(tab => ({ id: tab.id, label: tab.label.toUpperCase() }))} selectedId={activeTab} onSelect={id => setActiveTab(id as LifestyleTab)} chipStyle={styles.tab} activeStyle={styles.tabOn} textStyle={styles.tabText} activeTextStyle={styles.tabTextOn} accessibilityLabel="Lifestyle collection tabs" />
     <Text style={styles.caption}>{active.caption}</Text>
     {activeTab === 'CARS' && <CarsTab {...tabProps} />}
     {activeTab === 'YACHTS' && <YachtsTab {...tabProps} />}
     {activeTab === 'JETS' && <JetsTab {...tabProps} />}
     {activeTab === 'PROPERTIES' && <PropertiesTab {...tabProps} />}
-  </View>;
+  </ScrollView>;
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
+  root: { flex: 1, minHeight: 0 }, content: { padding: 16, paddingBottom: 78 },
   hero: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', backgroundColor: C.panel2, borderRadius: 20, borderWidth: 1, borderColor: C.slate, padding: 15, marginBottom: 10 },
   heroCopy: { flex: 1, paddingRight: 10 }, eyebrow: { color: C.cyan, fontSize: 9, fontWeight: '900', letterSpacing: 1.5 }, title: { color: C.text, fontSize: 27, fontWeight: '900', marginTop: 5 }, subtitle: { color: C.muted, fontSize: 10, lineHeight: 15, marginTop: 6 },
   badge: { alignItems: 'center', backgroundColor: '#0D3A26', borderRadius: 13, borderWidth: 1, borderColor: C.green, paddingHorizontal: 11, paddingVertical: 8 }, badgeValue: { color: '#B8F34A', fontSize: 20, fontWeight: '900' }, badgeLabel: { color: C.muted, fontSize: 7, fontWeight: '900', marginTop: 2 },
-  tabRow: { flexDirection: 'row', gap: 7, marginBottom: 6 }, tab: { flex: 1, backgroundColor: C.panel, borderRadius: 11, borderWidth: 1, borderColor: C.slate, alignItems: 'center', justifyContent: 'center', paddingVertical: 10 }, tabOn: { backgroundColor: '#123D34', borderColor: C.green }, tabText: { color: C.muted, fontSize: 9, fontWeight: '900', letterSpacing: .6 }, tabTextOn: { color: C.green }, caption: { color: C.muted, fontSize: 10, marginBottom: 10 }, pressed: { opacity: .78, transform: [{ scale: .985 }] },
+  tabRow: { flexDirection: 'row', gap: 7, marginBottom: 6 }, tab: { height: 42, backgroundColor: C.panel, borderRadius: 11, borderWidth: 1, borderColor: C.slate, alignItems: 'center', justifyContent: 'center' }, tabOn: { backgroundColor: '#123D34', borderColor: C.green }, tabText: { color: C.muted, fontSize: 9, fontWeight: '900', letterSpacing: .6 }, tabTextOn: { color: C.green }, caption: { color: C.muted, fontSize: 10, marginBottom: 10 }, pressed: { opacity: .78, transform: [{ scale: .985 }] },
 });
