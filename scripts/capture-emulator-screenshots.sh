@@ -88,21 +88,47 @@ tap_nav() {
   wait_for_app
 }
 
-shot home
-tap_nav 1
-shot business
-$ADB shell input tap "$((width / 4))" "$((height / 3))"
-sleep 2
-shot retail
-tap_nav 2
-shot markets
-tap_nav 3
-shot lifestyle
-tap_nav 0
-$ADB shell input tap "$((width - 70))" 115
-sleep 2
-shot settings
-
+tap_internal() {
+  local x="$1"
+  local y=$((height * 22 / 100))
+  $ADB shell input tap "$x" "$y"
+  sleep 1
+  wait_for_app
+}
+swipe_content() {
+  $ADB shell input swipe "$((width / 2))" "$((height * 78 / 100))" "$((width / 2))" "$((height * 30 / 100))" 450
+  sleep 1
+}
+# Shared-layout acceptance captures: each screen is scrolled before capture.
+# Markets Home
+ tap_nav 2
+ shot markets-home-top
+ swipe_content
+ shot markets-home-scrolled
+# Stocks list
+ tap_internal "$((width * 17 / 100))"
+ swipe_content
+ shot stocks-scrolled
+# Portfolio
+ tap_internal "$((width * 30 / 100))"
+ swipe_content
+ shot portfolio-scrolled
+# Watchlist
+ tap_internal "$((width * 45 / 100))"
+ swipe_content
+ shot watchlist-scrolled
+# Crypto Home
+ $ADB shell input tap "$((width * 75 / 100))" "$((height * 18 / 100))"
+ sleep 2
+ wait_for_app
+ swipe_content
+ shot crypto-scrolled
+# Lifestyle Cars list
+ tap_nav 3
+ sleep 2
+ wait_for_app
+ swipe_content
+ shot lifestyle-cars-scrolled
 for image in "$OUT_DIR"/*.png; do
   test "$(wc -c < "$image")" -gt 20000 || { echo "Screenshot too small: $image" >&2; exit 1; }
 done
