@@ -50,7 +50,7 @@ assert.doesNotMatch(app, /gameTimeEngine|SimulatedGameTime|formatSimulatedGameTi
 assert.match(realTimeEngine, /return Date\.now\(\)/, 'clock: real-time engine must read system time');
 assert.match(app, /formatSystemDateTime\(systemTimeMs\)/, 'clock: App must render system date/time');
 assert.match(app, /timeModel: "system-clock-v1"/, 'save migration: system clock marker missing');
-assert.equal(GAME_SAVE_VERSION, 12, 'save migration: Round 29 Bank schema version missing');
+assert.equal(GAME_SAVE_VERSION, 13, 'save migration: Round 30 Bank schema version missing');
 assert.match(read('src/engine/saveMigration.ts'), /marketCatalogVersion/, 'save migration: canonical market catalog marker missing');
 assert.match(read('src/engine/saveMigration.ts'), /settlementAt/, 'save migration: settlement cursor migration missing');
 assert.equal(fs.existsSync(path.join(root, 'src/engine/gameTimeEngine.ts')), false, 'clock: obsolete simulated clock file remains');
