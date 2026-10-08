@@ -1,4 +1,4 @@
-export const GAME_SAVE_VERSION = 11;
+export const GAME_SAVE_VERSION = 12;
 
 export type GameSaveRecord = Record<string, any> & { schemaVersion: number };
 
@@ -57,6 +57,11 @@ export function migrateGameSave(input: unknown): GameSaveRecord {
     migrated.priceAlerts = Array.isArray(source.priceAlerts) ? source.priceAlerts.filter((alert: any) => alert && typeof alert.assetId === 'string' && typeof alert.symbol === 'string' && (alert.condition === 'ABOVE' || alert.condition === 'BELOW' || alert.condition === 'PCT_MOVE') && Number.isFinite(alert.target) && Number.isFinite(alert.baselinePrice)).slice(-50) : [];
   } else {
     migrated.priceAlerts = Array.isArray(source.priceAlerts) ? source.priceAlerts.filter((alert: any) => alert && typeof alert.assetId === 'string' && typeof alert.symbol === 'string' && (alert.condition === 'ABOVE' || alert.condition === 'BELOW' || alert.condition === 'PCT_MOVE') && Number.isFinite(alert.target) && Number.isFinite(alert.baselinePrice)).slice(-50) : [];
+  }
+  if (version < 12 || !source.bankState || typeof source.bankState !== 'object') {
+    migrated.bankState = { schemaVersion: 1, savingsBalance: 0, businessCheckingBalance: 0, overdraftProtection: true, ficoScore: 680, totalInterestEarned: 0, totalInterestPaid: 0, loans: [], investors: [], offers: [], lastSettlementAt: Number.isFinite(migrated.settlementAt) ? migrated.settlementAt : Date.now(), lastAwaySummary: null, lastOfferSequence: 0 };
+  } else {
+    migrated.bankState = source.bankState;
   }
   migrated.lastDividendQuarter = typeof source.lastDividendQuarter === 'string' ? source.lastDividendQuarter : '';
   migrated.marketEventHistory = Array.isArray(source.marketEventHistory)

@@ -11,7 +11,7 @@ import { businessValuation, capIPOProceeds, createIPOListing, founderOwnershipFr
 import { MARKET_EVENTS, applyMarketEvent, appendPortfolioPoint, calculateMarketPulse, calculateQuarterlyDividends, matchLimitOrders } from '../src/engine/marketEngine';
 import { LimitOrder } from '../src/types/market';
 import { tapUpgradeCost, tapUpgradeGain } from '../src/engine/tapUpgradeEngine';
-import { CASINO_UNLOCK_NET_WORTH, IPO_MAX_NET_WORTH_PROCEEDS_MULTIPLE, IPO_MIN_NET_WORTH, PASSIVE_INCOME_CAP, RETAIL_ENTRY_COST, STARTING_CASH, TAP_VALUE_CAP } from '../src/engine/economyPlan';
+import { IPO_MAX_NET_WORTH_PROCEEDS_MULTIPLE, IPO_MIN_NET_WORTH, PASSIVE_INCOME_CAP, RETAIL_ENTRY_COST, STARTING_CASH, TAP_VALUE_CAP } from '../src/engine/economyPlan';
 import { GAME_SAVE_VERSION } from '../src/engine/saveMigration';
 import { holdingUnrealizedPnl, normalizeHoldings, portfolioSummary } from '../src/engine/portfolioEngine';
 import { applyTrade, estimatePriceImpact, quantityFromCashPercent, quantityFromHoldingPercent } from '../src/engine/tradeEngine';
@@ -27,7 +27,7 @@ const network = read('src/context/NetworkContext.tsx');
 const businessHub = read('src/screens/business/BusinessMasterHubScreen.tsx');
 const ipoModal = read('src/components/modals/IPOLaunchModal.tsx');
 const lifestyleScreen = read('src/screens/LifestyleScreen.tsx');
-const casinoScreen = read('src/screens/CasinoScreen.tsx');
+const bankScreen = read('src/screens/BankScreen.tsx');
 const realTimeEngine = read('src/engine/realTimeEngine.ts');
 const screenBarrel = read('src/screens/index.ts');
 const engineBarrel = read('src/engine/index.ts');
@@ -50,7 +50,7 @@ assert.doesNotMatch(app, /gameTimeEngine|SimulatedGameTime|formatSimulatedGameTi
 assert.match(realTimeEngine, /return Date\.now\(\)/, 'clock: real-time engine must read system time');
 assert.match(app, /formatSystemDateTime\(systemTimeMs\)/, 'clock: App must render system date/time');
 assert.match(app, /timeModel: "system-clock-v1"/, 'save migration: system clock marker missing');
-assert.equal(GAME_SAVE_VERSION, 11, 'save migration: Round 27 dividend/event schema version missing');
+assert.equal(GAME_SAVE_VERSION, 12, 'save migration: Round 29 Bank schema version missing');
 assert.match(read('src/engine/saveMigration.ts'), /marketCatalogVersion/, 'save migration: canonical market catalog marker missing');
 assert.match(read('src/engine/saveMigration.ts'), /settlementAt/, 'save migration: settlement cursor migration missing');
 assert.equal(fs.existsSync(path.join(root, 'src/engine/gameTimeEngine.ts')), false, 'clock: obsolete simulated clock file remains');
@@ -110,7 +110,10 @@ assert.equal(STARTING_CASH, 1_000, 'economy: new founder starting cash drifted')
 assert.equal(RETAIL_ENTRY_COST, 500, 'economy: Retail entry cost drifted');
 assert.equal(IPO_MIN_NET_WORTH, 10_000_000, 'IPO: late-game net-worth gate drifted');
 assert.equal(IPO_MAX_NET_WORTH_PROCEEDS_MULTIPLE, 0.5, 'IPO: proceeds shortcut cap drifted');
-assert.equal(CASINO_UNLOCK_NET_WORTH, 100_000, 'casino: late-game unlock drifted');
+assert(app.includes('\"bank\", \"▣\", \"BANK\"'), 'bank: bottom navigation route missing');
+assert.match(bankScreen, /High-Yield Savings/, 'bank: savings account missing');
+assert.match(bankScreen, /LOAN PRODUCTS/, 'bank: loan products missing');
+assert.match(bankScreen, /CAP TABLE/, 'bank: investor cap table missing');
 assert.equal(TAP_VALUE_CAP, 10, 'tap: hard per-tap value cap drifted');
 assert.doesNotMatch(app, /tapRewardMultiplier|TAP_SOFT_START_TAPS|TAP_REWARD_FLOOR/, 'tap: App still applies tap-count diminishing returns');
 assert.doesNotMatch(homeScreen, /tapRewardMultiplier|% REWARD|after momentum|reward never reaches zero/, 'tap: Home still displays tap-count reduction language');
@@ -194,7 +197,8 @@ assert.match(read('src/screens/AssetCard.tsx'), /UPKEEP/, 'lifestyle: shared Ass
 assert.match(read('src/screens/MarketScreen.tsx'), /playerNetWorth/, 'market: YOU row is not using player net worth');
 assert.match(app, /showTestRewardedAd/, 'monetization: rewarded test placement missing');
 assert.match(app, /soundEnabled/, 'settings: sound toggle is not wired');
-assert.match(casinoScreen, /Math\.min\(50000, Math\.max\(100, Math\.floor\(netWorth \* 0\.01\)\)\)/, 'casino: net-worth-scaled session wager cap missing');
+assert.doesNotMatch(app, /CasinoScreen/, 'casino: route must be removed in Bank phase');
+assert.doesNotMatch(read('src/screens/index.ts'), /CasinoScreen/, 'casino: screen export must be removed in Bank phase');
 assert.match(read('src/services/notifications.ts'), /scheduleNotificationAsync/, 'notifications: scheduled reminder missing');
 assert.match(homeScreen, /tapUpgradeLevel/, 'progression: tap value and upgrade level are not separate');
 assert.match(homeScreen, /onWatchBoost/, 'monetization: Home rewarded placement missing');

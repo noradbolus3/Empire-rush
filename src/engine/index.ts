@@ -11,3 +11,5 @@ export * from './tradeEngine';
 export * from './dividendEngine';
 export * from './indexEngine';
 export * from './marketEventEngine';
+
+export * from './bankEngine';
