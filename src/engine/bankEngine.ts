@@ -59,14 +59,15 @@ export function underwriteLoan(state: BankState, product: LoanProduct, requested
   const amount = clamp(requested, 0, spec.max);
   const debt = state.loans.filter(loan => loan.status === 'ACTIVE').reduce((sum, loan) => sum + loan.monthlyPayment, 0);
   const annualizedIncome = Math.max(0, hourlyIncome) * 24 * 30;
-  const dti = annualizedIncome > 0 ? debt / annualizedIncome : 1;
-  const apr = bankApr(state.ficoScore, product, dti, product === 'COMMERCIAL_MORTGAGE' || product === 'EQUIPMENT_FINANCE');
+  const starterProduct = product === 'SBA_MICROLOAN' || product === 'SBA_STARTUP';
+  const dti = annualizedIncome > 0 ? debt / annualizedIncome : 0;
+  const apr = bankApr(state.ficoScore, product, dti, starterProduct || product === 'COMMERCIAL_MORTGAGE' || product === 'EQUIPMENT_FINANCE');
   if (amount <= 0) return { decision: 'DECLINE', amount: 0, apr, reason: 'Enter an amount above $0.' };
   if (state.ficoScore < 580) return { decision: 'DECLINE', amount: 0, apr, reason: 'FICO below 580. Pay down balances and rebuild payment history.' };
   const capacity = Math.max(spec.max * 0.1, netWorth * (product === 'SBA_MICROLOAN' ? 0.35 : 1.5));
   if (amount > capacity) return { decision: 'COUNTER', amount: safeMoney(capacity), apr, reason: `Underwriting counter-offer: current cashflow supports ${money(capacity)}.` };
-  if (dti > 0.65) return { decision: 'DECLINE', amount: 0, apr, reason: 'Debt-to-income is above the bank limit.' };
-  return { decision: 'APPROVE', amount, apr, reason: 'Approved with current FICO, cashflow, and debt-to-income.' };
+  if (!starterProduct && dti > 0.65) return { decision: 'DECLINE', amount: 0, apr, reason: 'Debt-to-income is above the bank limit for this larger loan.' };
+  return { decision: 'APPROVE', amount, apr, reason: starterProduct && annualizedIncome === 0 ? 'Approved on starter collateral, net-worth capacity, and FICO tier; income is not required for this product.' : 'Approved with current FICO, collateral, cashflow, and debt-to-income.' };
 }
 
 export function createLoan(state: BankState, product: LoanProduct, amount: number, apr: number, now: number): BankLoan {
