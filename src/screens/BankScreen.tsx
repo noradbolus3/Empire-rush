@@ -1,82 +1,1744 @@
-import * as Haptics from 'expo-haptics';
-import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
-import { ChipRow } from '../components/ChipRow';
-import { achievementIds, addLedger, bankApr, bankEventForTick, bankTier, calculateCompanyValuation, calculateTax, creditBreakdown, createLoan, depositSpec, depositSpec as depositTerms, insuranceSpec, loanProduct, money, monthlyPayment, openDeposit, withdrawDeposit, progressiveFederalTax, totalDebtCap, underwriteLoan } from '../engine/bankEngine';
-import { BankState, BankTab, DepositProduct, InsuranceProduct, InvestorInstrument, InvestorRound, LoanProduct, PHASE2_ACHIEVEMENTS } from '../types/bank';
-import type { BankLedgerEntry } from '../types/bank';
-import { calculateNetWorth } from '../engine/financialCore';
+import * as Haptics from "expo-haptics";
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  Alert,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { ChipRow } from "../components/ChipRow";
+import {
+  achievementIds,
+  addLedger,
+  bankApr,
+  bankEventForTick,
+  bankTier,
+  calculateCompanyValuation,
+  calculateTax,
+  canAcceptOffer,
+  creditBreakdown,
+  createLoan,
+  depositSpec,
+  depositSpec as depositTerms,
+  insuranceSpec,
+  isActiveLoan,
+  loanProduct,
+  money,
+  monthlyPayment,
+  openDeposit,
+  payOffLoan,
+  withdrawDeposit,
+  progressiveFederalTax,
+  totalDebt,
+  totalDebtCap,
+  underwriteLoan,
+} from "../engine/bankEngine";
+import {
+  BankState,
+  BankTab,
+  DepositProduct,
+  InsuranceProduct,
+  InvestorInstrument,
+  InvestorRound,
+  LoanProduct,
+  PHASE2_ACHIEVEMENTS,
+} from "../types/bank";
+import type { BankLedgerEntry } from "../types/bank";
+import { calculateNetWorth } from "../engine/financialCore";
 
-const C = { bg: '#07130F', panel: '#0D241A', panel2: '#123726', green: '#16E98A', red: '#FF6D62', cyan: '#61E8FF', gold: '#FFC928', slate: '#236A45', text: '#F7FFF9', muted: '#8FB5A4' };
-const tabs = [{ id: 'home', label: 'Bank Home' }, { id: 'accounts', label: 'Accounts' }, { id: 'loans', label: 'Loans' }, { id: 'investors', label: 'Investors' }, { id: 'credit', label: 'Credit' }, { id: 'deposits', label: 'Deposits' }, { id: 'insurance', label: 'Insurance' }, { id: 'tax', label: 'Tax' }, { id: 'history', label: 'History' }];
-const loanProducts: LoanProduct[] = ['SBA_MICROLOAN', 'SBA_STARTUP', 'TERM_LOAN', 'LINE_OF_CREDIT', 'COMMERCIAL_MORTGAGE', 'EQUIPMENT_FINANCE', 'CREDIT_CARD'];
-const roundNames: InvestorRound[] = ['FRIENDS_FAMILY', 'ANGEL', 'PRE_SEED', 'SEED', 'SERIES_A', 'SERIES_B', 'SERIES_C', 'IPO'];
-const instruments: InvestorInstrument[] = ['SAFE', 'CONVERTIBLE_NOTE', 'PRICED_EQUITY'];
-const depositProducts: DepositProduct[] = ['CD_3M', 'CD_6M', 'CD_12M', 'RETIREMENT_IRA', 'TREASURY_BILL', 'TREASURY_NOTE', 'TREASURY_BOND'];
-const insuranceProducts: InsuranceProduct[] = ['GENERAL_LIABILITY', 'PROPERTY', 'COMMERCIAL_AUTO', 'KEY_PERSON', 'CYBER'];
-const fmtDate = (value: number) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+const C = {
+  bg: "#07130F",
+  panel: "#0D241A",
+  panel2: "#123726",
+  green: "#16E98A",
+  red: "#FF6D62",
+  cyan: "#61E8FF",
+  gold: "#FFC928",
+  slate: "#236A45",
+  text: "#F7FFF9",
+  muted: "#8FB5A4",
+};
+const tabs = [
+  { id: "home", label: "Bank Home" },
+  { id: "accounts", label: "Accounts" },
+  { id: "loans", label: "Loans" },
+  { id: "investors", label: "Investors" },
+  { id: "credit", label: "Credit" },
+  { id: "deposits", label: "Deposits" },
+  { id: "insurance", label: "Insurance" },
+  { id: "tax", label: "Tax" },
+  { id: "history", label: "History" },
+  { id: "inspector", label: "Inspector" },
+];
+const loanProducts: LoanProduct[] = [
+  "SBA_MICROLOAN",
+  "SBA_STARTUP",
+  "TERM_LOAN",
+  "LINE_OF_CREDIT",
+  "COMMERCIAL_MORTGAGE",
+  "EQUIPMENT_FINANCE",
+  "CREDIT_CARD",
+];
+const roundNames: InvestorRound[] = [
+  "FRIENDS_FAMILY",
+  "ANGEL",
+  "PRE_SEED",
+  "SEED",
+  "SERIES_A",
+  "SERIES_B",
+  "SERIES_C",
+  "IPO",
+];
+const instruments: InvestorInstrument[] = [
+  "SAFE",
+  "CONVERTIBLE_NOTE",
+  "PRICED_EQUITY",
+];
+const depositProducts: DepositProduct[] = [
+  "CD_3M",
+  "CD_6M",
+  "CD_12M",
+  "RETIREMENT_IRA",
+  "TREASURY_BILL",
+  "TREASURY_NOTE",
+  "TREASURY_BOND",
+];
+const insuranceProducts: InsuranceProduct[] = [
+  "GENERAL_LIABILITY",
+  "PROPERTY",
+  "COMMERCIAL_AUTO",
+  "KEY_PERSON",
+  "CYBER",
+];
+const fmtDate = (value: number) =>
+  new Date(value).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
 
-type Props = { cash: number; netWorth: number; hourlyIncome: number; financialState: any; ledger: BankLedgerEntry[]; state: BankState; businesses?: any[]; collateralAssets?: { id: string; name: string; value: number }[]; onStateChange: (next: BankState) => void; onCashChange: (next: React.SetStateAction<number>) => void; onBreaking: (message: string) => void; onHaptic?: (success?: boolean) => void };
+type Props = {
+  cash: number;
+  netWorth: number;
+  hourlyIncome: number;
+  financialState: any;
+  ledger: BankLedgerEntry[];
+  state: BankState;
+  businesses?: any[];
+  collateralAssets?: { id: string; name: string; value: number }[];
+  onStateChange: (next: BankState) => void;
+  onCashChange: (next: React.SetStateAction<number>) => void;
+  onBreaking: (message: string) => void;
+  onHaptic?: (success?: boolean) => void;
+};
 
-export default function BankScreen({ cash, financialState, ledger, hourlyIncome, state, businesses = [], collateralAssets = [], onStateChange, onCashChange, onBreaking, onHaptic }: Props) {
+export default function BankScreen({
+  cash,
+  financialState,
+  ledger,
+  hourlyIncome,
+  state,
+  businesses = [],
+  collateralAssets = [],
+  onStateChange,
+  onCashChange,
+  onBreaking,
+  onHaptic,
+}: Props) {
   const netWorth = calculateNetWorth(financialState);
   const companyValue = calculateCompanyValuation(businesses);
-  const [tab, setTab] = useState<BankTab>('home');
-  const [search, setSearch] = useState('');
-  const current = tabs.find(item => item.id === tab)?.label || 'Bank Home';
-  const update = (next: BankState) => onStateChange({ ...next, companyValuation: companyValue });
-  const celebrate = (label: string) => { void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); Alert.alert('ACHIEVEMENT UNLOCKED', `${label}\nReward: Bank rate discount and tier progress boost.`); };
+  const [tab, setTab] = useState<BankTab>("home");
+  const [search, setSearch] = useState("");
+  const current = tabs.find((item) => item.id === tab)?.label || "Bank Home";
+  const update = (next: BankState) =>
+    onStateChange({ ...next, companyValuation: companyValue });
+  const celebrate = (label: string) => {
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    Alert.alert(
+      "ACHIEVEMENT UNLOCKED",
+      `${label}\nReward: Bank rate discount and tier progress boost.`,
+    );
+  };
   const [transferOpen, setTransferOpen] = useState(false);
-  const [transferAmount, setTransferAmount] = useState('500');
-  const [transferFrom, setTransferFrom] = useState<'checking' | 'savings' | 'business'>('checking');
-  const [transferTo, setTransferTo] = useState<'checking' | 'savings' | 'business'>('savings');
+  const [transferAmount, setTransferAmount] = useState("500");
+  const [transferFrom, setTransferFrom] = useState<
+    "checking" | "savings" | "business"
+  >("checking");
+  const [transferTo, setTransferTo] = useState<
+    "checking" | "savings" | "business"
+  >("savings");
   const confirmTransfer = () => setTransferOpen(true);
   const executeTransfer = () => {
-    const amount = Math.max(0, Math.min(Number(transferAmount) || 0, Number.MAX_SAFE_INTEGER));
-    if (amount <= 0 || transferFrom === transferTo) return Alert.alert('TRANSFER UNAVAILABLE', 'Enter a positive amount and choose two different accounts.');
-    const balances = { checking: cash, savings: state.savingsBalance, business: state.businessCheckingBalance };
-    if (amount > balances[transferFrom]) return Alert.alert('TRANSFER DECLINED', `Available ${transferFrom}: ${money(balances[transferFrom])}.`);
-    const nextBalances = { ...balances, [transferFrom]: balances[transferFrom] - amount, [transferTo]: balances[transferTo] + amount };
-    update(addLedger({ ...state, savingsBalance: nextBalances.savings, businessCheckingBalance: nextBalances.business }, 'TRANSFER', `${transferFrom} to ${transferTo}`, amount, Date.now(), 'Confirmed internal transfer'));
+    const amount = Math.max(
+      0,
+      Math.min(Number(transferAmount) || 0, Number.MAX_SAFE_INTEGER),
+    );
+    if (amount <= 0 || transferFrom === transferTo)
+      return Alert.alert(
+        "TRANSFER UNAVAILABLE",
+        "Enter a positive amount and choose two different accounts.",
+      );
+    const balances = {
+      checking: cash,
+      savings: state.savingsBalance,
+      business: state.businessCheckingBalance,
+    };
+    if (amount > balances[transferFrom])
+      return Alert.alert(
+        "TRANSFER DECLINED",
+        `Available ${transferFrom}: ${money(balances[transferFrom])}.`,
+      );
+    const nextBalances = {
+      ...balances,
+      [transferFrom]: balances[transferFrom] - amount,
+      [transferTo]: balances[transferTo] + amount,
+    };
+    update(
+      addLedger(
+        {
+          ...state,
+          savingsBalance: nextBalances.savings,
+          businessCheckingBalance: nextBalances.business,
+        },
+        "TRANSFER",
+        `${transferFrom} to ${transferTo}`,
+        amount,
+        Date.now(),
+        "Confirmed internal transfer",
+      ),
+    );
     onCashChange(nextBalances.checking);
     setTransferOpen(false);
-    onBreaking(`Bank transfer completed · ${money(amount)} moved to ${transferTo}.`);
+    onBreaking(
+      `Bank transfer completed · ${money(amount)} moved to ${transferTo}.`,
+    );
     onHaptic?.(true);
   };
-  const applyLoan = (product: LoanProduct, requested: number, termMonths?: number, collateral?: { id: string; name: string }) => { const decision = underwriteLoan(state, product, requested, netWorth, hourlyIncome); if (decision.decision === 'DECLINE') return Alert.alert('APPLICATION DECLINED', decision.reason); const spec = loanProduct(product); Alert.alert(decision.decision === 'COUNTER' ? 'COUNTER-OFFER' : 'LOAN APPROVED', `${decision.reason}\n\nAmount: ${money(decision.amount)}\nAPR: ${decision.apr.toFixed(2)}%\nPayment: ${money(monthlyPayment(decision.amount, decision.apr, termMonths || spec.termMonths))}/month`, [{ text: 'Reject', style: 'cancel' }, { text: 'Accept', onPress: () => { const loan = createLoan(state, product, decision.amount, decision.apr, Date.now(), termMonths, collateral); const next = addLedger({ ...state, loans: [...state.loans, loan], ficoScore: Math.max(300, state.ficoScore - 4) }, 'LOAN', `${spec.name} funded`, decision.amount, Date.now(), 'Underwriting accepted'); update(next); onCashChange(value => Math.min(Number.MAX_SAFE_INTEGER, Math.max(0, value + decision.amount - loan.originationFee))); onBreaking(`Loan approved · ${spec.name} credited ${money(decision.amount)}.`); onHaptic?.(true); if (!state.achievements.includes('FIRST_LOAN')) celebrate('First Loan'); } }]); };
-  const prepayLoan = (loanId: string) => { const loan = state.loans.find(item => item.id === loanId); if (!loan || loan.status !== 'ACTIVE') return; if (cash < loan.balance) return Alert.alert('PREPAY DECLINED', `Need ${money(loan.balance - cash)} more in Checking.`); update(addLedger({ ...state, loans: state.loans.map(item => item.id === loanId ? { ...item, balance: 0, status: 'PAID' as const } : item) }, 'EMI', `${loan.name} prepaid`, -loan.balance, Date.now(), 'Full prepayment; collateral released')); onCashChange(value => Math.max(0, value - loan.balance)); onBreaking(`${loan.name} prepaid · collateral released.`); onHaptic?.(true); };
-  const forecloseLoan = (loanId: string) => { const loan = state.loans.find(item => item.id === loanId); if (!loan || loan.status !== 'ACTIVE') return; Alert.alert('FORECLOSE LOAN?', `${loan.name} will be marked defaulted and ${loan.collateralAssetName || 'pledged collateral'} may be repossessed.`, [{ text: 'Cancel', style: 'cancel' }, { text: 'Foreclose', style: 'destructive', onPress: () => { update(addLedger({ ...state, loans: state.loans.map(item => item.id === loanId ? { ...item, status: 'DEFAULTED' as const } : item) }, 'FEE', `${loan.name} foreclosure`, 0, Date.now(), 'Collateral risk realized')); onBreaking(`${loan.name} foreclosed · default risk recorded.`); onHaptic?.(false); } }]); };
-  const pitch = (round: InvestorRound, instrument: InvestorInstrument) => { const amount = round === 'FRIENDS_FAMILY' ? 25_000 : round === 'ANGEL' ? 75_000 : round === 'PRE_SEED' ? 150_000 : round === 'SEED' ? 350_000 : round === 'SERIES_A' ? 750_000 : round === 'SERIES_B' ? 2_000_000 : round === 'SERIES_C' ? 8_000_000 : 25_000_000; const equity = round === 'SEED' ? 15 : round === 'SERIES_A' ? 20 : round === 'SERIES_B' ? 18 : round === 'SERIES_C' ? 15 : round === 'IPO' ? 12 : 10; const allocated = state.investors.reduce((sum, item) => sum + item.equityPercent, 0); if (allocated + equity > 100) return Alert.alert('CAP TABLE FULL', `Only ${(100 - allocated).toFixed(2)}% founder equity remains.`); Alert.alert('TERM SHEET READY', `${round.replace('_', ' ')} · ${instrument}\nAsk: ${money(amount)}\nPre-money: ${money(companyValue)}\nEquity: ${equity}%`, [{ text: 'Reject', style: 'cancel' }, { text: 'Accept', onPress: () => { const investor = { id: `investor-${Date.now()}`, firm: ['Harborlight Ventures', 'Northline Capital', 'Pioneer Ridge VC'][state.investors.length % 3], round, instrument, invested: amount, equityPercent: equity, boardSeat: round === 'SERIES_A' || round === 'SERIES_B' || round === 'SERIES_C', joinedAt: Date.now() }; update(addLedger({ ...state, investors: [...state.investors, investor] }, 'INVESTOR', `${round.replace('_', ' ')} funding`, amount, Date.now(), `${instrument} term sheet accepted`)); onCashChange(value => Math.min(Number.MAX_SAFE_INTEGER, Math.max(0, value + amount))); onBreaking(`Funding boom · ${round.replace('_', ' ')} funds credited.`); onHaptic?.(true); } }]); };
-  const withdraw = (deposit: any) => { const result = withdrawDeposit(deposit, Date.now()); update(addLedger({ ...state, deposits: state.deposits.map(item => item.id === deposit.id ? result.next : item) }, 'WITHDRAWAL', `${deposit.name} withdrawal`, result.amount, Date.now(), result.penalty ? `Early withdrawal penalty ${money(result.penalty)}` : 'Maturity payout')); onCashChange(value => value + result.amount); onBreaking(`${deposit.name} paid ${money(result.amount)}.`); onHaptic?.(true); };
-  const open = (product: DepositProduct) => { const amount = Math.min(cash, 1000); if (amount <= 0) return Alert.alert('NO AVAILABLE CASH', 'Checking must have cash before opening a deposit.'); const deposit = openDeposit(product, amount, Date.now()); update(addLedger({ ...state, deposits: [...state.deposits, deposit] }, 'DEPOSIT', deposit.name, amount, Date.now(), `${deposit.rate}% APY · matures ${fmtDate(deposit.maturesAt)}`)); onCashChange(value => Math.max(0, value - amount)); onBreaking(`${deposit.name} opened · matures ${fmtDate(deposit.maturesAt)}.`); onHaptic?.(true); };
-  const insure = (product: InsuranceProduct) => { const spec = insuranceSpec(product); if (cash < spec.premium) return Alert.alert('PREMIUM DUE', `Need ${money(spec.premium)} in Checking.`); const policy = { id: `policy-${Date.now()}`, product, ...spec, active: true, purchasedAt: Date.now(), lastPaidAt: Date.now() }; update(addLedger({ ...state, insurance: [...state.insurance, policy] }, 'INSURANCE', `${spec.name} policy`, -spec.premium, Date.now(), `${money(spec.coverage)} coverage · ${money(spec.deductible)} deductible`)); onCashChange(value => Math.max(0, value - spec.premium)); onBreaking(`${spec.name} policy active.`); };
-  const acceptOffer = (offer: any) => { if (state.acceptedOfferIds.includes(offer.id) || Number(offer.expiresAt || 0) < Date.now()) return Alert.alert('OFFER EXPIRED', 'This Bank offer is no longer available.'); const now = Date.now(); let next = { ...state, offers: state.offers.filter(item => item.id !== offer.id), acceptedOfferIds: [...state.acceptedOfferIds, offer.id] }; if (offer.kind === 'SAVINGS') next = { ...next, savingsRateBoostUntil: Number(offer.expiresAt || now) }; if (offer.kind === 'LOAN') { const amount = Math.max(0, Number(offer.amount) || 0); const loan = createLoan(state, 'SBA_MICROLOAN', amount, bankApr(state.ficoScore, 'SBA_MICROLOAN'), now); next = { ...next, loans: [...state.loans, loan] }; onCashChange(value => Math.max(0, value + amount - loan.originationFee)); } if (offer.kind === 'INVESTOR') { const amount = Math.max(0, Number(offer.amount) || 0); const investor = { id: `investor-offer-${now}`, firm: 'Offer Desk Capital', round: 'SEED' as const, instrument: 'SAFE' as const, invested: amount, equityPercent: 10, boardSeat: false, joinedAt: now }; next = { ...next, investors: [...state.investors, investor] }; onCashChange(value => Math.max(0, value + amount)); } update(addLedger(next, 'FEE', `${offer.title} accepted`, Number(offer.amount) || 0, now, offer.detail)); onBreaking(`Offer accepted · ${offer.title}.`); onHaptic?.(true); }; const tax = calculateTax(Math.max(0, hourlyIncome * 24 * 30), 0, 0, 0); const achievements = achievementIds(state, netWorth); const event = bankEventForTick(Math.floor(Date.now() / 3_600_000), Date.now());
-  return <View style={styles.root}><View style={styles.moduleHead}><View><Text style={styles.eyebrow}>SIMULATED, FICTIONAL BANKING</Text><Text style={styles.title}>{current}</Text></View><Text style={styles.bankMark}>▣</Text></View><ChipRow items={tabs} selectedId={tab} onSelect={id => setTab(id as BankTab)} chipStyle={styles.tabChip} activeStyle={styles.tabChipActive} textStyle={styles.tabText} activeTextStyle={styles.tabTextActive} /><View style={styles.screenGap} />{tab === 'home' && <BankHome cash={cash} netWorth={netWorth} companyValue={companyValue} state={state} achievements={achievements} event={event} onTransfer={confirmTransfer} onLoan={() => setTab('loans')} onPitch={() => setTab('investors')} onAcceptOffer={acceptOffer} />}{tab === 'accounts' && <Accounts cash={cash} state={state} onTransfer={confirmTransfer} onStateChange={update} />}{tab === 'loans' && <Loans cash={cash} netWorth={netWorth} hourlyIncome={hourlyIncome} state={state} collateralAssets={collateralAssets} onApply={applyLoan} onPrepay={prepayLoan} onForeclose={forecloseLoan} />}{tab === 'investors' && <Investors netWorth={netWorth} companyValue={companyValue} state={state} onPitch={pitch} />}{tab === 'credit' && <Credit state={state} onStateChange={update} onCelebrate={celebrate} />}{tab === 'deposits' && <Deposits state={state} onOpen={open} onWithdraw={withdraw} />}{tab === 'insurance' && <Insurance state={state} onInsure={insure} />}{tab === 'tax' && <TaxPanel tax={tax} state={state} onStateChange={update} onCashChange={onCashChange} onBreaking={onBreaking} />}{tab === 'history' && <History state={state} ledger={ledger} search={search} setSearch={setSearch} />}<Text style={styles.footer}>Simulated, fictional banking · No real deposits, credit, or financial products</Text><TransferDialog visible={transferOpen} amount={transferAmount} setAmount={setTransferAmount} from={transferFrom} to={transferTo} setFrom={setTransferFrom} setTo={setTransferTo} onClose={() => setTransferOpen(false)} onConfirm={executeTransfer} balances={{ checking: cash, savings: state.savingsBalance, business: state.businessCheckingBalance }} /></View>;
+  const applyLoan = (
+    product: LoanProduct,
+    requested: number,
+    termMonths?: number,
+    collateral?: { id: string; name: string },
+  ) => {
+    const decision = underwriteLoan(
+      state,
+      product,
+      requested,
+      netWorth,
+      hourlyIncome,
+    );
+    if (decision.decision === "DECLINE")
+      return Alert.alert("APPLICATION DECLINED", decision.reason);
+    const spec = loanProduct(product);
+    Alert.alert(
+      decision.decision === "COUNTER" ? "COUNTER-OFFER" : "LOAN APPROVED",
+      `${decision.reason}\n\nAmount: ${money(decision.amount)}\nAPR: ${decision.apr.toFixed(2)}%\nPayment: ${money(monthlyPayment(decision.amount, decision.apr, termMonths || spec.termMonths))}/month`,
+      [
+        { text: "Reject", style: "cancel" },
+        {
+          text: "Accept",
+          onPress: () => {
+            const loan = createLoan(
+              state,
+              product,
+              decision.amount,
+              decision.apr,
+              Date.now(),
+              termMonths,
+              collateral,
+            );
+            const next = addLedger(
+              {
+                ...state,
+                loans: [...state.loans, loan],
+                ficoScore: Math.max(300, state.ficoScore - 4),
+              },
+              "LOAN",
+              `${spec.name} funded`,
+              decision.amount,
+              Date.now(),
+              "Underwriting accepted",
+            );
+            update(next);
+            onCashChange((value) =>
+              Math.min(
+                Number.MAX_SAFE_INTEGER,
+                Math.max(0, value + decision.amount - loan.originationFee),
+              ),
+            );
+            onBreaking(
+              `Loan approved · ${spec.name} credited ${money(decision.amount)}.`,
+            );
+            onHaptic?.(true);
+            if (!state.achievements.includes("FIRST_LOAN"))
+              celebrate("First Loan");
+          },
+        },
+      ],
+    );
+  };
+  const prepayLoan = (loanId: string) => {
+    const result = payOffLoan(state, loanId, cash, Date.now());
+    if (!result.ok) return Alert.alert("PAY OFF DECLINED", result.reason);
+    update(result.state);
+    onCashChange(result.cash);
+    onBreaking(
+      `${state.loans.find((item) => item.id === loanId)?.name || "Loan"} paid off in full · collateral unlocked.`,
+    );
+    onHaptic?.(true);
+  };
+  const pitch = (round: InvestorRound, instrument: InvestorInstrument) => {
+    const amount =
+      round === "FRIENDS_FAMILY"
+        ? 25_000
+        : round === "ANGEL"
+          ? 75_000
+          : round === "PRE_SEED"
+            ? 150_000
+            : round === "SEED"
+              ? 350_000
+              : round === "SERIES_A"
+                ? 750_000
+                : round === "SERIES_B"
+                  ? 2_000_000
+                  : round === "SERIES_C"
+                    ? 8_000_000
+                    : 25_000_000;
+    const equity =
+      round === "SEED"
+        ? 15
+        : round === "SERIES_A"
+          ? 20
+          : round === "SERIES_B"
+            ? 18
+            : round === "SERIES_C"
+              ? 15
+              : round === "IPO"
+                ? 12
+                : 10;
+    const allocated = state.investors.reduce(
+      (sum, item) => sum + item.equityPercent,
+      0,
+    );
+    if (allocated + equity > 100)
+      return Alert.alert(
+        "CAP TABLE FULL",
+        `Only ${(100 - allocated).toFixed(2)}% founder equity remains.`,
+      );
+    Alert.alert(
+      "TERM SHEET READY",
+      `${round.replace("_", " ")} · ${instrument}\nAsk: ${money(amount)}\nPre-money: ${money(companyValue)}\nEquity: ${equity}%`,
+      [
+        { text: "Reject", style: "cancel" },
+        {
+          text: "Accept",
+          onPress: () => {
+            const investor = {
+              id: `investor-${Date.now()}`,
+              firm: [
+                "Harborlight Ventures",
+                "Northline Capital",
+                "Pioneer Ridge VC",
+              ][state.investors.length % 3],
+              round,
+              instrument,
+              invested: amount,
+              equityPercent: equity,
+              boardSeat:
+                round === "SERIES_A" ||
+                round === "SERIES_B" ||
+                round === "SERIES_C",
+              joinedAt: Date.now(),
+            };
+            update(
+              addLedger(
+                { ...state, investors: [...state.investors, investor] },
+                "INVESTOR",
+                `${round.replace("_", " ")} funding`,
+                amount,
+                Date.now(),
+                `${instrument} term sheet accepted`,
+              ),
+            );
+            onCashChange((value) =>
+              Math.min(Number.MAX_SAFE_INTEGER, Math.max(0, value + amount)),
+            );
+            onBreaking(
+              `Funding boom · ${round.replace("_", " ")} funds credited.`,
+            );
+            onHaptic?.(true);
+          },
+        },
+      ],
+    );
+  };
+  const withdraw = (deposit: any) => {
+    const result = withdrawDeposit(deposit, Date.now());
+    update(
+      addLedger(
+        {
+          ...state,
+          deposits: state.deposits.map((item) =>
+            item.id === deposit.id ? result.next : item,
+          ),
+        },
+        "WITHDRAWAL",
+        `${deposit.name} withdrawal`,
+        result.amount,
+        Date.now(),
+        result.penalty
+          ? `Early withdrawal penalty ${money(result.penalty)}`
+          : "Maturity payout",
+      ),
+    );
+    onCashChange((value) => value + result.amount);
+    onBreaking(`${deposit.name} paid ${money(result.amount)}.`);
+    onHaptic?.(true);
+  };
+  const open = (product: DepositProduct) => {
+    const amount = Math.min(cash, 1000);
+    if (amount <= 0)
+      return Alert.alert(
+        "NO AVAILABLE CASH",
+        "Checking must have cash before opening a deposit.",
+      );
+    const deposit = openDeposit(product, amount, Date.now());
+    update(
+      addLedger(
+        { ...state, deposits: [...state.deposits, deposit] },
+        "DEPOSIT",
+        deposit.name,
+        amount,
+        Date.now(),
+        `${deposit.rate}% APY · matures ${fmtDate(deposit.maturesAt)}`,
+      ),
+    );
+    onCashChange((value) => Math.max(0, value - amount));
+    onBreaking(
+      `${deposit.name} opened · matures ${fmtDate(deposit.maturesAt)}.`,
+    );
+    onHaptic?.(true);
+  };
+  const insure = (product: InsuranceProduct) => {
+    const spec = insuranceSpec(product);
+    if (cash < spec.premium)
+      return Alert.alert(
+        "PREMIUM DUE",
+        `Need ${money(spec.premium)} in Checking.`,
+      );
+    const policy = {
+      id: `policy-${Date.now()}`,
+      product,
+      ...spec,
+      active: true,
+      purchasedAt: Date.now(),
+      lastPaidAt: Date.now(),
+    };
+    update(
+      addLedger(
+        { ...state, insurance: [...state.insurance, policy] },
+        "INSURANCE",
+        `${spec.name} policy`,
+        -spec.premium,
+        Date.now(),
+        `${money(spec.coverage)} coverage · ${money(spec.deductible)} deductible`,
+      ),
+    );
+    onCashChange((value) => Math.max(0, value - spec.premium));
+    onBreaking(`${spec.name} policy active.`);
+  };
+  const acceptOffer = (offer: any) => {
+    const gate = canAcceptOffer(offer, Date.now());
+    if (state.acceptedOfferIds.includes(offer.id) || !gate.ok)
+      return Alert.alert(
+        "OFFER EXPIRED",
+        gate.reason || "This Bank offer is no longer available.",
+      );
+    const now = Date.now();
+    let next = {
+      ...state,
+      offers: state.offers.filter((item) => item.id !== offer.id),
+      acceptedOfferIds: [...state.acceptedOfferIds, offer.id],
+    };
+    if (offer.kind === "SAVINGS")
+      next = { ...next, savingsRateBoostUntil: Number(offer.expiresAt || now) };
+    if (offer.kind === "LOAN") {
+      const amount = Math.max(0, Number(offer.amount) || 0);
+      const loan = createLoan(
+        state,
+        "SBA_MICROLOAN",
+        amount,
+        bankApr(state.ficoScore, "SBA_MICROLOAN"),
+        now,
+      );
+      next = { ...next, loans: [...next.loans, loan] };
+      onCashChange((value) =>
+        Math.max(0, value + amount - loan.originationFee),
+      );
+    }
+    if (offer.kind === "INVESTOR") {
+      const amount = Math.max(0, Number(offer.amount) || 0);
+      const investor = {
+        id: `investor-offer-${now}`,
+        firm: "Offer Desk Capital",
+        round: "SEED" as const,
+        instrument: "SAFE" as const,
+        invested: amount,
+        equityPercent: 10,
+        boardSeat: false,
+        joinedAt: now,
+      };
+      next = { ...next, investors: [...next.investors, investor] };
+      onCashChange((value) => Math.max(0, value + amount));
+    }
+    update(
+      addLedger(
+        next,
+        offer.kind === "LOAN"
+          ? "LOAN"
+          : offer.kind === "INVESTOR"
+            ? "INVESTOR"
+            : "INTEREST",
+        `${offer.title} accepted`,
+        Number(offer.amount) || 0,
+        now,
+        offer.detail,
+      ),
+    );
+    onBreaking(`Offer accepted · ${offer.title}.`);
+    onHaptic?.(true);
+  };
+  const tax = calculateTax(Math.max(0, hourlyIncome * 24 * 30), 0, 0, 0);
+  const achievements = achievementIds(state, netWorth);
+  const event = bankEventForTick(
+    Math.floor(Date.now() / 3_600_000),
+    Date.now(),
+  );
+  return (
+    <View style={styles.root}>
+      <View style={styles.moduleHead}>
+        <View>
+          <Text style={styles.eyebrow}>SIMULATED, FICTIONAL BANKING</Text>
+          <Text style={styles.title}>{current}</Text>
+        </View>
+        <Text style={styles.bankMark}>▣</Text>
+      </View>
+      <ChipRow
+        items={tabs}
+        selectedId={tab}
+        onSelect={(id) => setTab(id as BankTab)}
+        chipStyle={styles.tabChip}
+        activeStyle={styles.tabChipActive}
+        textStyle={styles.tabText}
+        activeTextStyle={styles.tabTextActive}
+      />
+      <View style={styles.screenGap} />
+      {tab === "home" && (
+        <BankHome
+          cash={cash}
+          netWorth={netWorth}
+          companyValue={companyValue}
+          state={state}
+          achievements={achievements}
+          event={event}
+          onTransfer={confirmTransfer}
+          onLoan={() => setTab("loans")}
+          onPitch={() => setTab("investors")}
+          onAcceptOffer={acceptOffer}
+        />
+      )}
+      {tab === "accounts" && (
+        <Accounts
+          cash={cash}
+          state={state}
+          onTransfer={confirmTransfer}
+          onStateChange={update}
+        />
+      )}
+      {tab === "loans" && (
+        <Loans
+          cash={cash}
+          netWorth={netWorth}
+          hourlyIncome={hourlyIncome}
+          state={state}
+          collateralAssets={collateralAssets}
+          onApply={applyLoan}
+          onPrepay={prepayLoan}
+        />
+      )}
+      {tab === "investors" && (
+        <Investors
+          netWorth={netWorth}
+          companyValue={companyValue}
+          state={state}
+          onPitch={pitch}
+        />
+      )}
+      {tab === "credit" && (
+        <Credit state={state} onStateChange={update} onCelebrate={celebrate} />
+      )}
+      {tab === "deposits" && (
+        <Deposits state={state} onOpen={open} onWithdraw={withdraw} />
+      )}
+      {tab === "insurance" && <Insurance state={state} onInsure={insure} />}
+      {tab === "tax" && (
+        <TaxPanel
+          tax={tax}
+          state={state}
+          onStateChange={update}
+          onCashChange={onCashChange}
+          onBreaking={onBreaking}
+        />
+      )}
+      {tab === "history" && (
+        <History
+          state={state}
+          ledger={ledger}
+          search={search}
+          setSearch={setSearch}
+        />
+      )}
+      {tab === "inspector" && (
+        <Inspector
+          cash={cash}
+          state={state}
+          financialState={financialState}
+          hourlyIncome={hourlyIncome}
+          ledger={ledger}
+          event={event}
+        />
+      )}
+      <Text style={styles.footer}>
+        Simulated, fictional banking · No real deposits, credit, or financial
+        products
+      </Text>
+      <TransferDialog
+        visible={transferOpen}
+        amount={transferAmount}
+        setAmount={setTransferAmount}
+        from={transferFrom}
+        to={transferTo}
+        setFrom={setTransferFrom}
+        setTo={setTransferTo}
+        onClose={() => setTransferOpen(false)}
+        onConfirm={executeTransfer}
+        balances={{
+          checking: cash,
+          savings: state.savingsBalance,
+          business: state.businessCheckingBalance,
+        }}
+      />
+    </View>
+  );
 }
 
-function BankHome({ cash, netWorth, companyValue, state, achievements, event, onTransfer, onLoan, onPitch, onAcceptOffer }: any) {
+function Inspector({
+  cash,
+  state,
+  financialState,
+  hourlyIncome,
+  ledger,
+  event,
+}: any) {
+  const nw = calculateNetWorth(financialState);
+  const debt = totalDebt(state);
+  const active = state.loans.filter((loan: any) => isActiveLoan(loan));
+  const revenue =
+    financialState.businesses
+      ?.filter((b: any) => b.isAcquired)
+      .reduce(
+        (n: number, b: any) => n + Math.max(0, Number(b.hourlyNetProfit) || 0),
+        0,
+      ) || 0;
+  const interest =
+    (Math.max(0, Number(state.savingsBalance) || 0) * 0.0425) / 8760;
+  const emi = active.reduce(
+    (n: number, loan: any) =>
+      n + Math.min(loan.balance, loan.monthlyPayment / 30 / 24),
+    0,
+  );
+  const entries = (ledger.length ? ledger : state.ledger).slice(-20).reverse();
+  const Row = ({ label, value }: any) => (
+    <View style={styles.rowBetween}>
+      <Text style={styles.muted}>{label}</Text>
+      <Text style={styles.value}>{value}</Text>
+    </View>
+  );
+  return (
+    <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}>
+      <Card
+        title="FINANCIAL INSPECTOR"
+        copy="Live values from the shared financial engine · simulated, fictional banking."
+      />
+      <View style={styles.listCard}>
+        <Text style={styles.cardTitle}>NET-WORTH COMPONENTS</Text>
+        <Row label="Checking" value={money(cash)} />
+        <Row label="Savings" value={money(state.savingsBalance)} />
+        <Row
+          label="Business checking"
+          value={money(state.businessCheckingBalance)}
+        />
+        <Row
+          label="Deposits"
+          value={money(
+            (state.deposits || [])
+              .filter((d: any) => d.status === "ACTIVE")
+              .reduce((n: number, d: any) => n + d.principal, 0),
+          )}
+        />
+        <Row
+          label="Stocks + crypto"
+          value={money(
+            Object.entries(financialState.holdings || {}).reduce(
+              (n: number, [id, h]: any) =>
+                n +
+                h.shares *
+                  (financialState.assets.find((a: any) => a.id === id)?.price ||
+                    0),
+              0,
+            ),
+          )}
+        />
+        <Row
+          label="Lifestyle + business assets"
+          value={money(
+            Math.max(
+              0,
+              nw +
+                debt -
+                cash -
+                state.savingsBalance -
+                state.businessCheckingBalance,
+            ),
+          )}
+        />
+        <Row label="Total debt" value={money(debt)} />
+        <Row label="NET WORTH" value={money(nw)} />
+      </View>
+      <View style={styles.listCard}>
+        <Text style={styles.cardTitle}>HOURLY BREAKDOWN</Text>
+        <Row label="Revenue" value={`+${money(revenue)}`} />
+        <Row label="Interest" value={`+${money(interest)}`} />
+        <Row label="EMI" value={`-${money(emi)}`} />
+        <Row label="Projected NET" value={`+${money(hourlyIncome)}`} />
+      </View>
+      <Card
+        title="LOCKED COLLATERAL"
+        copy={
+          active
+            .filter((l: any) => l.collateralAssetId)
+            .map(
+              (l: any) =>
+                `${l.collateralAssetName || l.collateralAssetId} · ${l.name}`,
+            )
+            .join(" · ") || "None"
+        }
+      />
+      <Card title="ACTIVE MARKET EVENT" copy={event.headline} />
+      <View style={styles.listCard}>
+        <Text style={styles.cardTitle}>LAST 20 LEDGER ENTRIES</Text>
+        {entries.length ? (
+          entries.map((entry: any) => (
+            <Text key={entry.id} style={styles.muted}>
+              {entry.amount >= 0 ? "+" : ""}
+              {money(entry.amount)} · {entry.label}
+            </Text>
+          ))
+        ) : (
+          <Text style={styles.muted}>No entries yet.</Text>
+        )}
+      </View>
+    </ScrollView>
+  );
+}
+
+function BankHome({
+  cash,
+  netWorth,
+  companyValue,
+  state,
+  achievements,
+  event,
+  onTransfer,
+  onLoan,
+  onPitch,
+  onAcceptOffer,
+}: any) {
   const tier = bankTier(netWorth);
-  const debt = state.loans.filter((l: any) => l.status === 'ACTIVE').reduce((n: number, l: any) => n + l.balance, 0);
+  const debt = totalDebt(state);
   const [now, setNow] = useState(Date.now());
-  useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, []);
-  const achievementMeta = [{ id: 'FIRST_LOAN', label: 'First Loan', reward: 'Rate discount' }, { id: 'DEBT_FREE', label: 'Debt Free', reward: 'Tier boost' }, { id: 'FICO_800', label: '800 FICO', reward: 'Rate discount' }, { id: 'FIRST_MILLION_RAISED', label: '$1M Raised', reward: 'Card skin' }, { id: 'UNICORN', label: 'Unicorn', reward: 'Tier boost' }, { id: 'IPO_DAY', label: 'IPO Day', reward: 'Card skin' }, { id: 'TEN_CDS_MATURED', label: '10 CDs Matured', reward: 'Rate discount' }];
-  const rivals = [{ name: 'You', value: netWorth }, ...(state.rivals || []).map((r: any) => ({ name: r.name, value: r.netWorth }))].sort((a, b) => b.value - a.value);
-  const nextMove = state.loans.some((l: any) => l.status === 'ACTIVE') ? 'Pay down the highest-balance loan to improve FICO.' : cash > 0 ? `Move ${money(Math.min(cash, 500))} from Checking to Savings.` : state.offers.length ? 'Review a live Bank offer before it expires.' : 'Build cash reserves to unlock the next Bank tier.';
-  return <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}><View style={styles.hero}><Text style={styles.eyebrow}>BANKING TIER</Text><Text style={styles.heroTitle}>{tier.tier}</Text><Text style={styles.muted}>{tier.next}</Text><View style={styles.progress}><View style={[styles.progressFill, { width: `${tier.progress * 100}%` }]} /></View></View><View style={styles.metricGrid}><Metric label="NET WORTH" value={money(netWorth)} /><Metric label="CASH" value={money(cash)} /><Metric label="TOTAL DEBT" value={money(debt)} /><Metric label="FICO SCORE" value={String(state.ficoScore)} /><Metric label="INTEREST EARNED" value={money(state.totalInterestEarned)} /><Metric label="COMPANY VALUE" value={money(companyValue)} /></View><Card title="MARKET EVENT" copy={event.headline} accent={event.kind === 'RECESSION' ? C.red : C.green} /><View style={styles.sectionBlock}><Text style={styles.sectionTitle}>ACHIEVEMENTS</Text><View style={styles.badgeGrid}>{achievementMeta.map(item => { const unlocked = achievements.includes(item.id); return <View key={item.id} style={[styles.badgeCard, unlocked && styles.badgeUnlocked]}><Text style={styles.badgeState}>{unlocked ? 'UNLOCKED' : 'LOCKED'}</Text><Text style={styles.badgeTitle}>{item.label}</Text><Text style={styles.muted}>{item.reward}</Text></View>; })}</View><Text style={styles.muted}>Login streak {state.loginStreak} days · weekly interest {money(state.weeklyInterestEarned)}/$5,000</Text></View><View style={styles.sectionBlock}><Text style={styles.sectionTitle}>LEADERBOARD</Text>{rivals.map((r, index) => <View key={r.name} style={styles.rankRow}><Text style={styles.rankNumber}>{index + 1}</Text><Text style={styles.rankName}>{r.name}</Text><Text style={styles.value}>{money(r.value)}</Text></View>)}</View><View style={styles.sectionBlock}><Text style={styles.sectionTitle}>LIVE OFFERS</Text>{state.offers.length ? state.offers.map((offer: any) => <View key={offer.id} style={styles.offerRow}><View style={{ flex: 1 }}><Text style={styles.cardTitle}>{offer.title}</Text><Text style={styles.muted}>{offer.detail}</Text></View><View><Text style={styles.offerExpiry}>{Math.max(0, Math.ceil((Number(offer.expiresAt || now) - now) / 60000))}m left</Text><Action label="ACCEPT" onPress={() => onAcceptOffer(offer)} /></View></View>) : <Card title="NO LIVE OFFERS" copy="New offers appear after the next Bank settlement." />}</View>{state.lastAwaySummary && <Card title="WHILE YOU WERE AWAY" copy={`${money(state.lastAwaySummary.interestEarned)} interest earned · ${state.lastAwaySummary.paymentsMade} payment(s) made · ${state.lastAwaySummary.newOffers} offer(s) refreshed.`} accent={C.cyan} />}<Card title="LEVERAGE RISK" copy={state.loans.some((l: any) => l.status === 'ACTIVE') ? 'Borrowing to invest during a recession can trigger a margin call and default danger.' : 'Keep debt manageable before using leverage.'} accent={C.gold} /><Card title="NEXT BEST MOVE" copy={nextMove} /><View style={styles.actions}><Action label="TRANSFER" onPress={onTransfer} /><Action label="APPLY FOR LOAN" onPress={onLoan} /><Action label="PITCH INVESTORS" onPress={onPitch} /></View></ScrollView>;
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  const achievementMeta = [
+    { id: "FIRST_LOAN", label: "First Loan", reward: "Rate discount" },
+    { id: "DEBT_FREE", label: "Debt Free", reward: "Tier boost" },
+    { id: "FICO_800", label: "800 FICO", reward: "Rate discount" },
+    { id: "FIRST_MILLION_RAISED", label: "$1M Raised", reward: "Card skin" },
+    { id: "UNICORN", label: "Unicorn", reward: "Tier boost" },
+    { id: "IPO_DAY", label: "IPO Day", reward: "Card skin" },
+    { id: "TEN_CDS_MATURED", label: "10 CDs Matured", reward: "Rate discount" },
+  ];
+  const rivals = [
+    { name: "You", value: netWorth },
+    ...(state.rivals || []).map((r: any) => ({
+      name: r.name,
+      value: r.netWorth,
+    })),
+  ].sort((a, b) => b.value - a.value);
+  const nextMove = state.loans.some((l: any) => isActiveLoan(l))
+    ? "Pay down the highest-balance loan to improve FICO."
+    : cash > 0
+      ? `Move ${money(Math.min(cash, 500))} from Checking to Savings.`
+      : state.offers.length
+        ? "Review a live Bank offer before it expires."
+        : "Build cash reserves to unlock the next Bank tier.";
+  return (
+    <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}>
+      <View style={styles.hero}>
+        <Text style={styles.eyebrow}>BANKING TIER</Text>
+        <Text style={styles.heroTitle}>{tier.tier}</Text>
+        <Text style={styles.muted}>{tier.next}</Text>
+        <View style={styles.progress}>
+          <View
+            style={[styles.progressFill, { width: `${tier.progress * 100}%` }]}
+          />
+        </View>
+      </View>
+      <View style={styles.metricGrid}>
+        <Metric label="NET WORTH" value={money(netWorth)} />
+        <Metric label="CASH" value={money(cash)} />
+        <Metric label="TOTAL DEBT" value={money(debt)} />
+        <Metric label="FICO SCORE" value={String(state.ficoScore)} />
+        <Metric
+          label="INTEREST EARNED"
+          value={money(state.totalInterestEarned)}
+        />
+        <Metric label="COMPANY VALUE" value={money(companyValue)} />
+      </View>
+      <Card
+        title="MARKET EVENT"
+        copy={event.headline}
+        accent={event.kind === "RECESSION" ? C.red : C.green}
+      />
+      <View style={styles.sectionBlock}>
+        <Text style={styles.sectionTitle}>ACHIEVEMENTS</Text>
+        <View style={styles.badgeGrid}>
+          {achievementMeta.map((item) => {
+            const unlocked = achievements.includes(item.id);
+            return (
+              <View
+                key={item.id}
+                style={[styles.badgeCard, unlocked && styles.badgeUnlocked]}
+              >
+                <Text style={styles.badgeState}>
+                  {unlocked ? "UNLOCKED" : "LOCKED"}
+                </Text>
+                <Text style={styles.badgeTitle}>{item.label}</Text>
+                <Text style={styles.muted}>{item.reward}</Text>
+              </View>
+            );
+          })}
+        </View>
+        <Text style={styles.muted}>
+          Login streak {state.loginStreak} days · weekly interest{" "}
+          {money(state.weeklyInterestEarned)}/$5,000
+        </Text>
+      </View>
+      <View style={styles.sectionBlock}>
+        <Text style={styles.sectionTitle}>LEADERBOARD</Text>
+        {rivals.map((r, index) => (
+          <View key={r.name} style={styles.rankRow}>
+            <Text style={styles.rankNumber}>{index + 1}</Text>
+            <Text style={styles.rankName}>{r.name}</Text>
+            <Text style={styles.value}>{money(r.value)}</Text>
+          </View>
+        ))}
+      </View>
+      <View style={styles.sectionBlock}>
+        <Text style={styles.sectionTitle}>LIVE OFFERS</Text>
+          {state.offers.filter((offer: any) => Number(offer.expiresAt || 0) > now).length ? (
+            state.offers.filter((offer: any) => Number(offer.expiresAt || 0) > now).map((offer: any) => (
+            <View key={offer.id} style={styles.offerRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.cardTitle}>{offer.title}</Text>
+                <Text style={styles.muted}>{offer.detail}</Text>
+              </View>
+              <View>
+                <Text style={styles.offerExpiry}>
+                  {Math.max(
+                    0,
+                    Math.ceil((Number(offer.expiresAt || now) - now) / 60000),
+                  )}
+                  m left
+                </Text>
+                <Action label="ACCEPT" onPress={() => onAcceptOffer(offer)} />
+              </View>
+            </View>
+          ))
+        ) : (
+          <Card
+            title="NO LIVE OFFERS"
+            copy="New offers appear after the next Bank settlement."
+          />
+        )}
+      </View>
+      {state.lastAwaySummary && (
+        <Card
+          title="WHILE YOU WERE AWAY"
+          copy={`${money(state.lastAwaySummary.interestEarned)} interest earned · ${state.lastAwaySummary.paymentsMade} payment(s) made · ${state.lastAwaySummary.newOffers} offer(s) refreshed.`}
+          accent={C.cyan}
+        />
+      )}
+      <Card
+        title="LEVERAGE RISK"
+        copy={
+          state.loans.some((l: any) => isActiveLoan(l))
+            ? "Borrowing to invest during a recession can trigger a margin call and default danger."
+            : "Keep debt manageable before using leverage."
+        }
+        accent={C.gold}
+      />
+      <Card title="NEXT BEST MOVE" copy={nextMove} />
+      <View style={styles.actions}>
+        <Action label="TRANSFER" onPress={onTransfer} />
+        <Action label="APPLY FOR LOAN" onPress={onLoan} />
+        <Action label="PITCH INVESTORS" onPress={onPitch} />
+      </View>
+    </ScrollView>
+  );
 }
 
-function Accounts({ cash, state, onTransfer, onStateChange }: any) { return <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}><AccountRow title="Checking" detail="Shared Empire Rush cash" value={cash} /><AccountRow title="High-Yield Savings" detail="4.25% APY · compounded at settlement" value={state.savingsBalance} /><AccountRow title="Business Checking" detail="Operating reserve" value={state.businessCheckingBalance} /><Text style={styles.insured}>FDIC-style note: Insured up to $250,000 per depositor · simulation only</Text><View style={styles.switchRow}><Text style={styles.muted}>Overdraft protection</Text><Switch value={state.overdraftProtection} onValueChange={(value) => onStateChange({ ...state, overdraftProtection: value })} trackColor={{ false: C.slate, true: '#087C4A' }} thumbColor={state.overdraftProtection ? C.green : C.muted} /></View><Action label="TRANSFER" onPress={onTransfer} /></ScrollView>; }
-function Loans({ netWorth, hourlyIncome, state, collateralAssets, onApply, onPrepay, onForeclose }: any) { const [selected, setSelected] = useState<LoanProduct>('SBA_MICROLOAN'); const [amount, setAmount] = useState('5000'); const [term, setTerm] = useState(loanProduct(selected).termMonths); const [collateralId, setCollateralId] = useState<string | undefined>(collateralAssets?.[0]?.id); const spec = loanProduct(selected); const apr = bankApr(state.ficoScore, selected); const requested = Math.min(spec.max, Math.max(0, Number(amount) || 0)); const terms = [Math.max(1, Math.round(spec.termMonths / 2)), spec.termMonths, spec.termMonths * 2]; const availableCollateral = (collateralAssets || []).filter((item: any) => !state.loans.some((loan: any) => loan.status === 'ACTIVE' && loan.collateralAssetId === item.id)); const collateral = availableCollateral.find((item: any) => item.id === collateralId) || availableCollateral[0]; return <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}><Text style={styles.sectionTitle}>LOAN PRODUCTS · TOTAL DEBT CAP {money(totalDebtCap(state, netWorth, hourlyIncome))}</Text><View style={styles.loanRail}><ChipRow items={loanProducts.map(id => ({ id, label: loanProduct(id).name }))} selectedId={selected} onSelect={id => { setSelected(id as LoanProduct); setTerm(loanProduct(id as LoanProduct).termMonths); }} chipStyle={styles.smallChip} activeStyle={styles.smallChipActive} textStyle={styles.smallChipText} activeTextStyle={styles.tabTextActive} /></View><View style={styles.form}><Text style={styles.cardTitle}>{spec.name}</Text><Text style={styles.muted}>Up to {money(spec.max)} · product cap {money(selected === 'SBA_MICROLOAN' ? 50000 : spec.max)} · collateral required: {spec.collateral}</Text><TextInput value={amount} onChangeText={setAmount} keyboardType="decimal-pad" placeholder="Requested amount" placeholderTextColor={C.muted} style={styles.input} /><Text style={styles.muted}>TERM</Text><ChipRow items={terms.map(item => ({ id: String(item), label: `${item} months` }))} selectedId={String(term)} onSelect={id => setTerm(Number(id))} chipStyle={styles.smallChip} activeStyle={styles.smallChipActive} textStyle={styles.smallChipText} activeTextStyle={styles.tabTextActive} />{availableCollateral.length ? <><Text style={styles.muted}>PLEDGED COLLATERAL</Text><ChipRow items={availableCollateral.map((item: any) => ({ id: item.id, label: `${item.name} · ${money(item.value)}` }))} selectedId={collateralId} onSelect={setCollateralId} chipStyle={styles.smallChip} activeStyle={styles.smallChipActive} textStyle={styles.smallChipText} activeTextStyle={styles.tabTextActive} /></> : <Text style={styles.muted}>No owned asset available to pledge; starter underwriting can still use net-worth capacity.</Text>}<View style={styles.preview}><Text style={styles.previewTitle}>LIVE AMORTIZATION PREVIEW</Text><Text style={styles.previewLine}>APR <Text style={styles.value}>{apr.toFixed(2)}%</Text></Text><Text style={styles.previewLine}>Monthly payment <Text style={styles.value}>{money(monthlyPayment(requested, apr, term))}</Text></Text><Text style={styles.previewLine}>Underwriting <Text style={styles.value}>{selected === 'SBA_MICROLOAN' || selected === 'SBA_STARTUP' ? 'Collateral + FICO + total-cap check' : hourlyIncome > 0 ? 'DTI under review' : 'Income required'}</Text></Text></View><Action label="SUBMIT APPLICATION" onPress={() => onApply(selected, requested, term, collateral ? { id: collateral.id, name: collateral.name } : undefined)} /></View>{state.loans.map((loan: any) => <View key={loan.id} style={styles.listCard}><Text style={styles.cardTitle}>{loan.name}</Text><Text style={styles.muted}>{money(loan.balance)} remaining · {loan.apr.toFixed(2)}% APR · due {fmtDate(loan.nextDueAt)} · {loan.collateral}</Text><View style={styles.actions}><Action label="PREPAY" onPress={() => onPrepay(loan.id)} /><Action label="FORECLOSE" onPress={() => onForeclose(loan.id)} /></View></View>)}</ScrollView>; }
+function Accounts({ cash, state, onTransfer, onStateChange }: any) {
+  return (
+    <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}>
+      <AccountRow
+        title="Checking"
+        detail="Shared Empire Rush cash"
+        value={cash}
+      />
+      <AccountRow
+        title="High-Yield Savings"
+        detail="4.25% APY · compounded at settlement"
+        value={state.savingsBalance}
+      />
+      <AccountRow
+        title="Business Checking"
+        detail="Operating reserve"
+        value={state.businessCheckingBalance}
+      />
+      <Text style={styles.insured}>
+        FDIC-style note: Insured up to $250,000 per depositor · simulation only
+      </Text>
+      <View style={styles.switchRow}>
+        <Text style={styles.muted}>Overdraft protection</Text>
+        <Switch
+          value={state.overdraftProtection}
+          onValueChange={(value) =>
+            onStateChange({ ...state, overdraftProtection: value })
+          }
+          trackColor={{ false: C.slate, true: "#087C4A" }}
+          thumbColor={state.overdraftProtection ? C.green : C.muted}
+        />
+      </View>
+      <Action label="TRANSFER" onPress={onTransfer} />
+    </ScrollView>
+  );
+}
+function Loans({
+  netWorth,
+  hourlyIncome,
+  state,
+  collateralAssets,
+  onApply,
+  onPrepay,
+  onForeclose,
+}: any) {
+  const [selected, setSelected] = useState<LoanProduct>("SBA_MICROLOAN");
+  const [amount, setAmount] = useState("5000");
+  const [term, setTerm] = useState(loanProduct(selected).termMonths);
+  const [collateralId, setCollateralId] = useState<string | undefined>(
+    collateralAssets?.[0]?.id,
+  );
+  const spec = loanProduct(selected);
+  const apr = bankApr(state.ficoScore, selected);
+  const requested = Math.min(spec.max, Math.max(0, Number(amount) || 0));
+  const terms = [
+    Math.max(1, Math.round(spec.termMonths / 2)),
+    spec.termMonths,
+    spec.termMonths * 2,
+  ];
+  const availableCollateral = (collateralAssets || []).filter(
+    (item: any) =>
+      !state.loans.some(
+        (loan: any) => isActiveLoan(loan) && loan.collateralAssetId === item.id,
+      ),
+  );
+  const collateral =
+    availableCollateral.find((item: any) => item.id === collateralId) ||
+    availableCollateral[0];
+  return (
+    <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}>
+      <Text style={styles.sectionTitle}>
+        LOAN PRODUCTS · TOTAL DEBT CAP{" "}
+        {money(totalDebtCap(state, netWorth, hourlyIncome))}
+      </Text>
+      <View style={styles.loanRail}>
+        <ChipRow
+          items={loanProducts.map((id) => ({
+            id,
+            label: loanProduct(id).name,
+          }))}
+          selectedId={selected}
+          onSelect={(id) => {
+            setSelected(id as LoanProduct);
+            setTerm(loanProduct(id as LoanProduct).termMonths);
+          }}
+          chipStyle={styles.smallChip}
+          activeStyle={styles.smallChipActive}
+          textStyle={styles.smallChipText}
+          activeTextStyle={styles.tabTextActive}
+        />
+      </View>
+      <View style={styles.form}>
+        <Text style={styles.cardTitle}>{spec.name}</Text>
+        <Text style={styles.muted}>
+          Up to {money(spec.max)} · product cap{" "}
+          {money(selected === "SBA_MICROLOAN" ? 50000 : spec.max)} · collateral
+          required: {spec.collateral}
+        </Text>
+        <TextInput
+          value={amount}
+          onChangeText={setAmount}
+          keyboardType="decimal-pad"
+          placeholder="Requested amount"
+          placeholderTextColor={C.muted}
+          style={styles.input}
+        />
+        <Text style={styles.muted}>TERM</Text>
+        <ChipRow
+          items={terms.map((item) => ({
+            id: String(item),
+            label: `${item} months`,
+          }))}
+          selectedId={String(term)}
+          onSelect={(id) => setTerm(Number(id))}
+          chipStyle={styles.smallChip}
+          activeStyle={styles.smallChipActive}
+          textStyle={styles.smallChipText}
+          activeTextStyle={styles.tabTextActive}
+        />
+        {availableCollateral.length ? (
+          <>
+            <Text style={styles.muted}>PLEDGED COLLATERAL</Text>
+            <ChipRow
+              items={availableCollateral.map((item: any) => ({
+                id: item.id,
+                label: `${item.name} · ${money(item.value)}`,
+              }))}
+              selectedId={collateralId}
+              onSelect={setCollateralId}
+              chipStyle={styles.smallChip}
+              activeStyle={styles.smallChipActive}
+              textStyle={styles.smallChipText}
+              activeTextStyle={styles.tabTextActive}
+            />
+          </>
+        ) : (
+          <Text style={styles.muted}>
+            No owned asset available to pledge; starter underwriting can still
+            use net-worth capacity.
+          </Text>
+        )}
+        <View style={styles.preview}>
+          <Text style={styles.previewTitle}>LIVE AMORTIZATION PREVIEW</Text>
+          <Text style={styles.previewLine}>
+            APR <Text style={styles.value}>{apr.toFixed(2)}%</Text>
+          </Text>
+          <Text style={styles.previewLine}>
+            Monthly payment{" "}
+            <Text style={styles.value}>
+              {money(monthlyPayment(requested, apr, term))}
+            </Text>
+          </Text>
+          <Text style={styles.previewLine}>
+            Underwriting{" "}
+            <Text style={styles.value}>
+              {selected === "SBA_MICROLOAN" || selected === "SBA_STARTUP"
+                ? "Collateral + FICO + total-cap check"
+                : hourlyIncome > 0
+                  ? "DTI under review"
+                  : "Income required"}
+            </Text>
+          </Text>
+        </View>
+        <Action
+          label="SUBMIT APPLICATION"
+          onPress={() =>
+            onApply(
+              selected,
+              requested,
+              term,
+              collateral
+                ? { id: collateral.id, name: collateral.name }
+                : undefined,
+            )
+          }
+        />
+      </View>
+      {state.loans
+        .filter((loan: any) => isActiveLoan(loan))
+        .map((loan: any) => (
+          <View key={loan.id} style={styles.listCard}>
+            <Text style={styles.cardTitle}>{loan.name}</Text>
+            <Text style={styles.muted}>
+              {money(loan.balance)} remaining · {loan.apr.toFixed(2)}% APR · due{" "}
+              {fmtDate(loan.nextDueAt)} · {loan.collateral}
+            </Text>
+            <View style={styles.actions}>
+              <Action
+                label="PAY OFF IN FULL"
+                onPress={() => onPrepay(loan.id)}
+              />
+            </View>
+          </View>
+        ))}
+      {state.loans.some((loan: any) => !isActiveLoan(loan)) && (
+        <>
+          <Text style={styles.sectionTitle}>CLOSED LOANS</Text>
+          {state.loans
+            .filter((loan: any) => !isActiveLoan(loan))
+            .map((loan: any) => (
+              <View key={loan.id} style={styles.listCard}>
+                <Text style={styles.cardTitle}>
+                  {loan.name} · {loan.status}
+                </Text>
+                <Text style={styles.muted}>
+                  Closed balance {money(loan.balance)} · No active actions
+                </Text>
+              </View>
+            ))}
+        </>
+      )}
+    </ScrollView>
+  );
+}
 
-function Investors({ netWorth, companyValue, state, onPitch }: any) { const [round, setRound] = useState<InvestorRound>('FRIENDS_FAMILY'); const [instrument, setInstrument] = useState<InvestorInstrument>('SAFE'); return <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}><Text style={styles.sectionTitle}>FUNDING LADDER · {state.investors.length + 1}</Text><ChipRow items={roundNames.map(id => ({ id, label: id.replace('_', ' ') }))} selectedId={round} onSelect={id => setRound(id as InvestorRound)} chipStyle={styles.smallChip} activeStyle={styles.smallChipActive} textStyle={styles.smallChipText} activeTextStyle={styles.tabTextActive} /><ChipRow items={instruments.map(id => ({ id, label: id.replace('_', ' ') }))} selectedId={instrument} onSelect={id => setInstrument(id as InvestorInstrument)} chipStyle={styles.smallChip} activeStyle={styles.smallChipActive} textStyle={styles.smallChipText} activeTextStyle={styles.tabTextActive} /><Card title="CAP TABLE" copy={`Founder ${Math.max(0, 100 - state.investors.reduce((sum: number, item: any) => sum + Number(item.equityPercent || 0), 0)).toFixed(2)}% · ${state.investors.length} fictional investor(s) · valuation ${money(companyValue)}`} /><Action label={`PITCH ${round.replace('_', ' ')} · ${instrument}`} onPress={() => onPitch(round, instrument)} /></ScrollView>; }
-function Credit({ state, onStateChange, onCelebrate }: any) { const score = creditBreakdown(state); return <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}><View style={styles.score}><Text style={styles.eyebrow}>FICO SCORE</Text><Text style={styles.scoreValue}>{score.score}</Text><Text style={styles.muted}>{score.tier} · +{score.pointsToVeryGood} points to Very Good</Text></View><Card title="FACTOR WEIGHTS" copy={`Payment history 35% · Utilization 30% · History length 15% · New credit 10% · Credit mix 10%`} /><Metric label="PAYMENT HISTORY" value={`${score.paymentHistory}/100`} /><Metric label="UTILIZATION" value={`${score.utilization}/100`} /><Metric label="HISTORY LENGTH" value={`${score.historyLength}/100`} /><Card title="IMPROVEMENT TIPS" copy="Pay on time, keep utilization below 30%, avoid rapid hard inquiries, and maintain a mix of responsible accounts." /><Text style={styles.sectionTitle}>SCORE HISTORY</Text>{state.creditHistory.slice(-8).map((point: any) => <View key={point.timestamp} style={styles.rowBetween}><View style={styles.chartRow}><Text style={styles.muted}>{fmtDate(point.timestamp)}</Text><View style={styles.chartTrack}><View style={[styles.chartBar, { width: `${Math.max(8, (point.score / 850) * 100)}%` }]} /></View><Text style={styles.value}>{point.score}</Text></View></View>)}<Card title="NEXT IMPROVEMENT" copy="Make real on-time loan payments and keep utilization low to improve this score." /></ScrollView>; }
-function Deposits({ state, onOpen, onWithdraw }: any) { return <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}><Card title="REAL-TIME DAYS" copy="3/6/12 month CDs are mapped to simulated game days. Early withdrawal applies a visible penalty." />{depositProducts.map(product => { const spec = depositSpec(product); return <View key={product} style={styles.listCard}><View style={styles.rowBetween}><Text style={styles.cardTitle}>{spec.name}</Text><Text style={styles.value}>{spec.rate.toFixed(2)}%</Text></View><Text style={styles.muted}>{spec.termDays} simulated day(s) · early penalty {spec.penalty}%</Text><Action label="OPEN WITH $1,000" onPress={() => onOpen(product)} /></View>; })}{state.deposits.map((deposit: any) => <View key={deposit.id} style={styles.listCard}><View style={styles.rowBetween}><Text style={styles.muted}>{deposit.name} · {deposit.status}</Text><Text style={styles.value}>{money(deposit.principal)}</Text></View><Text style={styles.muted}>Matures {fmtDate(deposit.maturesAt)} · early penalty {deposit.earlyPenaltyRate}%</Text>{deposit.status === 'ACTIVE' || deposit.status === 'MATURED' ? <Action label={deposit.status === 'MATURED' ? 'COLLECT MATURITY' : 'WITHDRAW EARLY'} onPress={() => onWithdraw(deposit)} /> : null}</View>)}</ScrollView>; }
-function Insurance({ state, onInsure }: any) { return <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}><Card title="NEGATIVE-EVENT COVERAGE" copy="Premiums are charged at settlement. A covered negative event can pay up to the policy limit after the deductible." />{insuranceProducts.map(product => { const spec = insuranceSpec(product); return <View key={product} style={styles.listCard}><Text style={styles.cardTitle}>{spec.name}</Text><Text style={styles.muted}>{money(spec.premium)} per settlement · deductible {money(spec.deductible)} · coverage {money(spec.coverage)}</Text><Action label="ACTIVATE POLICY" onPress={() => onInsure(product)} /></View>; })}{state.insurance.map((policy: any) => <Text key={policy.id} style={styles.muted}>Active: {policy.name} · {money(policy.coverage)} coverage</Text>)}</ScrollView>; }
-function TaxPanel({ tax, state, onStateChange, onCashChange, onBreaking }: any) { const total = tax.federal + tax.state + tax.payroll + tax.capitalGains; return <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}><Card title="US TAX DESK" copy="Progressive federal brackets, state tax, payroll/FICA, capital gains, deductions, quarterly estimates, and Tax Day are simulated." /><Metric label="FEDERAL" value={money(tax.federal)} /><Metric label="STATE" value={money(tax.state)} /><Metric label="PAYROLL/FICA" value={money(tax.payroll)} /><Metric label="CAPITAL GAINS" value={money(tax.capitalGains)} /><Text style={styles.muted}>Estimated total due: {money(total)} · deductions include interest, depreciation, and expenses.</Text><Action label="PAY QUARTERLY ESTIMATE" onPress={() => { onCashChange((value: number) => Math.max(0, value - total)); onStateChange(addLedger({ ...state, taxRecords: [...state.taxRecords, { ...tax, paid: total, status: 'PAID' }] }, 'TAX', 'Quarterly estimated payment', -total, Date.now(), 'Federal, state, payroll, and capital gains estimate')); onBreaking(`Tax estimate paid · ${money(total)}.`); }} /></ScrollView>; }
-function History({ state, ledger, search, setSearch }: any) { const entries = ledger.filter((entry: any) => !search || `${entry.label} ${entry.kind} ${entry.detail}`.toLowerCase().includes(search.toLowerCase())).slice().reverse(); return <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}><TextInput value={search} onChangeText={setSearch} placeholder="Search ledger" placeholderTextColor={C.muted} style={styles.input} /><Card title="MONTHLY STATEMENT" copy={`Entries ${entries.length} · Interest earned ${money(state.totalInterestEarned)} · Interest paid ${money(state.totalInterestPaid)}`} />{entries.length ? entries.map((entry: any) => <View key={entry.id} style={styles.listCard}><View style={styles.rowBetween}><Text style={styles.cardTitle}>{entry.label}</Text><Text style={[styles.value, { color: entry.amount < 0 ? C.red : C.green }]}>{entry.amount < 0 ? '-' : '+'}{money(Math.abs(entry.amount))}</Text></View><Text style={styles.muted}>{entry.kind} · {fmtDate(entry.timestamp)} · {entry.detail}</Text></View>) : <Card title="NO BANK ACTIVITY" copy="Deposits, loans, interest, fees, tax, and insurance entries will appear here." />}</ScrollView>; }
-function TransferDialog({ visible, amount, setAmount, from, to, setFrom, setTo, onClose, onConfirm, balances }: any) { const labels = [{ id: 'checking', label: `Checking · ${money(balances.checking)}` }, { id: 'savings', label: `Savings · ${money(balances.savings)}` }, { id: 'business', label: `Business · ${money(balances.business)}` }]; return <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}><View style={styles.modalShade}><View style={styles.transferSheet}><View style={styles.rowBetween}><Text style={styles.cardTitle}>TRANSFER FUNDS</Text><Pressable onPress={onClose}><Text style={styles.close}>×</Text></Pressable></View><Text style={styles.muted}>Amount</Text><TextInput value={amount} onChangeText={setAmount} keyboardType="decimal-pad" style={styles.input} placeholder="0.00" placeholderTextColor={C.muted} /><Text style={styles.muted}>From account</Text><ChipRow items={labels} selectedId={from} onSelect={id => setFrom(id)} chipStyle={styles.smallChip} activeStyle={styles.smallChipActive} textStyle={styles.smallChipText} activeTextStyle={styles.tabTextActive} /><Text style={styles.muted}>To account</Text><ChipRow items={labels} selectedId={to} onSelect={id => setTo(id)} chipStyle={styles.smallChip} activeStyle={styles.smallChipActive} textStyle={styles.smallChipText} activeTextStyle={styles.tabTextActive} /><Action label="CONFIRM TRANSFER" onPress={onConfirm} /></View></View></Modal>; }
-function Metric({ label, value }: { label: string; value: string }) { return <View style={styles.metric}><Text style={styles.metricLabel}>{label}</Text><Text style={styles.metricValue}>{value}</Text></View>; }
-function AccountRow({ title, detail, value }: any) { return <View style={styles.listCard}><View style={styles.rowBetween}><Text style={styles.cardTitle}>{title}</Text><Text style={styles.value}>{money(value)}</Text></View><Text style={styles.muted}>{detail}</Text></View>; }
-function Card({ title, copy, accent = C.slate }: { title: string; copy: string; accent?: string }) { return <View style={[styles.card, { borderColor: accent }]}><Text style={styles.cardTitle}>{title}</Text><Text style={styles.muted}>{copy}</Text></View>; }
-function Action({ label, onPress }: { label: string; onPress: () => void }) { return <Pressable onPress={onPress} style={({ pressed }) => [styles.action, pressed && { opacity: .8, transform: [{ scale: .98 }] }]}><Text style={styles.actionText}>{label}</Text></Pressable>; }
-const styles = StyleSheet.create({ root: { flex: 1, minHeight: 0, backgroundColor: C.bg }, moduleHead: { paddingHorizontal: 18, paddingTop: 10, paddingBottom: 4, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, eyebrow: { color: C.cyan, fontSize: 9, fontWeight: '900', letterSpacing: 1.4 }, title: { color: C.text, fontSize: 25, fontWeight: '900', marginTop: 4 }, bankMark: { color: C.green, fontSize: 32 }, body: { flex: 1, minHeight: 0 }, bodyContent: { paddingHorizontal: 18, paddingBottom: 96, gap: 10 }, screenGap: { height: 12 }, sectionBlock: { gap: 8 }, badgeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, badgeCard: { width: '31.5%', minHeight: 78, backgroundColor: C.bg, borderRadius: 10, padding: 9, borderWidth: 1, borderColor: C.slate }, badgeUnlocked: { borderColor: C.green, backgroundColor: '#103B29' }, badgeState: { color: C.muted, fontSize: 7, fontWeight: '900' }, badgeTitle: { color: C.text, fontSize: 10, fontWeight: '900', marginTop: 7 }, rankRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.panel, borderRadius: 10, padding: 10, borderWidth: 1, borderColor: C.slate }, rankNumber: { color: C.cyan, fontSize: 16, fontWeight: '900', width: 22 }, rankName: { color: C.text, fontSize: 12, fontWeight: '800', flex: 1 }, offerRow: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.panel, borderRadius: 10, padding: 11, borderWidth: 1, borderColor: C.green }, offerExpiry: { color: C.gold, fontSize: 10, fontWeight: '900' }, loanRail: { marginHorizontal: -16 }, transferSheet: { width: '92%', backgroundColor: C.panel2, borderRadius: 16, padding: 16, gap: 10, borderWidth: 1, borderColor: C.cyan }, modalShade: { flex: 1, backgroundColor: 'rgba(0,0,0,.72)', alignItems: 'center', justifyContent: 'center' }, close: { color: C.text, fontSize: 24, fontWeight: '300' }, hero: { backgroundColor: C.panel2, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: C.slate }, heroTitle: { color: C.text, fontSize: 28, fontWeight: '900', marginVertical: 4 }, progress: { height: 7, backgroundColor: C.slate, borderRadius: 4, marginTop: 12 }, progressFill: { height: 7, backgroundColor: C.green, borderRadius: 4 }, metricGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, metric: { width: '31.5%', minHeight: 72, backgroundColor: C.panel, borderRadius: 12, padding: 10, borderWidth: 1, borderColor: C.slate }, metricLabel: { color: C.muted, fontSize: 8, fontWeight: '900' }, metricValue: { color: C.text, fontSize: 14, fontWeight: '900', marginTop: 7 }, card: { backgroundColor: C.panel, borderRadius: 13, padding: 14, borderWidth: 1, gap: 6 }, cardTitle: { color: C.text, fontSize: 12, fontWeight: '900', letterSpacing: .5 }, muted: { color: C.muted, fontSize: 11, lineHeight: 17 }, actions: { flexDirection: 'row', gap: 7 }, action: { minHeight: 42, flex: 1, borderRadius: 10, backgroundColor: C.green, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 }, actionText: { color: C.bg, fontSize: 9, fontWeight: '900', textAlign: 'center' }, sectionTitle: { color: C.cyan, fontSize: 10, fontWeight: '900', letterSpacing: 1.2, marginTop: 5 }, tabChip: { minWidth: 104, height: 42, backgroundColor: C.panel, borderWidth: 1, borderColor: C.slate }, tabChipActive: { backgroundColor: '#123D34', borderColor: C.cyan }, tabText: { color: C.muted, fontSize: 10, fontWeight: '900' }, tabTextActive: { color: C.cyan, fontSize: 10, fontWeight: '900' }, smallChip: { minWidth: 110, height: 42, backgroundColor: C.panel, borderWidth: 1, borderColor: C.slate }, smallChipActive: { backgroundColor: '#123D34', borderColor: C.green }, smallChipText: { color: C.muted, fontSize: 10, fontWeight: '800' }, listCard: { backgroundColor: C.panel, borderRadius: 12, padding: 13, borderWidth: 1, borderColor: C.slate, gap: 5 }, rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8, paddingVertical: 4 }, value: { color: C.text, fontWeight: '900' }, insured: { color: C.cyan, fontSize: 10, lineHeight: 16 }, switchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 10, backgroundColor: C.panel, borderRadius: 10 }, form: { backgroundColor: C.panel, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: C.slate, gap: 9 }, input: { color: C.text, backgroundColor: C.bg, borderWidth: 1, borderColor: C.slate, borderRadius: 9, padding: 12, fontSize: 15 }, preview: { backgroundColor: '#0B1D18', borderRadius: 10, padding: 12, gap: 6 }, previewTitle: { color: C.gold, fontSize: 9, fontWeight: '900' }, previewLine: { color: C.muted, fontSize: 11 }, chartRow: { flexDirection: 'row', alignItems: 'center', gap: 8 }, chartTrack: { flex: 1, height: 7, backgroundColor: C.slate, borderRadius: 4 }, chartBar: { height: 7, backgroundColor: C.cyan, borderRadius: 4 }, footer: { color: C.muted, fontSize: 8, textAlign: 'center', paddingVertical: 5, paddingHorizontal: 18 }, score: { backgroundColor: C.panel2, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: C.cyan }, scoreValue: { color: C.text, fontSize: 46, fontWeight: '900', marginVertical: 4 } });
+function Investors({ netWorth, companyValue, state, onPitch }: any) {
+  const [round, setRound] = useState<InvestorRound>("FRIENDS_FAMILY");
+  const [instrument, setInstrument] = useState<InvestorInstrument>("SAFE");
+  return (
+    <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}>
+      <Text style={styles.sectionTitle}>
+        FUNDING LADDER · {state.investors.length + 1}
+      </Text>
+      <ChipRow
+        items={roundNames.map((id) => ({ id, label: id.replace("_", " ") }))}
+        selectedId={round}
+        onSelect={(id) => setRound(id as InvestorRound)}
+        chipStyle={styles.smallChip}
+        activeStyle={styles.smallChipActive}
+        textStyle={styles.smallChipText}
+        activeTextStyle={styles.tabTextActive}
+      />
+      <ChipRow
+        items={instruments.map((id) => ({ id, label: id.replace("_", " ") }))}
+        selectedId={instrument}
+        onSelect={(id) => setInstrument(id as InvestorInstrument)}
+        chipStyle={styles.smallChip}
+        activeStyle={styles.smallChipActive}
+        textStyle={styles.smallChipText}
+        activeTextStyle={styles.tabTextActive}
+      />
+      <Card
+        title="CAP TABLE"
+        copy={`Founder ${Math.max(0, 100 - state.investors.reduce((sum: number, item: any) => sum + Number(item.equityPercent || 0), 0)).toFixed(2)}% · ${state.investors.length} fictional investor(s) · valuation ${money(companyValue)}`}
+      />
+      <Action
+        label={`PITCH ${round.replace("_", " ")} · ${instrument}`}
+        onPress={() => onPitch(round, instrument)}
+      />
+    </ScrollView>
+  );
+}
+function Credit({ state, onStateChange, onCelebrate }: any) {
+  const score = creditBreakdown(state);
+  return (
+    <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}>
+      <View style={styles.score}>
+        <Text style={styles.eyebrow}>FICO SCORE</Text>
+        <Text style={styles.scoreValue}>{score.score}</Text>
+        <Text style={styles.muted}>
+          {score.tier} · +{score.pointsToVeryGood} points to Very Good
+        </Text>
+      </View>
+      <Card
+        title="FACTOR WEIGHTS"
+        copy={`Payment history 35% · Utilization 30% · History length 15% · New credit 10% · Credit mix 10%`}
+      />
+      <Metric label="PAYMENT HISTORY" value={`${score.paymentHistory}/100`} />
+      <Metric label="UTILIZATION" value={`${score.utilization}/100`} />
+      <Metric label="HISTORY LENGTH" value={`${score.historyLength}/100`} />
+      <Card
+        title="IMPROVEMENT TIPS"
+        copy="Pay on time, keep utilization below 30%, avoid rapid hard inquiries, and maintain a mix of responsible accounts."
+      />
+      <Text style={styles.sectionTitle}>SCORE HISTORY</Text>
+      {state.creditHistory.slice(-8).map((point: any) => (
+        <View key={point.timestamp} style={styles.rowBetween}>
+          <View style={styles.chartRow}>
+            <Text style={styles.muted}>{fmtDate(point.timestamp)}</Text>
+            <View style={styles.chartTrack}>
+              <View
+                style={[
+                  styles.chartBar,
+                  { width: `${Math.max(8, (point.score / 850) * 100)}%` },
+                ]}
+              />
+            </View>
+            <Text style={styles.value}>{point.score}</Text>
+          </View>
+        </View>
+      ))}
+      <Card
+        title="NEXT IMPROVEMENT"
+        copy="Make real on-time loan payments and keep utilization low to improve this score."
+      />
+    </ScrollView>
+  );
+}
+function Deposits({ state, onOpen, onWithdraw }: any) {
+  return (
+    <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}>
+      <Card
+        title="REAL-TIME DAYS"
+        copy="3/6/12 month CDs are mapped to simulated game days. Early withdrawal applies a visible penalty."
+      />
+      {depositProducts.map((product) => {
+        const spec = depositSpec(product);
+        return (
+          <View key={product} style={styles.listCard}>
+            <View style={styles.rowBetween}>
+              <Text style={styles.cardTitle}>{spec.name}</Text>
+              <Text style={styles.value}>{spec.rate.toFixed(2)}%</Text>
+            </View>
+            <Text style={styles.muted}>
+              {spec.termDays} simulated day(s) · early penalty {spec.penalty}%
+            </Text>
+            <Action label="OPEN WITH $1,000" onPress={() => onOpen(product)} />
+          </View>
+        );
+      })}
+      {state.deposits.map((deposit: any) => (
+        <View key={deposit.id} style={styles.listCard}>
+          <View style={styles.rowBetween}>
+            <Text style={styles.muted}>
+              {deposit.name} · {deposit.status}
+            </Text>
+            <Text style={styles.value}>{money(deposit.principal)}</Text>
+          </View>
+          <Text style={styles.muted}>
+            Matures {fmtDate(deposit.maturesAt)} · early penalty{" "}
+            {deposit.earlyPenaltyRate}%
+          </Text>
+          {deposit.status === "ACTIVE" || deposit.status === "MATURED" ? (
+            <Action
+              label={
+                deposit.status === "MATURED"
+                  ? "COLLECT MATURITY"
+                  : "WITHDRAW EARLY"
+              }
+              onPress={() => onWithdraw(deposit)}
+            />
+          ) : null}
+        </View>
+      ))}
+    </ScrollView>
+  );
+}
+function Insurance({ state, onInsure }: any) {
+  return (
+    <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}>
+      <Card
+        title="NEGATIVE-EVENT COVERAGE"
+        copy="Premiums are charged at settlement. A covered negative event can pay up to the policy limit after the deductible."
+      />
+      {insuranceProducts.map((product) => {
+        const spec = insuranceSpec(product);
+        return (
+          <View key={product} style={styles.listCard}>
+            <Text style={styles.cardTitle}>{spec.name}</Text>
+            <Text style={styles.muted}>
+              {money(spec.premium)} per settlement · deductible{" "}
+              {money(spec.deductible)} · coverage {money(spec.coverage)}
+            </Text>
+            <Action label="ACTIVATE POLICY" onPress={() => onInsure(product)} />
+          </View>
+        );
+      })}
+      {state.insurance.map((policy: any) => (
+        <Text key={policy.id} style={styles.muted}>
+          Active: {policy.name} · {money(policy.coverage)} coverage
+        </Text>
+      ))}
+    </ScrollView>
+  );
+}
+function TaxPanel({
+  tax,
+  state,
+  onStateChange,
+  onCashChange,
+  onBreaking,
+}: any) {
+  const total = tax.federal + tax.state + tax.payroll + tax.capitalGains;
+  return (
+    <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}>
+      <Card
+        title="US TAX DESK"
+        copy="Progressive federal brackets, state tax, payroll/FICA, capital gains, deductions, quarterly estimates, and Tax Day are simulated."
+      />
+      <Metric label="FEDERAL" value={money(tax.federal)} />
+      <Metric label="STATE" value={money(tax.state)} />
+      <Metric label="PAYROLL/FICA" value={money(tax.payroll)} />
+      <Metric label="CAPITAL GAINS" value={money(tax.capitalGains)} />
+      <Text style={styles.muted}>
+        Estimated total due: {money(total)} · deductions include interest,
+        depreciation, and expenses.
+      </Text>
+      <Action
+        label="PAY QUARTERLY ESTIMATE"
+        onPress={() => {
+          onCashChange((value: number) => Math.max(0, value - total));
+          onStateChange(
+            addLedger(
+              {
+                ...state,
+                taxRecords: [
+                  ...state.taxRecords,
+                  { ...tax, paid: total, status: "PAID" },
+                ],
+              },
+              "TAX",
+              "Quarterly estimated payment",
+              -total,
+              Date.now(),
+              "Federal, state, payroll, and capital gains estimate",
+            ),
+          );
+          onBreaking(`Tax estimate paid · ${money(total)}.`);
+        }}
+      />
+    </ScrollView>
+  );
+}
+function History({ state, ledger, search, setSearch }: any) {
+  const entries = ledger
+    .filter(
+      (entry: any) =>
+        !search ||
+        `${entry.label} ${entry.kind} ${entry.detail}`
+          .toLowerCase()
+          .includes(search.toLowerCase()),
+    )
+    .slice()
+    .reverse();
+  return (
+    <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}>
+      <TextInput
+        value={search}
+        onChangeText={setSearch}
+        placeholder="Search ledger"
+        placeholderTextColor={C.muted}
+        style={styles.input}
+      />
+      <Card
+        title="MONTHLY STATEMENT"
+        copy={`Entries ${entries.length} · Interest earned ${money(state.totalInterestEarned)} · Interest paid ${money(state.totalInterestPaid)}`}
+      />
+      {entries.length ? (
+        entries.map((entry: any) => (
+          <View key={entry.id} style={styles.listCard}>
+            <View style={styles.rowBetween}>
+              <Text style={styles.cardTitle}>{entry.label}</Text>
+              <Text
+                style={[
+                  styles.value,
+                  { color: entry.amount < 0 ? C.red : C.green },
+                ]}
+              >
+                {entry.amount < 0 ? "-" : "+"}
+                {money(Math.abs(entry.amount))}
+              </Text>
+            </View>
+            <Text style={styles.muted}>
+              {entry.kind} · {fmtDate(entry.timestamp)} · {entry.detail}
+            </Text>
+          </View>
+        ))
+      ) : (
+        <Card
+          title="NO BANK ACTIVITY"
+          copy="Deposits, loans, interest, fees, tax, and insurance entries will appear here."
+        />
+      )}
+    </ScrollView>
+  );
+}
+function TransferDialog({
+  visible,
+  amount,
+  setAmount,
+  from,
+  to,
+  setFrom,
+  setTo,
+  onClose,
+  onConfirm,
+  balances,
+}: any) {
+  const labels = [
+    { id: "checking", label: `Checking · ${money(balances.checking)}` },
+    { id: "savings", label: `Savings · ${money(balances.savings)}` },
+    { id: "business", label: `Business · ${money(balances.business)}` },
+  ];
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+    >
+      <View style={styles.modalShade}>
+        <View style={styles.transferSheet}>
+          <View style={styles.rowBetween}>
+            <Text style={styles.cardTitle}>TRANSFER FUNDS</Text>
+            <Pressable onPress={onClose}>
+              <Text style={styles.close}>×</Text>
+            </Pressable>
+          </View>
+          <Text style={styles.muted}>Amount</Text>
+          <TextInput
+            value={amount}
+            onChangeText={setAmount}
+            keyboardType="decimal-pad"
+            style={styles.input}
+            placeholder="0.00"
+            placeholderTextColor={C.muted}
+          />
+          <Text style={styles.muted}>From account</Text>
+          <ChipRow
+            items={labels}
+            selectedId={from}
+            onSelect={(id) => setFrom(id)}
+            chipStyle={styles.smallChip}
+            activeStyle={styles.smallChipActive}
+            textStyle={styles.smallChipText}
+            activeTextStyle={styles.tabTextActive}
+          />
+          <Text style={styles.muted}>To account</Text>
+          <ChipRow
+            items={labels}
+            selectedId={to}
+            onSelect={(id) => setTo(id)}
+            chipStyle={styles.smallChip}
+            activeStyle={styles.smallChipActive}
+            textStyle={styles.smallChipText}
+            activeTextStyle={styles.tabTextActive}
+          />
+          <Action label="CONFIRM TRANSFER" onPress={onConfirm} />
+        </View>
+      </View>
+    </Modal>
+  );
+}
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.metric}>
+      <Text style={styles.metricLabel}>{label}</Text>
+      <Text style={styles.metricValue}>{value}</Text>
+    </View>
+  );
+}
+function AccountRow({ title, detail, value }: any) {
+  return (
+    <View style={styles.listCard}>
+      <View style={styles.rowBetween}>
+        <Text style={styles.cardTitle}>{title}</Text>
+        <Text style={styles.value}>{money(value)}</Text>
+      </View>
+      <Text style={styles.muted}>{detail}</Text>
+    </View>
+  );
+}
+function Card({
+  title,
+  copy,
+  accent = C.slate,
+}: {
+  title: string;
+  copy: string;
+  accent?: string;
+}) {
+  return (
+    <View style={[styles.card, { borderColor: accent }]}>
+      <Text style={styles.cardTitle}>{title}</Text>
+      <Text style={styles.muted}>{copy}</Text>
+    </View>
+  );
+}
+function Action({ label, onPress }: { label: string; onPress: () => void }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.action,
+        pressed && { opacity: 0.8, transform: [{ scale: 0.98 }] },
+      ]}
+    >
+      <Text style={styles.actionText}>{label}</Text>
+    </Pressable>
+  );
+}
+const styles = StyleSheet.create({
+  root: { flex: 1, minHeight: 0, backgroundColor: C.bg },
+  moduleHead: {
+    paddingHorizontal: 18,
+    paddingTop: 10,
+    paddingBottom: 4,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  eyebrow: {
+    color: C.cyan,
+    fontSize: 9,
+    fontWeight: "900",
+    letterSpacing: 1.4,
+  },
+  title: { color: C.text, fontSize: 25, fontWeight: "900", marginTop: 4 },
+  bankMark: { color: C.green, fontSize: 32 },
+  body: { flex: 1, minHeight: 0 },
+  bodyContent: { paddingHorizontal: 18, paddingBottom: 96, gap: 10 },
+  screenGap: { height: 12 },
+  sectionBlock: { gap: 8 },
+  badgeGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  badgeCard: {
+    width: "31.5%",
+    minHeight: 78,
+    backgroundColor: C.bg,
+    borderRadius: 10,
+    padding: 9,
+    borderWidth: 1,
+    borderColor: C.slate,
+  },
+  badgeUnlocked: { borderColor: C.green, backgroundColor: "#103B29" },
+  badgeState: { color: C.muted, fontSize: 7, fontWeight: "900" },
+  badgeTitle: { color: C.text, fontSize: 10, fontWeight: "900", marginTop: 7 },
+  rankRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: C.panel,
+    borderRadius: 10,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: C.slate,
+  },
+  rankNumber: { color: C.cyan, fontSize: 16, fontWeight: "900", width: 22 },
+  rankName: { color: C.text, fontSize: 12, fontWeight: "800", flex: 1 },
+  offerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: C.panel,
+    borderRadius: 10,
+    padding: 11,
+    borderWidth: 1,
+    borderColor: C.green,
+  },
+  offerExpiry: { color: C.gold, fontSize: 10, fontWeight: "900" },
+  loanRail: { marginHorizontal: -16 },
+  transferSheet: {
+    width: "92%",
+    backgroundColor: C.panel2,
+    borderRadius: 16,
+    padding: 16,
+    gap: 10,
+    borderWidth: 1,
+    borderColor: C.cyan,
+  },
+  modalShade: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,.72)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  close: { color: C.text, fontSize: 24, fontWeight: "300" },
+  hero: {
+    backgroundColor: C.panel2,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: C.slate,
+  },
+  heroTitle: {
+    color: C.text,
+    fontSize: 28,
+    fontWeight: "900",
+    marginVertical: 4,
+  },
+  progress: {
+    height: 7,
+    backgroundColor: C.slate,
+    borderRadius: 4,
+    marginTop: 12,
+  },
+  progressFill: { height: 7, backgroundColor: C.green, borderRadius: 4 },
+  metricGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  metric: {
+    width: "31.5%",
+    minHeight: 72,
+    backgroundColor: C.panel,
+    borderRadius: 12,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: C.slate,
+  },
+  metricLabel: { color: C.muted, fontSize: 8, fontWeight: "900" },
+  metricValue: { color: C.text, fontSize: 14, fontWeight: "900", marginTop: 7 },
+  card: {
+    backgroundColor: C.panel,
+    borderRadius: 13,
+    padding: 14,
+    borderWidth: 1,
+    gap: 6,
+  },
+  cardTitle: {
+    color: C.text,
+    fontSize: 12,
+    fontWeight: "900",
+    letterSpacing: 0.5,
+  },
+  muted: { color: C.muted, fontSize: 11, lineHeight: 17 },
+  actions: { flexDirection: "row", gap: 7 },
+  action: {
+    minHeight: 42,
+    flex: 1,
+    borderRadius: 10,
+    backgroundColor: C.green,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 8,
+  },
+  actionText: {
+    color: C.bg,
+    fontSize: 9,
+    fontWeight: "900",
+    textAlign: "center",
+  },
+  sectionTitle: {
+    color: C.cyan,
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 1.2,
+    marginTop: 5,
+  },
+  tabChip: {
+    minWidth: 104,
+    height: 42,
+    backgroundColor: C.panel,
+    borderWidth: 1,
+    borderColor: C.slate,
+  },
+  tabChipActive: { backgroundColor: "#123D34", borderColor: C.cyan },
+  tabText: { color: C.muted, fontSize: 10, fontWeight: "900" },
+  tabTextActive: { color: C.cyan, fontSize: 10, fontWeight: "900" },
+  smallChip: {
+    minWidth: 110,
+    height: 42,
+    backgroundColor: C.panel,
+    borderWidth: 1,
+    borderColor: C.slate,
+  },
+  smallChipActive: { backgroundColor: "#123D34", borderColor: C.green },
+  smallChipText: { color: C.muted, fontSize: 10, fontWeight: "800" },
+  listCard: {
+    backgroundColor: C.panel,
+    borderRadius: 12,
+    padding: 13,
+    borderWidth: 1,
+    borderColor: C.slate,
+    gap: 5,
+  },
+  rowBetween: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 4,
+  },
+  value: { color: C.text, fontWeight: "900" },
+  insured: { color: C.cyan, fontSize: 10, lineHeight: 16 },
+  switchRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 10,
+    backgroundColor: C.panel,
+    borderRadius: 10,
+  },
+  form: {
+    backgroundColor: C.panel,
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: C.slate,
+    gap: 9,
+  },
+  input: {
+    color: C.text,
+    backgroundColor: C.bg,
+    borderWidth: 1,
+    borderColor: C.slate,
+    borderRadius: 9,
+    padding: 12,
+    fontSize: 15,
+  },
+  preview: {
+    backgroundColor: "#0B1D18",
+    borderRadius: 10,
+    padding: 12,
+    gap: 6,
+  },
+  previewTitle: { color: C.gold, fontSize: 9, fontWeight: "900" },
+  previewLine: { color: C.muted, fontSize: 11 },
+  chartRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  chartTrack: { flex: 1, height: 7, backgroundColor: C.slate, borderRadius: 4 },
+  chartBar: { height: 7, backgroundColor: C.cyan, borderRadius: 4 },
+  footer: {
+    color: C.muted,
+    fontSize: 8,
+    textAlign: "center",
+    paddingVertical: 5,
+    paddingHorizontal: 18,
+  },
+  score: {
+    backgroundColor: C.panel2,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: C.cyan,
+  },
+  scoreValue: {
+    color: C.text,
+    fontSize: 46,
+    fontWeight: "900",
+    marginVertical: 4,
+  },
+});

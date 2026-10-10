@@ -2,7 +2,7 @@ import type { BusinessEntity } from '../types/business';
 import type { CollectionItem } from '../data/collectionTypes';
 import type { Asset, Holding } from '../types/marketAsset';
 import type { BankDeposit, BankInvestor, BankLoan, BankMarketEvent, BankState, InsurancePolicy, BankLedgerEntry, TaxRecord } from '../types/bank';
-import { calculateTax, depositSpec } from './bankEngine';
+import { calculateTax, depositSpec, isActiveLoan } from './bankEngine';
 
 export type FinancialGameState = {
   cash: number;
@@ -37,7 +37,7 @@ export function calculateNetWorth(state: FinancialGameState): number {
     return sum + positive(business.acquisitionCost) + inventory + positive(business.pendingSettlementAmount);
   }, 0);
   const deposits = (state.bank.deposits || []).reduce((sum, deposit) => sum + (deposit.status === 'ACTIVE' ? positive(deposit.principal) : 0), 0);
-  const debt = (state.bank.loans || []).reduce((sum, loan) => sum + (loan.status === 'ACTIVE' ? positive(loan.balance) : 0), 0);
+  const debt = (state.bank.loans || []).reduce((sum, loan) => sum + (isActiveLoan(loan) ? positive(loan.balance) : 0), 0);
   return Math.max(0, positive(state.cash) + positive(state.bank.savingsBalance) + positive(state.bank.businessCheckingBalance) + deposits + portfolio + lifestyle + businessAssets - debt);
 }
 
@@ -56,7 +56,7 @@ function savingsInterest(state: FinancialGameState) {
 function upkeep(state: FinancialGameState) { return (state.owned || []).reduce((sum, id) => sum + positive(state.lifestyleAssets.find(item => item.id === id)?.upkeep) / 30 / 24, 0); }
 function investorShare(state: FinancialGameState, revenue: number) { return (state.bank.investors || []).reduce((sum, investor) => sum + revenue * positive(investor.equityPercent) / 100, 0); }
 function loanParts(state: FinancialGameState) {
-  return (state.bank.loans || []).filter(item => item.status === 'ACTIVE').reduce((result, loan) => {
+  return (state.bank.loans || []).filter(isActiveLoan).reduce((result, loan) => {
     const payment = Math.min(positive(loan.balance), positive(loan.monthlyPayment) / 30 / 24);
     const interest = positive(loan.balance) * positive(loan.apr) / 100 / 8760;
     result.emi += payment; result.interest += Math.min(payment, interest); result.principal += Math.max(0, payment - interest); return result;
@@ -80,9 +80,9 @@ export function settleHour(state: FinancialGameState): SettlementResult {
   const marketEvent = state.bank.marketEvents?.[state.bank.marketEvents.length - 1];
   const insurancePayout = marketEvent?.kind === 'RECESSION' ? (state.bank.insurance || []).filter(item => item.active).reduce((sum, policy) => sum + Math.max(0, policy.coverage - policy.deductible) * 0.1, 0) : 0;
   const loanUpdates = (state.bank.loans || []).map(item => {
-    if (item.status !== 'ACTIVE') return item;
+    if (!isActiveLoan(item)) return item;
     const nextBalance = Math.max(0, item.balance - loanParts(state).principal);
-    return { ...item, balance: round(nextBalance), status: nextBalance <= 0.01 ? 'PAID' as const : item.status, nextDueAt: item.nextDueAt + 3600000 };
+    return { ...item, balance: round(nextBalance), status: nextBalance <= 0.01 ? 'paid_off' as const : item.status, nextDueAt: item.nextDueAt + 3600000 };
   });
   const taxRecords: TaxRecord[] = [...(state.bank.taxRecords || []).filter(item => item.status !== 'ESTIMATE'), { ...tax, id: `tax-${timestamp}`, dueAt: timestamp + 90 * 24 * 3600000 }];
   const items: BankLedgerEntry[] = [
