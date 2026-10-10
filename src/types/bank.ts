@@ -13,14 +13,14 @@ export type BankInvestor = { id: string; firm: string; round: InvestorRound; ins
 export type BankRival = { id: string; name: string; netWorth: number; growthRate: number; volatility: number; lastUpdatedAt: number };
 export type CreditSnapshot = { timestamp: number; score: number; paymentHistory: number; utilization: number; historyLength: number; newCredit: number; creditMix: number };
 export type BankDeposit = { id: string; product: DepositProduct; name: string; principal: number; rate: number; termDays: number; openedAt: number; maturesAt: number; earlyPenaltyRate: number; status: 'ACTIVE' | 'MATURED' | 'WITHDRAWN' };
-export type InsurancePolicy = { id: string; product: InsuranceProduct; name: string; premium: number; deductible: number; coverage: number; active: boolean; purchasedAt: number; lastPaidAt: number };
+export type InsurancePolicy = { id: string; product: InsuranceProduct; name: string; premium: number; deductible: number; coverage: number; active: boolean; purchasedAt: number; lastPaidAt: number; insuredAssetId?: string; insuredAssetName?: string };
 export type TaxRecord = { id: string; year: number; income: number; deductions: number; federal: number; state: number; payroll: number; capitalGains: number; paid: number; dueAt: number; status: 'ESTIMATE' | 'PAID' | 'LATE' };
 export type BankLedgerEntry = { id: string; kind: LedgerKind; label: string; amount: number; timestamp: number; detail: string };
 export type BankMarketEvent = { id: string; kind: 'RATE_HIKE' | 'RECESSION' | 'FUNDING_BOOM'; headline: string; primeRate: number; cdRateBump: number; investorAppetite: number; timestamp: number };
 
 export type BankState = {
   schemaVersion: number; savingsBalance: number; businessCheckingBalance: number; overdraftProtection: boolean; ficoScore: number; totalInterestEarned: number; totalInterestPaid: number; loans: BankLoan[]; investors: BankInvestor[]; offers: BankOffer[]; lastSettlementAt: number; lastAwaySummary: { interestEarned: number; paymentsMade: number; newOffers: number; at: number } | null; lastOfferSequence: number;
-  creditHistory: CreditSnapshot[]; deposits: BankDeposit[]; insurance: InsurancePolicy[]; taxRecords: TaxRecord[]; ledger: BankLedgerEntry[]; achievements: string[]; loginStreak: number; lastLoginAt: number; weeklyInterestEarned: number; marketEvents: BankMarketEvent[]; companyValuation: number; rivals: BankRival[]; acceptedOfferIds: string[]; savingsRateBoostUntil: number;
+  creditHistory: CreditSnapshot[]; deposits: BankDeposit[]; insurance: InsurancePolicy[]; taxRecords: TaxRecord[]; ledger: BankLedgerEntry[]; achievements: string[]; loginStreak: number; lastLoginAt: number; weeklyInterestEarned: number; marketEvents: BankMarketEvent[]; companyValuation: number; rivals: BankRival[]; acceptedOfferIds: string[]; savingsRateBoostUntil: number; accountOpenedAt?: number; totalCreditLimit?: number; hardInquiries?: number;
 };
 
 export const BANK_SCHEMA_VERSION = 2;

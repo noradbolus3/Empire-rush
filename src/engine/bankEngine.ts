@@ -40,12 +40,13 @@ export function loanProduct(name: LoanProduct): { name: string; max: number; ter
   return products[name];
 }
 
-export function bankApr(ficoScore: number, product: LoanProduct, debtToIncome = 0, collateral = false): number {
+export function bankApr(ficoScore: number, product: LoanProduct, debtToIncome = 0, collateral = false, event?: BankMarketEvent | null): number {
   const p = loanProduct(product);
   const ficoAdjustment = ficoScore >= 760 ? -1.25 : ficoScore >= 700 ? 0 : ficoScore >= 640 ? 1.75 : 4;
   const dtiAdjustment = debtToIncome > 0.45 ? 2 : debtToIncome > 0.3 ? 0.75 : 0;
   const collateralDiscount = collateral ? 0.75 : 0;
-  return Number(clamp(PRIME_RATE + p.spread + ficoAdjustment + dtiAdjustment - collateralDiscount, 4.99, 29.99).toFixed(2));
+  const eventAdjustment = event?.kind === 'RECESSION' ? 1.75 : event?.kind === 'RATE_HIKE' ? 0.75 : event?.kind === 'FUNDING_BOOM' ? -0.5 : 0;
+  return Number(clamp(PRIME_RATE + p.spread + ficoAdjustment + dtiAdjustment - collateralDiscount + eventAdjustment, 4.99, 29.99).toFixed(2));
 }
 
 export function monthlyPayment(principal: number, apr: number, termMonths: number): number {
@@ -99,9 +100,24 @@ export function offersForSettlement(state: BankState, now: number, netWorth: num
   return base.map(item => ({ ...item, expiresAt: now + BANK_SETTLEMENT_MS * 2 }));
 }
 
-export function creditBreakdown(state: BankState): { paymentHistory: number; utilization: number; historyLength: number; newCredit: number; creditMix: number; score: number; tier: string; pointsToVeryGood: number } { const active = state.loans.filter(l => l.status === 'ACTIVE'); const paymentHistory = active.some(l => l.delinquencyDays > 0) ? 55 : state.totalInterestPaid > 0 ? 86 : 72; const utilization = clamp(100 - active.reduce((n, l) => n + l.balance, 0) / Math.max(1, state.savingsBalance + 25_000) * 100, 0, 100); const historyLength = clamp(40 + state.creditHistory.length, 0, 100); const newCredit = clamp(100 - active.filter(l => l.hardInquiry).length * 8, 0, 100); const creditMix = clamp(45 + (state.deposits.length ? 15 : 0) + (state.investors.length ? 10 : 0), 0, 100); const weighted = paymentHistory * .35 + utilization * .3 + historyLength * .15 + newCredit * .1 + creditMix * .1; const score = clamp(Math.round(300 + weighted * 5.5), 300, 850); const tier = score < 580 ? 'Poor' : score < 670 ? 'Fair' : score < 740 ? 'Good' : score < 800 ? 'Very Good' : 'Exceptional'; return { paymentHistory, utilization, historyLength, newCredit, creditMix, score, tier, pointsToVeryGood: Math.max(0, 740 - score) }; }
+export function creditBreakdown(state: BankState): { paymentHistory: number; utilization: number; historyLength: number; newCredit: number; creditMix: number; score: number; tier: string; pointsToVeryGood: number } {
+  const active = state.loans.filter(l => l.status === 'ACTIVE');
+  const paymentHistory = active.some(l => l.delinquencyDays > 0) ? 45 : state.totalInterestPaid > 0 ? 92 : 78;
+  const totalDebt = active.reduce((sum, loan) => sum + Math.max(0, loan.balance), 0);
+  const creditLimit = Math.max(25_000, Number(state.totalCreditLimit) || state.loans.reduce((sum, loan) => sum + loan.principal, 0) + 25_000);
+  const utilization = clamp(100 - (totalDebt / creditLimit) * 100, 0, 100);
+  const accountAgeDays = Math.max(0, (Date.now() - Number(state.accountOpenedAt || state.creditHistory[0]?.timestamp || Date.now())) / 86400000);
+  const historyLength = clamp(Math.round((accountAgeDays / 3650) * 100), 0, 100);
+  const newCredit = clamp(100 - (Number(state.hardInquiries) || active.filter(l => l.hardInquiry).length) * 10, 0, 100);
+  const creditMix = clamp(35 + (active.length ? 20 : 0) + (state.deposits.length ? 15 : 0) + (state.investors.length ? 15 : 0) + (state.insurance.length ? 5 : 0), 0, 100);
+  const weighted = paymentHistory * .35 + utilization * .30 + historyLength * .15 + newCredit * .10 + creditMix * .10;
+  const score = clamp(Math.round(300 + weighted * 5.5), 300, 850);
+  const tier = score < 580 ? 'Poor' : score < 670 ? 'Fair' : score < 740 ? 'Good' : score < 800 ? 'Very Good' : 'Exceptional';
+  return { paymentHistory, utilization, historyLength, newCredit, creditMix, score, tier, pointsToVeryGood: Math.max(0, 740 - score) };
+}
 export function depositSpec(product: DepositProduct): { name: string; termDays: number; rate: number; penalty: number } { const specs: Record<DepositProduct, { name: string; termDays: number; rate: number; penalty: number }> = { CD_3M: { name: '3-month CD', termDays: 3, rate: 4.5, penalty: 0.9 }, CD_6M: { name: '6-month CD', termDays: 6, rate: 4.75, penalty: 1.2 }, CD_12M: { name: '12-month CD', termDays: 12, rate: 5.1, penalty: 1.5 }, RETIREMENT_IRA: { name: 'IRA-style retirement account', termDays: 365, rate: 5.25, penalty: 0.1 }, TREASURY_BILL: { name: 'Treasury Bill', termDays: 4, rate: 4.2, penalty: 0 }, TREASURY_NOTE: { name: 'Treasury Note', termDays: 30, rate: 4.35, penalty: 0 }, TREASURY_BOND: { name: 'Treasury Bond', termDays: 90, rate: 4.6, penalty: 0 } }; return specs[product]; }
 export function openDeposit(product: DepositProduct, principal: number, now: number): BankDeposit { const spec = depositSpec(product); return { id: `deposit-${now}-${product}`, product, name: spec.name, principal: safeMoney(principal), rate: spec.rate, termDays: spec.termDays, openedAt: now, maturesAt: now + spec.termDays * 24 * 60 * 60 * 1000, earlyPenaltyRate: spec.penalty, status: 'ACTIVE' }; }
+export function withdrawDeposit(deposit: BankDeposit, now: number): { amount: number; penalty: number; next: BankDeposit } { const matured = deposit.status === 'MATURED' || deposit.maturesAt <= now; const penalty = matured ? 0 : safeMoney(deposit.principal * deposit.earlyPenaltyRate / 100); const interest = matured ? safeMoney(deposit.principal * deposit.rate / 100 * deposit.termDays / 365) : 0; return { amount: safeMoney(deposit.principal + interest - penalty), penalty, next: { ...deposit, status: 'WITHDRAWN' } }; }
 export function insuranceSpec(product: InsuranceProduct): { name: string; premium: number; deductible: number; coverage: number } { return ({ GENERAL_LIABILITY: { name: 'General liability', premium: 75, deductible: 500, coverage: 25_000 }, PROPERTY: { name: 'Property', premium: 110, deductible: 1_000, coverage: 50_000 }, COMMERCIAL_AUTO: { name: 'Commercial auto', premium: 145, deductible: 1_500, coverage: 75_000 }, KEY_PERSON: { name: 'Key-person', premium: 90, deductible: 0, coverage: 100_000 }, CYBER: { name: 'Cyber', premium: 125, deductible: 750, coverage: 60_000 } })[product]; }
 export function progressiveFederalTax(income: number): number { const brackets = [[11_600, .10], [47_150, .12], [100_525, .22], [191_950, .24], [243_725, .32], [609_350, .35], [Number.POSITIVE_INFINITY, .37]] as const; let tax = 0; let previous = 0; for (const [limit, rate] of brackets) { const slice = Math.max(0, Math.min(income, limit) - previous); tax += slice * rate; previous = limit; if (income <= limit) break; } return safeMoney(tax); }
 export function calculateTax(income: number, deductions: number, capitalGains: number, payroll: number, stateRate = .045): TaxRecord { const taxable = Math.max(0, income - deductions); const federal = progressiveFederalTax(taxable); const state = safeMoney(taxable * stateRate); const payrollTax = safeMoney(payroll * .0765); return { id: `tax-${new Date().getFullYear()}`, year: new Date().getFullYear(), income, deductions, federal, state, payroll: payrollTax, capitalGains: safeMoney(capitalGains * .15), paid: 0, dueAt: Date.now() + 90 * 24 * 60 * 60 * 1000, status: 'ESTIMATE' }; }

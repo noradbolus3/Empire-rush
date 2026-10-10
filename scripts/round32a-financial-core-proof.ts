@@ -33,7 +33,7 @@ assert.ok(settled.ledger.some(item => item.kind === 'BUSINESS_REVENUE'));
 assert.ok(settled.ledger.some(item => item.kind === 'INTEREST'));
 assert.ok(settled.ledger.some(item => item.kind === 'EMI'));
 assert.ok(settled.ledger.some(item => item.kind === 'UPKEEP'));
-assert.ok(Math.abs(settled.projectedHourlyNet - (settled.breakdown.businessRevenue + settled.breakdown.interest - settled.breakdown.emi - settled.breakdown.premiums - settled.breakdown.upkeep - settled.breakdown.investorShare)) < 0.01, 'projected net must equal the settlement breakdown');
+assert.ok(Math.abs(settled.projectedHourlyNet - (settled.breakdown.businessRevenue + settled.breakdown.interest - settled.breakdown.emi - settled.breakdown.premiums - settled.breakdown.upkeep - settled.breakdown.investorShare - settled.breakdown.taxAccrual)) < 0.01, 'projected net must equal the settlement breakdown including tax accrual');
 assert.ok(settled.state.bank.loans[0].balance < loan.balance, 'EMI must reduce principal balance');
 
 console.log(JSON.stringify({
