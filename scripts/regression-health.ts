@@ -50,7 +50,7 @@ assert.doesNotMatch(app, /gameTimeEngine|SimulatedGameTime|formatSimulatedGameTi
 assert.match(realTimeEngine, /return Date\.now\(\)/, 'clock: real-time engine must read system time');
 assert.match(app, /formatSystemDateTime\(systemTimeMs\)/, 'clock: App must render system date/time');
 assert.match(app, /timeModel: "system-clock-v1"/, 'save migration: system clock marker missing');
-assert.equal(GAME_SAVE_VERSION, 13, 'save migration: Round 30 Bank schema version missing');
+assert.equal(GAME_SAVE_VERSION, 14, 'save migration: Round 30 Bank schema version missing');
 assert.match(read('src/engine/saveMigration.ts'), /marketCatalogVersion/, 'save migration: canonical market catalog marker missing');
 assert.match(read('src/engine/saveMigration.ts'), /settlementAt/, 'save migration: settlement cursor migration missing');
 assert.equal(fs.existsSync(path.join(root, 'src/engine/gameTimeEngine.ts')), false, 'clock: obsolete simulated clock file remains');
@@ -75,7 +75,14 @@ assert.equal(DEFAULT_BUSINESSES.length, 10, 'businesses: ten-sector catalog miss
 const expansion = DEFAULT_BUSINESSES.find(item => item.sector === 'Energy')!;
 assert.equal(simulateBusinessOperations([{ ...expansion, isAcquired: true }], 2).businesses[0].isAcquired, true, 'businesses: expansion sector tick failed');
 assert.doesNotMatch(businessScreen, /result\.cashDelta|onProfitChange|onIncome/, 'wallet: BusinessScreen still has a per-tick payout path');
-assert.match(app, /settleElapsedBusinessIncome/, 'settlement: App hourly credit path missing');
+assert.match(app, /settleHour\(financialState\)/, 'settlement: App unified hourly path missing');
+const financialCore = read('src/engine/financialCore.ts');
+assert.match(financialCore, /export function calculateNetWorth/, 'financial core: shared net-worth function missing');
+assert.match(financialCore, /export function settleHour/, 'financial core: shared settlement function missing');
+assert.match(app, /calculateNetWorth\(financialState\)/, 'financial core: App net-worth adapter missing');
+assert.match(app, /ledger-trade-/, 'financial ledger: trade hook missing');
+assert.match(read('src/screens/BusinessScreen.tsx'), /onLedger\?\.\(/, 'financial ledger: business purchase hook missing');
+assert.match(read('src/screens/LifestyleScreen.tsx'), /onLedger\?\.\(/, 'financial ledger: lifestyle purchase hook missing');
 assert.doesNotMatch(app, /setCash\([^\n]*profitRef|value \+ result\.cashDelta/, 'settlement: App still credits passive income per tick');
 assert.match(read('src/engine/tradeEngine.ts'), /Math\.max\(0, Number\(\(cash - preview\.total\)/, 'wallet: trade spend clamp missing');
 const firstLogin = hydrateDailyProgress(DEFAULT_PROGRESSION, Date.UTC(2026, 0, 1));
@@ -241,7 +248,7 @@ assert.match(read('src/engine/businessSimulation.ts'), /salesRemainder/, 'retail
 assert.match(read('src/engine/businessSimulation.ts'), /demandEvent/, 'retail: timed demand pulse state missing');
 assert.match(read('src/engine/businessSimulation.ts'), /const unitsDeducted =/, 'retail: unit deduction guard missing');
 assert.match(read('src/engine/businessSimulation.ts'), /shelves empty; sales paused without operating-cost bleed/, 'retail: empty-shelf operating bleed guard missing');
-assert.match(app, /businessAssetValue/, 'net worth: acquired business book value missing');
+assert.match(financialCore, /businessAssets/, 'net worth: acquired business book value missing');
 assert.match(businessHub, /PULSE CHAIN/, 'retail: customer pulse UI missing');
 assert.match(app, /incomeEvents/, 'income ledger: source event state missing');
 assert.doesNotMatch(read('src/engine/incomeLedger.ts'), /Tap actions/, 'income ledger: tap activity must not be an income source');

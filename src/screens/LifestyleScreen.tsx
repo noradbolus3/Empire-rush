@@ -7,6 +7,7 @@ import { YachtsTab } from './YachtsTab';
 import { JetsTab } from './JetsTab';
 import { PropertiesTab } from './PropertiesTab';
 import type { CollectionItem } from '../data/collectionTypes';
+import type { BankLedgerEntry } from '../types/bank';
 
 const C = { bg: '#07130F', panel: '#0D241A', panel2: '#123726', green: '#16E98A', cyan: '#61E8FF', gold: '#FFC928', slate: '#236A45', text: '#F7FFF9', muted: '#8FB5A4' };
 type LifestyleTab = 'CARS' | 'YACHTS' | 'JETS' | 'PROPERTIES';
@@ -16,9 +17,9 @@ const TABS: { id: LifestyleTab; label: string; caption: string }[] = [
   { id: 'JETS', label: 'Jets', caption: 'Private flight from turboprop to VIP airliner.' },
   { id: 'PROPERTIES', label: 'Properties', caption: 'Address, architecture, and permanent prestige.' },
 ];
-type Props = { owned: string[]; cash: number; setCash: React.Dispatch<React.SetStateAction<number>>; setOwned: React.Dispatch<React.SetStateAction<string[]>> };
+type Props = { owned: string[]; cash: number; setCash: React.Dispatch<React.SetStateAction<number>>; setOwned: React.Dispatch<React.SetStateAction<string[]>>; onLedger?: (entry: BankLedgerEntry) => void };
 
-export function LifestyleScreen({ owned, cash, setCash, setOwned }: Props) {
+export function LifestyleScreen({ owned, cash, setCash, setOwned, onLedger }: Props) {
   const [activeTab, setActiveTab] = useState<LifestyleTab>('CARS');
   const active = useMemo(() => TABS.find(tab => tab.id === activeTab) || TABS[0], [activeTab]);
   const acquire = (item: CollectionItem) => {
@@ -27,6 +28,7 @@ export function LifestyleScreen({ owned, cash, setCash, setOwned }: Props) {
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setCash(value => Math.max(0, value - item.price));
     setOwned(value => value.includes(item.id) ? value : [...value, item.id]);
+    onLedger?.({ id: `ledger-purchase-${item.id}-${Date.now()}`, kind: 'PURCHASE', label: `Lifestyle purchase · ${item.name}`, amount: -item.price, timestamp: Date.now(), detail: `${item.category} asset acquired` });
   };
   const tabProps = { owned, cash, onAcquire: acquire };
   return <ScrollView style={styles.root} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">

@@ -1,5 +1,5 @@
 import { defaultBankState } from '../types/bank';
-export const GAME_SAVE_VERSION = 13;
+export const GAME_SAVE_VERSION = 14;
 
 export type GameSaveRecord = Record<string, any> & { schemaVersion: number };
 

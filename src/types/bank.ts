@@ -5,7 +5,7 @@ export type InvestorRound = 'FRIENDS_FAMILY' | 'ANGEL' | 'PRE_SEED' | 'SEED' | '
 export type InvestorInstrument = 'SAFE' | 'CONVERTIBLE_NOTE' | 'PRICED_EQUITY';
 export type DepositProduct = 'CD_3M' | 'CD_6M' | 'CD_12M' | 'RETIREMENT_IRA' | 'TREASURY_BILL' | 'TREASURY_NOTE' | 'TREASURY_BOND';
 export type InsuranceProduct = 'GENERAL_LIABILITY' | 'PROPERTY' | 'COMMERCIAL_AUTO' | 'KEY_PERSON' | 'CYBER';
-export type LedgerKind = 'DEPOSIT' | 'WITHDRAWAL' | 'LOAN' | 'INTEREST' | 'FEE' | 'TAX' | 'INSURANCE' | 'INVESTOR' | 'ACHIEVEMENT';
+export type LedgerKind = 'DEPOSIT' | 'WITHDRAWAL' | 'LOAN' | 'INTEREST' | 'FEE' | 'TAX' | 'INSURANCE' | 'INVESTOR' | 'ACHIEVEMENT' | 'TRADE' | 'PURCHASE' | 'UPKEEP' | 'EMI' | 'PREMIUM' | 'CAPITAL_GAIN' | 'BUSINESS_REVENUE' | 'TRANSFER';
 
 export type BankOffer = { id: string; kind: 'LOAN' | 'INVESTOR' | 'SAVINGS'; title: string; detail: string; amount?: number; rate?: number; expiresAt?: number };
 export type BankLoan = { id: string; product: LoanProduct; name: string; principal: number; balance: number; apr: number; termMonths: number; monthlyPayment: number; nextDueAt: number; originationFee: number; collateral: string; status: 'ACTIVE' | 'PAID' | 'DEFAULTED'; hardInquiry: boolean; graceDays: number; delinquencyDays: number };
