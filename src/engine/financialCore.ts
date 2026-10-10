@@ -6,7 +6,7 @@ import type { BankLedgerEntry } from '../types/bank';
 
 export type FinancialGameState = {
   cash: number;
-  bank: Pick<BankState, 'savingsBalance' | 'businessCheckingBalance' | 'deposits' | 'loans' | 'insurance' | 'investors'>;
+  bank: Pick<BankState, 'savingsBalance' | 'businessCheckingBalance' | 'deposits' | 'loans' | 'insurance' | 'investors' | 'savingsRateBoostUntil'>;
   assets: Asset[];
   holdings: Record<string, Holding>;
   owned: string[];
@@ -59,7 +59,8 @@ function businessRevenue(state: FinancialGameState) {
   return (state.businesses || []).reduce((sum, item) => sum + (item.isAcquired ? positive(item.hourlyNetProfit) : 0), 0) * (state.multiplier ?? 1);
 }
 function savingsInterest(state: FinancialGameState) {
-  const savings = positive(state.bank.savingsBalance) * 0.0425 / 8760;
+  const savingsRate = state.bank.savingsRateBoostUntil > state.systemTimeMs ? 0.0525 : 0.0425;
+  const savings = positive(state.bank.savingsBalance) * savingsRate / 8760;
   const deposits = (state.bank.deposits || []).filter(item => item.status === 'ACTIVE').reduce((sum, item) => sum + positive(item.principal) * positive(item.rate) / 365 / 24, 0);
   return savings + deposits;
 }
@@ -97,4 +98,4 @@ export function settleHour(state: FinancialGameState): SettlementResult {
   return { state: { ...state, bank: { ...state.bank, loans: loanUpdates } }, cashDelta: Number(cashDelta.toFixed(2)), projectedHourlyNet: Number(cashDelta.toFixed(2)), ledger: items, breakdown: { businessRevenue: revenue, interest, emi: loanEmi, premiums: premium, upkeep: assetUpkeep, investorShare: share, taxAccrual } };
 }
 
-export const emptyFinancialState = (now = Date.now()): FinancialGameState => ({ cash: 0, bank: { savingsBalance: 0, businessCheckingBalance: 0, deposits: [], loans: [], insurance: [], investors: [] }, assets: [], holdings: {}, owned: [], lifestyleAssets: [], businesses: [], systemTimeMs: now });
+export const emptyFinancialState = (now = Date.now()): FinancialGameState => ({ cash: 0, bank: { savingsBalance: 0, businessCheckingBalance: 0, deposits: [], loans: [], insurance: [], investors: [], savingsRateBoostUntil: 0 }, assets: [], holdings: {}, owned: [], lifestyleAssets: [], businesses: [], systemTimeMs: now });

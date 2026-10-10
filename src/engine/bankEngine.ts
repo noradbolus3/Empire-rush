@@ -1,8 +1,10 @@
-import { BankDeposit, BankLedgerEntry, BankLoan, BankMarketEvent, BankOffer, BankState, DepositProduct, InsuranceProduct, LoanProduct, TaxRecord, defaultBankState } from '../types/bank';
+import { BankDeposit, BankLedgerEntry, BankLoan, BankMarketEvent, BankOffer, BankRival, BankState, DepositProduct, InsuranceProduct, LoanProduct, TaxRecord, defaultBankState } from '../types/bank';
+import type { BusinessEntity } from '../types/business';
 
 export const PRIME_RATE = 6.5;
 export const BANK_SETTLEMENT_MS = 60 * 60 * 1000;
 export const MAX_BANK_OFFLINE_HOURS = 24;
+export const MICROLOAN_TOTAL_CAP = 50_000;
 
 const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, Number.isFinite(n) ? n : min));
 const safeMoney = (n: number) => Number(Math.max(0, n).toFixed(2));
@@ -54,10 +56,18 @@ export function monthlyPayment(principal: number, apr: number, termMonths: numbe
   return safeMoney(amount * monthlyRate / (1 - Math.pow(1 + monthlyRate, -months)));
 }
 
+export function totalDebtCap(state: BankState, netWorth: number, hourlyIncome: number): number { const tier = bankTier(netWorth).tier; const tierBase: Record<string, number> = { Basic: 25_000, Silver: 100_000, Gold: 500_000, Platinum: 2_500_000, Private: 10_000_000 }; const annualIncome = Math.max(0, hourlyIncome) * 24 * 365; return Math.max(tierBase[tier] || 25_000, Math.min(50_000_000, Math.max(0, netWorth) * 1.5 + annualIncome * 0.35)); }
+export function activeDebtByProduct(state: BankState, product: LoanProduct): number { return state.loans.filter(loan => loan.status === 'ACTIVE' && loan.product === product).reduce((sum, loan) => sum + Math.max(0, loan.balance), 0); }
+
 export function underwriteLoan(state: BankState, product: LoanProduct, requested: number, netWorth: number, hourlyIncome: number): { decision: 'APPROVE' | 'COUNTER' | 'DECLINE'; amount: number; apr: number; reason: string } {
   const spec = loanProduct(product);
-  const amount = clamp(requested, 0, spec.max);
-  const debt = state.loans.filter(loan => loan.status === 'ACTIVE').reduce((sum, loan) => sum + loan.monthlyPayment, 0);
+  const productCap = product === 'SBA_MICROLOAN' ? MICROLOAN_TOTAL_CAP : spec.max;
+  const outstandingProduct = activeDebtByProduct(state, product);
+  const remainingProduct = Math.max(0, productCap - outstandingProduct);
+  const amount = clamp(requested, 0, Math.min(spec.max, remainingProduct));
+  if (remainingProduct <= 0) return { decision: 'DECLINE', amount: 0, apr: bankApr(state.ficoScore, product), reason: `${spec.name} cap reached: ${money(productCap)} total outstanding is allowed for this product.` };
+  if (requested > remainingProduct) return { decision: 'DECLINE', amount: 0, apr: bankApr(state.ficoScore, product), reason: `Request exceeds the remaining ${spec.name} capacity of ${money(remainingProduct)} (${money(productCap)} total cap).` };
+  const debt = state.loans.filter(loan => loan.status === 'ACTIVE').reduce((sum, loan) => sum + loan.balance, 0);
   const annualizedIncome = Math.max(0, hourlyIncome) * 24 * 30;
   const starterProduct = product === 'SBA_MICROLOAN' || product === 'SBA_STARTUP';
   const dti = annualizedIncome > 0 ? debt / annualizedIncome : 0;
@@ -65,15 +75,18 @@ export function underwriteLoan(state: BankState, product: LoanProduct, requested
   if (amount <= 0) return { decision: 'DECLINE', amount: 0, apr, reason: 'Enter an amount above $0.' };
   if (state.ficoScore < 580) return { decision: 'DECLINE', amount: 0, apr, reason: 'FICO below 580. Pay down balances and rebuild payment history.' };
   const capacity = Math.max(spec.max * 0.1, netWorth * (product === 'SBA_MICROLOAN' ? 0.35 : 1.5));
-  if (amount > capacity) return { decision: 'COUNTER', amount: safeMoney(capacity), apr, reason: `Underwriting counter-offer: current cashflow supports ${money(capacity)}.` };
+  const remainingDebt = Math.max(0, totalDebtCap(state, netWorth, hourlyIncome) - debt);
+  if (remainingDebt <= 0) return { decision: 'DECLINE', amount: 0, apr, reason: `Total debt cap reached at ${money(totalDebtCap(state, netWorth, hourlyIncome))}; pay down an active balance before borrowing again.` };
+  if (amount > Math.min(capacity, remainingDebt)) return { decision: 'COUNTER', amount: safeMoney(Math.min(capacity, remainingDebt)), apr, reason: `Debt capacity allows ${money(Math.min(capacity, remainingDebt))} more; total debt cap is ${money(totalDebtCap(state, netWorth, hourlyIncome))}.` };
   if (!starterProduct && dti > 0.65) return { decision: 'DECLINE', amount: 0, apr, reason: 'Debt-to-income is above the bank limit for this larger loan.' };
   return { decision: 'APPROVE', amount, apr, reason: starterProduct && annualizedIncome === 0 ? 'Approved on starter collateral, net-worth capacity, and FICO tier; income is not required for this product.' : 'Approved with current FICO, collateral, cashflow, and debt-to-income.' };
 }
 
-export function createLoan(state: BankState, product: LoanProduct, amount: number, apr: number, now: number): BankLoan {
+export function createLoan(state: BankState, product: LoanProduct, amount: number, apr: number, now: number, termMonths?: number, collateral?: { id: string; name: string }): BankLoan {
   const spec = loanProduct(product);
   const principal = safeMoney(amount);
-  return { id: `loan-${now}-${state.loans.length}`, product, name: spec.name, principal, balance: principal, apr, termMonths: spec.termMonths, monthlyPayment: monthlyPayment(principal, apr, spec.termMonths), nextDueAt: now + BANK_SETTLEMENT_MS * 24 * 30, originationFee: safeMoney(principal * spec.fee / 100), collateral: spec.collateral, status: 'ACTIVE', hardInquiry: true, graceDays: 7, delinquencyDays: 0 };
+  const term = Math.max(1, Math.floor(termMonths || spec.termMonths));
+  return { id: `loan-${now}-${state.loans.length}`, product, name: spec.name, principal, balance: principal, apr, termMonths: term, monthlyPayment: monthlyPayment(principal, apr, term), nextDueAt: now + BANK_SETTLEMENT_MS * 24 * 30, originationFee: safeMoney(principal * spec.fee / 100), collateral: collateral ? `${collateral.name} · locked` : spec.collateral, collateralAssetId: collateral?.id, collateralAssetName: collateral?.name, status: 'ACTIVE', hardInquiry: true, graceDays: 7, delinquencyDays: 0 };
 }
 
 export function offersForSettlement(state: BankState, now: number, netWorth: number): BankOffer[] {
@@ -81,7 +94,7 @@ export function offersForSettlement(state: BankState, now: number, netWorth: num
   const base = [
     { id: `offer-loan-${seq}`, kind: 'LOAN' as const, title: 'Pre-approved SBA Microloan', detail: 'Reachable early-game capital with a capped balance.', amount: Math.min(50_000, Math.max(5_000, netWorth * 0.35)), rate: bankApr(state.ficoScore, 'SBA_MICROLOAN') },
     { id: `offer-investor-${seq}`, kind: 'INVESTOR' as const, title: 'Investor meeting available', detail: 'Pitch a fictional seed fund against your growth.', amount: Math.max(25_000, netWorth * 0.75) },
-    { id: `offer-savings-${seq}`, kind: 'SAVINGS' as const, title: 'Boosted savings window', detail: 'Earn 4.25% APY until the next settlement cycle.', rate: 4.25 },
+    { id: `offer-savings-${seq}`, kind: 'SAVINGS' as const, title: 'Boosted savings window', detail: 'Earn 5.25% APY until the next settlement cycle.', rate: 5.25 },
   ];
   return base.map(item => ({ ...item, expiresAt: now + BANK_SETTLEMENT_MS * 2 }));
 }
@@ -95,6 +108,11 @@ export function calculateTax(income: number, deductions: number, capitalGains: n
 export function bankEventForTick(tick: number, now: number): BankMarketEvent { const events: BankMarketEvent[] = [{ id: 'rate-hike', kind: 'RATE_HIKE', headline: 'Fed rate hike: borrowing costs rise; savings yields improve.', timestamp: now, primeRate: 7.25, cdRateBump: .55, investorAppetite: -.08 }, { id: 'recession', kind: 'RECESSION', headline: 'Recession warning: margin-call risk rises and investor appetite cools.', timestamp: now, primeRate: 7.75, cdRateBump: .2, investorAppetite: -.25 }, { id: 'funding-boom', kind: 'FUNDING_BOOM', headline: 'Funding boom: investor appetite improves for growing companies.', timestamp: now, primeRate: 6.25, cdRateBump: -.1, investorAppetite: .2 }]; return { ...events[Math.abs(tick) % events.length], timestamp: now }; }
 export function achievementIds(state: BankState, netWorth: number): string[] { const ids = new Set(state.achievements); if (state.loans.length) ids.add('FIRST_LOAN'); if (state.loans.length && state.loans.every(l => l.status === 'PAID')) ids.add('DEBT_FREE'); if (state.ficoScore >= 800) ids.add('FICO_800'); if (state.investors.some(i => i.invested >= 1_000_000)) ids.add('FIRST_MILLION_RAISED'); if (netWorth >= 1_000_000_000) ids.add('UNICORN'); if (state.deposits.filter(d => d.status === 'MATURED').length >= 10) ids.add('TEN_CDS_MATURED'); return [...ids]; }
 export function addLedger(state: BankState, kind: BankLedgerEntry['kind'], label: string, amount: number, timestamp: number, detail: string): BankState { const entry = { id: `ledger-${timestamp}-${state.ledger.length}`, kind, label, amount: safeMoney(amount), timestamp, detail }; return { ...state, ledger: [...state.ledger, entry].slice(-200) }; }
+
+export function calculateCompanyValuation(businesses: BusinessEntity[], sectorMultiples: Record<string, number> = { Retail: 1.2, Mobility: 1.8, Tech_SaaS: 4, Infrastructure: 2.2, Energy: 2.5, Pharma: 3.2, Media: 2, Sports: 2.4, Airline: 1.6, Real_Estate: 2.8 }): number { return safeMoney(businesses.filter(item => item.isAcquired).reduce((sum, item) => { const revenue = Math.max(0, Number(item.hourlyNetProfit) || 0) * 24 * 365; const multiple = sectorMultiples[item.sector] || 1.5; const assets = Math.max(0, Number(item.acquisitionCost) || 0) + Math.max(0, Number(item.pendingSettlementAmount) || 0); return sum + revenue * multiple + assets; }, 0)); }
+
+export function seedRivals(now: number, playerNetWorth: number): BankRival[] { return [{ id: 'rival-atlas', name: 'Atlas Reed', netWorth: Math.max(10_000, playerNetWorth * 0.9), growthRate: 0.018, volatility: 0.012, lastUpdatedAt: now }, { id: 'rival-maya', name: 'Maya Chen', netWorth: Math.max(7_500, playerNetWorth * 0.7), growthRate: 0.024, volatility: 0.018, lastUpdatedAt: now }, { id: 'rival-jordan', name: 'Jordan Vale', netWorth: Math.max(5_000, playerNetWorth * 0.5), growthRate: 0.031, volatility: 0.025, lastUpdatedAt: now }, { id: 'rival-nia', name: 'Nia Brooks', netWorth: Math.max(12_000, playerNetWorth * 1.1), growthRate: 0.012, volatility: 0.009, lastUpdatedAt: now }, { id: 'rival-diego', name: 'Diego Santos', netWorth: Math.max(9_000, playerNetWorth * 0.8), growthRate: 0.021, volatility: 0.02, lastUpdatedAt: now }]; }
+export function advanceRivals(rivals: BankRival[], now: number, hours: number): BankRival[] { return rivals.map((rival, index) => { const phase = Math.sin((now / BANK_SETTLEMENT_MS) + index * 1.7); const hourly = rival.growthRate + phase * rival.volatility; return { ...rival, netWorth: safeMoney(Math.max(0, rival.netWorth * Math.max(0.9, 1 + hourly * Math.max(1, hours)))), lastUpdatedAt: now }; }); }
 export function settleBank(state: BankState, now: number, netWorth: number): { state: BankState; cashDelta: number; interestEarned: number; paymentsMade: number; newOffers: number; completedHours: number } {
   const safeNow = Number.isFinite(now) ? now : Date.now();
   const last = Number.isFinite(state.lastSettlementAt) ? state.lastSettlementAt : safeNow;
@@ -124,9 +142,9 @@ export function settleBank(state: BankState, now: number, netWorth: number): { s
   const eventPayout = event.kind === 'RECESSION' ? state.insurance.filter(policy => policy.active).reduce((sum, policy) => sum + Math.max(0, policy.coverage - policy.deductible) * 0.02, 0) : 0;
   cashDelta += safeMoney(eventPayout);
   const offers = offersForSettlement(state, safeNow, netWorth);
-  const next: BankState = { ...state, loans, deposits, marketEvents: [...state.marketEvents, event].slice(-24), offers, lastSettlementAt: last + completedHours * BANK_SETTLEMENT_MS, totalInterestEarned: safeMoney(state.totalInterestEarned + interestEarned), totalInterestPaid: safeMoney(state.totalInterestPaid + Math.max(0, -cashDelta)), lastAwaySummary: { interestEarned, paymentsMade, newOffers: offers.length, at: safeNow }, lastOfferSequence: state.lastOfferSequence + 1, ficoScore: clamp(state.ficoScore + (paymentsMade > 0 ? 1 : 0), 300, 850) };
+  const next: BankState = { ...state, loans, deposits, marketEvents: [...state.marketEvents, event].slice(-24), offers, rivals: advanceRivals(state.rivals?.length ? state.rivals : seedRivals(safeNow, netWorth), safeNow, completedHours), lastSettlementAt: last + completedHours * BANK_SETTLEMENT_MS, totalInterestEarned: safeMoney(state.totalInterestEarned + interestEarned), totalInterestPaid: safeMoney(state.totalInterestPaid + Math.max(0, -cashDelta)), lastAwaySummary: { interestEarned, paymentsMade, newOffers: offers.length, at: safeNow }, lastOfferSequence: state.lastOfferSequence + 1, ficoScore: clamp(state.ficoScore + (paymentsMade > 0 ? 1 : 0), 300, 850) };
   return { state: next, cashDelta: Number(cashDelta.toFixed(2)), interestEarned, paymentsMade, newOffers: offers.length, completedHours };
 }
 
 export function money(value: number): string { return `$${Math.max(0, Number.isFinite(value) ? value : 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; }
-export function sanitizeBankState(input: unknown, now = Date.now()): BankState { const base = defaultBankState(now); if (!input || typeof input !== 'object') return base; const raw = input as Partial<BankState>; return { ...base, ...raw, schemaVersion: 2, savingsBalance: Math.max(0, Number(raw.savingsBalance) || 0), businessCheckingBalance: Math.max(0, Number(raw.businessCheckingBalance) || 0), ficoScore: clamp(Number(raw.ficoScore) || 680, 300, 850), loans: Array.isArray(raw.loans) ? raw.loans : [], investors: Array.isArray(raw.investors) ? raw.investors : [], offers: Array.isArray(raw.offers) ? raw.offers : [], creditHistory: Array.isArray(raw.creditHistory) ? raw.creditHistory : base.creditHistory, deposits: Array.isArray(raw.deposits) ? raw.deposits : [], insurance: Array.isArray(raw.insurance) ? raw.insurance : [], taxRecords: Array.isArray(raw.taxRecords) ? raw.taxRecords : [], ledger: Array.isArray(raw.ledger) ? raw.ledger : [], achievements: Array.isArray(raw.achievements) ? raw.achievements : [], loginStreak: Math.max(1, Number(raw.loginStreak) || 1), lastLoginAt: Number(raw.lastLoginAt) || now, weeklyInterestEarned: Math.max(0, Number(raw.weeklyInterestEarned) || 0), marketEvents: Array.isArray(raw.marketEvents) ? raw.marketEvents : [], companyValuation: Math.max(0, Number(raw.companyValuation) || 0), lastSettlementAt: Number(raw.lastSettlementAt) || now }; }
+export function sanitizeBankState(input: unknown, now = Date.now()): BankState { const base = defaultBankState(now); if (!input || typeof input !== 'object') return base; const raw = input as Partial<BankState>; return { ...base, ...raw, schemaVersion: 2, savingsBalance: Math.max(0, Number(raw.savingsBalance) || 0), businessCheckingBalance: Math.max(0, Number(raw.businessCheckingBalance) || 0), ficoScore: clamp(Number(raw.ficoScore) || 680, 300, 850), loans: Array.isArray(raw.loans) ? raw.loans : [], investors: Array.isArray(raw.investors) ? raw.investors : [], offers: Array.isArray(raw.offers) ? raw.offers : [], creditHistory: Array.isArray(raw.creditHistory) ? raw.creditHistory : base.creditHistory, deposits: Array.isArray(raw.deposits) ? raw.deposits : [], insurance: Array.isArray(raw.insurance) ? raw.insurance : [], taxRecords: Array.isArray(raw.taxRecords) ? raw.taxRecords : [], ledger: Array.isArray(raw.ledger) ? raw.ledger : [], achievements: Array.isArray(raw.achievements) ? raw.achievements : [], loginStreak: Math.max(1, Number(raw.loginStreak) || 1), lastLoginAt: Number(raw.lastLoginAt) || now, weeklyInterestEarned: Math.max(0, Number(raw.weeklyInterestEarned) || 0), marketEvents: Array.isArray(raw.marketEvents) ? raw.marketEvents : [], companyValuation: Math.max(0, Number(raw.companyValuation) || 0), rivals: Array.isArray(raw.rivals) ? raw.rivals : [], acceptedOfferIds: Array.isArray(raw.acceptedOfferIds) ? raw.acceptedOfferIds : [], savingsRateBoostUntil: Math.max(0, Number(raw.savingsRateBoostUntil) || 0), lastSettlementAt: Number(raw.lastSettlementAt) || now }; }
