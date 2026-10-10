@@ -92,6 +92,9 @@ export type BankLoan = {
   hardInquiry: boolean;
   graceDays: number;
   delinquencyDays: number;
+  graceSettlements?: number;
+  settlementsElapsed?: number;
+  collections?: boolean;
 };
 export type BankInvestor = {
   id: string;
@@ -212,6 +215,8 @@ export type BankState = {
   accountOpenedAt?: number;
   totalCreditLimit?: number;
   hardInquiries?: number;
+  lastLoanOriginationSettlement?: number;
+  noNewLoansUntilSettlement?: number;
 };
 
 export const BANK_SCHEMA_VERSION = 2;

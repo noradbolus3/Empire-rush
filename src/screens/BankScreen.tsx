@@ -15,6 +15,7 @@ import { ChipRow } from "../components/ChipRow";
 import {
   achievementIds,
   addLedger,
+  BANK_SETTLEMENT_MS,
   bankApr,
   bankEventForTick,
   bankTier,
@@ -27,6 +28,7 @@ import {
   depositSpec as depositTerms,
   insuranceSpec,
   isActiveLoan,
+  canOriginateLoan,
   loanProduct,
   money,
   monthlyPayment,
@@ -222,14 +224,21 @@ export default function BankScreen({
     product: LoanProduct,
     requested: number,
     termMonths?: number,
-    collateral?: { id: string; name: string },
+    collateral?: { id: string; name: string; value?: number },
   ) => {
+    const settlementNumber = Math.floor(
+      Number(state.lastSettlementAt || Date.now()) / BANK_SETTLEMENT_MS,
+    );
+    const originGuard = canOriginateLoan(state, settlementNumber);
+    if (!originGuard.ok)
+      return Alert.alert("APPLICATION DECLINED", originGuard.reason);
     const decision = underwriteLoan(
       state,
       product,
       requested,
       netWorth,
       hourlyIncome,
+      collateral,
     );
     if (decision.decision === "DECLINE")
       return Alert.alert("APPLICATION DECLINED", decision.reason);
@@ -255,6 +264,7 @@ export default function BankScreen({
               {
                 ...state,
                 loans: [...state.loans, loan],
+                lastLoanOriginationSettlement: settlementNumber,
                 ficoScore: Math.max(300, state.ficoScore - 4),
               },
               "LOAN",
@@ -862,25 +872,28 @@ function BankHome({
       </View>
       <View style={styles.sectionBlock}>
         <Text style={styles.sectionTitle}>LIVE OFFERS</Text>
-          {state.offers.filter((offer: any) => Number(offer.expiresAt || 0) > now).length ? (
-            state.offers.filter((offer: any) => Number(offer.expiresAt || 0) > now).map((offer: any) => (
-            <View key={offer.id} style={styles.offerRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.cardTitle}>{offer.title}</Text>
-                <Text style={styles.muted}>{offer.detail}</Text>
+        {state.offers.filter((offer: any) => Number(offer.expiresAt || 0) > now)
+          .length ? (
+          state.offers
+            .filter((offer: any) => Number(offer.expiresAt || 0) > now)
+            .map((offer: any) => (
+              <View key={offer.id} style={styles.offerRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.cardTitle}>{offer.title}</Text>
+                  <Text style={styles.muted}>{offer.detail}</Text>
+                </View>
+                <View>
+                  <Text style={styles.offerExpiry}>
+                    {Math.max(
+                      0,
+                      Math.ceil((Number(offer.expiresAt || now) - now) / 60000),
+                    )}
+                    m left
+                  </Text>
+                  <Action label="ACCEPT" onPress={() => onAcceptOffer(offer)} />
+                </View>
               </View>
-              <View>
-                <Text style={styles.offerExpiry}>
-                  {Math.max(
-                    0,
-                    Math.ceil((Number(offer.expiresAt || now) - now) / 60000),
-                  )}
-                  m left
-                </Text>
-                <Action label="ACCEPT" onPress={() => onAcceptOffer(offer)} />
-              </View>
-            </View>
-          ))
+            ))
         ) : (
           <Card
             title="NO LIVE OFFERS"
@@ -1097,8 +1110,13 @@ function Loans({
           <View key={loan.id} style={styles.listCard}>
             <Text style={styles.cardTitle}>{loan.name}</Text>
             <Text style={styles.muted}>
-              {money(loan.balance)} remaining · {loan.apr.toFixed(2)}% APR · due{" "}
-              {fmtDate(loan.nextDueAt)} · {loan.collateral}
+              {money(loan.balance)} remaining · {loan.apr.toFixed(2)}% APR · due
+              in{" "}
+              {Math.max(
+                0,
+                Math.ceil((loan.nextDueAt - Date.now()) / BANK_SETTLEMENT_MS),
+              )}{" "}
+              settlements · {loan.collateral}
             </Text>
             <View style={styles.actions}>
               <Action

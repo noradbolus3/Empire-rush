@@ -19,17 +19,27 @@ export const BANK_SETTLEMENT_MS = 60 * 60 * 1000;
 export const MAX_BANK_OFFLINE_HOURS = 24;
 export const MICROLOAN_TOTAL_CAP = 50_000;
 export const EARLY_PAYOFF_FEE_RATE = 0.01;
+export const STARTER_MICROLOAN_LIMIT = 5_000;
+export const STARTER_GRACE_SETTLEMENTS = 3;
+export const MAX_UNSECURED_EMI_RATIO = 0.6;
 
 const clamp = (n: number, min: number, max: number) =>
   Math.min(max, Math.max(min, Number.isFinite(n) ? n : min));
 const safeMoney = (n: number) => Number(Math.max(0, n).toFixed(2));
 export const isActiveLoan = (loan: BankLoan) =>
   loan.status === "ACTIVE" || loan.status === "active";
+export const isCollectionsLoan = (loan: BankLoan) =>
+  (loan.status === "defaulted" ||
+    loan.status === "foreclosed" ||
+    loan.status === "DEFAULTED") &&
+  Number(loan.balance) > 0;
+export const isDebtBearingLoan = (loan: BankLoan) =>
+  isActiveLoan(loan) || isCollectionsLoan(loan);
 export const isClosedLoan = (loan: BankLoan) => !isActiveLoan(loan);
 export function totalDebt(state: Pick<BankState, "loans">): number {
   return safeMoney(
     state.loans
-      .filter(isActiveLoan)
+      .filter(isDebtBearingLoan)
       .reduce((sum, loan) => sum + Math.max(0, Number(loan.balance) || 0), 0),
   );
 }
@@ -92,8 +102,8 @@ export function loanProduct(name: LoanProduct): {
       name: "SBA Microloan",
       max: 50_000,
       termMonths: 36,
-      spread: 4.5,
-      collateral: "Business assets",
+      spread: 6.25,
+      collateral: "Secured asset required",
       fee: 1,
     },
     SBA_STARTUP: {
@@ -101,7 +111,7 @@ export function loanProduct(name: LoanProduct): {
       max: 500_000,
       termMonths: 120,
       spread: 3.5,
-      collateral: "Business guarantee",
+      collateral: "Personal guarantee",
       fee: 2,
     },
     TERM_LOAN: {
@@ -109,7 +119,7 @@ export function loanProduct(name: LoanProduct): {
       max: 1_000_000,
       termMonths: 84,
       spread: 4,
-      collateral: "Business assets",
+      collateral: "Secured asset required",
       fee: 2,
     },
     LINE_OF_CREDIT: {
@@ -117,7 +127,7 @@ export function loanProduct(name: LoanProduct): {
       max: 250_000,
       termMonths: 60,
       spread: 5,
-      collateral: "Receivables",
+      collateral: "Personal guarantee",
       fee: 1.5,
     },
     COMMERCIAL_MORTGAGE: {
@@ -125,7 +135,7 @@ export function loanProduct(name: LoanProduct): {
       max: 5_000_000,
       termMonths: 240,
       spread: 2.5,
-      collateral: "Owned properties · 20% down",
+      collateral: "Secured asset required",
       fee: 1.5,
     },
     EQUIPMENT_FINANCE: {
@@ -133,7 +143,7 @@ export function loanProduct(name: LoanProduct): {
       max: 500_000,
       termMonths: 60,
       spread: 3.75,
-      collateral: "Cars, yachts, or jets",
+      collateral: "Secured asset required",
       fee: 1.5,
     },
     CREDIT_CARD: {
@@ -141,11 +151,20 @@ export function loanProduct(name: LoanProduct): {
       max: 25_000,
       termMonths: 24,
       spread: 12,
-      collateral: "Unsecured · grace period",
+      collateral: "Personal guarantee",
       fee: 3,
     },
   };
   return products[name];
+}
+
+export function isSecuredProduct(product: LoanProduct): boolean {
+  return [
+    "SBA_MICROLOAN",
+    "TERM_LOAN",
+    "COMMERCIAL_MORTGAGE",
+    "EQUIPMENT_FINANCE",
+  ].includes(product);
 }
 
 export function bankApr(
@@ -229,6 +248,52 @@ export function activeDebtByProduct(
     .filter((loan) => isActiveLoan(loan) && loan.product === product)
     .reduce((sum, loan) => sum + Math.max(0, loan.balance), 0);
 }
+export function monthlyDebtService(state: Pick<BankState, "loans">): number {
+  return safeMoney(
+    state.loans
+      .filter(isActiveLoan)
+      .reduce(
+        (sum, loan) => sum + Math.max(0, Number(loan.monthlyPayment) || 0),
+        0,
+      ),
+  );
+}
+export function isCollateralLocked(
+  state: Pick<BankState, "loans">,
+  assetId: string,
+): boolean {
+  return state.loans.some(
+    (loan) => isActiveLoan(loan) && loan.collateralAssetId === assetId,
+  );
+}
+export function canSellCollateral(
+  state: Pick<BankState, "loans">,
+  assetId: string,
+): { ok: boolean; reason?: string } {
+  return isCollateralLocked(state, assetId)
+    ? {
+        ok: false,
+        reason:
+          "Asset is pledged and locked until the loan is paid off or seized.",
+      }
+    : { ok: true };
+}
+export function canOriginateLoan(
+  state: BankState,
+  settlementNumber: number,
+): { ok: boolean; reason?: string } {
+  if (Number(state.noNewLoansUntilSettlement || 0) > settlementNumber)
+    return {
+      ok: false,
+      reason: `New loans are locked for ${Number(state.noNewLoansUntilSettlement) - settlementNumber} more settlements after default.`,
+    };
+  if (Number(state.lastLoanOriginationSettlement) === settlementNumber)
+    return {
+      ok: false,
+      reason: "Only one new loan is allowed per settlement.",
+    };
+  return { ok: true };
+}
 
 export function underwriteLoan(
   state: BankState,
@@ -236,6 +301,7 @@ export function underwriteLoan(
   requested: number,
   netWorth: number,
   hourlyIncome: number,
+  collateral?: { id: string; name: string; value?: number },
 ): {
   decision: "APPROVE" | "COUNTER" | "DECLINE";
   amount: number;
@@ -243,6 +309,13 @@ export function underwriteLoan(
   reason: string;
 } {
   const spec = loanProduct(product);
+  if (isSecuredProduct(product) && !collateral)
+    return {
+      decision: "DECLINE",
+      amount: 0,
+      apr: bankApr(state.ficoScore, product),
+      reason: `${spec.name} requires selecting a real owned asset as collateral.`,
+    };
   const productCap =
     product === "SBA_MICROLOAN" ? MICROLOAN_TOTAL_CAP : spec.max;
   const outstandingProduct = activeDebtByProduct(state, product);
@@ -288,6 +361,32 @@ export function underwriteLoan(
       amount: 0,
       apr,
       reason: "FICO below 580. Pay down balances and rebuild payment history.",
+    };
+  const starterGrace =
+    product === "SBA_MICROLOAN" && amount <= STARTER_MICROLOAN_LIMIT;
+  if (
+    isSecuredProduct(product) &&
+    collateral &&
+    Number(collateral.value || 0) > 0 &&
+    amount > Number(collateral.value) * 0.7
+  )
+    return {
+      decision: "DECLINE",
+      amount: 0,
+      apr,
+      reason: `Requested amount exceeds the 70% LTV cap of ${money(Number(collateral.value) * 0.7)} for ${collateral.name}.`,
+    };
+  if (
+    !starterGrace &&
+    !isSecuredProduct(product) &&
+    monthlyDebtService(state) + monthlyPayment(amount, apr, spec.termMonths) >
+      Math.max(0, hourlyIncome) * MAX_UNSECURED_EMI_RATIO
+  )
+    return {
+      decision: "DECLINE",
+      amount: 0,
+      apr,
+      reason: `Total unsecured EMI would exceed 60% of net hourly income (${money(Math.max(0, hourlyIncome) * MAX_UNSECURED_EMI_RATIO)}).`,
     };
   const capacity = Math.max(
     spec.max * 0.1,
@@ -350,7 +449,12 @@ export function createLoan(
     apr,
     termMonths: term,
     monthlyPayment: monthlyPayment(principal, apr, term),
-    nextDueAt: now + BANK_SETTLEMENT_MS * 24 * 30,
+    nextDueAt:
+      now +
+      BANK_SETTLEMENT_MS *
+        (product === "SBA_MICROLOAN" && principal <= STARTER_MICROLOAN_LIMIT
+          ? STARTER_GRACE_SETTLEMENTS
+          : 1),
     originationFee: safeMoney((principal * spec.fee) / 100),
     collateral: collateral ? `${collateral.name} · locked` : spec.collateral,
     collateralAssetId: collateral?.id,
@@ -359,6 +463,11 @@ export function createLoan(
     hardInquiry: true,
     graceDays: 7,
     delinquencyDays: 0,
+    graceSettlements:
+      product === "SBA_MICROLOAN" && principal <= STARTER_MICROLOAN_LIMIT
+        ? STARTER_GRACE_SETTLEMENTS
+        : 0,
+    settlementsElapsed: 0,
   };
 }
 
@@ -789,10 +898,17 @@ export function seizeDefaultedLoan(
   return {
     state: {
       ...state,
-      ficoScore: clamp(state.ficoScore - 80, 300, 850),
+      ficoScore: clamp(state.ficoScore - 100, 300, 850),
+      noNewLoansUntilSettlement: Math.floor(now / BANK_SETTLEMENT_MS) + 24,
       loans: state.loans.map((item) =>
         item.id === loanId
-          ? { ...item, balance: 0, status: "foreclosed" as const }
+          ? {
+              ...item,
+              status: "defaulted" as const,
+              collections: true,
+              collateralAssetId: undefined,
+              collateralAssetName: undefined,
+            }
           : item,
       ),
       ledger: [...state.ledger, entry].slice(-200),
@@ -1048,17 +1164,26 @@ export function sanitizeBankState(input: unknown, now = Date.now()): BankState {
     ),
     ficoScore: clamp(Number(raw.ficoScore) || 680, 300, 850),
     loans: Array.isArray(raw.loans)
-      ? raw.loans.map((loan) => ({
-          ...loan,
-          status:
-            loan.status === "PAID"
-              ? "paid_off"
-              : loan.status === "DEFAULTED"
-                ? "defaulted"
-                : loan.status === "ACTIVE"
-                  ? "active"
-                  : loan.status,
-        }))
+      ? raw.loans.map((loan) => {
+          const legacyReopen =
+            (loan.status === "DEFAULTED" || loan.status === "defaulted") &&
+            Number(loan.principal) === 49990.28 &&
+            Number(loan.balance || 0) <= 0;
+          return {
+            ...loan,
+            balance: legacyReopen ? 49990.28 : loan.balance,
+            collections: legacyReopen ? false : loan.collections,
+            status: legacyReopen
+              ? "active"
+              : loan.status === "PAID"
+                ? "paid_off"
+                : loan.status === "DEFAULTED"
+                  ? "defaulted"
+                  : loan.status === "ACTIVE"
+                    ? "active"
+                    : loan.status,
+          };
+        })
       : [],
     investors: Array.isArray(raw.investors) ? raw.investors : [],
     offers: Array.isArray(raw.offers)
