@@ -1008,6 +1008,11 @@ function Gauge({ value, color }: { value: number; color: string }) {
 }
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
+  levelTabs: { flexDirection: "row", gap: 8, marginTop: 12, marginBottom: 10 },
+  levelTab: { flex: 1, borderWidth: 1, borderColor: C.slate, borderRadius: 10, paddingVertical: 10, alignItems: "center" },
+  levelTabActive: { backgroundColor: C.green, borderColor: C.green },
+  levelTabText: { color: C.muted, fontSize: 9, fontWeight: "900" },
+  levelTabTextActive: { color: "#06100B" },
   safe: { flex: 1 },
   content: { padding: 16, paddingBottom: 120 },
   back: {

@@ -154,7 +154,40 @@ const unlockMilestones = [
   },
 ];
 
-export function BusinessScreen({
+class BusinessErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean }
+> {
+  state = { hasError: false };
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <View style={styles.errorBoundary}>
+          <Text
+            style={styles.errorBoundaryTitle}
+            onPress={() => this.setState({ hasError: false })}
+          >
+            Business hit an error · Tap to retry
+          </Text>
+        </View>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+export function BusinessScreen(props: Props) {
+  return (
+    <BusinessErrorBoundary>
+      <BusinessScreenContent {...props} />
+    </BusinessErrorBoundary>
+  );
+}
+
+function BusinessScreenContent({
   cash,
   netWorth,
   netIncomePerHour,
@@ -486,7 +519,7 @@ export function BusinessScreen({
                 onQuickAction={() => {
                   if (!item.isAcquired) return;
                   const current = normalizeBusinessLevel(item);
-                  if (current.level > 1) return setSelectedId(item.id);
+                  if ((current.level ?? 1) > 1) return setSelectedId(item.id);
                   const cost = item.sector === "Retail" ? 2000 : 12000;
                   if (cash < cost)
                     return Alert.alert(
@@ -503,7 +536,10 @@ export function BusinessScreen({
                             item.stockUnits + 1000,
                           ),
                         }
-                      : { ...item, economySedans: item.economySedans + 1 };
+                      : {
+                          ...item,
+                          economySedans: (item as any).economySedans + 1,
+                        };
                   setBusinesses((items) =>
                     items.map((existing) =>
                       existing.id === item.id
@@ -561,6 +597,7 @@ function BusinessCard({
   netWorth,
   onAcquire,
   onManage,
+  onQuickAction,
 }: {
   business: BusinessEntity;
   netWorth: number;
@@ -883,6 +920,26 @@ function BusinessIcon({
 }
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
+  errorBoundary: {
+    flex: 1,
+    backgroundColor: C.bg,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+  },
+  errorBoundaryTitle: {
+    color: C.white,
+    fontSize: 18,
+    fontWeight: "900",
+    textAlign: "center",
+  },
+  errorBoundaryAction: {
+    color: C.cyan,
+    fontSize: 14,
+    fontWeight: "900",
+    marginTop: 12,
+    textAlign: "center",
+  },
   safe: { flex: 1 },
   content: {
     flexGrow: 1,

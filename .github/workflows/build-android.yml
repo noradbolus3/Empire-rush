@@ -40,6 +40,9 @@ jobs:
       - name: Install JavaScript dependencies
         run: npm ci
 
+      - name: Run render smoke tests
+        run: npm run test:render
+
       - name: Generate native Android project
         env:
           CI: '1'

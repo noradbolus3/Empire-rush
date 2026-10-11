@@ -16,7 +16,7 @@ const common = (
   l2: number,
   l3: number,
   l4: number,
-  noun = metric,
+  noun: string = metric,
 ): BusinessLevelConfig => ({
   milestones: {
     1: { metric, threshold: 0, teaser: "Basic operation" },
