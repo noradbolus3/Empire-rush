@@ -2,6 +2,7 @@ require("tsx/cjs");
 const React = require("react");
 const Module = require("node:module");
 const TestRenderer = require("react-test-renderer");
+const { act } = TestRenderer;
 const originalLoad = Module._load;
 for (const extension of [".webp", ".png", ".jpg", ".jpeg"]) require.extensions[extension] = (module) => { module.exports = "mock-asset"; };
 
@@ -24,7 +25,17 @@ native.Animated = {
   View: component("Animated.View"), Text: component("Animated.Text"), Value: class { constructor(value) { this.value = value; } setValue(value) { this.value = value; } interpolate() { return 0; } },
   timing: () => ({ start: (callback) => callback?.() }), spring: () => ({ start: (callback) => callback?.() }), sequence: (items) => ({ start: (callback) => { items.forEach((item) => item.start?.()); callback?.(); } }), parallel: (items) => ({ start: (callback) => { items.forEach((item) => item.start?.()); callback?.(); } }),
 };
-const svg = new Proxy({ __esModule: true, default: component("Svg") }, { get: (target, key) => target[key] || component(`Svg.${String(key)}`) });
+const svg = {
+  __esModule: true,
+  default: component("Svg"),
+  Svg: component("Svg"),
+  Circle: component("Circle"),
+  Defs: component("Defs"),
+  LinearGradient: component("LinearGradient"),
+  Path: component("Path"),
+  Rect: component("Rect"),
+  Stop: component("Stop"),
+};
 const asyncStorage = { getItem: async () => null, setItem: async () => undefined, removeItem: async () => undefined };
 let currentBusinesses = [];
 const gameContextMock = { useGame: () => ({ businesses: currentBusinesses, setBusinesses: (updater) => { currentBusinesses = typeof updater === "function" ? updater(currentBusinesses) : updater; }, resetBusinesses: () => undefined }) };
@@ -36,7 +47,7 @@ Module._load = function(request, parent, isMain) {
   if (request === "@react-native-async-storage/async-storage") return { __esModule: true, default: asyncStorage };
   if (request === "expo-haptics") return { notificationAsync: async () => undefined, NotificationFeedbackType: { Success: "success" } };
   if (request === "expo-status-bar") return { StatusBar: native.View };
-  if (typeof request === "string" && (request.endsWith("/src/context/GameContext") || request.endsWith("/src/context/GameContext.tsx"))) return gameContextMock;
+  if (typeof request === "string" && (request.includes("context/GameContext"))) return gameContextMock;
   return originalLoad.apply(this, arguments);
 };
 
@@ -84,6 +95,47 @@ const bank = defaultBankState();
 results.push(render("bank-mount", React.createElement(BankScreen, { cash: 10000, netWorth: 10000, hourlyIncome: 0, financialState: { cash: 10000, bank, assets: [], holdings: {}, owned: [], lifestyleAssets: [], businesses: [], systemTimeMs: Date.now(), multiplier: 1 }, ledger: [], state: bank, businesses: [], collateralAssets: [], onStateChange: () => undefined, onCashChange: () => undefined, onBreaking: () => undefined }))); 
 results.push(render("markets-mount", React.createElement(MarketScreen, { playerNetWorth: 10000, cash: 10000, assets: [], holdings: {}, watchlist: [], toggleWatchlist: () => undefined, filter: "all", setFilter: () => undefined, executeTrade: () => undefined, summary: { currentValue: 0, invested: 0, unrealizedPnl: 0, realizedPnl: 0, dayChange: 0 }, tradeHistory: [], limitOrders: [], portfolioHistory: [], rivalInvestors: [], allocation: [], systemTimeMs: Date.now(), priceAlerts: [], onCreatePriceAlert: () => undefined, onRemovePriceAlert: () => undefined, onCreateLimitOrder: () => undefined, onCancelLimitOrder: () => undefined })));
 results.push(render("lifestyle-mount", React.createElement(LifestyleScreen, { owned: [], cash: 10000, setCash: () => undefined, setOwned: () => undefined })));
-const failed = results.filter((item) => !item.ok);
-console.log(JSON.stringify({ test: "round36-render-smoke", total: results.length, failed: failed.length, results }, null, 2));
-if (failed.length) process.exitCode = 1;
+const textContent = (node) => {
+  if (node == null) return "";
+  if (typeof node === "string" || typeof node === "number") return String(node);
+  const children = node?.props?.children;
+  if (Array.isArray(children)) return children.map(textContent).join("");
+  return textContent(children);
+};
+const pressLabel = (renderer, label) => {
+  const matches = renderer.root.findAll((node) => typeof node.props?.onPress === "function" && textContent(node).includes(label));
+  if (!matches.length) {
+    const available = renderer.root.findAll((node) => typeof node.props?.onPress === "function").map(textContent).filter(Boolean);
+    throw new Error(`No pressable found for: ${label}; available=${JSON.stringify(available.slice(0, 30))}`);
+  }
+  act(() => matches[0].props.onPress());
+};
+const interactionResults = [];
+const interaction = async (label, businesses, cash, actions) => {
+  try {
+    currentBusinesses = businesses;
+    let renderer;
+    await act(async () => { renderer = TestRenderer.create(React.createElement(BusinessScreen, { ...props, cash })); });
+    for (const action of actions) {
+      await act(async () => {
+        pressLabel(renderer, action);
+        await new Promise((resolve) => setTimeout(resolve, action === "LAUNCH COMPANY" ? 500 : 0));
+      });
+    }
+    renderer.unmount();
+    interactionResults.push({ label, ok: true });
+  } catch (error) {
+    interactionResults.push({ label, ok: false, error: String(error?.stack || error) });
+  }
+};
+(async () => {
+  await interaction("interaction-retail-l1-quick-action", [retail], 10000, ["RESTOCK 1,000"]);
+  await interaction("interaction-mobility-l1-quick-action", [mobility], 20000, ["BUY VEHICLE"]);
+  await interaction("interaction-my-companies", [retail], 10000, ["MY COMPANIES"]);
+  await interaction("interaction-start-a-business", [retail], 10000, ["START A BUSINESS"]);
+  await interaction("interaction-insufficient-funds-purchase", [{ ...retail, isAcquired: false }], 0, ["Copper & Bloom Market", "LAUNCH COMPANY"]);
+  const failed = results.filter((item) => !item.ok);
+  const interactionFailed = interactionResults.filter((item) => !item.ok);
+  console.log(JSON.stringify({ test: "round36-render-and-interaction-smoke", renderTotal: results.length, renderFailed: failed.length, interactionTotal: interactionResults.length, interactionFailed: interactionFailed.length, results, interactionResults }, null, 2));
+  process.exit(failed.length || interactionFailed.length ? 1 : 0);
+})();

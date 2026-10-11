@@ -20,7 +20,6 @@ import Svg, {
 import BusinessRegistrationModal from "../components/modals/BusinessRegistrationModal";
 import { useGame } from "../context/GameContext";
 import { simulateBusinessOperations } from "../engine/businessSimulation";
-import { CommandDeckPulse } from "../components/CommandDeckPulse";
 import { founderOwnershipFraction } from "../engine/ipoEngine";
 import {
   BusinessEntity,
@@ -257,6 +256,47 @@ function BusinessScreenContent({
   const nextGoal =
     nextUnlock?.unlockNetWorthRequired || Math.max(netWorth * 1.5, 100000);
   const progress = Math.min(1, netWorth / Math.max(nextGoal, 1));
+  const ownedBusinesses = businesses.filter((item) => item.isAcquired);
+  const businessCost = (item: BusinessEntity) =>
+    Math.max(0, item.acquisitionCost);
+  const estimatedHourly = (item: BusinessEntity) => {
+    if (item.sector === "Retail") {
+      const units = 1800 * 1.55;
+      const revenue = units * 4;
+      const cogs = units * (item.unitWholesaleCost ?? 2);
+      const fixed =
+        ((item.monthlyRent ?? 800) + (item.monthlyPayroll ?? 1200)) / (30 * 24);
+      return Math.max(0, revenue - cogs - fixed - revenue * 0.15);
+    }
+    if (item.sector === "Mobility")
+      return Math.max(
+        0,
+        item.economySedans * 2200 +
+          item.electricEVs * 6000 +
+          item.luxuryLimos * 12000,
+      );
+    return Math.max(0, Number(item.hourlyNetProfit) || 0);
+  };
+  const opportunities = businesses
+    .filter((item) => !item.isAcquired)
+    .map((item) => ({
+      item,
+      cost: businessCost(item),
+      hourly: estimatedHourly(item),
+    }))
+    .filter((entry) => entry.hourly > 0)
+    .sort((a, b) => a.cost / a.hourly - b.cost / b.hourly);
+  const bestAffordable = opportunities.find((entry) => entry.cost <= cash);
+  const nextMove = bestAffordable
+    ? `Start ${bestAffordable.item.name} · ~${Math.max(1, Math.ceil(bestAffordable.cost / bestAffordable.hourly))} settlements to pay back at +${formatCurrency(bestAffordable.hourly)}/hr`
+    : (() => {
+        const next = opportunities[0];
+        const shortfall = next ? Math.max(0, next.cost - cash) : 0;
+        const rate = Math.max(0, netIncomePerHour);
+        const settlements =
+          rate > 0 ? Math.max(1, Math.ceil(shortfall / rate)) : "—";
+        return `affordable in ~${settlements} settlements at +${formatCurrency(rate)}/hr`;
+      })();
   if (selected)
     return (
       <BusinessMasterHubScreen
@@ -319,6 +359,41 @@ function BusinessScreenContent({
     );
     setRegistrationId(null);
   };
+  const quickAction = (item: BusinessEntity) => {
+    if (!item.isAcquired) return setRegistrationId(item.id);
+    const current = normalizeBusinessLevel(item);
+    if ((current.level ?? 1) > 1) return setSelectedId(item.id);
+    const cost = item.sector === "Retail" ? 2000 : 12000;
+    if (cash < cost)
+      return Alert.alert(
+        "INSUFFICIENT CASH",
+        `Need ${formatCurrency(cost - cash)} more.`,
+      );
+    onCashChange((value) => value - cost);
+    const next =
+      item.sector === "Retail"
+        ? {
+            ...item,
+            stockUnits: Math.min(item.maxStockCapacity, item.stockUnits + 1000),
+          }
+        : { ...item, economySedans: (item as any).economySedans + 1 };
+    setBusinesses((items) =>
+      items.map((existing) =>
+        existing.id === item.id ? normalizeBusinessLevel(next, true) : existing,
+      ),
+    );
+    onLedger?.({
+      id: `ledger-business-level1-${item.id}-${Date.now()}`,
+      kind: "UPKEEP",
+      label: `${item.name} Level 1 operation`,
+      amount: -cost,
+      timestamp: Date.now(),
+      detail:
+        item.sector === "Retail"
+          ? "One-tap restock · 1,000 units"
+          : "One-tap economy vehicle",
+    });
+  };
   return (
     <View style={styles.root}>
       <SafeAreaView edges={["left", "right"]} style={styles.safe}>
@@ -326,67 +401,11 @@ function BusinessScreenContent({
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.content}
         >
-          <View style={styles.hero}>
-            <Svg
-              pointerEvents="none"
-              style={StyleSheet.absoluteFill}
-              width="100%"
-              height="100%"
-              viewBox="0 0 400 220"
-              preserveAspectRatio="none"
-            >
-              <Defs>
-                <LinearGradient id="registryHero" x1="0" y1="0" x2="1" y2="1">
-                  <Stop offset="0" stopColor="#123C4C" />
-                  <Stop offset=".55" stopColor="#10283B" />
-                  <Stop offset="1" stopColor="#18264C" />
-                </LinearGradient>
-              </Defs>
-              <Rect
-                width="400"
-                height="220"
-                rx="24"
-                fill="url(#registryHero)"
-              />
-              <Circle cx="360" cy="18" r="90" fill="#49C8FF" opacity=".08" />
-              <Circle cx="30" cy="220" r="100" fill="#28E39A" opacity=".07" />
-              <Path
-                d="M220 220 C270 150 320 115 400 105 L400 220 Z"
-                fill="#B59CFF"
-                opacity=".05"
-              />
-            </Svg>
-            <View style={styles.heroContent}>
-              <View style={styles.heroTop}>
-                <View style={{ flex: 1, minWidth: 0, paddingRight: 8 }}>
-                  <Text style={styles.eyebrow}>
-                    FOUNDER COMMAND DECK · LIVE
-                  </Text>
-                  <Text style={styles.heroTitle}>
-                    Build your business empire.
-                  </Text>
-                </View>
-                <View style={styles.activeBadge}>
-                  <Text style={styles.activeNumber}>{activeCount}</Text>
-                  <Text style={styles.activeLabel}>ACTIVE</Text>
-                </View>
-              </View>
-              <Text style={styles.heroCopy}>
-                Acquire smart. Scale fast. Own the market.
-              </Text>
-              <View style={styles.heroStats}>
-                <View>
-                  <Text style={styles.statLabel}>LIQUID CASH</Text>
-                  <Text style={styles.statValue}>{formatCurrency(cash)}</Text>
-                </View>
-                <View>
-                  <Text style={styles.statLabel}>NET WORTH</Text>
-                  <Text style={styles.statValue}>
-                    {formatCurrency(netWorth)}
-                  </Text>
-                </View>
-              </View>
-            </View>
+          <View style={styles.commandLine}>
+            <Text style={styles.commandEyebrow}>FOUNDER COMMAND DECK</Text>
+            <Text style={styles.commandValue}>
+              Net worth {formatCurrency(netWorth)} · {activeCount} active
+            </Text>
           </View>
           <View style={styles.summaryStrip}>
             <SummaryMetric label="CASH" value={formatCurrency(cash)} />
@@ -437,12 +456,37 @@ function BusinessScreenContent({
               </Pressable>
             </View>
           )}
-          <CommandDeckPulse
-            label="OPERATING DESK"
-            value={`${activeCount}/10 sectors active`}
-            detail="Acquisitions, ramps, and operating cashflow stay visible."
-            accent="#16E98A"
-          />
+          <View style={styles.sectionHead}>
+            <View>
+              <Text style={styles.sectionEyebrow}>YOUR COMPANIES</Text>
+              <Text style={styles.sectionTitle}>Owned and operating</Text>
+            </View>
+            <Text style={styles.sectionCount}>
+              {ownedBusinesses.length} ACTIVE
+            </Text>
+          </View>
+          <View style={styles.grid}>
+            {ownedBusinesses.map((item) => (
+              <BusinessCard
+                key={`owned-${item.id}`}
+                business={item}
+                netWorth={netWorth}
+                onAcquire={() => setRegistrationId(item.id)}
+                onManage={() => setSelectedId(item.id)}
+                onQuickAction={() => quickAction(item)}
+              />
+            ))}
+            {ownedBusinesses.length === 0 && (
+              <Text style={styles.emptyCompanies}>
+                No companies yet. Start with the most affordable
+                positive-cashflow opportunity below.
+              </Text>
+            )}
+          </View>
+          <View style={styles.nextMoveCard}>
+            <Text style={styles.goalEyebrow}>NEXT BEST MOVE</Text>
+            <Text style={styles.nextMoveText}>{nextMove}</Text>
+          </View>
           <View style={styles.goalCard}>
             <View style={styles.goalTop}>
               <View>
@@ -473,94 +517,27 @@ function BusinessScreenContent({
           </View>
           <View style={styles.sectionHead}>
             <View>
-              <Text style={styles.sectionEyebrow}>CHOOSE YOUR NEXT MOVE</Text>
-              <Text style={styles.sectionTitle}>
-                {viewMode === "companies"
-                  ? "My companies"
-                  : "Start a new business"}
-              </Text>
+              <Text style={styles.sectionEyebrow}>START A NEW BUSINESS</Text>
+              <Text style={styles.sectionTitle}>Choose your next company</Text>
             </View>
             <Text style={styles.sectionCount}>
-              {businesses.length} OPPORTUNITIES
+              {businesses.filter((item) => !item.isAcquired).length}{" "}
+              OPPORTUNITIES
             </Text>
           </View>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.milestoneRail}
-          >
-            {unlockMilestones.map((milestone) => (
-              <View
-                key={milestone.amount}
-                style={[
-                  styles.milestone,
-                  netWorth >= milestone.amount && styles.milestoneDone,
-                ]}
-              >
-                <Text style={styles.milestoneAmount}>
-                  {formatCurrency(milestone.amount)}
-                </Text>
-                <Text style={styles.milestoneLabel}>{milestone.label}</Text>
-                <Text style={styles.milestoneCopy}>{milestone.copy}</Text>
-              </View>
-            ))}
-          </ScrollView>
           <View style={styles.grid}>
-            {(viewMode === "companies"
-              ? businesses.filter((item) => item.isAcquired)
-              : businesses
-            ).map((item) => (
-              <BusinessCard
-                key={item.id}
-                business={item}
-                netWorth={netWorth}
-                onAcquire={() => setRegistrationId(item.id)}
-                onManage={() => setSelectedId(item.id)}
-                onQuickAction={() => {
-                  if (!item.isAcquired) return;
-                  const current = normalizeBusinessLevel(item);
-                  if ((current.level ?? 1) > 1) return setSelectedId(item.id);
-                  const cost = item.sector === "Retail" ? 2000 : 12000;
-                  if (cash < cost)
-                    return Alert.alert(
-                      "INSUFFICIENT CASH",
-                      `Need ${formatCurrency(cost - cash)} more.`,
-                    );
-                  onCashChange((value) => value - cost);
-                  const next =
-                    item.sector === "Retail"
-                      ? {
-                          ...item,
-                          stockUnits: Math.min(
-                            item.maxStockCapacity,
-                            item.stockUnits + 1000,
-                          ),
-                        }
-                      : {
-                          ...item,
-                          economySedans: (item as any).economySedans + 1,
-                        };
-                  setBusinesses((items) =>
-                    items.map((existing) =>
-                      existing.id === item.id
-                        ? normalizeBusinessLevel(next)
-                        : existing,
-                    ),
-                  );
-                  onLedger?.({
-                    id: `ledger-business-level1-${item.id}-${Date.now()}`,
-                    kind: "UPKEEP",
-                    label: `${item.name} Level 1 operation`,
-                    amount: -cost,
-                    timestamp: Date.now(),
-                    detail:
-                      item.sector === "Retail"
-                        ? "One-tap restock · 1,000 units"
-                        : "One-tap economy vehicle",
-                  });
-                }}
-              />
-            ))}
+            {businesses
+              .filter((item) => !item.isAcquired)
+              .map((item) => (
+                <BusinessCard
+                  key={`start-${item.id}`}
+                  business={item}
+                  netWorth={netWorth}
+                  onAcquire={() => setRegistrationId(item.id)}
+                  onManage={() => setSelectedId(item.id)}
+                  onQuickAction={() => quickAction(item)}
+                />
+              ))}
           </View>
           <View style={styles.tip}>
             <Text style={styles.tipIcon}>✦</Text>
@@ -947,6 +924,27 @@ const styles = StyleSheet.create({
     paddingTop: 0,
     paddingBottom: 120,
   },
+  commandLine: {
+    backgroundColor: "#102438",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#24506B",
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    marginBottom: 10,
+  },
+  commandEyebrow: {
+    color: C.cyan,
+    fontSize: 8,
+    fontWeight: "900",
+    letterSpacing: 1,
+  },
+  commandValue: {
+    color: C.white,
+    fontSize: 14,
+    fontWeight: "900",
+    marginTop: 4,
+  },
   summaryStrip: { flexDirection: "row", gap: 8, marginBottom: 10 },
   summaryMetric: {
     flex: 1,
@@ -995,6 +993,32 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "900",
     letterSpacing: 0.6,
+  },
+  nextMoveCard: {
+    backgroundColor: "#112D26",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: C.green,
+    padding: 14,
+    marginBottom: 12,
+  },
+  nextMoveText: {
+    color: C.white,
+    fontSize: 13,
+    fontWeight: "800",
+    lineHeight: 18,
+    marginTop: 5,
+  },
+  emptyCompanies: {
+    color: C.muted,
+    fontSize: 11,
+    lineHeight: 16,
+    padding: 14,
+    backgroundColor: C.card,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: C.cardBorder,
+    marginBottom: 12,
   },
   levelUpCard: {
     backgroundColor: "#173B35",
