@@ -1456,6 +1456,7 @@ function AppContent() {
               state={retail}
               cash={cash}
               netWorth={netWorth}
+              netIncomePerHour={projectedHourlyIncome}
               timestamp={systemTimeMs}
               ipoListing={ipoListing}
               onIPOComplete={completeIPO}

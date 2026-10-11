@@ -23,6 +23,7 @@ import IPOLaunchModal from "../../components/modals/IPOLaunchModal";
 import { IPOListing } from "../../types/ipo";
 import { IPO_MIN_VALUATION } from "../../engine/ipoEngine";
 import type { BankLedgerEntry } from "../../types/bank";
+import { normalizeBusinessLevel } from "../../engine/businessLevels";
 
 const C = {
   bg: "#0B0F17",
@@ -67,8 +68,16 @@ export function BusinessMasterHubScreen({
   const companyListing =
     ipoListing?.companyId === business.id ? ipoListing : null;
   const [ipoOpen, setIpoOpen] = React.useState(false);
+  const [level2Tab, setLevel2Tab] = React.useState<"units" | "finance">(
+    "units",
+  );
   const spendLock = React.useRef(false);
   const scrollRef = useRef<ScrollView>(null);
+  const companyLevel = normalizeBusinessLevel(business).level || 1;
+  const showLevel2Tabs =
+    companyLevel >= 2 &&
+    (business.sector === "Retail" || business.sector === "Mobility");
+  const finance = businessFinance(business);
   useEffect(() => {
     if (focusRetail && business.sector === "Retail")
       scrollRef.current?.scrollTo({ y: 260, animated: true });
@@ -182,52 +191,94 @@ export function BusinessMasterHubScreen({
               <Text style={styles.ipoLockedLabel}>LOCKED</Text>
             </View>
           )}
-          {business.sector === "Retail" && (
-            <RetailControls
-              business={business}
-              cash={cash}
-              spend={spend}
-              onChange={onChange}
-            />
+          {showLevel2Tabs && (
+            <View style={styles.levelTabs}>
+              <Pressable
+                onPress={() => setLevel2Tab("units")}
+                style={[
+                  styles.levelTab,
+                  level2Tab === "units" && styles.levelTabActive,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.levelTabText,
+                    level2Tab === "units" && styles.levelTabTextActive,
+                  ]}
+                >
+                  UNITS
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setLevel2Tab("finance")}
+                style={[
+                  styles.levelTab,
+                  level2Tab === "finance" && styles.levelTabActive,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.levelTabText,
+                    level2Tab === "finance" && styles.levelTabTextActive,
+                  ]}
+                >
+                  FINANCE
+                </Text>
+              </Pressable>
+            </View>
           )}
-          {business.sector === "Mobility" && (
-            <MobilityControls
-              business={business}
-              cash={cash}
-              spend={spend}
-              onChange={onChange}
-            />
-          )}
-          {business.sector === "Tech_SaaS" && (
-            <SaaSControls
-              business={business}
-              cash={cash}
-              spend={spend}
-              onChange={onChange}
-            />
-          )}
-          {business.sector === "Construction_Mega" && (
-            <ConstructionControls
-              business={business}
-              cash={cash}
-              spend={spend}
-              onChange={onChange}
-            />
-          )}
-          {[
-            "Real_Estate",
-            "Energy",
-            "Pharma",
-            "Media",
-            "Sports",
-            "Airline",
-          ].includes(business.sector) && (
-            <ExpansionControls
-              business={business as ExpansionData}
-              cash={cash}
-              spend={spend}
-              onChange={onChange}
-            />
+          {!showLevel2Tabs || level2Tab === "units" ? (
+            <>
+              {business.sector === "Retail" && (
+                <RetailControls
+                  business={business}
+                  cash={cash}
+                  spend={spend}
+                  onChange={onChange}
+                />
+              )}
+              {business.sector === "Mobility" && (
+                <MobilityControls
+                  business={business}
+                  cash={cash}
+                  spend={spend}
+                  onChange={onChange}
+                />
+              )}
+              {business.sector === "Tech_SaaS" && (
+                <SaaSControls
+                  business={business}
+                  cash={cash}
+                  spend={spend}
+                  onChange={onChange}
+                />
+              )}
+              {business.sector === "Construction_Mega" && (
+                <ConstructionControls
+                  business={business}
+                  cash={cash}
+                  spend={spend}
+                  onChange={onChange}
+                />
+              )}
+              {[
+                "Real_Estate",
+                "Energy",
+                "Pharma",
+                "Media",
+                "Sports",
+                "Airline",
+              ].includes(business.sector) && (
+                <ExpansionControls
+                  business={business as ExpansionData}
+                  cash={cash}
+                  spend={spend}
+                  onChange={onChange}
+                />
+              )}
+            </>
+          ) : (
+            <FinancePanel business={business} finance={finance} />
           )}
         </ScrollView>
         <IPOLaunchModal
@@ -245,6 +296,52 @@ export function BusinessMasterHubScreen({
         />
       </SafeAreaView>
     </View>
+  );
+}
+function businessUnits(business: BusinessEntity) {
+  return business.sector === "Retail"
+    ? business.stockUnits
+    : business.sector === "Mobility"
+      ? business.economySedans + business.electricEVs + business.luxuryLimos
+      : 1;
+}
+function businessFinance(business: BusinessEntity) {
+  const net = Math.max(0, Number(business.hourlyNetProfit) || 0);
+  const expenses =
+    business.sector === "Retail"
+      ? ((business.monthlyRent ?? 800) + (business.monthlyPayroll ?? 1200)) /
+        (30 * 24)
+      : business.sector === "Mobility"
+        ? Math.max(0, businessUnits(business) * 8)
+        : 0;
+  return {
+    revenue: net + expenses,
+    expenses,
+    net,
+    breakEven: Math.ceil(
+      Math.max(0, business.acquisitionCost) / Math.max(0.01, net),
+    ),
+    perUnit: net / Math.max(1, businessUnits(business)),
+  };
+}
+function FinancePanel({
+  business,
+  finance,
+}: {
+  business: BusinessEntity;
+  finance: ReturnType<typeof businessFinance>;
+}) {
+  return (
+    <Panel title={`${business.name.toUpperCase()} · FINANCE`}>
+      <Metric label="REVENUE / HR" value={formatCurrency(finance.revenue)} />
+      <Metric
+        label="OPERATING EXPENSES / HR"
+        value={formatCurrency(finance.expenses)}
+      />
+      <Metric label="NET INCOME / HR" value={formatCurrency(finance.net)} />
+      <Metric label="BREAK-EVEN" value={`${finance.breakEven} settlements`} />
+      <Metric label="NET / UNIT" value={formatCurrency(finance.perUnit)} />
+    </Panel>
   );
 }
 function RetailControls({

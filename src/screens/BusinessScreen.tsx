@@ -1,3 +1,4 @@
+import * as Haptics from "expo-haptics";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
@@ -31,6 +32,11 @@ import type { BankLedgerEntry } from "../types/bank";
 import { RetailShopState } from "../types/retail";
 import { formatCurrency } from "../utils/formatCurrency";
 import BusinessMasterHubScreen from "./business/BusinessMasterHubScreen";
+import {
+  clearLevelUpNotice,
+  levelConfig,
+  normalizeBusinessLevel,
+} from "../engine/businessLevels";
 
 const C = {
   bg: "#07130F",
@@ -50,6 +56,7 @@ type Props = {
   state?: RetailShopState;
   cash: number;
   netWorth: number;
+  netIncomePerHour: number;
   timestamp: number;
   ipoListing?: IPOListing | null;
   onIPOComplete: (listing: IPOListing) => void;
@@ -150,6 +157,7 @@ const unlockMilestones = [
 export function BusinessScreen({
   cash,
   netWorth,
+  netIncomePerHour,
   timestamp,
   ipoListing,
   onIPOComplete,
@@ -161,6 +169,8 @@ export function BusinessScreen({
   const { businesses, setBusinesses } = useGame();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [registrationId, setRegistrationId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"start" | "companies">("start");
+  const celebratedRef = useRef("");
   const constructionElapsed = useRef(0);
   useEffect(() => {
     const timer = setInterval(() => {
@@ -198,6 +208,14 @@ export function BusinessScreen({
     onRetailFocusHandled?.();
   }, [businesses, focusRetail, onRetailFocusHandled]);
   const activeCount = businesses.filter((item) => item.isAcquired).length;
+  const levelNotice = businesses.find((item) => item.levelUpNotice);
+  useEffect(() => {
+    if (!levelNotice?.levelUpNotice) return;
+    const key = `${levelNotice.id}:${levelNotice.levelUpNotice.level}`;
+    if (celebratedRef.current === key) return;
+    celebratedRef.current = key;
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }, [levelNotice]);
   const nextUnlock = businesses
     .filter(
       (item) => !item.isAcquired && item.unlockNetWorthRequired > netWorth,
@@ -337,6 +355,55 @@ export function BusinessScreen({
               </View>
             </View>
           </View>
+          <View style={styles.summaryStrip}>
+            <SummaryMetric label="CASH" value={formatCurrency(cash)} />
+            <SummaryMetric
+              label="NET / HR"
+              value={formatCurrency(netIncomePerHour)}
+            />
+            <SummaryMetric
+              label="COMPANIES"
+              value={`${activeCount} / ${businesses.length}`}
+            />
+          </View>
+          <View style={styles.primaryActions}>
+            <Pressable
+              style={styles.primaryButton}
+              onPress={() => setViewMode("start")}
+            >
+              <Text style={styles.primaryButtonText}>START A BUSINESS</Text>
+            </Pressable>
+            <Pressable
+              style={styles.secondaryButton}
+              onPress={() => setViewMode("companies")}
+            >
+              <Text style={styles.secondaryButtonText}>MY COMPANIES</Text>
+            </Pressable>
+          </View>
+          {levelNotice?.levelUpNotice && (
+            <View style={styles.levelUpCard}>
+              <Text style={styles.levelUpEyebrow}>NEW CONTROLS UNLOCKED</Text>
+              <Text style={styles.levelUpTitle}>
+                {levelNotice.name} reached Level {levelNotice.level}
+              </Text>
+              <Text style={styles.levelUpCopy}>
+                {levelNotice.levelUpNotice.teaser}
+              </Text>
+              <Pressable
+                onPress={() =>
+                  setBusinesses((items) =>
+                    items.map((item) =>
+                      item.id === levelNotice.id
+                        ? clearLevelUpNotice(item)
+                        : item,
+                    ),
+                  )
+                }
+              >
+                <Text style={styles.dismissText}>DISMISS</Text>
+              </Pressable>
+            </View>
+          )}
           <CommandDeckPulse
             label="OPERATING DESK"
             value={`${activeCount}/10 sectors active`}
@@ -374,7 +441,11 @@ export function BusinessScreen({
           <View style={styles.sectionHead}>
             <View>
               <Text style={styles.sectionEyebrow}>CHOOSE YOUR NEXT MOVE</Text>
-              <Text style={styles.sectionTitle}>Start a new vertical</Text>
+              <Text style={styles.sectionTitle}>
+                {viewMode === "companies"
+                  ? "My companies"
+                  : "Start a new business"}
+              </Text>
             </View>
             <Text style={styles.sectionCount}>
               {businesses.length} OPPORTUNITIES
@@ -402,13 +473,56 @@ export function BusinessScreen({
             ))}
           </ScrollView>
           <View style={styles.grid}>
-            {businesses.map((item) => (
+            {(viewMode === "companies"
+              ? businesses.filter((item) => item.isAcquired)
+              : businesses
+            ).map((item) => (
               <BusinessCard
                 key={item.id}
                 business={item}
                 netWorth={netWorth}
                 onAcquire={() => setRegistrationId(item.id)}
                 onManage={() => setSelectedId(item.id)}
+                onQuickAction={() => {
+                  if (!item.isAcquired) return;
+                  const current = normalizeBusinessLevel(item);
+                  if (current.level > 1) return setSelectedId(item.id);
+                  const cost = item.sector === "Retail" ? 2000 : 12000;
+                  if (cash < cost)
+                    return Alert.alert(
+                      "INSUFFICIENT CASH",
+                      `Need ${formatCurrency(cost - cash)} more.`,
+                    );
+                  onCashChange((value) => value - cost);
+                  const next =
+                    item.sector === "Retail"
+                      ? {
+                          ...item,
+                          stockUnits: Math.min(
+                            item.maxStockCapacity,
+                            item.stockUnits + 1000,
+                          ),
+                        }
+                      : { ...item, economySedans: item.economySedans + 1 };
+                  setBusinesses((items) =>
+                    items.map((existing) =>
+                      existing.id === item.id
+                        ? normalizeBusinessLevel(next)
+                        : existing,
+                    ),
+                  );
+                  onLedger?.({
+                    id: `ledger-business-level1-${item.id}-${Date.now()}`,
+                    kind: "UPKEEP",
+                    label: `${item.name} Level 1 operation`,
+                    amount: -cost,
+                    timestamp: Date.now(),
+                    detail:
+                      item.sector === "Retail"
+                        ? "One-tap restock · 1,000 units"
+                        : "One-tap economy vehicle",
+                  });
+                }}
               />
             ))}
           </View>
@@ -434,6 +548,14 @@ export function BusinessScreen({
     </View>
   );
 }
+function SummaryMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.summaryMetric}>
+      <Text style={styles.summaryLabel}>{label}</Text>
+      <Text style={styles.summaryValue}>{value}</Text>
+    </View>
+  );
+}
 function BusinessCard({
   business,
   netWorth,
@@ -444,10 +566,14 @@ function BusinessCard({
   netWorth: number;
   onAcquire: () => void;
   onManage: () => void;
+  onQuickAction: () => void;
 }) {
   const unlocked =
     business.isUnlocked || netWorth >= business.unlockNetWorthRequired;
   const color = iconAccent[business.sector];
+  const level = normalizeBusinessLevel(business).level || 1;
+  const progressive =
+    business.sector === "Retail" || business.sector === "Mobility";
   const metric =
     business.sector === "Retail"
       ? `${business.stockUnits.toLocaleString()} units in stock`
@@ -463,7 +589,15 @@ function BusinessCard({
   return (
     <Pressable
       disabled={!business.isAcquired && !unlocked}
-      onPress={business.isAcquired ? onManage : onAcquire}
+      onPress={
+        business.isAcquired &&
+        level === 1 &&
+        (business.sector === "Retail" || business.sector === "Mobility")
+          ? onQuickAction
+          : business.isAcquired
+            ? onManage
+            : onAcquire
+      }
       style={({ pressed }) => [
         styles.businessCard,
         { borderColor: `${color}55` },
@@ -494,21 +628,71 @@ function BusinessCard({
         {business.name}
       </Text>
       <Text style={styles.cardMetric}>{metric}</Text>
+      {business.isAcquired &&
+        (business.sector === "Retail" || business.sector === "Mobility") &&
+        level === 1 && (
+          <Text style={styles.levelTeaser}>
+            {levelConfig(business).milestones[2].teaser}
+          </Text>
+        )}
       <Text style={styles.cardDescription}>
         {sectorDescription[business.sector]}
       </Text>
       <View style={styles.cardFooter}>
         {business.isAcquired ? (
-          <>
-            <View>
-              <Text style={styles.earnLabel}>NET CASHFLOW</Text>
-              <Text style={[styles.earnValue, { color }]}>
-                {formatCurrency(business.hourlyNetProfit)}
-                <Text style={styles.perHour}> / HR</Text>
-              </Text>
+          progressive ? (
+            <View style={{ flex: 1 }}>
+              <View style={styles.cardStatsRow}>
+                <View>
+                  <Text style={styles.earnLabel}>STATUS</Text>
+                  <Text style={styles.cardStatValue}>
+                    {level === 1 ? "OPERATING" : `LEVEL ${level}`}
+                  </Text>
+                </View>
+                <View>
+                  <Text style={styles.earnLabel}>REVENUE / HR</Text>
+                  <Text style={styles.cardStatValue}>
+                    {formatCurrency(Math.max(0, business.hourlyNetProfit))}
+                  </Text>
+                </View>
+                <View>
+                  <Text style={styles.earnLabel}>NET / HR</Text>
+                  <Text style={[styles.cardStatValue, { color }]}>
+                    {formatCurrency(Math.max(0, business.hourlyNetProfit))}
+                  </Text>
+                </View>
+              </View>
+              {level === 1 &&
+              (business.sector === "Retail" ||
+                business.sector === "Mobility") ? (
+                <Pressable
+                  style={[styles.cardAction, { borderColor: `${color}66` }]}
+                  onPress={onQuickAction}
+                >
+                  <Text style={[styles.cardActionText, { color }]}>
+                    {business.sector === "Retail"
+                      ? "RESTOCK 1,000"
+                      : "BUY VEHICLE"}
+                  </Text>
+                </Pressable>
+              ) : (
+                <Text style={[styles.arrow, { color, alignSelf: "flex-end" }]}>
+                  ›
+                </Text>
+              )}
             </View>
-            <Text style={[styles.arrow, { color }]}>›</Text>
-          </>
+          ) : (
+            <>
+              <View>
+                <Text style={styles.earnLabel}>NET CASHFLOW</Text>
+                <Text style={[styles.earnValue, { color }]}>
+                  {formatCurrency(business.hourlyNetProfit)}
+                  <Text style={styles.perHour}> / HR</Text>
+                </Text>
+              </View>
+              <Text style={[styles.arrow, { color }]}>›</Text>
+            </>
+          )
         ) : unlocked ? (
           <>
             <View>
@@ -706,6 +890,77 @@ const styles = StyleSheet.create({
     paddingTop: 0,
     paddingBottom: 120,
   },
+  summaryStrip: { flexDirection: "row", gap: 8, marginBottom: 10 },
+  summaryMetric: {
+    flex: 1,
+    backgroundColor: "#102438",
+    borderRadius: 12,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: "#24506B",
+  },
+  summaryLabel: {
+    color: C.muted,
+    fontSize: 8,
+    fontWeight: "900",
+    letterSpacing: 0.8,
+  },
+  summaryValue: {
+    color: C.white,
+    fontSize: 14,
+    fontWeight: "900",
+    marginTop: 5,
+  },
+  primaryActions: { flexDirection: "row", gap: 8, marginBottom: 12 },
+  primaryButton: {
+    flex: 1,
+    backgroundColor: C.green,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  primaryButtonText: {
+    color: C.ink,
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 0.6,
+  },
+  secondaryButton: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: C.cyan,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  secondaryButtonText: {
+    color: C.cyan,
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 0.6,
+  },
+  levelUpCard: {
+    backgroundColor: "#173B35",
+    borderWidth: 1,
+    borderColor: C.green,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 12,
+  },
+  levelUpEyebrow: {
+    color: C.green,
+    fontSize: 9,
+    fontWeight: "900",
+    letterSpacing: 1,
+  },
+  levelUpTitle: {
+    color: C.white,
+    fontSize: 16,
+    fontWeight: "900",
+    marginTop: 5,
+  },
+  levelUpCopy: { color: "#C8F7E5", fontSize: 11, lineHeight: 16, marginTop: 5 },
+  dismissText: { color: C.cyan, fontSize: 9, fontWeight: "900", marginTop: 10 },
   hero: {
     minHeight: 164,
     borderRadius: 24,
@@ -906,6 +1161,33 @@ const styles = StyleSheet.create({
     minHeight: 36,
   },
   cardMetric: { color: C.muted, fontSize: 10, lineHeight: 14, marginTop: 4 },
+  levelTeaser: {
+    color: C.gold,
+    fontSize: 9,
+    lineHeight: 13,
+    marginTop: 4,
+    fontWeight: "800",
+  },
+  cardStatsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 5,
+    marginTop: 8,
+  },
+  cardStatValue: {
+    color: C.white,
+    fontSize: 10,
+    fontWeight: "900",
+    marginTop: 3,
+  },
+  cardAction: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingVertical: 7,
+    alignItems: "center",
+    marginTop: 8,
+  },
+  cardActionText: { fontSize: 9, fontWeight: "900", letterSpacing: 0.5 },
   cardDescription: {
     color: "#B7C9D8",
     fontSize: 9,
