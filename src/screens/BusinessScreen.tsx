@@ -31,6 +31,7 @@ import type { BankLedgerEntry } from "../types/bank";
 import { RetailShopState } from "../types/retail";
 import { formatCurrency } from "../utils/formatCurrency";
 import BusinessMasterHubScreen from "./business/BusinessMasterHubScreen";
+import TaxiCompanyScreen from "./TaxiCompanyScreen";
 import {
   clearLevelUpNotice,
   levelConfig,
@@ -198,8 +199,9 @@ function BusinessScreenContent({
   onRetailFocusHandled,
   onLedger,
 }: Props) {
-  const { businesses, setBusinesses } = useGame();
+  const { businesses, setBusinesses, taxiCompany, setTaxiCompany } = useGame();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [taxiOpen, setTaxiOpen] = useState(false);
   const [registrationId, setRegistrationId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"start" | "companies">("start");
   const celebratedRef = useRef("");
@@ -297,6 +299,17 @@ function BusinessScreenContent({
           rate > 0 ? Math.max(1, Math.ceil(shortfall / rate)) : "—";
         return `affordable in ~${settlements} settlements at +${formatCurrency(rate)}/hr`;
       })();
+  if (taxiOpen)
+    return (
+      <TaxiCompanyScreen
+        company={taxiCompany}
+        cash={cash}
+        onCashChange={onCashChange}
+        onChange={setTaxiCompany || (() => undefined)}
+        onBack={() => setTaxiOpen(false)}
+        onLedger={onLedger}
+      />
+    );
   if (selected)
     return (
       <BusinessMasterHubScreen
@@ -417,6 +430,27 @@ function BusinessScreenContent({
               label="COMPANIES"
               value={`${activeCount} / ${businesses.length}`}
             />
+          </View>
+          <View style={styles.taxiCard}>
+            <View style={styles.taxiCardCopy}>
+              <Text style={styles.taxiEyebrow}>FIRST SPECIALIZED BUSINESS</Text>
+              <Text style={styles.taxiTitle}>
+                {taxiCompany ? "My Taxi Company" : "Start a Taxi Company"}
+              </Text>
+              <Text style={styles.taxiCopy}>
+                {taxiCompany
+                  ? `${taxiCompany.area} · ${taxiCompany.status === "operating" ? "Operating" : "Setup in progress"} · ${taxiCompany.economyTaxis + taxiCompany.electricTaxis + taxiCompany.luxuryTaxis} vehicles`
+                  : "Choose a service area, fund a first vehicle and launch a real operating company."}
+              </Text>
+            </View>
+            <Pressable
+              style={styles.taxiButton}
+              onPress={() => setTaxiOpen(true)}
+            >
+              <Text style={styles.taxiButtonText}>
+                {taxiCompany ? "MANAGE TAXI" : "START TAXI"}
+              </Text>
+            </Pressable>
           </View>
           <View style={styles.primaryActions}>
             <Pressable
@@ -924,6 +958,38 @@ const styles = StyleSheet.create({
     paddingTop: 0,
     paddingBottom: 120,
   },
+  taxiCard: {
+    backgroundColor: "#FFFFFF",
+    borderColor: "#B9D2F5",
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  taxiCardCopy: { flex: 1 },
+  taxiEyebrow: {
+    color: "#1769E0",
+    fontSize: 8,
+    fontWeight: "900",
+    letterSpacing: 1,
+  },
+  taxiTitle: {
+    color: "#10233F",
+    fontSize: 16,
+    fontWeight: "900",
+    marginTop: 4,
+  },
+  taxiCopy: { color: "#64748B", fontSize: 10, lineHeight: 15, marginTop: 4 },
+  taxiButton: {
+    backgroundColor: "#1769E0",
+    borderRadius: 10,
+    paddingHorizontal: 11,
+    paddingVertical: 10,
+  },
+  taxiButtonText: { color: "#FFFFFF", fontSize: 9, fontWeight: "900" },
   commandLine: {
     backgroundColor: "#102438",
     borderRadius: 14,

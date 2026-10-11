@@ -38,7 +38,8 @@ const svg = {
 };
 const asyncStorage = { getItem: async () => null, setItem: async () => undefined, removeItem: async () => undefined };
 let currentBusinesses = [];
-const gameContextMock = { useGame: () => ({ businesses: currentBusinesses, setBusinesses: (updater) => { currentBusinesses = typeof updater === "function" ? updater(currentBusinesses) : updater; }, resetBusinesses: () => undefined }) };
+let currentTaxiCompany = null;
+const gameContextMock = { useGame: () => ({ businesses: currentBusinesses, setBusinesses: (updater) => { currentBusinesses = typeof updater === "function" ? updater(currentBusinesses) : updater; }, taxiCompany: currentTaxiCompany, setTaxiCompany: (updater) => { currentTaxiCompany = typeof updater === "function" ? updater(currentTaxiCompany) : updater; }, resetBusinesses: () => undefined }) };
 
 Module._load = function(request, parent, isMain) {
   if (request === "react-native") return { ...native, default: native };
@@ -57,6 +58,8 @@ const { BusinessScreen } = require("../src/screens/BusinessScreen");
 const BankScreen = require("../src/screens/BankScreen").default;
 const MarketScreen = require("../src/screens/markets/MarketsModuleScreen").default;
 const { LifestyleScreen } = require("../src/screens/LifestyleScreen");
+const TaxiCompanyScreen = require("../src/screens/TaxiCompanyScreen").default;
+const { DEFAULT_TAXI_COMPANY } = require("../src/types/taxi");
 
 const retail = { ...DEFAULT_BUSINESSES.find((item) => item.sector === "Retail"), isAcquired: true, stockUnits: 1000, level: 1, lastCelebratedLevel: 1 };
 const retailL2 = { ...retail, stockUnits: 2500, level: 2, peakUnitsOrAssets: 2500, lastCelebratedLevel: 2 };
@@ -95,6 +98,8 @@ const bank = defaultBankState();
 results.push(render("bank-mount", React.createElement(BankScreen, { cash: 10000, netWorth: 10000, hourlyIncome: 0, financialState: { cash: 10000, bank, assets: [], holdings: {}, owned: [], lifestyleAssets: [], businesses: [], systemTimeMs: Date.now(), multiplier: 1 }, ledger: [], state: bank, businesses: [], collateralAssets: [], onStateChange: () => undefined, onCashChange: () => undefined, onBreaking: () => undefined }))); 
 results.push(render("markets-mount", React.createElement(MarketScreen, { playerNetWorth: 10000, cash: 10000, assets: [], holdings: {}, watchlist: [], toggleWatchlist: () => undefined, filter: "all", setFilter: () => undefined, executeTrade: () => undefined, summary: { currentValue: 0, invested: 0, unrealizedPnl: 0, realizedPnl: 0, dayChange: 0 }, tradeHistory: [], limitOrders: [], portfolioHistory: [], rivalInvestors: [], allocation: [], systemTimeMs: Date.now(), priceAlerts: [], onCreatePriceAlert: () => undefined, onRemovePriceAlert: () => undefined, onCreateLimitOrder: () => undefined, onCancelLimitOrder: () => undefined })));
 results.push(render("lifestyle-mount", React.createElement(LifestyleScreen, { owned: [], cash: 10000, setCash: () => undefined, setOwned: () => undefined })));
+results.push(render("taxi-setup-mount", React.createElement(TaxiCompanyScreen, { company: null, cash: 50000, onCashChange: () => undefined, onChange: () => undefined, onBack: () => undefined, onLedger: () => undefined })));
+results.push(render("taxi-operating-mount", React.createElement(TaxiCompanyScreen, { company: { ...DEFAULT_TAXI_COMPANY, status: "operating", economyTaxis: 1, drivers: 1, area: "Central City" }, cash: 50000, onCashChange: () => undefined, onChange: () => undefined, onBack: () => undefined, onLedger: () => undefined })));
 const textContent = (node) => {
   if (node == null) return "";
   if (typeof node === "string" || typeof node === "number") return String(node);
@@ -128,12 +133,25 @@ const interaction = async (label, businesses, cash, actions) => {
     interactionResults.push({ label, ok: false, error: String(error?.stack || error) });
   }
 };
+const taxiInteraction = async (label, company, cash, actions) => {
+  try {
+    let state = company;
+    let renderer;
+    const onChange = (updater) => { state = typeof updater === "function" ? updater(state) : updater; };
+    await act(async () => { renderer = TestRenderer.create(React.createElement(TaxiCompanyScreen, { company: state, cash, onCashChange: () => undefined, onChange, onBack: () => undefined, onLedger: () => undefined })); });
+    for (const action of actions) await act(async () => { pressLabel(renderer, action); });
+    renderer.unmount();
+    interactionResults.push({ label, ok: true });
+  } catch (error) { interactionResults.push({ label, ok: false, error: String(error?.stack || error) }); }
+};
 (async () => {
   await interaction("interaction-retail-l1-quick-action", [retail], 10000, ["RESTOCK 1,000"]);
   await interaction("interaction-mobility-l1-quick-action", [mobility], 20000, ["BUY VEHICLE"]);
   await interaction("interaction-my-companies", [retail], 10000, ["MY COMPANIES"]);
   await interaction("interaction-start-a-business", [retail], 10000, ["START A BUSINESS"]);
   await interaction("interaction-insufficient-funds-purchase", [{ ...retail, isAcquired: false }], 0, ["Copper & Bloom Market", "LAUNCH COMPANY"]);
+  await taxiInteraction("interaction-taxi-launch", null, 50000, ["CONFIRM & LAUNCH TAXI COMPANY"]);
+  await taxiInteraction("interaction-taxi-run-shift", { ...DEFAULT_TAXI_COMPANY, status: "operating", economyTaxis: 1, drivers: 1, area: "Central City" }, 50000, ["OPERATIONS", "RUN NEXT TAXI SHIFT"]);
   const failed = results.filter((item) => !item.ok);
   const interactionFailed = interactionResults.filter((item) => !item.ok);
   console.log(JSON.stringify({ test: "round36-render-and-interaction-smoke", renderTotal: results.length, renderFailed: failed.length, interactionTotal: interactionResults.length, interactionFailed: interactionFailed.length, results, interactionResults }, null, 2));
