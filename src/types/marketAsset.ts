@@ -1,10 +1,30 @@
-export type MarketSector = 'TECH' | 'ENERGY' | 'PHARMA' | 'MOBILITY' | 'BANKING' | 'RETAIL' | 'CRYPTO' | 'AEROSPACE' | 'MEDIA' | 'REAL_ESTATE' | 'CONSUMER' | 'AI_CHIP' | 'CONSUMER_TECH' | 'ELECTRONICS' | 'SOFTWARE' | 'SOCIAL_TECH' | 'FINTECH' | 'PAYMENTS' | 'FINANCE' | 'TRAVEL';
+export type MarketSector =
+  | "TECH"
+  | "ENERGY"
+  | "PHARMA"
+  | "MOBILITY"
+  | "BANKING"
+  | "RETAIL"
+  | "CRYPTO"
+  | "AEROSPACE"
+  | "MEDIA"
+  | "REAL_ESTATE"
+  | "CONSUMER"
+  | "AI_CHIP"
+  | "CONSUMER_TECH"
+  | "ELECTRONICS"
+  | "SOFTWARE"
+  | "SOCIAL_TECH"
+  | "FINTECH"
+  | "PAYMENTS"
+  | "FINANCE"
+  | "TRAVEL";
 
 export interface Asset {
   id: string;
   symbol: string;
   name: string;
-  kind: 'STOCK' | 'CRYPTO';
+  kind: "STOCK" | "CRYPTO";
   price: number;
   change: number;
   dividend: number;
@@ -21,4 +41,5 @@ export interface Holding {
   avgPrice: number;
   realized: number;
   realizedPnl?: number;
+  acquiredAtMs?: number;
 }

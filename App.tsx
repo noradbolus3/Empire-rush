@@ -1,13 +1,40 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
 import { StatusBar } from "expo-status-bar";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Animated, Image, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
-import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  Alert,
+  Animated,
+  Image,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  View,
+} from "react-native";
+import {
+  SafeAreaProvider,
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { NetworkProvider, useNetwork } from "./src/context/NetworkContext";
 import { GameProvider, useGame } from "./src/context/GameContext";
 import { formatCurrency } from "./src/utils/formatCurrency";
-import { HomeScreen, BusinessScreen as RetailBusinessScreen, MarketScreen as ResponsiveMarketScreen, LifestyleScreen, BankScreen } from "./src/screens";
+import {
+  HomeScreen,
+  BusinessScreen as RetailBusinessScreen,
+  MarketScreen as ResponsiveMarketScreen,
+  LifestyleScreen,
+  BankScreen,
+} from "./src/screens";
 import { RetailShopState } from "./src/types/retail";
 import { RetailBusinessState } from "./src/types/business";
 import EarningsBreakdownModal from "./src/components/modals/EarningsBreakdownModal";
@@ -19,99 +46,2401 @@ import { PROPERTIES_DATA } from "./src/data/propertiesData";
 import { STOCK_LOGOS } from "./src/data/stockLogoData";
 import { STOCK_CATALOG } from "./src/data/stocksData";
 import { CRYPTO_CATALOG } from "./src/data/cryptoData";
-import { formatSystemDateTime, readSystemTimeMs, weekKeyFromSystemTime } from "./src/engine/realTimeEngine";
+import {
+  formatSystemDateTime,
+  readSystemTimeMs,
+  weekKeyFromSystemTime,
+} from "./src/engine/realTimeEngine";
 import { IPOListing } from "./src/types/ipo";
-import { DEFAULT_PROGRESSION, dayKey, hydrateDailyProgress, ProgressionState } from "./src/types/progression";
+import {
+  DEFAULT_PROGRESSION,
+  dayKey,
+  hydrateDailyProgress,
+  ProgressionState,
+} from "./src/types/progression";
 import { capIPOProceeds, listingToAsset } from "./src/engine/ipoEngine";
-import { formatSettlementCountdown, settlementCountdownMs } from './src/engine/settlementEngine';
+import {
+  formatSettlementCountdown,
+  settlementCountdownMs,
+} from "./src/engine/settlementEngine";
 import { showTestRewardedAd } from "./src/services/rewardedAds";
-import { syncBankNotifications, syncFounderReminder } from "./src/services/notifications";
+import {
+  syncBankNotifications,
+  syncFounderReminder,
+} from "./src/services/notifications";
 import { BUILD_COMMIT, BUILD_VERSION } from "./src/config/buildInfo";
 import { GAME_SAVE_VERSION, migrateGameSave } from "./src/engine/saveMigration";
-import { advanceMarketTick, appendPortfolioPoint, calculateQuarterlyDividends, createSeededHistory, matchLimitOrders, normalizeAssetHistories, portfolioValue, quarterKey } from "./src/engine/marketEngine";
-import { DEFAULT_RIVAL_INVESTORS, LimitOrder, PortfolioPoint, RivalInvestor, TradeRecord } from "./src/types/market";
-import { applyTrade, isDuplicateTrade, previewTrade } from "./src/engine/tradeEngine";
-import { capTradeHistory, normalizeHoldings, portfolioAllocation, portfolioSummary } from "./src/engine/portfolioEngine";
+import {
+  advanceMarketTick,
+  appendPortfolioPoint,
+  calculateQuarterlyDividends,
+  createSeededHistory,
+  matchLimitOrders,
+  normalizeAssetHistories,
+  portfolioValue,
+  quarterKey,
+} from "./src/engine/marketEngine";
+import {
+  DEFAULT_RIVAL_INVESTORS,
+  LimitOrder,
+  PortfolioPoint,
+  RivalInvestor,
+  TradeRecord,
+} from "./src/types/market";
+import {
+  applyTrade,
+  isDuplicateTrade,
+  previewTrade,
+} from "./src/engine/tradeEngine";
+import {
+  capTradeHistory,
+  normalizeHoldings,
+  portfolioAllocation,
+  portfolioSummary,
+} from "./src/engine/portfolioEngine";
 import { evaluateAlerts } from "./src/engine/marketIntelligenceEngine";
 import { PriceAlert } from "./src/types/marketIntelligence";
-import { TAP_VALUE_CAP, tapUpgradeCost, tapUpgradeGain } from "./src/engine/tapUpgradeEngine";
+import {
+  TAP_VALUE_CAP,
+  tapUpgradeCost,
+  tapUpgradeGain,
+} from "./src/engine/tapUpgradeEngine";
 import { buildIncomeSources } from "./src/engine/incomeLedger";
-import { startTapBoost, tapBoostMultiplier, TAP_BOOST_DURATION_MINUTES } from "./src/engine/tapBoostEngine";
+import {
+  startTapBoost,
+  tapBoostMultiplier,
+  TAP_BOOST_DURATION_MINUTES,
+} from "./src/engine/tapBoostEngine";
 import { RETAIL_ENTRY_COST, STARTING_CASH } from "./src/engine/economyPlan";
 import { IncomeEvent, IncomeEventInput } from "./src/types/income";
 import { Asset, Holding } from "./src/types/marketAsset";
 import { processQuarterlyDividends } from "./src/engine/dividendEngine";
-import { applyScheduledEvent, bankEventFromScheduled, scheduledEventForTick } from "./src/engine/marketEventEngine";
+import {
+  applyScheduledEvent,
+  bankEventFromScheduled,
+  scheduledEventForTick,
+} from "./src/engine/marketEventEngine";
 import { defaultBankState } from "./src/types/bank";
 import type { BankLedgerEntry } from "./src/types/bank";
 import { sanitizeBankState } from "./src/engine/bankEngine";
 import { calculateNetWorth, settleHour } from "./src/engine/financialCore";
 type Tab = "empire" | "business" | "markets" | "lifestyle" | "bank";
 type Filter = "dividend" | "cheap" | "crypto" | "watchlist" | "all";
-const C = { bg: "#07130F", panel: "#0D241A", panel2: "#123726", green: "#16E98A", red: "#FF6D62", cyan: "#61E8FF", gold: "#FFC928", slate: "#236A45", text: "#F7FFF9", muted: "#8FB5A4" };
-const money = (n: number) => { const safe = Number.isFinite(n) ? Math.max(0, n) : 0; return `$${safe.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; };
-const short = (n: number) => { const safe = Number.isFinite(n) ? n : 0; const abs = Math.abs(safe); if (abs >= 1e12) return `$${(safe / 1e12).toFixed(2)}T`; if (abs >= 1e9) return `$${(safe / 1e9).toFixed(2)}B`; if (abs >= 1e6) return `$${(safe / 1e6).toFixed(2)}M`; if (abs >= 1e3) return `$${(safe / 1e3).toFixed(2)}K`; return money(safe); };
+const C = {
+  bg: "#07130F",
+  panel: "#0D241A",
+  panel2: "#123726",
+  green: "#16E98A",
+  red: "#FF6D62",
+  cyan: "#61E8FF",
+  gold: "#FFC928",
+  slate: "#236A45",
+  text: "#F7FFF9",
+  muted: "#8FB5A4",
+};
+const money = (n: number) => {
+  const safe = Number.isFinite(n) ? Math.max(0, n) : 0;
+  return `$${safe.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+};
+const short = (n: number) => {
+  const safe = Number.isFinite(n) ? n : 0;
+  const abs = Math.abs(safe);
+  if (abs >= 1e12) return `$${(safe / 1e12).toFixed(2)}T`;
+  if (abs >= 1e9) return `$${(safe / 1e9).toFixed(2)}B`;
+  if (abs >= 1e6) return `$${(safe / 1e6).toFixed(2)}M`;
+  if (abs >= 1e3) return `$${(safe / 1e3).toFixed(2)}K`;
+  return money(safe);
+};
 const pct = (n: number) => `${n >= 0 ? "+" : ""}${n.toFixed(2)}%`;
-const stockSeed: [string, string, string, number, number, number, number, any][] = STOCK_CATALOG.map(item => [item.id, item.symbol, item.name, item.price, 0, item.dividendYield, item.volatility, item.sector]);
-const cryptoSeed: [string, string, string, number, number, number, number, Asset["sector"]][] = CRYPTO_CATALOG.map(item => [item.id, item.symbol, item.name, item.price, 0, 0, item.volatility, "CRYPTO"]);
-const seedAssets = (seed: typeof stockSeed, kind: Asset["kind"]) => seed.map(([id, symbol, name, price, change, dividend, volatility, sector]) => ({ id, symbol, name, kind, sector: sector || (kind === "CRYPTO" ? "CRYPTO" : "TECH"), price, change, dividend, volatility, logo: kind === "STOCK" ? STOCK_CATALOG.find(item => item.id === id)?.logo : CRYPTO_CATALOG.find(item => item.id === id)?.logo, history: createSeededHistory(id, price, volatility) }));
-const lifestyleAssets = [...CARS_DATA, ...YACHTS_DATA, ...JETS_DATA, ...PROPERTIES_DATA];
-const headlines = ["Fed signals a softer landing: Growth stocks rally", "Wall Street opens higher as clean energy leads", "EV tax credits extended: Mobility stocks jump", "Main Street spending rises: Retail margins improve"];
+const stockSeed: [
+  string,
+  string,
+  string,
+  number,
+  number,
+  number,
+  number,
+  any,
+][] = STOCK_CATALOG.map((item) => [
+  item.id,
+  item.symbol,
+  item.name,
+  item.price,
+  0,
+  item.dividendYield,
+  item.volatility,
+  item.sector,
+]);
+const cryptoSeed: [
+  string,
+  string,
+  string,
+  number,
+  number,
+  number,
+  number,
+  Asset["sector"],
+][] = CRYPTO_CATALOG.map((item) => [
+  item.id,
+  item.symbol,
+  item.name,
+  item.price,
+  0,
+  0,
+  item.volatility,
+  "CRYPTO",
+]);
+const seedAssets = (seed: typeof stockSeed, kind: Asset["kind"]) =>
+  seed.map(
+    ([id, symbol, name, price, change, dividend, volatility, sector]) => ({
+      id,
+      symbol,
+      name,
+      kind,
+      sector: sector || (kind === "CRYPTO" ? "CRYPTO" : "TECH"),
+      price,
+      change,
+      dividend,
+      volatility,
+      logo:
+        kind === "STOCK"
+          ? STOCK_CATALOG.find((item) => item.id === id)?.logo
+          : CRYPTO_CATALOG.find((item) => item.id === id)?.logo,
+      history: createSeededHistory(id, price, volatility),
+    }),
+  );
+const lifestyleAssets = [
+  ...CARS_DATA,
+  ...YACHTS_DATA,
+  ...JETS_DATA,
+  ...PROPERTIES_DATA,
+];
+const headlines = [
+  "Fed signals a softer landing: Growth stocks rally",
+  "Wall Street opens higher as clean energy leads",
+  "EV tax credits extended: Mobility stocks jump",
+  "Main Street spending rises: Retail margins improve",
+];
 const SAVE = "empire-rush-richman-v3";
-const sensibleCryptoPrices: Record<string, number> = { btc: 67500, eth: 3450, sol: 148, matic: 0.72, avax: 36, neon: 12.5 };
-const STOCK_BY_ID = Object.fromEntries(STOCK_CATALOG.map(item => [item.id, item])); const CRYPTO_BY_ID = Object.fromEntries(CRYPTO_CATALOG.map(item => [item.id, item]));
-const normalizeMarketAsset = (asset: Asset): Asset => { const catalog = asset.kind === 'CRYPTO' ? CRYPTO_BY_ID[asset.id] : STOCK_BY_ID[asset.id]; const target = asset.kind === 'CRYPTO' ? sensibleCryptoPrices[asset.id] : undefined; const visual = { ...asset, symbol: catalog?.symbol ?? asset.symbol, name: catalog?.name ?? asset.name, sector: (catalog as any)?.sector ?? asset.sector, dividend: (catalog as any)?.dividendYield ?? asset.dividend, volatility: catalog?.volatility ?? asset.volatility, logo: catalog?.logo ?? asset.logo ?? STOCK_LOGOS[asset.id] }; if (!target || asset.price <= target * 4) return visual; const ratio = target / asset.price; return { ...visual, price: target, history: asset.history.map(value => Number((value * ratio).toFixed(2))) }; };
+const sensibleCryptoPrices: Record<string, number> = {
+  btc: 67500,
+  eth: 3450,
+  sol: 148,
+  matic: 0.72,
+  avax: 36,
+  neon: 12.5,
+};
+const STOCK_BY_ID = Object.fromEntries(
+  STOCK_CATALOG.map((item) => [item.id, item]),
+);
+const CRYPTO_BY_ID = Object.fromEntries(
+  CRYPTO_CATALOG.map((item) => [item.id, item]),
+);
+const normalizeMarketAsset = (asset: Asset): Asset => {
+  const catalog =
+    asset.kind === "CRYPTO" ? CRYPTO_BY_ID[asset.id] : STOCK_BY_ID[asset.id];
+  const target =
+    asset.kind === "CRYPTO" ? sensibleCryptoPrices[asset.id] : undefined;
+  const visual = {
+    ...asset,
+    symbol: catalog?.symbol ?? asset.symbol,
+    name: catalog?.name ?? asset.name,
+    sector: (catalog as any)?.sector ?? asset.sector,
+    dividend: (catalog as any)?.dividendYield ?? asset.dividend,
+    volatility: catalog?.volatility ?? asset.volatility,
+    logo: catalog?.logo ?? asset.logo ?? STOCK_LOGOS[asset.id],
+  };
+  if (!target || asset.price <= target * 4) return visual;
+  const ratio = target / asset.price;
+  return {
+    ...visual,
+    price: target,
+    history: asset.history.map((value) => Number((value * ratio).toFixed(2))),
+  };
+};
 
 function AppContent() {
-  const insets = useSafeAreaInsets(); const { resetBusinesses, businesses, setBusinesses } = useGame(); const { isOnline, clockTampered } = useNetwork(); const clockTamperedRef = useRef(clockTampered);
+  const insets = useSafeAreaInsets();
+  const { resetBusinesses, businesses, setBusinesses } = useGame();
+  const { isOnline, clockTampered } = useNetwork();
+  const clockTamperedRef = useRef(clockTampered);
   const boostTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [systemTimeMs, setSystemTimeMs] = useState(() => readSystemTimeMs()); const incomeFlash = useRef(new Animated.Value(0)).current;
-  const flashBusinessIncome = useCallback(() => { incomeFlash.setValue(1); Animated.timing(incomeFlash, { toValue: 0, duration: 420, useNativeDriver: true }).start(); }, [incomeFlash]);
-  const [tab, setTab] = useState<Tab>("empire"); const [focusRetail, setFocusRetail] = useState(false); const [cash, setCash] = useState(STARTING_CASH); const [progression, setProgression] = useState<ProgressionState>(() => hydrateDailyProgress(DEFAULT_PROGRESSION)); const [ipoListing, setIpoListing] = useState<IPOListing | null>(null); const [ipoCelebration, setIpoCelebration] = useState<IPOListing | null>(null); const [clickValue, setClickValue] = useState(1); const [tapUpgradeLevel, setTapUpgradeLevel] = useState(0); const [retail, setRetail] = useState<RetailShopState>({ owned: false, inventoryUnits: 0, staffHired: false, lastAccountingAt: Date.now() }); const [assets, setAssets] = useState<Asset[]>([...seedAssets(stockSeed, "STOCK"), ...seedAssets(cryptoSeed, "CRYPTO")]); const [holdings, setHoldings] = useState<Record<string, Holding>>({}); const [tradeHistory, setTradeHistory] = useState<TradeRecord[]>([]); const [watchlist, setWatchlist] = useState<string[]>([]); const [limitOrders, setLimitOrders] = useState<LimitOrder[]>([]); const [portfolioHistory, setPortfolioHistory] = useState<PortfolioPoint[]>([]); const [priceAlerts, setPriceAlerts] = useState<PriceAlert[]>([]); const [marketEventHistory, setMarketEventHistory] = useState<Array<{ id: string; headline: string; tick: number; timestamp: number }>>([]); const [rivalInvestors] = useState<RivalInvestor[]>(DEFAULT_RIVAL_INVESTORS); const marketTick = useRef(0); const lastDividendQuarter = useRef(""); const [owned, setOwned] = useState<string[]>([]); const [headline, setHeadline] = useState(headlines[0]); const [filter, setFilter] = useState<Filter>("all"); const [loaded, setLoaded] = useState(false); const [lastSaved, setLastSaved] = useState(Date.now()); const [lastSettlementAtMs, setLastSettlementAtMs] = useState(() => Date.now()); const latestState = useRef<Record<string, unknown>>({}); const tradeLock = useRef(false); const lastTradeRef = useRef<{ assetId: string; side: "BUY" | "SELL"; quantity: number; at: number } | undefined>(undefined); const missionClaimLock = useRef(false); const [storeOpen, setStoreOpen] = useState(false); const [settingsOpen, setSettingsOpen] = useState(false); const [hapticsEnabled, setHapticsEnabled] = useState(true); const [soundEnabled, setSoundEnabled] = useState(true); const [notificationsEnabled, setNotificationsEnabled] = useState(true); const [adFree, setAdFree] = useState(false); const [multiplier, setMultiplier] = useState(1); const [tapBoostUntil, setTapBoostUntil] = useState(0); const [earningsModal, setEarningsModal] = useState(false); const [incomeEvents, setIncomeEvents] = useState<IncomeEvent[]>([]); const [bankState, setBankState] = useState(() => defaultBankState()); const [ledger, setLedger] = useState<BankLedgerEntry[]>([]);
-const businessProfit = useMemo(() => businesses.reduce((sum, item) => sum + (item.isAcquired ? Math.max(0, item.hourlyNetProfit) : 0), 0), [businesses]); const profit = useMemo(() => businessProfit * multiplier, [businessProfit, multiplier]); const pushIncomeEvent = useCallback((event: IncomeEventInput) => { if (!Number.isFinite(event.amount) || event.amount <= 0) return; const next: IncomeEvent = { ...event, amount: Number(event.amount.toFixed(2)), id: `income-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, timestamp: Date.now() }; setIncomeEvents(current => [...current.slice(-2), next]); setTimeout(() => setIncomeEvents(current => current.filter(item => item.id !== next.id)), 2600); }, []); const positionsValue = useMemo(() => Object.entries(holdings).reduce((n, [id, h]) => n + h.shares * (assets.find(a => a.id === id)?.price || 0), 0), [holdings, assets]); const unrealized = useMemo(() => Object.entries(holdings).reduce((n, [id, h]) => n + ((assets.find(a => a.id === id)?.price || 0) - h.avgPrice) * h.shares, 0), [holdings, assets]); const marketSummary = useMemo(() => portfolioSummary(assets, holdings, tradeHistory), [assets, holdings, tradeHistory]); const marketAllocation = useMemo(() => portfolioAllocation(assets, holdings, cash), [assets, holdings, cash]); const financialState = useMemo(() => ({ cash, bank: bankState, assets, holdings, owned, lifestyleAssets, businesses, systemTimeMs, multiplier }), [cash, bankState, assets, holdings, owned, businesses, systemTimeMs, multiplier]); const netWorth = useMemo(() => calculateNetWorth(financialState), [financialState]); const liveTapBoostMultiplier = tapBoostMultiplier(systemTimeMs, tapBoostUntil); const earningsSources = useMemo(() => buildIncomeSources({ businesses, assets, holdings, businessProfitPerHour: profit }), [assets, businesses, holdings, profit]); const projectedHourlyIncome = useMemo(() => settleHour(financialState).projectedHourlyNet, [financialState]); const nextSettlementCountdown = formatSettlementCountdown(settlementCountdownMs(lastSettlementAtMs, systemTimeMs)); const rank = ipoListing ? "PUBLIC COMPANY FOUNDER" : netWorth >= 100000000 ? "MOGUL" : netWorth >= 1000000 ? "TYCOON" : netWorth >= 100000 ? "BUSINESS OWNER" : "STARTUP FOUNDER"; const weeklyEventKey = weekKeyFromSystemTime(systemTimeMs); const ownedSectors = businesses.filter(item => item.isAcquired).map(item => item.sector); const ownsRetail = ownedSectors.includes("Retail"); const ownsGrowthSector = ownedSectors.some(sector => ["Tech_SaaS", "Energy", "Mobility"].includes(sector)); const ownsMarketPosition = Object.values(holdings).some(holding => holding.shares > 0); const weeklyEvent = ownsRetail ? "Main Street Week · Retail customer demand +10%" : ownsGrowthSector ? "Innovation Week · Owned tech/energy demand +10%" : ownsMarketPosition ? "Investor Week · Your held positions receive the news cycle" : "Founder Week · Acquire a business to activate a sector event"; const retailBusinesses = businesses.filter(item => item.sector === "Retail" && item.isAcquired); const activeRetail = retailBusinesses[0]; const retailStockUnits = activeRetail && "stockUnits" in activeRetail ? activeRetail.stockUnits : 0; const retailOnboardingStep = activeRetail && "onboardingStep" in activeRetail ? activeRetail.onboardingStep : undefined; const nextGoal = !activeRetail ? (cash < RETAIL_ENTRY_COST ? `Need ${money(RETAIL_ENTRY_COST - cash)} more to launch Copper & Bloom` : "Launch Copper & Bloom Market") : retailStockUnits <= 0 ? "Order 1,000 units to start the sales loop" : retailOnboardingStep === "WATCH_FIRST_SALE" ? "Keep Retail open and watch the first sale" : netWorth < 25000 ? `Need ${money(25000 - netWorth)} more to unlock Metro Mobility` : "Scale your cashflow into the next sector";
-  useEffect(() => { const syncSystemTime = () => setSystemTimeMs(readSystemTimeMs()); syncSystemTime(); const timer = setInterval(syncSystemTime, 1000); return () => clearInterval(timer); }, []);
-    useEffect(() => { clockTamperedRef.current = clockTampered; }, [clockTampered]);
+  const [systemTimeMs, setSystemTimeMs] = useState(() => readSystemTimeMs());
+  const incomeFlash = useRef(new Animated.Value(0)).current;
+  const flashBusinessIncome = useCallback(() => {
+    incomeFlash.setValue(1);
+    Animated.timing(incomeFlash, {
+      toValue: 0,
+      duration: 420,
+      useNativeDriver: true,
+    }).start();
+  }, [incomeFlash]);
+  const [tab, setTab] = useState<Tab>("empire");
+  const [focusRetail, setFocusRetail] = useState(false);
+  const [cash, setCash] = useState(STARTING_CASH);
+  const [progression, setProgression] = useState<ProgressionState>(() =>
+    hydrateDailyProgress(DEFAULT_PROGRESSION),
+  );
+  const [ipoListing, setIpoListing] = useState<IPOListing | null>(null);
+  const [ipoCelebration, setIpoCelebration] = useState<IPOListing | null>(null);
+  const [clickValue, setClickValue] = useState(1);
+  const [tapUpgradeLevel, setTapUpgradeLevel] = useState(0);
+  const [retail, setRetail] = useState<RetailShopState>({
+    owned: false,
+    inventoryUnits: 0,
+    staffHired: false,
+    lastAccountingAt: Date.now(),
+  });
+  const [assets, setAssets] = useState<Asset[]>([
+    ...seedAssets(stockSeed, "STOCK"),
+    ...seedAssets(cryptoSeed, "CRYPTO"),
+  ]);
+  const [holdings, setHoldings] = useState<Record<string, Holding>>({});
+  const [tradeHistory, setTradeHistory] = useState<TradeRecord[]>([]);
+  const [watchlist, setWatchlist] = useState<string[]>([]);
+  const [limitOrders, setLimitOrders] = useState<LimitOrder[]>([]);
+  const [portfolioHistory, setPortfolioHistory] = useState<PortfolioPoint[]>(
+    [],
+  );
+  const [priceAlerts, setPriceAlerts] = useState<PriceAlert[]>([]);
+  const [marketEventHistory, setMarketEventHistory] = useState<
+    Array<{ id: string; headline: string; tick: number; timestamp: number }>
+  >([]);
+  const [rivalInvestors] = useState<RivalInvestor[]>(DEFAULT_RIVAL_INVESTORS);
+  const marketTick = useRef(0);
+  const lastDividendQuarter = useRef("");
+  const [owned, setOwned] = useState<string[]>([]);
+  const [headline, setHeadline] = useState(headlines[0]);
+  const [filter, setFilter] = useState<Filter>("all");
+  const [loaded, setLoaded] = useState(false);
+  const [lastSaved, setLastSaved] = useState(Date.now());
+  const [lastSettlementAtMs, setLastSettlementAtMs] = useState(() =>
+    Date.now(),
+  );
+  const latestState = useRef<Record<string, unknown>>({});
+  const tradeLock = useRef(false);
+  const lastTradeRef = useRef<
+    | { assetId: string; side: "BUY" | "SELL"; quantity: number; at: number }
+    | undefined
+  >(undefined);
+  const missionClaimLock = useRef(false);
+  const [storeOpen, setStoreOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [hapticsEnabled, setHapticsEnabled] = useState(true);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [adFree, setAdFree] = useState(false);
+  const [multiplier, setMultiplier] = useState(1);
+  const [tapBoostUntil, setTapBoostUntil] = useState(0);
+  const [earningsModal, setEarningsModal] = useState(false);
+  const [incomeEvents, setIncomeEvents] = useState<IncomeEvent[]>([]);
+  const [bankState, setBankState] = useState(() => defaultBankState());
+  const [ledger, setLedger] = useState<BankLedgerEntry[]>([]);
+  const postLedger = (entry: BankLedgerEntry) =>
+    setLedger((previous) =>
+      [
+        ...previous,
+        { ...entry, amount: Number(entry.amount.toFixed(2)) },
+      ].slice(-500),
+    );
+  const businessProfit = useMemo(
+    () =>
+      businesses.reduce(
+        (sum, item) =>
+          sum + (item.isAcquired ? Math.max(0, item.hourlyNetProfit) : 0),
+        0,
+      ),
+    [businesses],
+  );
+  const profit = useMemo(
+    () => businessProfit * multiplier,
+    [businessProfit, multiplier],
+  );
+  const pushIncomeEvent = useCallback((event: IncomeEventInput) => {
+    if (!Number.isFinite(event.amount) || event.amount <= 0) return;
+    const next: IncomeEvent = {
+      ...event,
+      amount: Number(event.amount.toFixed(2)),
+      id: `income-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      timestamp: Date.now(),
+    };
+    setIncomeEvents((current) => [...current.slice(-2), next]);
+    setTimeout(
+      () =>
+        setIncomeEvents((current) =>
+          current.filter((item) => item.id !== next.id),
+        ),
+      2600,
+    );
+  }, []);
+  const positionsValue = useMemo(
+    () =>
+      Object.entries(holdings).reduce(
+        (n, [id, h]) =>
+          n + h.shares * (assets.find((a) => a.id === id)?.price || 0),
+        0,
+      ),
+    [holdings, assets],
+  );
+  const unrealized = useMemo(
+    () =>
+      Object.entries(holdings).reduce(
+        (n, [id, h]) =>
+          n +
+          ((assets.find((a) => a.id === id)?.price || 0) - h.avgPrice) *
+            h.shares,
+        0,
+      ),
+    [holdings, assets],
+  );
+  const marketSummary = useMemo(
+    () => portfolioSummary(assets, holdings, tradeHistory),
+    [assets, holdings, tradeHistory],
+  );
+  const marketAllocation = useMemo(
+    () => portfolioAllocation(assets, holdings, cash),
+    [assets, holdings, cash],
+  );
+  const financialState = useMemo(
+    () => ({
+      cash,
+      bank: bankState,
+      assets,
+      holdings,
+      owned,
+      lifestyleAssets,
+      businesses,
+      systemTimeMs,
+      multiplier,
+    }),
+    [
+      cash,
+      bankState,
+      assets,
+      holdings,
+      owned,
+      businesses,
+      systemTimeMs,
+      multiplier,
+    ],
+  );
+  const netWorth = useMemo(
+    () => calculateNetWorth(financialState),
+    [financialState],
+  );
+  const liveTapBoostMultiplier = tapBoostMultiplier(
+    systemTimeMs,
+    tapBoostUntil,
+  );
+  const earningsSources = useMemo(
+    () =>
+      buildIncomeSources({
+        businesses,
+        assets,
+        holdings,
+        businessProfitPerHour: profit,
+      }),
+    [assets, businesses, holdings, profit],
+  );
+  const projectedHourlyIncome = useMemo(
+    () => settleHour(financialState).projectedHourlyNet,
+    [financialState],
+  );
+  const nextSettlementCountdown = formatSettlementCountdown(
+    settlementCountdownMs(lastSettlementAtMs, systemTimeMs),
+  );
+  const rank = ipoListing
+    ? "PUBLIC COMPANY FOUNDER"
+    : netWorth >= 100000000
+      ? "MOGUL"
+      : netWorth >= 1000000
+        ? "TYCOON"
+        : netWorth >= 100000
+          ? "BUSINESS OWNER"
+          : "STARTUP FOUNDER";
+  const weeklyEventKey = weekKeyFromSystemTime(systemTimeMs);
+  const ownedSectors = businesses
+    .filter((item) => item.isAcquired)
+    .map((item) => item.sector);
+  const ownsRetail = ownedSectors.includes("Retail");
+  const ownsGrowthSector = ownedSectors.some((sector) =>
+    ["Tech_SaaS", "Energy", "Mobility"].includes(sector),
+  );
+  const ownsMarketPosition = Object.values(holdings).some(
+    (holding) => holding.shares > 0,
+  );
+  const weeklyEvent = ownsRetail
+    ? "Main Street Week · Retail customer demand +10%"
+    : ownsGrowthSector
+      ? "Innovation Week · Owned tech/energy demand +10%"
+      : ownsMarketPosition
+        ? "Investor Week · Your held positions receive the news cycle"
+        : "Founder Week · Acquire a business to activate a sector event";
+  const retailBusinesses = businesses.filter(
+    (item) => item.sector === "Retail" && item.isAcquired,
+  );
+  const activeRetail = retailBusinesses[0];
+  const retailStockUnits =
+    activeRetail && "stockUnits" in activeRetail ? activeRetail.stockUnits : 0;
+  const retailOnboardingStep =
+    activeRetail && "onboardingStep" in activeRetail
+      ? activeRetail.onboardingStep
+      : undefined;
+  const nextGoal = !activeRetail
+    ? cash < RETAIL_ENTRY_COST
+      ? `Need ${money(RETAIL_ENTRY_COST - cash)} more to launch Copper & Bloom`
+      : "Launch Copper & Bloom Market"
+    : retailStockUnits <= 0
+      ? "Order 1,000 units to start the sales loop"
+      : retailOnboardingStep === "WATCH_FIRST_SALE"
+        ? "Keep Retail open and watch the first sale"
+        : netWorth < 25000
+          ? `Need ${money(25000 - netWorth)} more to unlock Metro Mobility`
+          : "Scale your cashflow into the next sector";
+  useEffect(() => {
+    const syncSystemTime = () => setSystemTimeMs(readSystemTimeMs());
+    syncSystemTime();
+    const timer = setInterval(syncSystemTime, 1000);
+    return () => clearInterval(timer);
+  }, []);
+  useEffect(() => {
+    clockTamperedRef.current = clockTampered;
+  }, [clockTampered]);
   const realDayKey = dayKey(systemTimeMs);
-  useEffect(() => { if (!loaded) return; setProgression(current => hydrateDailyProgress(current, systemTimeMs)); }, [loaded, realDayKey, systemTimeMs]);
-  useEffect(() => { if (!loaded) return; setProgression(current => current.weeklyEventKey === weeklyEventKey ? current : { ...current, weeklyEventKey }); }, [loaded, weeklyEventKey]);
-  useEffect(() => { AsyncStorage.getItem(SAVE).then(raw => { try { const saved = migrateGameSave(raw ? JSON.parse(raw) : null); const validCash = saved && Number.isFinite(saved.cash) ? Math.max(0, saved.cash) : STARTING_CASH; const savedAt = saved && Number.isFinite(saved.settlementAt) ? saved.settlementAt : saved && Number.isFinite(saved.saved) ? saved.saved : Date.now(); setLastSettlementAtMs(savedAt); if (saved?.bankState) setBankState(sanitizeBankState(saved.bankState, savedAt)); if (Array.isArray(saved?.assets) && saved.assets.length) { const savedAssets = saved.assets.map((asset: Asset) => normalizeMarketAsset(asset)); const savedIds = new Set(savedAssets.map(asset => asset.id)); const missingCatalog = [...seedAssets(stockSeed, "STOCK"), ...seedAssets(cryptoSeed, "CRYPTO")].filter(asset => !savedIds.has(asset.id)); setAssets(normalizeAssetHistories([...savedAssets, ...missingCatalog])); } if (saved?.holdings && typeof saved.holdings === 'object') setHoldings(normalizeHoldings(saved.holdings, Array.isArray(saved?.assets) && saved.assets.length ? saved.assets : [...seedAssets(stockSeed, "STOCK"), ...seedAssets(cryptoSeed, "CRYPTO")])); if (Array.isArray(saved?.tradeHistory)) setTradeHistory(saved.tradeHistory); if (Array.isArray(saved?.watchlist)) setWatchlist(saved.watchlist); if (Array.isArray(saved?.limitOrders)) setLimitOrders(saved.limitOrders); if (Array.isArray(saved?.portfolioHistory)) setPortfolioHistory(saved.portfolioHistory); if (Array.isArray(saved?.priceAlerts)) setPriceAlerts(saved.priceAlerts); if (Array.isArray(saved?.marketEventHistory)) setMarketEventHistory(saved.marketEventHistory); if (Array.isArray(saved?.ledger)) setLedger(saved.ledger); else if (Array.isArray(saved?.bankState?.ledger)) setLedger(saved.bankState.ledger); if (typeof saved?.lastDividendQuarter === 'string') lastDividendQuarter.current = saved.lastDividendQuarter; if (Array.isArray(saved?.owned)) setOwned(saved.owned); setClickValue(Math.min(TAP_VALUE_CAP, Math.max(1, Number(saved?.clickValue) || 1))); setTapUpgradeLevel(Math.max(0, Number(saved?.tapUpgradeLevel ?? saved?.clickLevel) || 0)); setRetail(saved?.retail || { owned: false, inventoryUnits: 0, staffHired: false, lastAccountingAt: Date.now() }); setIpoListing(saved?.ipoListing || null); setProgression(hydrateDailyProgress(saved?.progression)); setAdFree(Boolean(saved?.adFree)); setHapticsEnabled(saved?.hapticsEnabled !== false); setSoundEnabled(saved?.soundEnabled !== false); setNotificationsEnabled(saved?.notificationsEnabled !== false); setMultiplier(saved?.multiplier === 1.5 ? 1.5 : saved?.multiplier === 1.25 ? 1.25 : 1); setLastSaved(Date.now()); } catch { setCash(STARTING_CASH); setAssets(normalizeAssetHistories([...seedAssets(stockSeed, "STOCK"), ...seedAssets(cryptoSeed, "CRYPTO")])); setHoldings({}); setOwned([]); setIpoListing(null); setBankState(defaultBankState()); } finally { setLoaded(true); } }).catch(() => setLoaded(true)); }, []);
-  useEffect(() => { if (!ipoListing) return; const safeListing = capIPOProceeds(ipoListing, netWorth); if (safeListing.valuationAtIPO !== ipoListing.valuationAtIPO || safeListing.capitalRaised !== ipoListing.capitalRaised || safeListing.currentPrice !== ipoListing.currentPrice) { setIpoListing(safeListing); return; } setAssets(list => list.some(asset => asset.id === `ipo-${safeListing.companyId}`) ? list : [...list, listingToAsset(safeListing) as Asset]); }, [ipoListing, netWorth]);
-  useEffect(() => { latestState.current = { schemaVersion: GAME_SAVE_VERSION, timeModel: "system-clock-v1", settlementAt: lastSettlementAtMs, cash, assets, holdings, tradeHistory, watchlist, limitOrders, portfolioHistory, priceAlerts, marketEventHistory, lastDividendQuarter: lastDividendQuarter.current, bankState, ledger, owned, clickValue, tapUpgradeLevel, clickLevel: tapUpgradeLevel, retail, ipoListing, progression, adFree, multiplier, hapticsEnabled, soundEnabled, notificationsEnabled, profit }; }, [cash, assets, holdings, watchlist, limitOrders, portfolioHistory, priceAlerts, marketEventHistory, owned, ledger, clickValue, tapUpgradeLevel, retail, ipoListing, progression, adFree, multiplier, hapticsEnabled, soundEnabled, notificationsEnabled, bankState, profit]);
-  useEffect(() => { if (!loaded) return; const timer = setInterval(() => { if (clockTampered) return; setAssets(list => { const tick = marketTick.current++; const result = advanceMarketTick(list, tick); const scheduled = scheduledEventForTick(tick); if (scheduled) { const bankEvent = bankEventFromScheduled(scheduled, systemTimeMs); setHeadline(scheduled.headline); setMarketEventHistory(history => [...history, { id: `${scheduled.id}-${tick}`, headline: scheduled.headline, tick, timestamp: systemTimeMs }].slice(-24)); setBankState(previous => ({ ...previous, marketEvents: [...previous.marketEvents, bankEvent].slice(-24) })); } const checked = evaluateAlerts(priceAlerts, result.assets as Asset[], systemTimeMs); if (checked.triggered.length) { setPriceAlerts(checked.alerts); checked.triggered.forEach(item => setHeadline(`ALERT · ${item.alert.symbol} ${item.reason}`)); } return result.assets as Asset[]; }); }, 2000); return () => clearInterval(timer); }, [loaded, clockTampered, priceAlerts, systemTimeMs]); useEffect(() => { if (!loaded || clockTampered) return; const elapsedHours = Math.min(24, Math.floor(Math.max(0, systemTimeMs - lastSettlementAtMs) / 3600000)); if (elapsedHours <= 0) return; let cursor = financialState; let totalDelta = 0; let allEntries: BankLedgerEntry[] = []; for (let hour = 0; hour < elapsedHours; hour += 1) { const result = settleHour(cursor); totalDelta += result.cashDelta; allEntries = [...allEntries, ...result.ledger]; cursor = { ...cursor, ...result.state, bank: { ...cursor.bank, ...result.state.bank }, cash: Math.max(0, cursor.cash + result.cashDelta), systemTimeMs: cursor.systemTimeMs + 3600000 }; } setLastSettlementAtMs(value => value + elapsedHours * 3600000); setCash(value => Math.max(0, Math.min(Number.MAX_SAFE_INTEGER, value + totalDelta))); setLedger(previous => [...previous, ...allEntries].slice(-500)); setBankState(previous => ({ ...previous, ...cursor.bank, lastSettlementAt: systemTimeMs, totalInterestEarned: previous.totalInterestEarned + allEntries.filter(item => item.kind === "INTEREST").reduce((sum, item) => sum + item.amount, 0), totalInterestPaid: previous.totalInterestPaid + Math.abs(allEntries.filter(item => item.kind === "EMI").reduce((sum, item) => sum + item.amount, 0)), ledger: [...previous.ledger, ...allEntries].slice(-500) })); if (totalDelta > 0) pushIncomeEvent({ source: "Unified settlement", amount: totalDelta, category: "other" }); setHeadline(`${elapsedHours} hourly settlement${elapsedHours === 1 ? "" : "s"} complete · net ${money(totalDelta)}.`); }, [loaded, clockTampered, systemTimeMs, lastSettlementAtMs, financialState, pushIncomeEvent]);
-  useEffect(() => { if (!loaded || !limitOrders.some(order => order.status === 'OPEN') || tradeLock.current) return; const matched = matchLimitOrders(assets, limitOrders, systemTimeMs); if (!matched.fills.length) return; tradeLock.current = true; let cashCursor = cash; let holdingsCursor = { ...holdings }; const settled: LimitOrder[] = []; const records: TradeRecord[] = []; for (const order of matched.fills) { const asset = assets.find(item => item.id === order.assetId); if (!asset) continue; const result = applyTrade(asset, order.side, order.quantity, cashCursor, holdingsCursor[order.assetId]); if (!result) continue; cashCursor = result.cash; holdingsCursor = { ...holdingsCursor, [order.assetId]: result.holding }; settled.push(order); records.push({ id: `trade-${systemTimeMs}-${order.id}`, assetId: asset.id, symbol: asset.symbol, name: asset.name, side: order.side, quantity: order.quantity, price: result.price, notional: result.total, realizedPnl: result.realizedPnl, timestamp: systemTimeMs, source: 'LIMIT', transactionType: order.side }); } if (!settled.length) { tradeLock.current = false; return; } const settledIds = new Set(settled.map(order => order.id)); setLimitOrders(matched.orders.map(order => settledIds.has(order.id) ? { ...order, status: 'FILLED' as const, filledAt: systemTimeMs, filledPrice: records.find(record => record.id.endsWith(order.id))?.price } : order)); setCash(Math.max(0, cashCursor)); setHoldings(holdingsCursor); setTradeHistory(previous => capTradeHistory([...previous, ...records])); records.forEach(record => pushIncomeEvent({ source: `${record.side} ${record.symbol} limit fill`, amount: record.side === 'SELL' ? Math.max(0, record.realizedPnl) : record.notional, category: 'other' })); setTimeout(() => { tradeLock.current = false; }, 180); }, [loaded, assets, limitOrders, systemTimeMs, cash, holdings, pushIncomeEvent]);
-  useEffect(() => { if (!loaded) return; setPortfolioHistory(points => appendPortfolioPoint(points, systemTimeMs, cash + portfolioValue(assets, holdings))); }, [loaded, systemTimeMs, assets, holdings, cash]);
-  useEffect(() => { if (!loaded) return; const dividend = processQuarterlyDividends(assets, holdings, lastDividendQuarter.current, systemTimeMs); if (lastDividendQuarter.current === dividend.quarter) return; lastDividendQuarter.current = dividend.quarter; if (dividend.payout > 0) { setCash(value => Math.min(Number.MAX_SAFE_INTEGER, value + dividend.payout)); setTradeHistory(previous => capTradeHistory([...previous, ...dividend.records])); pushIncomeEvent({ source: "Stocks · quarterly dividend", amount: dividend.payout, category: "stocks" }); setHeadline(`Quarterly dividends paid: ${money(dividend.payout)} credited to your portfolio.`); } }, [loaded, systemTimeMs, assets, holdings]);
-  useEffect(() => { if (!loaded) return; void syncFounderReminder(notificationsEnabled).catch(() => undefined); }, [loaded, notificationsEnabled]); useEffect(() => { if (!loaded) return; void syncBankNotifications(notificationsEnabled, bankState, systemTimeMs).catch(() => undefined); }, [loaded, notificationsEnabled, bankState, systemTimeMs]);
-  useEffect(() => { if (!loaded) return; const saveNow = () => { const snapshot = { ...latestState.current, schemaVersion: GAME_SAVE_VERSION, saved: Date.now() }; void AsyncStorage.setItem(SAVE, JSON.stringify(snapshot)).then(() => setLastSaved(Date.now())).catch(() => undefined); }; saveNow(); const timer = setInterval(saveNow, 5000); return () => clearInterval(timer); }, [loaded]);
-  const watchBoost = useCallback(() => { if (!businesses.some(item => item.isAcquired)) { Alert.alert("BOOST LOCKED", "Launch your first business before using a growth boost."); return; } void showTestRewardedAd(() => { setMultiplier(2); Alert.alert('BOOST ACTIVE', 'Passive cashflow is doubled for 30 real-time minutes.'); if (boostTimerRef.current) clearTimeout(boostTimerRef.current); boostTimerRef.current = setTimeout(() => setMultiplier(1), 30 * 60 * 1000); }).then(success => { if (!success) Alert.alert('AD UNAVAILABLE', 'The test reward ad could not load. No boost was applied.'); }); }, [businesses]);
-  const watchTapBoost = useCallback(() => { if (!businesses.some(item => item.isAcquired)) { Alert.alert("TAP BOOST LOCKED", "Launch your first business before using a tap boost."); return; } void showTestRewardedAd(() => { setTapBoostUntil(startTapBoost(systemTimeMs)); Alert.alert("TAP OVERDRIVE ACTIVE", `Tap value is doubled for ${TAP_BOOST_DURATION_MINUTES} real-time minutes.`); }).then(success => { if (!success) Alert.alert("AD UNAVAILABLE", "The test reward ad could not load. No tap boost was applied."); }); }, [businesses, systemTimeMs]);
-  const haptic = (success = false) => { if (!hapticsEnabled) return Promise.resolve(); return success ? Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success) : Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); };
-  const earn = (amount = clickValue) => { const award = amount * (1 + progression.prestigeLevel * 0.05) * liveTapBoostMultiplier; haptic(); setCash(n => Math.min(Number.MAX_SAFE_INTEGER, n + award)); pushIncomeEvent({ source: "Tap actions", amount: award, category: "tap" }); setProgression(current => ({ ...current, tapCashToday: current.tapCashToday + award, tapsToday: current.tapsToday + 1, totalTaps: current.totalTaps + 1 })); };
-  const nextTapUpgradeGain = tapUpgradeGain(tapUpgradeLevel, clickValue); const clickUpgradeCost = tapUpgradeCost(tapUpgradeLevel); const upgradeClick = () => { if (clickValue >= TAP_VALUE_CAP) return; if (cash < clickUpgradeCost) return Alert.alert("Upgrade locked", `Need ${money(clickUpgradeCost)} liquid cash.`); haptic(true); setCash(n => n - clickUpgradeCost); setClickValue(n => Math.min(TAP_VALUE_CAP, Number((n + nextTapUpgradeGain).toFixed(2)))); setTapUpgradeLevel(n => n + 1); setProgression(current => ({ ...current, totalUpgrades: current.totalUpgrades + 1 })); };
-  const prestige = () => { if (netWorth < 1000000) return Alert.alert("PRESTIGE LOCKED", `Need ${money(1000000 - netWorth)} more net worth.`, [{ text: "OK" }]); Alert.alert("REBIRTH EMPIRE", `Reset this run at ${money(netWorth)} net worth?\n\nReward preview:\n• Prestige level +1\n• +5% tap income on the next run\n• New milestone track unlocked`, [{ text: "CANCEL", style: "cancel" }, { text: "CONFIRM REBIRTH", style: "destructive", onPress: () => { resetBusinesses(); setCash(STARTING_CASH); setOwned([]); setClickValue(1); setTapUpgradeLevel(0); setRetail({ owned: false, inventoryUnits: 0, staffHired: false, lastAccountingAt: Date.now() }); setLastSettlementAtMs(Date.now()); setProgression(current => ({ ...current, tapsToday: 0, missionClaimed: false, prestigeLevel: current.prestigeLevel + 1, achievements: current.achievements.includes("prestige") ? current.achievements : [...current.achievements, "prestige"] })); Alert.alert("EMPIRE REBORN", "Prestige level increased. Your next run earns +5% per prestige level on taps."); } }]); };
-  useEffect(() => { setProgression(current => { const achievements = [...current.achievements]; if (current.totalTaps >= 100 && !achievements.includes("first-100-taps")) achievements.push("first-100-taps"); if (current.totalUpgrades >= 5 && !achievements.includes("upgrade-architect")) achievements.push("upgrade-architect"); return { ...current, achievements, weeklyEventKey }; }); }, [weeklyEventKey]);
-  const claimMission = () => { if (missionClaimLock.current || progression.missionClaimed || progression.tapsToday < progression.dailyTapGoal) return; missionClaimLock.current = true; haptic(true); setCash(value => Math.min(Number.MAX_SAFE_INTEGER, value + 1000)); pushIncomeEvent({ source: "Founder mission", amount: 1000, category: "mission" }); setProgression(current => ({ ...current, missionClaimed: true })); Alert.alert("MISSION COMPLETE", "Founder mission reward deposited: $1,000."); };
-  const completeIPO = (listing: IPOListing) => { if (ipoListing?.companyId === listing.companyId && ipoListing.stage === "public") return; const safeListing = capIPOProceeds(listing, netWorth); haptic(true); setIpoListing(safeListing); setIpoCelebration(safeListing); setProgression(current => ({ ...current, achievements: current.achievements.includes("first-ipo") ? current.achievements : [...current.achievements, "first-ipo"] })); setAssets(list => [...list.filter(asset => !asset.isPlayerCompany), listingToAsset(safeListing) as Asset]); setCash(value => Math.min(Number.MAX_SAFE_INTEGER, value + safeListing.capitalRaised)); pushIncomeEvent({ source: `${safeListing.companyName} IPO`, amount: safeListing.capitalRaised, category: "ipo" }); Alert.alert("OPENING BELL", `${safeListing.ticker} is now public. ${money(safeListing.capitalRaised)} growth capital has been raised. Founder ownership: 80%. Public Company Founder rank unlocked.`); };
-  const placeLimitOrder = (asset: Asset, side: 'BUY' | 'SELL', quantity: number, limitPrice: number) => { if (tradeLock.current) return; const safeQuantity = asset.kind === 'CRYPTO' ? Number(quantity.toFixed(8)) : Math.floor(quantity); const safePrice = Number(limitPrice.toFixed(8)); const current = holdings[asset.id] || { shares: 0, avgPrice: asset.price, realized: 0, realizedPnl: 0 }; const reservedSell = limitOrders.filter(order => order.assetId === asset.id && order.side === 'SELL' && order.status === 'OPEN').reduce((sum, order) => sum + order.quantity, 0); if (!Number.isFinite(safeQuantity) || safeQuantity <= 0 || safePrice <= 0) return Alert.alert('ORDER REJECTED', 'Enter a positive quantity and limit price.'); if (side === 'SELL' && current.shares - reservedSell < safeQuantity) return Alert.alert('ORDER REJECTED', `Only ${(current.shares - reservedSell).toFixed(asset.kind === 'CRYPTO' ? 6 : 0)} units are available after open sell orders.`); if (side === 'BUY' && cash < safeQuantity * safePrice) return Alert.alert('ORDER REJECTED', 'This limit order must be fully cash-covered.'); const order: LimitOrder = { id: `limit-${Date.now()}-${asset.id}`, assetId: asset.id, side, quantity: safeQuantity, limitPrice: safePrice, createdAt: systemTimeMs, status: 'OPEN' }; setLimitOrders(previous => [...previous, order]); Alert.alert('LIMIT ORDER PLACED', `${side} ${safeQuantity} ${asset.symbol} at ${money(safePrice)}. It fills only when your price condition is met.`); };
-  const cancelLimitOrder = (orderId: string) => { setLimitOrders(previous => previous.map(order => order.id === orderId && order.status === 'OPEN' ? { ...order, status: 'CANCELLED' as const } : order)); };
-  const toggleWatchlist = useCallback((assetId: string) => { setWatchlist(current => current.includes(assetId) ? current.filter(id => id !== assetId) : [...current, assetId]); }, []);
-  const handleBankStateChange = (next: typeof bankState) => { setBankState(next); setLedger(previous => { const bankIds = new Set(next.ledger.map(item => item.id)); return [...previous.filter(item => !bankIds.has(item.id)), ...next.ledger].slice(-500); }); };
-  const trade = (asset: Asset, side: 'BUY' | 'SELL', quantity: number) => { const normalizedQuantity = Number(quantity.toFixed(8)); if (tradeLock.current || isDuplicateTrade(lastTradeRef.current, asset.id, side, normalizedQuantity, systemTimeMs)) return; tradeLock.current = true; const result = applyTrade(asset, side, quantity, cash, holdings[asset.id]); if (!result) { tradeLock.current = false; return Alert.alert('ORDER REJECTED', previewTrade(asset, side, quantity, cash, holdings[asset.id]).reason || 'Check cash and position size.'); } const timestamp = systemTimeMs; lastTradeRef.current = { assetId: asset.id, side, quantity: normalizedQuantity, at: timestamp }; const record: TradeRecord = { id: `trade-${timestamp}-${asset.id}`, assetId: asset.id, symbol: asset.symbol, name: asset.name, side, quantity: Number(quantity.toFixed(8)), price: result.price, notional: result.total, realizedPnl: result.realizedPnl, timestamp, source: 'MARKET', transactionType: side }; haptic(side === 'BUY'); setCash(result.cash); setHoldings(previous => ({ ...previous, [asset.id]: result.holding })); setTradeHistory(previous => capTradeHistory([...previous, record])); setLedger(previous => [...previous, { id: `ledger-trade-${record.id}`, kind: (result.realizedPnl !== 0 ? "CAPITAL_GAIN" : "TRADE") as BankLedgerEntry["kind"], label: `${side} ${asset.name}`, amount: side === "BUY" ? -result.total : result.realizedPnl, timestamp, detail: `${record.quantity} units at ${money(result.price)}` }].slice(-500)); if (side === "SELL" && result.realizedPnl > 0) setBankState(previous => ({ ...previous, taxRecords: [...previous.taxRecords, { id: `gain-${record.id}`, year: new Date(timestamp).getFullYear(), income: result.realizedPnl, deductions: 0, federal: 0, state: 0, payroll: 0, capitalGains: result.realizedPnl, paid: 0, dueAt: timestamp + 90 * 24 * 3600000, status: "ESTIMATE" as const }].slice(-100) })); setAssets(previous => previous.map(item => item.id === asset.id ? { ...item, price: result.price, change: item.price > 0 ? (result.price - item.price) / item.price * 100 : 0, history: [...item.history.slice(-14), result.price] } : item)); pushIncomeEvent({ source: `${side} ${asset.symbol}`, amount: result.realizedPnl > 0 ? result.realizedPnl : result.total, category: 'other' }); setHeadline(`${side} ${asset.symbol} confirmed · ${normalizedQuantity} units at ${money(result.price)}.`); setTimeout(() => { tradeLock.current = false; }, 180); };
-  if (!loaded) return <SafeAreaView style={styles.safe}><View style={styles.loading}><Text style={styles.brand}>EMPIRE RUSH</Text><Text style={styles.muted}>SECURE LEDGER LOADING…</Text></View></SafeAreaView>;
-  return <SafeAreaView edges={["top", "bottom", "left", "right"]} style={styles.safe}><StatusBar style="light" /><View style={styles.app}><View style={styles.header}><View><Text style={styles.brand}>EMPIRE RUSH</Text><Text style={styles.simClock}>{formatSystemDateTime(systemTimeMs)}</Text><Text style={styles.micro}>REAL-TIME TYCOON · LIVE</Text></View><View style={{ alignItems: "flex-end" }}><Text style={styles.headerCash}>{money(cash)}</Text><Pressable onPress={() => setEarningsModal(true)}><Animated.View style={[styles.epsBadge, { opacity: incomeFlash.interpolate({ inputRange: [0, 1], outputRange: [.78, 1] }), transform: [{ scale: incomeFlash.interpolate({ inputRange: [0, 1], outputRange: [1, 1.035] }) }] }]}><Text style={styles.epsText}>+{money(projectedHourlyIncome)} / hr projected</Text></Animated.View></Pressable><Text style={styles.settlementHint}>NEXT SETTLEMENT · {nextSettlementCountdown}</Text><View style={styles.headerActions}><Text style={styles.muted}>{isOnline && !clockTampered ? "ONLINE · LIVE TICKS" : "OFFLINE · LOCAL TICKS"}</Text><Pressable onPress={() => setSettingsOpen(true)} accessibilityLabel="Open settings"><Text style={styles.settingsGlyph}>⚙</Text></Pressable></View></View></View><View style={styles.news}><Text style={styles.newsTag}>BREAKING</Text><Text style={styles.newsText}>{headline}</Text></View>{incomeEvents.map(event => <View key={event.id} style={styles.incomeToast}><Text style={styles.incomeToastSource}>{event.source}</Text><Text style={styles.incomeToastAmount}>+{money(event.amount)}</Text></View>)}<View style={styles.screenBody}>{tab === "business" ? <RetailBusinessScreen state={retail} cash={cash} netWorth={netWorth} timestamp={systemTimeMs} ipoListing={ipoListing} onIPOComplete={completeIPO} focusRetail={focusRetail} onRetailFocusHandled={() => setFocusRetail(false)} onStateChange={setRetail} onCashChange={setCash} onLedger={entry => setLedger(previous => [...previous, entry].slice(-500))} /> : (tab === "empire" ? <HomeScreen cash={cash} netWorth={netWorth} projectedHourlyIncome={projectedHourlyIncome} settlementCountdown={nextSettlementCountdown} clickValue={clickValue} tapUpgradeLevel={tapUpgradeLevel} clickUpgradeCost={clickUpgradeCost} tapUpgradeGain={nextTapUpgradeGain} loginStreak={progression.loginStreak} tapsToday={progression.tapsToday} tapCashToday={progression.tapCashToday} tapBoostMultiplier={liveTapBoostMultiplier} tapBoostActive={liveTapBoostMultiplier > 1} dailyTapGoal={progression.dailyTapGoal} missionClaimed={progression.missionClaimed} rank={rank} nextGoal={nextGoal} prestigeLevel={progression.prestigeLevel} achievements={progression.achievements.length} weeklyEvent={weeklyEvent} onPrestige={prestige} prestigeLocked={netWorth < 1000000} prestigeShortfall={Math.max(0, 1000000 - netWorth)} hapticsEnabled={hapticsEnabled} soundEnabled={soundEnabled} onWatchBoost={watchBoost} onWatchTapBoost={watchTapBoost} onEarn={earn} onUpgrade={upgradeClick} onClaimMission={claimMission} onOpenBusiness={() => setTab("business")} onOpenNextGoal={() => { setFocusRetail(true); setTab("business"); }} onOpenStore={() => setStoreOpen(true)} onOpenEarnings={() => setEarningsModal(true)} /> : <View style={{ flex: 1 }}>{tab === "markets" && <ResponsiveMarketScreen playerNetWorth={netWorth} cash={cash} assets={assets} holdings={holdings} watchlist={watchlist} toggleWatchlist={toggleWatchlist} filter={filter} setFilter={setFilter} executeTrade={trade} summary={marketSummary} tradeHistory={tradeHistory} limitOrders={limitOrders} portfolioHistory={portfolioHistory} rivalInvestors={rivalInvestors} allocation={marketAllocation} systemTimeMs={systemTimeMs} marketEventHistory={marketEventHistory} priceAlerts={priceAlerts} onCreatePriceAlert={(alert) => setPriceAlerts(previous => [...previous, alert])} onRemovePriceAlert={(id) => setPriceAlerts(previous => previous.filter(alert => alert.id !== id))} onCreateLimitOrder={placeLimitOrder} onCancelLimitOrder={cancelLimitOrder} />}{tab === "lifestyle" && <LifestyleScreen owned={owned} cash={cash} setCash={setCash} setOwned={setOwned} onLedger={entry => setLedger(previous => [...previous, entry].slice(-500))} />}{tab === "bank" && <BankScreen cash={cash} netWorth={netWorth} hourlyIncome={projectedHourlyIncome} financialState={financialState} ledger={ledger} state={bankState} businesses={businesses} collateralAssets={owned.map(id => { const item = lifestyleAssets.find(asset => asset.id === id); return item ? { id: item.id, name: item.name, value: item.price } : null; }).filter(Boolean) as { id: string; name: string; value: number }[]} onStateChange={handleBankStateChange} onCashChange={setCash} onBreaking={setHeadline} onHaptic={haptic} />}</View>)} </View><Nav tab={tab} setTab={setTab} /><EarningsBreakdownModal visible={earningsModal} onClose={() => setEarningsModal(false)} sources={earningsSources} activity={{ taps: progression.totalTaps, cashEarned: progression.tapCashToday, currentReward: clickValue * liveTapBoostMultiplier }} /><StoreModal visible={storeOpen} close={() => setStoreOpen(false)} adFree={adFree} setAdFree={setAdFree} setCash={setCash} setMultiplier={setMultiplier} /><SettingsModal visible={settingsOpen} close={() => setSettingsOpen(false)} hapticsEnabled={hapticsEnabled} soundEnabled={soundEnabled} notificationsEnabled={notificationsEnabled} setHapticsEnabled={setHapticsEnabled} setSoundEnabled={setSoundEnabled} setNotificationsEnabled={setNotificationsEnabled} buildVersion={BUILD_VERSION} buildCommit={BUILD_COMMIT} /><IPOAnnouncementModal visible={Boolean(ipoCelebration)} listing={ipoCelebration} onClose={() => setIpoCelebration(null)} /></View></SafeAreaView>;
+  useEffect(() => {
+    if (!loaded) return;
+    setProgression((current) => hydrateDailyProgress(current, systemTimeMs));
+  }, [loaded, realDayKey, systemTimeMs]);
+  useEffect(() => {
+    if (!loaded) return;
+    setProgression((current) =>
+      current.weeklyEventKey === weeklyEventKey
+        ? current
+        : { ...current, weeklyEventKey },
+    );
+  }, [loaded, weeklyEventKey]);
+  useEffect(() => {
+    AsyncStorage.getItem(SAVE)
+      .then((raw) => {
+        try {
+          const saved = migrateGameSave(raw ? JSON.parse(raw) : null);
+          const validCash =
+            saved && Number.isFinite(saved.cash)
+              ? Math.max(0, saved.cash)
+              : STARTING_CASH;
+          const savedAt =
+            saved && Number.isFinite(saved.settlementAt)
+              ? saved.settlementAt
+              : saved && Number.isFinite(saved.saved)
+                ? saved.saved
+                : Date.now();
+          setLastSettlementAtMs(savedAt);
+          if (saved?.bankState)
+            setBankState(sanitizeBankState(saved.bankState, savedAt));
+          if (Array.isArray(saved?.assets) && saved.assets.length) {
+            const savedAssets = saved.assets.map((asset: Asset) =>
+              normalizeMarketAsset(asset),
+            );
+            const savedIds = new Set(savedAssets.map((asset) => asset.id));
+            const missingCatalog = [
+              ...seedAssets(stockSeed, "STOCK"),
+              ...seedAssets(cryptoSeed, "CRYPTO"),
+            ].filter((asset) => !savedIds.has(asset.id));
+            setAssets(
+              normalizeAssetHistories([...savedAssets, ...missingCatalog]),
+            );
+          }
+          if (saved?.holdings && typeof saved.holdings === "object")
+            setHoldings(
+              normalizeHoldings(
+                saved.holdings,
+                Array.isArray(saved?.assets) && saved.assets.length
+                  ? saved.assets
+                  : [
+                      ...seedAssets(stockSeed, "STOCK"),
+                      ...seedAssets(cryptoSeed, "CRYPTO"),
+                    ],
+              ),
+            );
+          if (Array.isArray(saved?.tradeHistory))
+            setTradeHistory(saved.tradeHistory);
+          if (Array.isArray(saved?.watchlist)) setWatchlist(saved.watchlist);
+          if (Array.isArray(saved?.limitOrders))
+            setLimitOrders(saved.limitOrders);
+          if (Array.isArray(saved?.portfolioHistory))
+            setPortfolioHistory(saved.portfolioHistory);
+          if (Array.isArray(saved?.priceAlerts))
+            setPriceAlerts(saved.priceAlerts);
+          if (Array.isArray(saved?.marketEventHistory))
+            setMarketEventHistory(saved.marketEventHistory);
+          if (Array.isArray(saved?.ledger)) setLedger(saved.ledger);
+          else if (Array.isArray(saved?.bankState?.ledger))
+            setLedger(saved.bankState.ledger);
+          if (typeof saved?.lastDividendQuarter === "string")
+            lastDividendQuarter.current = saved.lastDividendQuarter;
+          if (Array.isArray(saved?.owned)) setOwned(saved.owned);
+          setClickValue(
+            Math.min(
+              TAP_VALUE_CAP,
+              Math.max(1, Number(saved?.clickValue) || 1),
+            ),
+          );
+          setTapUpgradeLevel(
+            Math.max(
+              0,
+              Number(saved?.tapUpgradeLevel ?? saved?.clickLevel) || 0,
+            ),
+          );
+          setRetail(
+            saved?.retail || {
+              owned: false,
+              inventoryUnits: 0,
+              staffHired: false,
+              lastAccountingAt: Date.now(),
+            },
+          );
+          setIpoListing(saved?.ipoListing || null);
+          setProgression(hydrateDailyProgress(saved?.progression));
+          setAdFree(Boolean(saved?.adFree));
+          setHapticsEnabled(saved?.hapticsEnabled !== false);
+          setSoundEnabled(saved?.soundEnabled !== false);
+          setNotificationsEnabled(saved?.notificationsEnabled !== false);
+          setMultiplier(
+            saved?.multiplier === 1.5
+              ? 1.5
+              : saved?.multiplier === 1.25
+                ? 1.25
+                : 1,
+          );
+          setLastSaved(Date.now());
+        } catch {
+          setCash(STARTING_CASH);
+          setAssets(
+            normalizeAssetHistories([
+              ...seedAssets(stockSeed, "STOCK"),
+              ...seedAssets(cryptoSeed, "CRYPTO"),
+            ]),
+          );
+          setHoldings({});
+          setOwned([]);
+          setIpoListing(null);
+          setBankState(defaultBankState());
+        } finally {
+          setLoaded(true);
+        }
+      })
+      .catch(() => setLoaded(true));
+  }, []);
+  useEffect(() => {
+    if (!ipoListing) return;
+    const safeListing = capIPOProceeds(ipoListing, netWorth);
+    if (
+      safeListing.valuationAtIPO !== ipoListing.valuationAtIPO ||
+      safeListing.capitalRaised !== ipoListing.capitalRaised ||
+      safeListing.currentPrice !== ipoListing.currentPrice
+    ) {
+      setIpoListing(safeListing);
+      return;
+    }
+    setAssets((list) =>
+      list.some((asset) => asset.id === `ipo-${safeListing.companyId}`)
+        ? list
+        : [...list, listingToAsset(safeListing) as Asset],
+    );
+  }, [ipoListing, netWorth]);
+  useEffect(() => {
+    latestState.current = {
+      schemaVersion: GAME_SAVE_VERSION,
+      timeModel: "system-clock-v1",
+      settlementAt: lastSettlementAtMs,
+      cash,
+      assets,
+      holdings,
+      tradeHistory,
+      watchlist,
+      limitOrders,
+      portfolioHistory,
+      priceAlerts,
+      marketEventHistory,
+      lastDividendQuarter: lastDividendQuarter.current,
+      bankState,
+      ledger,
+      owned,
+      clickValue,
+      tapUpgradeLevel,
+      clickLevel: tapUpgradeLevel,
+      retail,
+      ipoListing,
+      progression,
+      adFree,
+      multiplier,
+      hapticsEnabled,
+      soundEnabled,
+      notificationsEnabled,
+      profit,
+    };
+  }, [
+    cash,
+    assets,
+    holdings,
+    watchlist,
+    limitOrders,
+    portfolioHistory,
+    priceAlerts,
+    marketEventHistory,
+    owned,
+    ledger,
+    clickValue,
+    tapUpgradeLevel,
+    retail,
+    ipoListing,
+    progression,
+    adFree,
+    multiplier,
+    hapticsEnabled,
+    soundEnabled,
+    notificationsEnabled,
+    bankState,
+    profit,
+  ]);
+  useEffect(() => {
+    if (!loaded) return;
+    const timer = setInterval(() => {
+      if (clockTampered) return;
+      setAssets((list) => {
+        const tick = marketTick.current++;
+        const result = advanceMarketTick(list, tick);
+        const scheduled = scheduledEventForTick(tick);
+        if (scheduled) {
+          const bankEvent = bankEventFromScheduled(scheduled, systemTimeMs);
+          setHeadline(scheduled.headline);
+          setMarketEventHistory((history) =>
+            [
+              ...history,
+              {
+                id: `${scheduled.id}-${tick}`,
+                headline: scheduled.headline,
+                tick,
+                timestamp: systemTimeMs,
+              },
+            ].slice(-24),
+          );
+          setBankState((previous) => ({
+            ...previous,
+            marketEvents: [...previous.marketEvents, bankEvent].slice(-24),
+          }));
+        }
+        const checked = evaluateAlerts(
+          priceAlerts,
+          result.assets as Asset[],
+          systemTimeMs,
+        );
+        if (checked.triggered.length) {
+          setPriceAlerts(checked.alerts);
+          checked.triggered.forEach((item) =>
+            setHeadline(`ALERT · ${item.alert.symbol} ${item.reason}`),
+          );
+        }
+        return result.assets as Asset[];
+      });
+    }, 2000);
+    return () => clearInterval(timer);
+  }, [loaded, clockTampered, priceAlerts, systemTimeMs]);
+  useEffect(() => {
+    if (!loaded || clockTampered) return;
+    const elapsedHours = Math.min(
+      24,
+      Math.floor(Math.max(0, systemTimeMs - lastSettlementAtMs) / 3600000),
+    );
+    if (elapsedHours <= 0) return;
+    let cursor = financialState;
+    let totalDelta = 0;
+    let allEntries: BankLedgerEntry[] = [];
+    for (let hour = 0; hour < elapsedHours; hour += 1) {
+      const result = settleHour(cursor);
+      totalDelta += result.cashDelta;
+      allEntries = [...allEntries, ...result.ledger];
+      cursor = {
+        ...cursor,
+        ...result.state,
+        bank: { ...cursor.bank, ...result.state.bank },
+        cash: Math.max(0, cursor.cash + result.cashDelta),
+        systemTimeMs: cursor.systemTimeMs + 3600000,
+      };
+    }
+    setLastSettlementAtMs((value) => value + elapsedHours * 3600000);
+    setCash((value) =>
+      Math.max(0, Math.min(Number.MAX_SAFE_INTEGER, value + totalDelta)),
+    );
+    setLedger((previous) => [...previous, ...allEntries].slice(-500));
+    setBankState((previous) => ({
+      ...previous,
+      ...cursor.bank,
+      lastSettlementAt: systemTimeMs,
+      totalInterestEarned:
+        previous.totalInterestEarned +
+        allEntries
+          .filter((item) => item.kind === "INTEREST")
+          .reduce((sum, item) => sum + item.amount, 0),
+      totalInterestPaid:
+        previous.totalInterestPaid +
+        Math.abs(
+          allEntries
+            .filter((item) => item.kind === "EMI")
+            .reduce((sum, item) => sum + item.amount, 0),
+        ),
+      ledger: [...previous.ledger, ...allEntries].slice(-500),
+    }));
+    if (totalDelta > 0)
+      pushIncomeEvent({
+        source: "Unified settlement",
+        amount: totalDelta,
+        category: "other",
+      });
+    setHeadline(
+      `${elapsedHours} hourly settlement${elapsedHours === 1 ? "" : "s"} complete · net ${money(totalDelta)}.`,
+    );
+  }, [
+    loaded,
+    clockTampered,
+    systemTimeMs,
+    lastSettlementAtMs,
+    financialState,
+    pushIncomeEvent,
+  ]);
+  useEffect(() => {
+    if (
+      !loaded ||
+      !limitOrders.some((order) => order.status === "OPEN") ||
+      tradeLock.current
+    )
+      return;
+    const matched = matchLimitOrders(assets, limitOrders, systemTimeMs);
+    if (!matched.fills.length) return;
+    tradeLock.current = true;
+    let cashCursor = cash;
+    let holdingsCursor = { ...holdings };
+    const settled: LimitOrder[] = [];
+    const records: TradeRecord[] = [];
+    for (const order of matched.fills) {
+      const asset = assets.find((item) => item.id === order.assetId);
+      if (!asset) continue;
+      const result = applyTrade(
+        asset,
+        order.side,
+        order.quantity,
+        cashCursor,
+        holdingsCursor[order.assetId],
+      );
+      if (!result) continue;
+      cashCursor = result.cash;
+      holdingsCursor = { ...holdingsCursor, [order.assetId]: result.holding };
+      settled.push(order);
+      records.push({
+        id: `trade-${systemTimeMs}-${order.id}`,
+        assetId: asset.id,
+        symbol: asset.symbol,
+        name: asset.name,
+        side: order.side,
+        quantity: order.quantity,
+        price: result.price,
+        notional: result.total,
+        realizedPnl: result.realizedPnl,
+        timestamp: systemTimeMs,
+        source: "LIMIT",
+        transactionType: order.side,
+      });
+    }
+    if (!settled.length) {
+      tradeLock.current = false;
+      return;
+    }
+    const settledIds = new Set(settled.map((order) => order.id));
+    setLimitOrders(
+      matched.orders.map((order) =>
+        settledIds.has(order.id)
+          ? {
+              ...order,
+              status: "FILLED" as const,
+              filledAt: systemTimeMs,
+              filledPrice: records.find((record) =>
+                record.id.endsWith(order.id),
+              )?.price,
+            }
+          : order,
+      ),
+    );
+    setCash(Math.max(0, cashCursor));
+    setHoldings(holdingsCursor);
+    setTradeHistory((previous) => capTradeHistory([...previous, ...records]));
+    records.forEach((record) =>
+      pushIncomeEvent({
+        source: `${record.side} ${record.symbol} limit fill`,
+        amount:
+          record.side === "SELL"
+            ? Math.max(0, record.realizedPnl)
+            : record.notional,
+        category: "other",
+      }),
+    );
+    setTimeout(() => {
+      tradeLock.current = false;
+    }, 180);
+  }, [
+    loaded,
+    assets,
+    limitOrders,
+    systemTimeMs,
+    cash,
+    holdings,
+    pushIncomeEvent,
+  ]);
+  useEffect(() => {
+    if (!loaded) return;
+    setPortfolioHistory((points) =>
+      appendPortfolioPoint(
+        points,
+        systemTimeMs,
+        cash + portfolioValue(assets, holdings),
+      ),
+    );
+  }, [loaded, systemTimeMs, assets, holdings, cash]);
+  useEffect(() => {
+    if (!loaded) return;
+    const dividend = processQuarterlyDividends(
+      assets,
+      holdings,
+      lastDividendQuarter.current,
+      systemTimeMs,
+    );
+    if (lastDividendQuarter.current === dividend.quarter) return;
+    lastDividendQuarter.current = dividend.quarter;
+    if (dividend.payout > 0) {
+      setCash((value) =>
+        Math.min(Number.MAX_SAFE_INTEGER, value + dividend.payout),
+      );
+      setTradeHistory((previous) =>
+        capTradeHistory([...previous, ...dividend.records]),
+      );
+      pushIncomeEvent({
+        source: "Stocks · quarterly dividend",
+        amount: dividend.payout,
+        category: "stocks",
+      });
+      setHeadline(
+        `Quarterly dividends paid: ${money(dividend.payout)} credited to your portfolio.`,
+      );
+    }
+  }, [loaded, systemTimeMs, assets, holdings]);
+  useEffect(() => {
+    if (!loaded) return;
+    void syncFounderReminder(notificationsEnabled).catch(() => undefined);
+  }, [loaded, notificationsEnabled]);
+  useEffect(() => {
+    if (!loaded) return;
+    void syncBankNotifications(
+      notificationsEnabled,
+      bankState,
+      systemTimeMs,
+    ).catch(() => undefined);
+  }, [loaded, notificationsEnabled, bankState, systemTimeMs]);
+  useEffect(() => {
+    if (!loaded) return;
+    const saveNow = () => {
+      const snapshot = {
+        ...latestState.current,
+        schemaVersion: GAME_SAVE_VERSION,
+        saved: Date.now(),
+      };
+      void AsyncStorage.setItem(SAVE, JSON.stringify(snapshot))
+        .then(() => setLastSaved(Date.now()))
+        .catch(() => undefined);
+    };
+    saveNow();
+    const timer = setInterval(saveNow, 5000);
+    return () => clearInterval(timer);
+  }, [loaded]);
+  const watchBoost = useCallback(() => {
+    if (!businesses.some((item) => item.isAcquired)) {
+      Alert.alert(
+        "BOOST LOCKED",
+        "Launch your first business before using a growth boost.",
+      );
+      return;
+    }
+    void showTestRewardedAd(() => {
+      setMultiplier(2);
+      Alert.alert(
+        "BOOST ACTIVE",
+        "Passive cashflow is doubled for 30 real-time minutes.",
+      );
+      if (boostTimerRef.current) clearTimeout(boostTimerRef.current);
+      boostTimerRef.current = setTimeout(
+        () => setMultiplier(1),
+        30 * 60 * 1000,
+      );
+    }).then((success) => {
+      if (!success)
+        Alert.alert(
+          "AD UNAVAILABLE",
+          "The test reward ad could not load. No boost was applied.",
+        );
+    });
+  }, [businesses]);
+  const watchTapBoost = useCallback(() => {
+    if (!businesses.some((item) => item.isAcquired)) {
+      Alert.alert(
+        "TAP BOOST LOCKED",
+        "Launch your first business before using a tap boost.",
+      );
+      return;
+    }
+    void showTestRewardedAd(() => {
+      setTapBoostUntil(startTapBoost(systemTimeMs));
+      Alert.alert(
+        "TAP OVERDRIVE ACTIVE",
+        `Tap value is doubled for ${TAP_BOOST_DURATION_MINUTES} real-time minutes.`,
+      );
+    }).then((success) => {
+      if (!success)
+        Alert.alert(
+          "AD UNAVAILABLE",
+          "The test reward ad could not load. No tap boost was applied.",
+        );
+    });
+  }, [businesses, systemTimeMs]);
+  const haptic = (success = false) => {
+    if (!hapticsEnabled) return Promise.resolve();
+    return success
+      ? Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+      : Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+  const earn = (amount = clickValue) => {
+    const award =
+      amount * (1 + progression.prestigeLevel * 0.05) * liveTapBoostMultiplier;
+    haptic();
+    setCash((n) => Math.min(Number.MAX_SAFE_INTEGER, n + award));
+    pushIncomeEvent({ source: "Tap actions", amount: award, category: "tap" });
+    setProgression((current) => ({
+      ...current,
+      tapCashToday: current.tapCashToday + award,
+      tapsToday: current.tapsToday + 1,
+      totalTaps: current.totalTaps + 1,
+    }));
+  };
+  const nextTapUpgradeGain = tapUpgradeGain(tapUpgradeLevel, clickValue);
+  const clickUpgradeCost = tapUpgradeCost(tapUpgradeLevel);
+  const upgradeClick = () => {
+    if (clickValue >= TAP_VALUE_CAP) return;
+    if (cash < clickUpgradeCost)
+      return Alert.alert(
+        "Upgrade locked",
+        `Need ${money(clickUpgradeCost)} liquid cash.`,
+      );
+    haptic(true);
+    setCash((n) => n - clickUpgradeCost);
+    setClickValue((n) =>
+      Math.min(TAP_VALUE_CAP, Number((n + nextTapUpgradeGain).toFixed(2))),
+    );
+    setTapUpgradeLevel((n) => n + 1);
+    setProgression((current) => ({
+      ...current,
+      totalUpgrades: current.totalUpgrades + 1,
+    }));
+  };
+  const prestige = () => {
+    if (netWorth < 1000000)
+      return Alert.alert(
+        "PRESTIGE LOCKED",
+        `Need ${money(1000000 - netWorth)} more net worth.`,
+        [{ text: "OK" }],
+      );
+    Alert.alert(
+      "REBIRTH EMPIRE",
+      `Reset this run at ${money(netWorth)} net worth?\n\nReward preview:\n• Prestige level +1\n• +5% tap income on the next run\n• New milestone track unlocked`,
+      [
+        { text: "CANCEL", style: "cancel" },
+        {
+          text: "CONFIRM REBIRTH",
+          style: "destructive",
+          onPress: () => {
+            resetBusinesses();
+            setCash(STARTING_CASH);
+            setOwned([]);
+            setClickValue(1);
+            setTapUpgradeLevel(0);
+            setRetail({
+              owned: false,
+              inventoryUnits: 0,
+              staffHired: false,
+              lastAccountingAt: Date.now(),
+            });
+            setLastSettlementAtMs(Date.now());
+            setProgression((current) => ({
+              ...current,
+              tapsToday: 0,
+              missionClaimed: false,
+              prestigeLevel: current.prestigeLevel + 1,
+              achievements: current.achievements.includes("prestige")
+                ? current.achievements
+                : [...current.achievements, "prestige"],
+            }));
+            Alert.alert(
+              "EMPIRE REBORN",
+              "Prestige level increased. Your next run earns +5% per prestige level on taps.",
+            );
+          },
+        },
+      ],
+    );
+  };
+  useEffect(() => {
+    setProgression((current) => {
+      const achievements = [...current.achievements];
+      if (current.totalTaps >= 100 && !achievements.includes("first-100-taps"))
+        achievements.push("first-100-taps");
+      if (
+        current.totalUpgrades >= 5 &&
+        !achievements.includes("upgrade-architect")
+      )
+        achievements.push("upgrade-architect");
+      return { ...current, achievements, weeklyEventKey };
+    });
+  }, [weeklyEventKey]);
+  const claimMission = () => {
+    if (
+      missionClaimLock.current ||
+      progression.missionClaimed ||
+      progression.tapsToday < progression.dailyTapGoal
+    )
+      return;
+    missionClaimLock.current = true;
+    haptic(true);
+    setCash((value) => Math.min(Number.MAX_SAFE_INTEGER, value + 1000));
+    pushIncomeEvent({
+      source: "Founder mission",
+      amount: 1000,
+      category: "mission",
+    });
+    setProgression((current) => ({ ...current, missionClaimed: true }));
+    Alert.alert(
+      "MISSION COMPLETE",
+      "Founder mission reward deposited: $1,000.",
+    );
+  };
+  const completeIPO = (listing: IPOListing) => {
+    if (
+      ipoListing?.companyId === listing.companyId &&
+      ipoListing.stage === "public"
+    )
+      return;
+    const safeListing = capIPOProceeds(listing, netWorth);
+    haptic(true);
+    setIpoListing(safeListing);
+    setIpoCelebration(safeListing);
+    setProgression((current) => ({
+      ...current,
+      achievements: current.achievements.includes("first-ipo")
+        ? current.achievements
+        : [...current.achievements, "first-ipo"],
+    }));
+    setAssets((list) => [
+      ...list.filter((asset) => !asset.isPlayerCompany),
+      listingToAsset(safeListing) as Asset,
+    ]);
+    setCash((value) =>
+      Math.min(Number.MAX_SAFE_INTEGER, value + safeListing.capitalRaised),
+    );
+    pushIncomeEvent({
+      source: `${safeListing.companyName} IPO`,
+      amount: safeListing.capitalRaised,
+      category: "ipo",
+    });
+    Alert.alert(
+      "OPENING BELL",
+      `${safeListing.ticker} is now public. ${money(safeListing.capitalRaised)} growth capital has been raised. Founder ownership: 80%. Public Company Founder rank unlocked.`,
+    );
+  };
+  const placeLimitOrder = (
+    asset: Asset,
+    side: "BUY" | "SELL",
+    quantity: number,
+    limitPrice: number,
+  ) => {
+    if (tradeLock.current) return;
+    const safeQuantity =
+      asset.kind === "CRYPTO"
+        ? Number(quantity.toFixed(8))
+        : Math.floor(quantity);
+    const safePrice = Number(limitPrice.toFixed(8));
+    const current = holdings[asset.id] || {
+      shares: 0,
+      avgPrice: asset.price,
+      realized: 0,
+      realizedPnl: 0,
+    };
+    const reservedSell = limitOrders
+      .filter(
+        (order) =>
+          order.assetId === asset.id &&
+          order.side === "SELL" &&
+          order.status === "OPEN",
+      )
+      .reduce((sum, order) => sum + order.quantity, 0);
+    if (!Number.isFinite(safeQuantity) || safeQuantity <= 0 || safePrice <= 0)
+      return Alert.alert(
+        "ORDER REJECTED",
+        "Enter a positive quantity and limit price.",
+      );
+    if (side === "SELL" && current.shares - reservedSell < safeQuantity)
+      return Alert.alert(
+        "ORDER REJECTED",
+        `Only ${(current.shares - reservedSell).toFixed(asset.kind === "CRYPTO" ? 6 : 0)} units are available after open sell orders.`,
+      );
+    if (side === "BUY" && cash < safeQuantity * safePrice)
+      return Alert.alert(
+        "ORDER REJECTED",
+        "This limit order must be fully cash-covered.",
+      );
+    const order: LimitOrder = {
+      id: `limit-${Date.now()}-${asset.id}`,
+      assetId: asset.id,
+      side,
+      quantity: safeQuantity,
+      limitPrice: safePrice,
+      createdAt: systemTimeMs,
+      status: "OPEN",
+    };
+    setLimitOrders((previous) => [...previous, order]);
+    Alert.alert(
+      "LIMIT ORDER PLACED",
+      `${side} ${safeQuantity} ${asset.symbol} at ${money(safePrice)}. It fills only when your price condition is met.`,
+    );
+  };
+  const cancelLimitOrder = (orderId: string) => {
+    setLimitOrders((previous) =>
+      previous.map((order) =>
+        order.id === orderId && order.status === "OPEN"
+          ? { ...order, status: "CANCELLED" as const }
+          : order,
+      ),
+    );
+  };
+  const toggleWatchlist = useCallback((assetId: string) => {
+    setWatchlist((current) =>
+      current.includes(assetId)
+        ? current.filter((id) => id !== assetId)
+        : [...current, assetId],
+    );
+  }, []);
+  const handleBankStateChange = (next: typeof bankState) => {
+    setBankState(next);
+    setLedger((previous) => {
+      const bankIds = new Set(next.ledger.map((item) => item.id));
+      return [
+        ...previous.filter((item) => !bankIds.has(item.id)),
+        ...next.ledger,
+      ].slice(-500);
+    });
+  };
+  const trade = (asset: Asset, side: "BUY" | "SELL", quantity: number) => {
+    const normalizedQuantity = Number(quantity.toFixed(8));
+    if (
+      tradeLock.current ||
+      isDuplicateTrade(
+        lastTradeRef.current,
+        asset.id,
+        side,
+        normalizedQuantity,
+        systemTimeMs,
+      )
+    )
+      return;
+    tradeLock.current = true;
+    const result = applyTrade(asset, side, quantity, cash, holdings[asset.id]);
+    if (!result) {
+      tradeLock.current = false;
+      return Alert.alert(
+        "ORDER REJECTED",
+        previewTrade(asset, side, quantity, cash, holdings[asset.id]).reason ||
+          "Check cash and position size.",
+      );
+    }
+    const timestamp = systemTimeMs;
+    lastTradeRef.current = {
+      assetId: asset.id,
+      side,
+      quantity: normalizedQuantity,
+      at: timestamp,
+    };
+    const record: TradeRecord = {
+      id: `trade-${timestamp}-${asset.id}`,
+      assetId: asset.id,
+      symbol: asset.symbol,
+      name: asset.name,
+      side,
+      quantity: Number(quantity.toFixed(8)),
+      price: result.price,
+      notional: result.total,
+      realizedPnl: result.realizedPnl,
+      timestamp,
+      source: "MARKET",
+      transactionType: side,
+    };
+    haptic(side === "BUY");
+    setCash(result.cash);
+    setHoldings((previous) => ({
+      ...previous,
+      [asset.id]:
+        side === "BUY"
+          ? {
+              ...result.holding,
+              acquiredAtMs: previous[asset.id]?.acquiredAtMs || timestamp,
+            }
+          : result.holding,
+    }));
+    setTradeHistory((previous) => capTradeHistory([...previous, record]));
+    postLedger({
+      id: `ledger-trade-${record.id}`,
+      kind: (side === "BUY"
+        ? "TRADE"
+        : "CAPITAL_GAIN") as BankLedgerEntry["kind"],
+      label: `${side} ${asset.name}`,
+      amount: side === "BUY" ? -result.total : result.realizedPnl,
+      timestamp,
+      detail: `${record.quantity} units at ${money(result.price)}`,
+    });
+    if (side === "SELL")
+      setBankState((previous) => ({
+        ...previous,
+        taxRecords: [
+          ...previous.taxRecords,
+          {
+            id: `gain-${record.id}`,
+            year: new Date(timestamp).getFullYear(),
+            income: result.realizedPnl,
+            deductions: 0,
+            federal: 0,
+            state: 0,
+            payroll: 0,
+            capitalGains: result.realizedPnl,
+            shortTermGain:
+              timestamp -
+                Number(holdings[asset.id]?.acquiredAtMs || timestamp) >
+              24 * 3600000
+                ? 0
+                : result.realizedPnl,
+            longTermGain:
+              timestamp -
+                Number(holdings[asset.id]?.acquiredAtMs || timestamp) >
+              24 * 3600000
+                ? result.realizedPnl
+                : 0,
+            paid: 0,
+            dueAt: timestamp + 90 * 24 * 3600000,
+            status: "ESTIMATE" as const,
+          },
+        ].slice(-100),
+      }));
+    setAssets((previous) =>
+      previous.map((item) =>
+        item.id === asset.id
+          ? {
+              ...item,
+              price: result.price,
+              change:
+                item.price > 0
+                  ? ((result.price - item.price) / item.price) * 100
+                  : 0,
+              history: [...item.history.slice(-14), result.price],
+            }
+          : item,
+      ),
+    );
+    pushIncomeEvent({
+      source: `${side} ${asset.symbol}`,
+      amount: result.realizedPnl > 0 ? result.realizedPnl : result.total,
+      category: "other",
+    });
+    setHeadline(
+      `${side} ${asset.symbol} confirmed · ${normalizedQuantity} units at ${money(result.price)}.`,
+    );
+    setTimeout(() => {
+      tradeLock.current = false;
+    }, 180);
+  };
+  if (!loaded)
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.loading}>
+          <Text style={styles.brand}>EMPIRE RUSH</Text>
+          <Text style={styles.muted}>SECURE LEDGER LOADING…</Text>
+        </View>
+      </SafeAreaView>
+    );
+  return (
+    <SafeAreaView
+      edges={["top", "bottom", "left", "right"]}
+      style={styles.safe}
+    >
+      <StatusBar style="light" />
+      <View style={styles.app}>
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.brand}>EMPIRE RUSH</Text>
+            <Text style={styles.simClock}>
+              {formatSystemDateTime(systemTimeMs)}
+            </Text>
+            <Text style={styles.micro}>REAL-TIME TYCOON · LIVE</Text>
+          </View>
+          <View style={{ alignItems: "flex-end" }}>
+            <Text style={styles.headerCash}>{money(cash)}</Text>
+            <Pressable onPress={() => setEarningsModal(true)}>
+              <Animated.View
+                style={[
+                  styles.epsBadge,
+                  {
+                    opacity: incomeFlash.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.78, 1],
+                    }),
+                    transform: [
+                      {
+                        scale: incomeFlash.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [1, 1.035],
+                        }),
+                      },
+                    ],
+                  },
+                ]}
+              >
+                <Text style={styles.epsText}>
+                  +{money(projectedHourlyIncome)} / hr projected
+                </Text>
+              </Animated.View>
+            </Pressable>
+            <Text style={styles.settlementHint}>
+              NEXT SETTLEMENT · {nextSettlementCountdown}
+            </Text>
+            <View style={styles.headerActions}>
+              <Text style={styles.muted}>
+                {isOnline && !clockTampered
+                  ? "ONLINE · LIVE TICKS"
+                  : "OFFLINE · LOCAL TICKS"}
+              </Text>
+              <Pressable
+                onPress={() => setSettingsOpen(true)}
+                accessibilityLabel="Open settings"
+              >
+                <Text style={styles.settingsGlyph}>⚙</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+        <View style={styles.news}>
+          <Text style={styles.newsTag}>BREAKING</Text>
+          <Text style={styles.newsText} numberOfLines={1} ellipsizeMode="tail">
+            {headline}
+          </Text>
+        </View>
+        {incomeEvents.map((event) => (
+          <View key={event.id} style={styles.incomeToast}>
+            <Text style={styles.incomeToastSource}>{event.source}</Text>
+            <Text style={styles.incomeToastAmount}>+{money(event.amount)}</Text>
+          </View>
+        ))}
+        <View style={styles.screenBody}>
+          {tab === "business" ? (
+            <RetailBusinessScreen
+              state={retail}
+              cash={cash}
+              netWorth={netWorth}
+              timestamp={systemTimeMs}
+              ipoListing={ipoListing}
+              onIPOComplete={completeIPO}
+              focusRetail={focusRetail}
+              onRetailFocusHandled={() => setFocusRetail(false)}
+              onStateChange={setRetail}
+              onCashChange={setCash}
+              onLedger={postLedger}
+            />
+          ) : tab === "empire" ? (
+            <HomeScreen
+              cash={cash}
+              netWorth={netWorth}
+              projectedHourlyIncome={projectedHourlyIncome}
+              settlementCountdown={nextSettlementCountdown}
+              clickValue={clickValue}
+              tapUpgradeLevel={tapUpgradeLevel}
+              clickUpgradeCost={clickUpgradeCost}
+              tapUpgradeGain={nextTapUpgradeGain}
+              loginStreak={progression.loginStreak}
+              tapsToday={progression.tapsToday}
+              tapCashToday={progression.tapCashToday}
+              tapBoostMultiplier={liveTapBoostMultiplier}
+              tapBoostActive={liveTapBoostMultiplier > 1}
+              dailyTapGoal={progression.dailyTapGoal}
+              missionClaimed={progression.missionClaimed}
+              rank={rank}
+              nextGoal={nextGoal}
+              prestigeLevel={progression.prestigeLevel}
+              achievements={progression.achievements.length}
+              weeklyEvent={weeklyEvent}
+              onPrestige={prestige}
+              prestigeLocked={netWorth < 1000000}
+              prestigeShortfall={Math.max(0, 1000000 - netWorth)}
+              hapticsEnabled={hapticsEnabled}
+              soundEnabled={soundEnabled}
+              onWatchBoost={watchBoost}
+              onWatchTapBoost={watchTapBoost}
+              onEarn={earn}
+              onUpgrade={upgradeClick}
+              onClaimMission={claimMission}
+              onOpenBusiness={() => setTab("business")}
+              onOpenNextGoal={() => {
+                setFocusRetail(true);
+                setTab("business");
+              }}
+              onOpenStore={() => setStoreOpen(true)}
+              onOpenEarnings={() => setEarningsModal(true)}
+            />
+          ) : (
+            <View style={{ flex: 1 }}>
+              {tab === "markets" && (
+                <ResponsiveMarketScreen
+                  playerNetWorth={netWorth}
+                  cash={cash}
+                  assets={assets}
+                  holdings={holdings}
+                  watchlist={watchlist}
+                  toggleWatchlist={toggleWatchlist}
+                  filter={filter}
+                  setFilter={setFilter}
+                  executeTrade={trade}
+                  summary={marketSummary}
+                  tradeHistory={tradeHistory}
+                  limitOrders={limitOrders}
+                  portfolioHistory={portfolioHistory}
+                  rivalInvestors={rivalInvestors}
+                  allocation={marketAllocation}
+                  systemTimeMs={systemTimeMs}
+                  marketEventHistory={marketEventHistory}
+                  priceAlerts={priceAlerts}
+                  onCreatePriceAlert={(alert) =>
+                    setPriceAlerts((previous) => [...previous, alert])
+                  }
+                  onRemovePriceAlert={(id) =>
+                    setPriceAlerts((previous) =>
+                      previous.filter((alert) => alert.id !== id),
+                    )
+                  }
+                  onCreateLimitOrder={placeLimitOrder}
+                  onCancelLimitOrder={cancelLimitOrder}
+                />
+              )}
+              {tab === "lifestyle" && (
+                <LifestyleScreen
+                  owned={owned}
+                  cash={cash}
+                  setCash={setCash}
+                  setOwned={setOwned}
+                  onLedger={postLedger}
+                />
+              )}
+              {tab === "bank" && (
+                <BankScreen
+                  cash={cash}
+                  netWorth={netWorth}
+                  hourlyIncome={projectedHourlyIncome}
+                  financialState={financialState}
+                  ledger={ledger}
+                  state={bankState}
+                  businesses={businesses}
+                  collateralAssets={
+                    owned
+                      .map((id) => {
+                        const item = lifestyleAssets.find(
+                          (asset) => asset.id === id,
+                        );
+                        return item
+                          ? { id: item.id, name: item.name, value: item.price }
+                          : null;
+                      })
+                      .filter(Boolean) as {
+                      id: string;
+                      name: string;
+                      value: number;
+                    }[]
+                  }
+                  onStateChange={handleBankStateChange}
+                  onCashChange={setCash}
+                  onBreaking={setHeadline}
+                  onHaptic={haptic}
+                />
+              )}
+            </View>
+          )}{" "}
+        </View>
+        <Nav tab={tab} setTab={setTab} />
+        <EarningsBreakdownModal
+          visible={earningsModal}
+          onClose={() => setEarningsModal(false)}
+          sources={earningsSources}
+          activity={{
+            taps: progression.totalTaps,
+            cashEarned: progression.tapCashToday,
+            currentReward: clickValue * liveTapBoostMultiplier,
+          }}
+        />
+        <StoreModal
+          visible={storeOpen}
+          close={() => setStoreOpen(false)}
+          adFree={adFree}
+          setAdFree={setAdFree}
+          setCash={setCash}
+          setMultiplier={setMultiplier}
+        />
+        <SettingsModal
+          visible={settingsOpen}
+          close={() => setSettingsOpen(false)}
+          hapticsEnabled={hapticsEnabled}
+          soundEnabled={soundEnabled}
+          notificationsEnabled={notificationsEnabled}
+          setHapticsEnabled={setHapticsEnabled}
+          setSoundEnabled={setSoundEnabled}
+          setNotificationsEnabled={setNotificationsEnabled}
+          buildVersion={BUILD_VERSION}
+          buildCommit={BUILD_COMMIT}
+        />
+        <IPOAnnouncementModal
+          visible={Boolean(ipoCelebration)}
+          listing={ipoCelebration}
+          onClose={() => setIpoCelebration(null)}
+        />
+      </View>
+    </SafeAreaView>
+  );
 }
 
+function StoreModal({
+  visible,
+  close,
+  adFree,
+  setAdFree,
+  setCash,
+  setMultiplier,
+}: {
+  visible: boolean;
+  close: () => void;
+  adFree: boolean;
+  setAdFree: (v: boolean) => void;
+  setCash: React.Dispatch<React.SetStateAction<number>>;
+  setMultiplier: React.Dispatch<React.SetStateAction<number>>;
+}) {
+  const packs = [
+    {
+      id: "starter_stock",
+      title: "Starter Stock Credit",
+      price: "$0.49",
+      reward: "One free 500-unit Retail stock order",
+      consumable: true,
+      action: () =>
+        Alert.alert(
+          "STOCK CREDIT",
+          "Your next Retail stock order is covered. Open Copper & Bloom to place it.",
+        ),
+    },
+    {
+      id: "ad_free",
+      title: "Ad-Free License",
+      price: "$1.99",
+      reward: "Removes interstitial ads",
+      consumable: false,
+      action: () => setAdFree(true),
+    },
+    {
+      id: "executive_boost",
+      title: "Executive Boost",
+      price: "$4.99",
+      reward: "+25% passive income",
+      consumable: false,
+      action: () => setMultiplier(1.25),
+    },
+    {
+      id: "roadshow_pass",
+      title: "IPO Roadshow Pass",
+      price: "$9.99",
+      reward: "IPO celebration visuals and milestone badge",
+      consumable: false,
+      action: () =>
+        Alert.alert(
+          "ROADSHOW PASS",
+          "Your next IPO will receive the full public-company celebration treatment.",
+        ),
+    },
+  ];
+  const buy = async (pack: (typeof packs)[number]) => {
+    try {
+      const iap = require("react-native-iap");
+      const purchaseResult = await iap.requestPurchase({
+        request: { android: { skus: [pack.id] }, ios: { sku: pack.id } },
+      });
+      const purchase = Array.isArray(purchaseResult)
+        ? purchaseResult[0]
+        : purchaseResult;
+      if (!purchase) throw new Error("Purchase was not confirmed");
+      pack.action();
+      if (iap.finishTransaction)
+        await iap.finishTransaction({
+          purchase,
+          isConsumable: pack.consumable,
+        });
+      Alert.alert(
+        "Purchase complete",
+        `${pack.title} reward added to your account.`,
+      );
+    } catch {
+      Alert.alert(
+        "Purchase not completed",
+        "No charge was made and no reward was applied. Try again when Play Billing is available.",
+      );
+    }
+  };
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={close}
+    >
+      <View style={styles.modalShade}>
+        <View style={styles.store}>
+          <View style={styles.storeHead}>
+            <View>
+              <Text style={styles.eyebrow}>BANK / STORE</Text>
+              <Text style={styles.h1}>Founder packs</Text>
+            </View>
+            <Pressable onPress={close}>
+              <Text style={styles.close}>×</Text>
+            </Pressable>
+          </View>
+          {packs.map((pack) => (
+            <Pressable
+              key={pack.id}
+              onPress={() => void buy(pack)}
+              style={styles.pack}
+            >
+              <View>
+                <Text style={styles.packTitle}>{pack.title}</Text>
+                <Text style={styles.muted}>{pack.reward}</Text>
+              </View>
+              <Text style={styles.packPrice}>{pack.price}</Text>
+            </Pressable>
+          ))}
+          <Text style={styles.storeNote}>
+            {adFree
+              ? "Ad-Free License active"
+              : "Rewards apply only after Play Billing confirms payment."}
+          </Text>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+function SettingsModal({
+  visible,
+  close,
+  hapticsEnabled,
+  soundEnabled,
+  notificationsEnabled,
+  setHapticsEnabled,
+  setSoundEnabled,
+  setNotificationsEnabled,
+  buildVersion,
+  buildCommit,
+}: {
+  visible: boolean;
+  close: () => void;
+  hapticsEnabled: boolean;
+  soundEnabled: boolean;
+  notificationsEnabled: boolean;
+  setHapticsEnabled: (value: boolean) => void;
+  setSoundEnabled: (value: boolean) => void;
+  setNotificationsEnabled: (value: boolean) => void;
+  buildVersion: string;
+  buildCommit: string;
+}) {
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={close}
+    >
+      <View style={styles.modalShade}>
+        <View style={styles.store}>
+          <View style={styles.storeHead}>
+            <View>
+              <Text style={styles.eyebrow}>EMPIRE RUSH</Text>
+              <Text style={styles.h1}>Settings & trust</Text>
+            </View>
+            <Pressable onPress={close}>
+              <Text style={styles.close}>×</Text>
+            </Pressable>
+          </View>
+          <Text style={styles.settingsIntro}>
+            Control the way Empire Rush feels. Notifications are optional and
+            never required for progress.
+          </Text>
+          <SettingRow
+            title="Haptics"
+            copy="Tactile feedback for taps and milestones"
+            value={hapticsEnabled}
+            onChange={setHapticsEnabled}
+          />
+          <SettingRow
+            title="Sound effects"
+            copy="Gameplay audio preference"
+            value={soundEnabled}
+            onChange={setSoundEnabled}
+          />
+          <SettingRow
+            title="Quiet notifications"
+            copy="Daily mission and return reminders"
+            value={notificationsEnabled}
+            onChange={setNotificationsEnabled}
+          />
+          <View style={styles.legalBox}>
+            <Text style={styles.packTitle}>BUILD IDENTITY</Text>
+            <Text style={styles.muted}>Version {buildVersion}</Text>
+            <Text style={styles.muted}>Source commit {buildCommit}</Text>
+            <Text style={styles.packTitle}>PRIVACY & TERMS</Text>
+            <Text style={styles.muted}>
+              Empire Rush is a single-player business simulation. We do not
+              require an account to save local progress. Purchases are processed
+              by the platform store; no payment details are handled by the game.
+            </Text>
+          </View>
+          <Pressable
+            onPress={() =>
+              Alert.alert(
+                "Privacy policy",
+                "Local game progress is stored on this device. Optional purchase processing is handled by Google Play or the App Store.",
+              )
+            }
+            style={styles.legalButton}
+          >
+            <Text style={styles.legalButtonText}>VIEW PRIVACY SUMMARY</Text>
+          </Pressable>
+          <Pressable
+            onPress={() =>
+              Alert.alert(
+                "Terms of service",
+                "Empire Rush is entertainment software. All in-game currency and business values are simulated and have no cash value.",
+              )
+            }
+            style={styles.legalButton}
+          >
+            <Text style={styles.legalButtonText}>VIEW TERMS SUMMARY</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+function SettingRow({
+  title,
+  copy,
+  value,
+  onChange,
+}: {
+  title: string;
+  copy: string;
+  value: boolean;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <View style={styles.settingRow}>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.packTitle}>{title}</Text>
+        <Text style={styles.muted}>{copy}</Text>
+      </View>
+      <Switch
+        value={value}
+        onValueChange={onChange}
+        trackColor={{ false: C.slate, true: "#087C4A" }}
+        thumbColor={value ? C.green : C.muted}
+      />
+    </View>
+  );
+}
 
-function StoreModal({ visible, close, adFree, setAdFree, setCash, setMultiplier }: { visible: boolean; close: () => void; adFree: boolean; setAdFree: (v: boolean) => void; setCash: React.Dispatch<React.SetStateAction<number>>; setMultiplier: React.Dispatch<React.SetStateAction<number>> }) { const packs = [{ id: "starter_stock", title: "Starter Stock Credit", price: "$0.49", reward: "One free 500-unit Retail stock order", consumable: true, action: () => Alert.alert("STOCK CREDIT", "Your next Retail stock order is covered. Open Copper & Bloom to place it.") }, { id: "ad_free", title: "Ad-Free License", price: "$1.99", reward: "Removes interstitial ads", consumable: false, action: () => setAdFree(true) }, { id: "executive_boost", title: "Executive Boost", price: "$4.99", reward: "+25% passive income", consumable: false, action: () => setMultiplier(1.25) }, { id: "roadshow_pass", title: "IPO Roadshow Pass", price: "$9.99", reward: "IPO celebration visuals and milestone badge", consumable: false, action: () => Alert.alert("ROADSHOW PASS", "Your next IPO will receive the full public-company celebration treatment.") }]; const buy = async (pack: typeof packs[number]) => { try { const iap = require("react-native-iap"); const purchaseResult = await iap.requestPurchase({ request: { android: { skus: [pack.id] }, ios: { sku: pack.id } } }); const purchase = Array.isArray(purchaseResult) ? purchaseResult[0] : purchaseResult; if (!purchase) throw new Error("Purchase was not confirmed"); pack.action(); if (iap.finishTransaction) await iap.finishTransaction({ purchase, isConsumable: pack.consumable }); Alert.alert("Purchase complete", `${pack.title} reward added to your account.`); } catch { Alert.alert("Purchase not completed", "No charge was made and no reward was applied. Try again when Play Billing is available."); } }; return <Modal visible={visible} transparent animationType="slide" onRequestClose={close}><View style={styles.modalShade}><View style={styles.store}><View style={styles.storeHead}><View><Text style={styles.eyebrow}>BANK / STORE</Text><Text style={styles.h1}>Founder packs</Text></View><Pressable onPress={close}><Text style={styles.close}>×</Text></Pressable></View>{packs.map(pack => <Pressable key={pack.id} onPress={() => void buy(pack)} style={styles.pack}><View><Text style={styles.packTitle}>{pack.title}</Text><Text style={styles.muted}>{pack.reward}</Text></View><Text style={styles.packPrice}>{pack.price}</Text></Pressable>)}<Text style={styles.storeNote}>{adFree ? "Ad-Free License active" : "Rewards apply only after Play Billing confirms payment."}</Text></View></View></Modal>; }
-function SettingsModal({ visible, close, hapticsEnabled, soundEnabled, notificationsEnabled, setHapticsEnabled, setSoundEnabled, setNotificationsEnabled, buildVersion, buildCommit }: { visible: boolean; close: () => void; hapticsEnabled: boolean; soundEnabled: boolean; notificationsEnabled: boolean; setHapticsEnabled: (value: boolean) => void; setSoundEnabled: (value: boolean) => void; setNotificationsEnabled: (value: boolean) => void; buildVersion: string; buildCommit: string }) { return <Modal visible={visible} transparent animationType="slide" onRequestClose={close}><View style={styles.modalShade}><View style={styles.store}><View style={styles.storeHead}><View><Text style={styles.eyebrow}>EMPIRE RUSH</Text><Text style={styles.h1}>Settings & trust</Text></View><Pressable onPress={close}><Text style={styles.close}>×</Text></Pressable></View><Text style={styles.settingsIntro}>Control the way Empire Rush feels. Notifications are optional and never required for progress.</Text><SettingRow title="Haptics" copy="Tactile feedback for taps and milestones" value={hapticsEnabled} onChange={setHapticsEnabled} /><SettingRow title="Sound effects" copy="Gameplay audio preference" value={soundEnabled} onChange={setSoundEnabled} /><SettingRow title="Quiet notifications" copy="Daily mission and return reminders" value={notificationsEnabled} onChange={setNotificationsEnabled} /><View style={styles.legalBox}><Text style={styles.packTitle}>BUILD IDENTITY</Text><Text style={styles.muted}>Version {buildVersion}</Text><Text style={styles.muted}>Source commit {buildCommit}</Text><Text style={styles.packTitle}>PRIVACY & TERMS</Text><Text style={styles.muted}>Empire Rush is a single-player business simulation. We do not require an account to save local progress. Purchases are processed by the platform store; no payment details are handled by the game.</Text></View><Pressable onPress={() => Alert.alert("Privacy policy", "Local game progress is stored on this device. Optional purchase processing is handled by Google Play or the App Store.")} style={styles.legalButton}><Text style={styles.legalButtonText}>VIEW PRIVACY SUMMARY</Text></Pressable><Pressable onPress={() => Alert.alert("Terms of service", "Empire Rush is entertainment software. All in-game currency and business values are simulated and have no cash value.")} style={styles.legalButton}><Text style={styles.legalButtonText}>VIEW TERMS SUMMARY</Text></Pressable></View></View></Modal>; }
-function SettingRow({ title, copy, value, onChange }: { title: string; copy: string; value: boolean; onChange: (value: boolean) => void }) { return <View style={styles.settingRow}><View style={{ flex: 1 }}><Text style={styles.packTitle}>{title}</Text><Text style={styles.muted}>{copy}</Text></View><Switch value={value} onValueChange={onChange} trackColor={{ false: C.slate, true: '#087C4A' }} thumbColor={value ? C.green : C.muted} /></View>; }
+function Nav({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
+  return (
+    <View style={styles.nav}>
+      {(
+        [
+          ["empire", "⌂", "EMPIRE"],
+          ["business", "◈", "BUSINESS"],
+          ["markets", "↗", "MARKETS"],
+          ["lifestyle", "◇", "LIFESTYLE"],
+          ["bank", "▥", "BANK"],
+        ] as const
+      ).map(([key, icon, label]) => (
+        <Pressable
+          key={key}
+          onPress={() => setTab(key)}
+          style={({ pressed }) => [
+            styles.navItem,
+            tab === key && styles.navOn,
+            key === "empire" && styles.navCenter,
+            pressed && { transform: [{ scale: 0.94 }] },
+          ]}
+        >
+          <Text
+            style={[
+              styles.navIcon,
+              tab === key && styles.navIconOn,
+              key === "empire" && styles.navCenterIcon,
+            ]}
+          >
+            {icon}
+          </Text>
+          <Text style={[styles.navLabel, tab === key && styles.navLabelOn]}>
+            {label}
+          </Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+function Quick({
+  title,
+  value,
+  onPress,
+}: {
+  title: string;
+  value: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable onPress={onPress} style={styles.quick}>
+      <Text style={styles.quickTitle}>{title}</Text>
+      <Text style={styles.muted}>{value}</Text>
+    </Pressable>
+  );
+}
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.row}>
+      <Text style={styles.muted}>{label}</Text>
+      <Text style={styles.rowValue}>{value}</Text>
+    </View>
+  );
+}
+export default function App() {
+  return (
+    <SafeAreaProvider>
+      <NetworkProvider>
+        <GameProvider>
+          <AppContent />
+        </GameProvider>
+      </NetworkProvider>
+    </SafeAreaProvider>
+  );
+}
 
-
-
-function Nav({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) { return <View style={styles.nav}>{([ ["empire", "⌂", "EMPIRE"], ["business", "◈", "BUSINESS"], ["markets", "↗", "MARKETS"], ["lifestyle", "◇", "LIFESTYLE"], ["bank", "▣", "BANK"] ] as const).map(([key, icon, label]) => <Pressable key={key} onPress={() => setTab(key)} style={({ pressed }) => [styles.navItem, tab === key && styles.navOn, key === "empire" && styles.navCenter, pressed && { transform: [{ scale: .94 }] }]}><Text style={[styles.navIcon, tab === key && styles.navIconOn, key === "empire" && styles.navCenterIcon]}>{icon}</Text><Text style={[styles.navLabel, tab === key && styles.navLabelOn]}>{label}</Text></Pressable>)}</View>; }
-function Quick({ title, value, onPress }: { title: string; value: string; onPress: () => void }) { return <Pressable onPress={onPress} style={styles.quick}><Text style={styles.quickTitle}>{title}</Text><Text style={styles.muted}>{value}</Text></Pressable>; }
-function Row({ label, value }: { label: string; value: string }) { return <View style={styles.row}><Text style={styles.muted}>{label}</Text><Text style={styles.rowValue}>{value}</Text></View>; }
-export default function App() { return <SafeAreaProvider><NetworkProvider><GameProvider><AppContent /></GameProvider></NetworkProvider></SafeAreaProvider>; }
-
-function hapticGlobal(success = false) { if (success) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); else Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); }
-const styles = StyleSheet.create({ safe: { flex: 1, backgroundColor: C.bg }, app: { flex: 1, backgroundColor: C.bg }, screenBody: { flex: 1, minHeight: 0, overflow: 'hidden' }, loading: { flex: 1, justifyContent: "center", alignItems: "center", gap: 14 }, header: { paddingHorizontal: 18, paddingTop: 9, paddingBottom: 5, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }, brand: { color: C.green, fontSize: 20, fontWeight: "900", letterSpacing: 2 }, simClock: { color: "#64748B", fontSize: 11, fontFamily: "monospace", marginTop: 3, letterSpacing: .4 }, micro: { color: C.muted, fontSize: 8, letterSpacing: 1, marginTop: 3 }, headerCash: { color: C.text, fontWeight: "900", fontSize: 17 }, headerActions: { flexDirection: "row", alignItems: "center", gap: 8 }, settingsGlyph: { color: C.cyan, fontSize: 17 }, epsBadge: { alignSelf: "flex-end", marginTop: 2 }, epsText: { color: C.green, fontSize: 12, fontWeight: "800" }, settlementHint: { color: C.muted, fontSize: 9, fontWeight: "800", letterSpacing: 0.8, marginTop: 3 }, news: { marginHorizontal: 18, borderLeftWidth: 2, borderLeftColor: C.red, paddingLeft: 8, flexDirection: "row", gap: 8, alignItems: "center", marginBottom: 5 }, newsTag: { color: C.red, fontSize: 8, fontWeight: "900" }, newsText: { color: C.muted, fontSize: 10, flex: 1 }, incomeToast: { alignSelf: "center", flexDirection: "row", alignItems: "center", gap: 7, backgroundColor: "#123C2A", borderWidth: 1, borderColor: "#3A8C57", borderRadius: 12, paddingHorizontal: 11, paddingVertical: 7, marginHorizontal: 18, marginBottom: 5 }, incomeToastSource: { color: C.muted, fontSize: 9, fontWeight: "800", flex: 1 }, incomeToastAmount: { color: "#B8F34A", fontSize: 10, fontWeight: "900" }, content: { paddingHorizontal: 18, paddingBottom: 72 }, eyebrow: { color: C.cyan, fontSize: 9, fontWeight: "900", letterSpacing: 2, marginTop: 15 }, h1: { color: C.text, fontSize: 30, fontWeight: "900", marginTop: 6, marginBottom: 13 }, muted: { color: C.muted, fontSize: 11 }, viza: { height: 193, borderRadius: 22, padding: 19, backgroundColor: "#171A22", borderWidth: 1, borderColor: "#625535", overflow: "hidden", marginBottom: 13, shadowColor: "#000", shadowOpacity: .7, shadowRadius: 20, elevation: 10 }, vizaTop: { flexDirection: "row", justifyContent: "space-between" }, vizaLogo: { color: C.gold, fontSize: 11, fontWeight: "900", letterSpacing: 1.5 }, chip: { color: C.gold, fontSize: 25 }, cardLabel: { color: "#9EA6B2", fontSize: 8, letterSpacing: 1.2, marginTop: 27 }, vizaBalance: { color: C.text, fontSize: 33, fontWeight: "900", marginTop: 5 }, cardBottom: { marginTop: 23, flexDirection: "row", justifyContent: "space-between" }, cardNumber: { color: "#C6CCD5", fontSize: 12, letterSpacing: 2 }, cardExpiry: { color: C.gold, fontWeight: "900" }, clickBar: { backgroundColor: C.panel, padding: 13, borderRadius: 14, borderWidth: 1, borderColor: C.slate, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }, clickNow: { color: C.text, fontSize: 18, fontWeight: "900", marginTop: 5 }, next: { color: C.green, fontSize: 10 }, upgrade: { backgroundColor: C.green, paddingVertical: 10, paddingHorizontal: 11, borderRadius: 8 }, buyText: { color: C.bg, fontSize: 9, fontWeight: "900" }, up: { color: C.green, fontSize: 11, fontWeight: "900" }, down: { color: C.red, fontSize: 11, fontWeight: "900" }, buyBtn: { marginTop: 14, backgroundColor: C.green, borderRadius: 8, paddingVertical: 8, paddingHorizontal: 10 }, progress: { height: 5, backgroundColor: C.slate, borderRadius: 5, marginTop: 7, marginBottom: 12 }, progressFill: { height: 5, borderRadius: 5, backgroundColor: C.green }, adBoost: { backgroundColor: "#132A29", borderRadius: 13, padding: 12, flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 12, borderWidth: 1, borderColor: "#1E5E4C" }, video: { color: C.green, fontSize: 19 }, adTitle: { color: C.text, fontSize: 10, fontWeight: "900" }, tapArea: { backgroundColor: "#101722", borderRadius: 18, minHeight: 255, padding: 18, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: C.slate }, tapTitle: { color: C.text, fontWeight: "900", fontSize: 15, letterSpacing: .4 }, tapSub: { color: C.muted, fontSize: 11, marginTop: 5 }, tapButtons: { flexDirection: "row", gap: 10, width: "100%", marginTop: 28 }, tap: { flex: 1, height: 90, borderRadius: 16, justifyContent: "center", alignItems: "center", backgroundColor: "#182B3A", borderWidth: 1, borderColor: "#2B5672" }, tapHot: { backgroundColor: "#172C2A", borderColor: "#13795A" }, tapMoney: { color: C.text, fontSize: 20, fontWeight: "900" }, tapHint: { color: C.muted, fontSize: 8, letterSpacing: 1, marginTop: 5 }, floatLayer: { position: "absolute", top: 25, right: 35, gap: 3 }, float: { color: C.green, fontSize: 15, fontWeight: "900" }, homeTiles: { flexDirection: "row", gap: 9, marginTop: 14 }, quick: { flex: 1, backgroundColor: C.panel, borderRadius: 13, padding: 14, borderWidth: 1, borderColor: C.slate }, quickTitle: { color: C.text, fontWeight: "900", fontSize: 13, marginBottom: 5 }, back: { color: C.cyan, fontSize: 10, fontWeight: "900", marginBottom: 12 }, grid: { flexDirection: "row", flexWrap: "wrap", gap: 10 }, category: { width: "48%", minHeight: 150, padding: 14, borderRadius: 15, backgroundColor: C.panel, borderWidth: 1, borderColor: C.slate }, locked: { opacity: .6 }, categoryIcon: { fontSize: 26, color: C.green, marginBottom: 17 }, categoryName: { color: C.text, fontSize: 14, fontWeight: "900" }, categoryPrice: { color: C.green, fontSize: 11, fontWeight: "800", marginTop: 7 }, unlocked: { color: C.cyan, fontSize: 8, fontWeight: "900", marginTop: 7 }, lockedText: { color: C.red, fontSize: 8, fontWeight: "900", marginTop: 7 }, bizHero: { backgroundColor: C.panel2, borderRadius: 17, padding: 19, alignItems: "center", marginBottom: 12 }, bizIcon: { fontSize: 42 }, bizIncome: { color: C.green, fontSize: 25, fontWeight: "900", marginTop: 8 }, detailCard: { backgroundColor: C.panel, borderRadius: 15, padding: 15, borderWidth: 1, borderColor: C.slate }, sectionTitle: { color: C.text, fontSize: 11, letterSpacing: 1.4, fontWeight: "900", marginBottom: 11 }, row: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.slate }, rowValue: { color: C.text, fontWeight: "900", fontSize: 12 }, sliderLabel: { color: C.muted, fontSize: 9, fontWeight: "900", marginTop: 15 }, priceDots: { flexDirection: "row", gap: 8, marginVertical: 12 }, priceDot: { flex: 1, height: 7, borderRadius: 5, backgroundColor: C.slate }, priceDotOn: { backgroundColor: C.green }, bizFoot: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 7 }, portStrip: { backgroundColor: "#12242A", borderRadius: 15, padding: 15, flexDirection: "row", justifyContent: "space-between", marginBottom: 12, borderWidth: 1, borderColor: "#1A5B4D" }, portTotal: { color: C.text, fontSize: 23, fontWeight: "900", marginTop: 5 }, filters: { marginBottom: 12 }, filter: { paddingHorizontal: 12, paddingVertical: 9, borderRadius: 9, backgroundColor: C.panel, marginRight: 7, borderWidth: 1, borderColor: C.slate }, filterOn: { backgroundColor: "#123D34", borderColor: C.green }, filterText: { color: C.muted, fontSize: 9, fontWeight: "900" }, filterTextOn: { color: C.green }, marketRow: { minHeight: 82, backgroundColor: C.panel, borderRadius: 14, borderWidth: 1, borderColor: C.slate, marginBottom: 8, padding: 10, flexDirection: "row", alignItems: "center", gap: 8 }, assetBadge: { width: 33, height: 33, borderRadius: 10, backgroundColor: "#20334B", justifyContent: "center", alignItems: "center" }, assetBadgeText: { color: C.cyan, fontSize: 8, fontWeight: "900" }, marketInfo: { width: 78 }, marketName: { color: C.text, fontSize: 11, fontWeight: "900" }, marketPrice: { alignItems: "flex-end", width: 65 }, marketValue: { color: C.text, fontSize: 11, fontWeight: "900" }, tradeBtns: { gap: 4 }, sellBtn: { backgroundColor: "#252A36", borderRadius: 6, paddingVertical: 5, paddingHorizontal: 7 }, sellText: { color: C.text, fontSize: 8, fontWeight: "900" }, lifeCard: { backgroundColor: C.panel, borderRadius: 16, borderWidth: 1, borderColor: C.slate, overflow: "hidden", marginBottom: 12 }, lifeImage: { width: "100%", height: 145, backgroundColor: C.slate, alignItems: "center", justifyContent: "center" }, lifeEmoji: { color: C.gold, fontSize: 52, fontWeight: "900" }, upkeepRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 10, marginTop: 14, marginBottom: 6 }, upkeepValue: { color: C.text, fontSize: 11, fontWeight: "800" }, prestigeValue: { color: C.gold, fontSize: 10, fontWeight: "800" }, lifeBody: { padding: 14 }, lifeCategory: { color: C.cyan, fontSize: 8, fontWeight: "900", letterSpacing: 1.2 }, lifeName: { color: C.text, fontSize: 18, fontWeight: "900", marginTop: 5 }, lifePrice: { color: C.gold, fontSize: 18, fontWeight: "900", marginVertical: 5 }, owned: { color: C.green, fontSize: 9, fontWeight: "900", marginTop: 12 }, nav: { position: "absolute", bottom: 0, left: 0, right: 0, height: 54, backgroundColor: "#0D141F", borderTopWidth: 1, borderTopColor: C.slate, flexDirection: "row", paddingVertical: 1, paddingHorizontal: 6 }, navItem: { flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: 1, borderRadius: 9 }, navCenter: { backgroundColor: C.green, width: 46, height: 46, borderRadius: 23, marginTop: -10, borderWidth: 4, borderColor: C.bg, justifyContent: "center", alignSelf: "center" }, navCenterIcon: { color: C.bg, fontSize: 22 }, navOn: { backgroundColor: "#153329" }, navIcon: { color: C.muted, fontSize: 18 }, navIconOn: { color: C.green }, navLabel: { color: C.muted, fontSize: 8, fontWeight: "900", marginTop: 3 }, navLabelOn: { color: C.text }, modalShade: { flex: 1, backgroundColor: "rgba(0,0,0,.78)", justifyContent: "flex-end" }, store: { backgroundColor: C.panel, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 18, paddingBottom: 32 }, storeHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }, close: { color: C.text, fontSize: 32 }, pack: { backgroundColor: C.panel2, borderRadius: 13, padding: 14, marginTop: 8, flexDirection: "row", justifyContent: "space-between", alignItems: "center", borderWidth: 1, borderColor: C.slate }, packTitle: { color: C.text, fontWeight: "900", fontSize: 14 }, packPrice: { color: C.green, fontWeight: "900", fontSize: 15 }, storeNote: { color: C.muted, fontSize: 10, textAlign: "center", marginTop: 14 }, settingsIntro: { color: C.muted, fontSize: 11, lineHeight: 16, marginBottom: 10 }, settingRow: { flexDirection: "row", alignItems: "center", backgroundColor: C.panel2, borderRadius: 12, padding: 13, marginTop: 8 }, legalBox: { backgroundColor: "#101722", borderRadius: 12, padding: 13, marginTop: 14, gap: 6 }, legalButton: { backgroundColor: C.panel2, borderWidth: 1, borderColor: C.slate, borderRadius: 10, padding: 12, marginTop: 8, alignItems: "center" }, legalButtonText: { color: C.cyan, fontSize: 9, fontWeight: "900" } });
+function hapticGlobal(success = false) {
+  if (success)
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  else Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+}
+const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: C.bg },
+  app: { flex: 1, backgroundColor: C.bg },
+  screenBody: { flex: 1, minHeight: 0, overflow: "hidden" },
+  loading: { flex: 1, justifyContent: "center", alignItems: "center", gap: 14 },
+  header: {
+    paddingHorizontal: 18,
+    paddingTop: 9,
+    paddingBottom: 5,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  brand: { color: C.green, fontSize: 20, fontWeight: "900", letterSpacing: 2 },
+  simClock: {
+    color: "#64748B",
+    fontSize: 11,
+    fontFamily: "monospace",
+    marginTop: 3,
+    letterSpacing: 0.4,
+  },
+  micro: { color: C.muted, fontSize: 8, letterSpacing: 1, marginTop: 3 },
+  headerCash: { color: C.text, fontWeight: "900", fontSize: 17 },
+  headerActions: { flexDirection: "row", alignItems: "center", gap: 8 },
+  settingsGlyph: { color: C.cyan, fontSize: 17 },
+  epsBadge: { alignSelf: "flex-end", marginTop: 2 },
+  epsText: { color: C.green, fontSize: 12, fontWeight: "800" },
+  settlementHint: {
+    color: C.muted,
+    fontSize: 9,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+    marginTop: 3,
+  },
+  news: {
+    marginHorizontal: 18,
+    borderLeftWidth: 2,
+    borderLeftColor: C.red,
+    paddingLeft: 8,
+    flexDirection: "row",
+    gap: 8,
+    alignItems: "center",
+    marginBottom: 5,
+  },
+  newsTag: { color: C.red, fontSize: 8, fontWeight: "900" },
+  newsText: { color: C.muted, fontSize: 10, flex: 1 },
+  incomeToast: {
+    alignSelf: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    backgroundColor: "#123C2A",
+    borderWidth: 1,
+    borderColor: "#3A8C57",
+    borderRadius: 12,
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    marginHorizontal: 18,
+    marginBottom: 5,
+  },
+  incomeToastSource: {
+    color: C.muted,
+    fontSize: 9,
+    fontWeight: "800",
+    flex: 1,
+  },
+  incomeToastAmount: { color: "#B8F34A", fontSize: 10, fontWeight: "900" },
+  content: { paddingHorizontal: 18, paddingBottom: 72 },
+  eyebrow: {
+    color: C.cyan,
+    fontSize: 9,
+    fontWeight: "900",
+    letterSpacing: 2,
+    marginTop: 15,
+  },
+  h1: {
+    color: C.text,
+    fontSize: 30,
+    fontWeight: "900",
+    marginTop: 6,
+    marginBottom: 13,
+  },
+  muted: { color: C.muted, fontSize: 11 },
+  viza: {
+    height: 193,
+    borderRadius: 22,
+    padding: 19,
+    backgroundColor: "#171A22",
+    borderWidth: 1,
+    borderColor: "#625535",
+    overflow: "hidden",
+    marginBottom: 13,
+    shadowColor: "#000",
+    shadowOpacity: 0.7,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  vizaTop: { flexDirection: "row", justifyContent: "space-between" },
+  vizaLogo: {
+    color: C.gold,
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 1.5,
+  },
+  chip: { color: C.gold, fontSize: 25 },
+  cardLabel: {
+    color: "#9EA6B2",
+    fontSize: 8,
+    letterSpacing: 1.2,
+    marginTop: 27,
+  },
+  vizaBalance: { color: C.text, fontSize: 33, fontWeight: "900", marginTop: 5 },
+  cardBottom: {
+    marginTop: 23,
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  cardNumber: { color: "#C6CCD5", fontSize: 12, letterSpacing: 2 },
+  cardExpiry: { color: C.gold, fontWeight: "900" },
+  clickBar: {
+    backgroundColor: C.panel,
+    padding: 13,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: C.slate,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  clickNow: { color: C.text, fontSize: 18, fontWeight: "900", marginTop: 5 },
+  next: { color: C.green, fontSize: 10 },
+  upgrade: {
+    backgroundColor: C.green,
+    paddingVertical: 10,
+    paddingHorizontal: 11,
+    borderRadius: 8,
+  },
+  buyText: { color: C.bg, fontSize: 9, fontWeight: "900" },
+  up: { color: C.green, fontSize: 11, fontWeight: "900" },
+  down: { color: C.red, fontSize: 11, fontWeight: "900" },
+  buyBtn: {
+    marginTop: 14,
+    backgroundColor: C.green,
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+  },
+  progress: {
+    height: 5,
+    backgroundColor: C.slate,
+    borderRadius: 5,
+    marginTop: 7,
+    marginBottom: 12,
+  },
+  progressFill: { height: 5, borderRadius: 5, backgroundColor: C.green },
+  adBoost: {
+    backgroundColor: "#132A29",
+    borderRadius: 13,
+    padding: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#1E5E4C",
+  },
+  video: { color: C.green, fontSize: 19 },
+  adTitle: { color: C.text, fontSize: 10, fontWeight: "900" },
+  tapArea: {
+    backgroundColor: "#101722",
+    borderRadius: 18,
+    minHeight: 255,
+    padding: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: C.slate,
+  },
+  tapTitle: {
+    color: C.text,
+    fontWeight: "900",
+    fontSize: 15,
+    letterSpacing: 0.4,
+  },
+  tapSub: { color: C.muted, fontSize: 11, marginTop: 5 },
+  tapButtons: { flexDirection: "row", gap: 10, width: "100%", marginTop: 28 },
+  tap: {
+    flex: 1,
+    height: 90,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#182B3A",
+    borderWidth: 1,
+    borderColor: "#2B5672",
+  },
+  tapHot: { backgroundColor: "#172C2A", borderColor: "#13795A" },
+  tapMoney: { color: C.text, fontSize: 20, fontWeight: "900" },
+  tapHint: { color: C.muted, fontSize: 8, letterSpacing: 1, marginTop: 5 },
+  floatLayer: { position: "absolute", top: 25, right: 35, gap: 3 },
+  float: { color: C.green, fontSize: 15, fontWeight: "900" },
+  homeTiles: { flexDirection: "row", gap: 9, marginTop: 14 },
+  quick: {
+    flex: 1,
+    backgroundColor: C.panel,
+    borderRadius: 13,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: C.slate,
+  },
+  quickTitle: {
+    color: C.text,
+    fontWeight: "900",
+    fontSize: 13,
+    marginBottom: 5,
+  },
+  back: { color: C.cyan, fontSize: 10, fontWeight: "900", marginBottom: 12 },
+  grid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  category: {
+    width: "48%",
+    minHeight: 150,
+    padding: 14,
+    borderRadius: 15,
+    backgroundColor: C.panel,
+    borderWidth: 1,
+    borderColor: C.slate,
+  },
+  locked: { opacity: 0.6 },
+  categoryIcon: { fontSize: 26, color: C.green, marginBottom: 17 },
+  categoryName: { color: C.text, fontSize: 14, fontWeight: "900" },
+  categoryPrice: {
+    color: C.green,
+    fontSize: 11,
+    fontWeight: "800",
+    marginTop: 7,
+  },
+  unlocked: { color: C.cyan, fontSize: 8, fontWeight: "900", marginTop: 7 },
+  lockedText: { color: C.red, fontSize: 8, fontWeight: "900", marginTop: 7 },
+  bizHero: {
+    backgroundColor: C.panel2,
+    borderRadius: 17,
+    padding: 19,
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  bizIcon: { fontSize: 42 },
+  bizIncome: { color: C.green, fontSize: 25, fontWeight: "900", marginTop: 8 },
+  detailCard: {
+    backgroundColor: C.panel,
+    borderRadius: 15,
+    padding: 15,
+    borderWidth: 1,
+    borderColor: C.slate,
+  },
+  sectionTitle: {
+    color: C.text,
+    fontSize: 11,
+    letterSpacing: 1.4,
+    fontWeight: "900",
+    marginBottom: 11,
+  },
+  row: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: C.slate,
+  },
+  rowValue: { color: C.text, fontWeight: "900", fontSize: 12 },
+  sliderLabel: {
+    color: C.muted,
+    fontSize: 9,
+    fontWeight: "900",
+    marginTop: 15,
+  },
+  priceDots: { flexDirection: "row", gap: 8, marginVertical: 12 },
+  priceDot: { flex: 1, height: 7, borderRadius: 5, backgroundColor: C.slate },
+  priceDotOn: { backgroundColor: C.green },
+  bizFoot: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 7,
+  },
+  portStrip: {
+    backgroundColor: "#12242A",
+    borderRadius: 15,
+    padding: 15,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#1A5B4D",
+  },
+  portTotal: { color: C.text, fontSize: 23, fontWeight: "900", marginTop: 5 },
+  filters: { marginBottom: 12 },
+  filter: {
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 9,
+    backgroundColor: C.panel,
+    marginRight: 7,
+    borderWidth: 1,
+    borderColor: C.slate,
+  },
+  filterOn: { backgroundColor: "#123D34", borderColor: C.green },
+  filterText: { color: C.muted, fontSize: 9, fontWeight: "900" },
+  filterTextOn: { color: C.green },
+  marketRow: {
+    minHeight: 82,
+    backgroundColor: C.panel,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: C.slate,
+    marginBottom: 8,
+    padding: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  assetBadge: {
+    width: 33,
+    height: 33,
+    borderRadius: 10,
+    backgroundColor: "#20334B",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  assetBadgeText: { color: C.cyan, fontSize: 8, fontWeight: "900" },
+  marketInfo: { width: 78 },
+  marketName: { color: C.text, fontSize: 11, fontWeight: "900" },
+  marketPrice: { alignItems: "flex-end", width: 65 },
+  marketValue: { color: C.text, fontSize: 11, fontWeight: "900" },
+  tradeBtns: { gap: 4 },
+  sellBtn: {
+    backgroundColor: "#252A36",
+    borderRadius: 6,
+    paddingVertical: 5,
+    paddingHorizontal: 7,
+  },
+  sellText: { color: C.text, fontSize: 8, fontWeight: "900" },
+  lifeCard: {
+    backgroundColor: C.panel,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: C.slate,
+    overflow: "hidden",
+    marginBottom: 12,
+  },
+  lifeImage: {
+    width: "100%",
+    height: 145,
+    backgroundColor: C.slate,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  lifeEmoji: { color: C.gold, fontSize: 52, fontWeight: "900" },
+  upkeepRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 10,
+    marginTop: 14,
+    marginBottom: 6,
+  },
+  upkeepValue: { color: C.text, fontSize: 11, fontWeight: "800" },
+  prestigeValue: { color: C.gold, fontSize: 10, fontWeight: "800" },
+  lifeBody: { padding: 14 },
+  lifeCategory: {
+    color: C.cyan,
+    fontSize: 8,
+    fontWeight: "900",
+    letterSpacing: 1.2,
+  },
+  lifeName: { color: C.text, fontSize: 18, fontWeight: "900", marginTop: 5 },
+  lifePrice: {
+    color: C.gold,
+    fontSize: 18,
+    fontWeight: "900",
+    marginVertical: 5,
+  },
+  owned: { color: C.green, fontSize: 9, fontWeight: "900", marginTop: 12 },
+  nav: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 54,
+    backgroundColor: "#0D141F",
+    borderTopWidth: 1,
+    borderTopColor: C.slate,
+    flexDirection: "row",
+    paddingVertical: 1,
+    paddingHorizontal: 6,
+  },
+  navItem: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 1,
+    borderRadius: 9,
+  },
+  navCenter: {
+    backgroundColor: C.green,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    marginTop: -10,
+    borderWidth: 4,
+    borderColor: C.bg,
+    justifyContent: "center",
+    alignSelf: "center",
+  },
+  navCenterIcon: { color: C.bg, fontSize: 22 },
+  navOn: { backgroundColor: "#153329" },
+  navIcon: { color: C.muted, fontSize: 18 },
+  navIconOn: { color: C.green },
+  navLabel: { color: C.muted, fontSize: 8, fontWeight: "900", marginTop: 3 },
+  navLabelOn: { color: C.text },
+  modalShade: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,.78)",
+    justifyContent: "flex-end",
+  },
+  store: {
+    backgroundColor: C.panel,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 18,
+    paddingBottom: 32,
+  },
+  storeHead: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+  },
+  close: { color: C.text, fontSize: 32 },
+  pack: {
+    backgroundColor: C.panel2,
+    borderRadius: 13,
+    padding: 14,
+    marginTop: 8,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: C.slate,
+  },
+  packTitle: { color: C.text, fontWeight: "900", fontSize: 14 },
+  packPrice: { color: C.green, fontWeight: "900", fontSize: 15 },
+  storeNote: {
+    color: C.muted,
+    fontSize: 10,
+    textAlign: "center",
+    marginTop: 14,
+  },
+  settingsIntro: {
+    color: C.muted,
+    fontSize: 11,
+    lineHeight: 16,
+    marginBottom: 10,
+  },
+  settingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: C.panel2,
+    borderRadius: 12,
+    padding: 13,
+    marginTop: 8,
+  },
+  legalBox: {
+    backgroundColor: "#101722",
+    borderRadius: 12,
+    padding: 13,
+    marginTop: 14,
+    gap: 6,
+  },
+  legalButton: {
+    backgroundColor: C.panel2,
+    borderWidth: 1,
+    borderColor: C.slate,
+    borderRadius: 10,
+    padding: 12,
+    marginTop: 8,
+    alignItems: "center",
+  },
+  legalButtonText: { color: C.cyan, fontSize: 9, fontWeight: "900" },
+});

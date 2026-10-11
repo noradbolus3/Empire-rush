@@ -309,7 +309,11 @@ export function underwriteLoan(
   reason: string;
 } {
   const spec = loanProduct(product);
-  if (isSecuredProduct(product) && !collateral)
+  if (
+    isSecuredProduct(product) &&
+    !(product === "SBA_MICROLOAN" && requested <= STARTER_MICROLOAN_LIMIT) &&
+    !collateral
+  )
     return {
       decision: "DECLINE",
       amount: 0,
@@ -518,15 +522,20 @@ export function creditBreakdown(state: BankState): {
   pointsToVeryGood: number;
 } {
   const active = state.loans.filter(isActiveLoan);
-  const paymentHistory = active.some((l) => l.delinquencyDays > 0)
-    ? 45
-    : state.totalInterestPaid > 0
-      ? 92
-      : 78;
-  const totalDebt = active.reduce(
-    (sum, loan) => sum + Math.max(0, loan.balance),
-    0,
+  const collections = state.loans.some(
+    (l) =>
+      l.collections || l.status === "defaulted" || l.status === "DEFAULTED",
   );
+  const paymentHistory = collections
+    ? 20
+    : active.some((l) => l.delinquencyDays > 0)
+      ? 45
+      : state.totalInterestPaid > 0
+        ? 92
+        : 78;
+  const totalDebt = state.loans
+    .filter(isDebtBearingLoan)
+    .reduce((sum, loan) => sum + Math.max(0, loan.balance), 0);
   const creditLimit = Math.max(
     25_000,
     Number(state.totalCreditLimit) ||
@@ -593,6 +602,10 @@ export function creditBreakdown(state: BankState): {
     pointsToVeryGood: Math.max(0, 740 - score),
   };
 }
+export function calculateFico(state: BankState): number {
+  return creditBreakdown(state).score;
+}
+
 export function depositSpec(product: DepositProduct): {
   name: string;
   termDays: number;
@@ -880,20 +893,31 @@ export function seizeDefaultedLoan(
   state: BankState,
   loanId: string,
   now: number,
+  collateralValue = 0,
+  cash = 0,
 ): {
   state: BankState;
   collateralAssetId?: string;
   ledgerEntry?: BankLedgerEntry;
+  cash: number;
+  liquidationValue: number;
+  deficiency: number;
 } {
   const loan = state.loans.find((item) => item.id === loanId);
-  if (!loan || !isActiveLoan(loan)) return { state };
+  if (!loan || !isActiveLoan(loan))
+    return { state, cash, liquidationValue: 0, deficiency: 0 };
+  const liquidationValue = safeMoney(Math.max(0, collateralValue) * 0.9);
+  const balance = safeMoney(loan.balance);
+  const applied = Math.min(balance, liquidationValue);
+  const deficiency = safeMoney(balance - applied);
+  const surplus = safeMoney(liquidationValue - applied);
   const entry = {
     id: `ledger-${now}-${state.ledger.length}`,
     kind: "FEE" as const,
     label: `${loan.name} collateral seized`,
-    amount: 0,
+    amount: surplus,
     timestamp: now,
-    detail: `Lender action after delinquency ladder · FICO penalty applied`,
+    detail: `Liquidated at 90% value ${money(liquidationValue)} · applied ${money(applied)} to balance · collections deficiency ${money(deficiency)}`,
   };
   return {
     state: {
@@ -905,7 +929,8 @@ export function seizeDefaultedLoan(
           ? {
               ...item,
               status: "defaulted" as const,
-              collections: true,
+              balance: deficiency,
+              collections: deficiency > 0,
               collateralAssetId: undefined,
               collateralAssetName: undefined,
             }
@@ -915,6 +940,9 @@ export function seizeDefaultedLoan(
     },
     collateralAssetId: loan.collateralAssetId,
     ledgerEntry: entry,
+    cash: safeMoney(cash + surplus),
+    liquidationValue,
+    deficiency,
   };
 }
 export function liveOffers(state: BankState, now: number): BankOffer[] {

@@ -23,6 +23,7 @@ import {
   calculateTax,
   canAcceptOffer,
   creditBreakdown,
+  calculateFico,
   createLoan,
   depositSpec,
   depositSpec as depositTerms,
@@ -535,7 +536,7 @@ export default function BankScreen({
           <Text style={styles.eyebrow}>SIMULATED, FICTIONAL BANKING</Text>
           <Text style={styles.title}>{current}</Text>
         </View>
-        <Text style={styles.bankMark}>▣</Text>
+        <Text style={styles.bankMark}>▥</Text>
       </View>
       <ChipRow
         items={tabs}
@@ -824,7 +825,7 @@ function BankHome({
         <Metric label="NET WORTH" value={money(netWorth)} />
         <Metric label="CASH" value={money(cash)} />
         <Metric label="TOTAL DEBT" value={money(debt)} />
-        <Metric label="FICO SCORE" value={String(state.ficoScore)} />
+        <Metric label="FICO SCORE" value={String(calculateFico(state))} />
         <Metric
           label="INTEREST EARNED"
           value={money(state.totalInterestEarned)}
@@ -856,7 +857,8 @@ function BankHome({
           })}
         </View>
         <Text style={styles.muted}>
-          Login streak {state.loginStreak} days · weekly interest{" "}
+          Login streak {state.loginStreak}{" "}
+          {state.loginStreak === 1 ? "day" : "days"} · weekly interest{" "}
           {money(state.weeklyInterestEarned)}/$5,000
         </Text>
       </View>
@@ -884,11 +886,15 @@ function BankHome({
                 </View>
                 <View>
                   <Text style={styles.offerExpiry}>
-                    {Math.max(
-                      0,
-                      Math.ceil((Number(offer.expiresAt || now) - now) / 60000),
-                    )}
-                    m left
+                    {(() => {
+                      const remaining = Math.max(
+                        0,
+                        Number(offer.expiresAt || now) - now,
+                      );
+                      return remaining < 60000
+                        ? `${Math.ceil(remaining / 1000)}s left`
+                        : `${Math.ceil(remaining / 60000)}m left`;
+                    })()}
                   </Text>
                   <Action label="ACCEPT" onPress={() => onAcceptOffer(offer)} />
                 </View>
@@ -1315,6 +1321,14 @@ function TaxPanel({
   onBreaking,
 }: any) {
   const total = tax.federal + tax.state + tax.payroll + tax.capitalGains;
+  const shortTerm = (state.taxRecords || []).reduce(
+    (sum: number, item: any) => sum + Number(item.shortTermGain || 0),
+    0,
+  );
+  const longTerm = (state.taxRecords || []).reduce(
+    (sum: number, item: any) => sum + Number(item.longTermGain || 0),
+    0,
+  );
   return (
     <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}>
       <Card
@@ -1325,6 +1339,8 @@ function TaxPanel({
       <Metric label="STATE" value={money(tax.state)} />
       <Metric label="PAYROLL/FICA" value={money(tax.payroll)} />
       <Metric label="CAPITAL GAINS" value={money(tax.capitalGains)} />
+      <Metric label="SHORT-TERM GAINS / LOSSES" value={money(shortTerm)} />
+      <Metric label="LONG-TERM GAINS / LOSSES" value={money(longTerm)} />
       <Text style={styles.muted}>
         Estimated total due: {money(total)} · deductions include interest,
         depreciation, and expenses.
@@ -1356,7 +1372,36 @@ function TaxPanel({
   );
 }
 function History({ state, ledger, search, setSearch }: any) {
+  const [category, setCategory] = useState("all");
+  const categories = [
+    "all",
+    "trade",
+    "business",
+    "lifestyle",
+    "upkeep",
+    "EMI",
+    "interest",
+    "tax",
+    "insurance",
+    "investor",
+  ];
+  const categoryKinds: Record<string, string[]> = {
+    trade: ["TRADE", "CAPITAL_GAIN"],
+    business: ["PURCHASE", "BUSINESS_REVENUE"],
+    lifestyle: ["PURCHASE"],
+    upkeep: ["UPKEEP"],
+    EMI: ["EMI"],
+    interest: ["INTEREST"],
+    tax: ["TAX"],
+    insurance: ["INSURANCE", "PREMIUM"],
+    investor: ["INVESTOR"],
+  };
   const entries = ledger
+    .filter(
+      (entry: any) =>
+        category === "all" ||
+        (categoryKinds[category] || []).includes(entry.kind),
+    )
     .filter(
       (entry: any) =>
         !search ||
@@ -1374,6 +1419,14 @@ function History({ state, ledger, search, setSearch }: any) {
         placeholder="Search ledger"
         placeholderTextColor={C.muted}
         style={styles.input}
+      />
+      <ChipRow
+        items={categories.map((item) => ({
+          id: item,
+          label: item.toUpperCase(),
+        }))}
+        selectedId={category}
+        onSelect={setCategory}
       />
       <Card
         title="MONTHLY STATEMENT"
@@ -1479,7 +1532,14 @@ function Metric({ label, value }: { label: string; value: string }) {
   return (
     <View style={styles.metric}>
       <Text style={styles.metricLabel}>{label}</Text>
-      <Text style={styles.metricValue}>{value}</Text>
+      <Text
+        style={styles.metricValue}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.72}
+      >
+        {value}
+      </Text>
     </View>
   );
 }

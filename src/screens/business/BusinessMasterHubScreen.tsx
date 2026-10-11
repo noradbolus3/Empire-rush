@@ -1,31 +1,1069 @@
-import React, { useEffect, useRef } from 'react';
-import { Alert, Animated, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { BusinessEntity, ConstructionData, ExpansionData, MobilityData, RetailData, SaaSData } from '../../types/business';
-import { formatCurrency } from '../../utils/formatCurrency';
-import IPOLaunchModal from '../../components/modals/IPOLaunchModal';
-import { IPOListing } from '../../types/ipo';
-import { IPO_MIN_VALUATION } from '../../engine/ipoEngine';
+import React, { useEffect, useRef } from "react";
+import {
+  Alert,
+  Animated,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  BusinessEntity,
+  ConstructionData,
+  ExpansionData,
+  MobilityData,
+  RetailData,
+  SaaSData,
+} from "../../types/business";
+import { formatCurrency } from "../../utils/formatCurrency";
+import IPOLaunchModal from "../../components/modals/IPOLaunchModal";
+import { IPOListing } from "../../types/ipo";
+import { IPO_MIN_VALUATION } from "../../engine/ipoEngine";
+import type { BankLedgerEntry } from "../../types/bank";
 
-const C = { bg: '#0B0F17', card: '#161F30', panel: '#111A28', slate: '#1E293B', green: '#10B981', cyan: '#00D2FF', red: '#FF3D71', white: '#F8FAFC', muted: '#94A3B8', gold: '#E6B86A', violet: '#A78BFA' };
-type Props = { business: BusinessEntity; cash: number; netWorth: number; timestamp: number; ipoListing?: IPOListing | null; focusRetail?: boolean; onBack: () => void; onCashChange: (updater: (value: number) => number) => void; onChange: (business: BusinessEntity) => void; onIPOComplete: (listing: IPOListing) => void };
+const C = {
+  bg: "#0B0F17",
+  card: "#161F30",
+  panel: "#111A28",
+  slate: "#1E293B",
+  green: "#10B981",
+  cyan: "#00D2FF",
+  red: "#FF3D71",
+  white: "#F8FAFC",
+  muted: "#94A3B8",
+  gold: "#E6B86A",
+  violet: "#A78BFA",
+};
+type Props = {
+  business: BusinessEntity;
+  cash: number;
+  netWorth: number;
+  timestamp: number;
+  ipoListing?: IPOListing | null;
+  focusRetail?: boolean;
+  onBack: () => void;
+  onCashChange: (updater: (value: number) => number) => void;
+  onChange: (business: BusinessEntity) => void;
+  onLedger?: (entry: BankLedgerEntry) => void;
+  onIPOComplete: (listing: IPOListing) => void;
+};
 
-export function BusinessMasterHubScreen({ business, cash, netWorth, timestamp, ipoListing, focusRetail = false, onBack, onCashChange, onChange, onIPOComplete }: Props) {
-  const companyListing = ipoListing?.companyId === business.id ? ipoListing : null;
-  const [ipoOpen, setIpoOpen] = React.useState(false); const spendLock = React.useRef(false); const scrollRef = useRef<ScrollView>(null);
-  useEffect(() => { if (focusRetail && business.sector === 'Retail') scrollRef.current?.scrollTo({ y: 260, animated: true }); }, [business.sector, focusRetail]);
-  const spend = (cost: number, update: () => BusinessEntity) => { if (spendLock.current) return; spendLock.current = true; if (cash < cost) { spendLock.current = false; Alert.alert('INSUFFICIENT CASH', `This operation requires ${formatCurrency(cost)}.`); return; } onCashChange(value => Math.max(0, value - cost)); onChange(update()); setTimeout(() => { spendLock.current = false; }, 160); };
-  return <View style={styles.root}><SafeAreaView edges={['left', 'right']} style={styles.safe}><ScrollView ref={scrollRef} contentContainerStyle={styles.content}><Pressable onPress={onBack}><Text style={styles.back}>‹ BUSINESS REGISTRY</Text></Pressable><Text style={styles.eyebrow}>{business.sector.toUpperCase()} · LIVE OPERATIONS</Text><View style={styles.titleRow}><View style={{ flex: 1 }}><Text style={styles.title}>{business.name}</Text><Text style={business.legalStatus === 'Licensed_Legal' ? styles.legal : styles.shadow}>{business.legalStatus === 'Licensed_Legal' ? 'LICENSED & AUDITED' : `SHADOW · ${business.policeHeat.toFixed(1)}% RAID RISK`}</Text></View><Text style={styles.profit}>{formatCurrency(business.hourlyNetProfit)}/hr</Text></View><View style={styles.meta}><Metric label="STABILITY" value={`${business.stability.toFixed(0)}%`} /><Metric label="LIQUID CAPITAL" value={formatCurrency(cash)} /><Metric label="LEGAL EXPOSURE" value={`${business.policeHeat.toFixed(1)}%`} /></View><Text style={styles.heatHelp}>Legal exposure measures raid risk. Licensed entities remain at 0%; shadow operations can attract inspections.</Text>{companyListing?.stage === 'public' || netWorth >= IPO_MIN_VALUATION ? <View style={styles.ipoCard}><View style={{ flex: 1 }}><Text style={styles.ipoEyebrow}>LATE-GAME CAPITAL EVENT</Text><Text style={styles.ipoTitle}>{companyListing?.stage === 'public' ? `${companyListing.ticker} · PUBLIC COMPANY` : 'PUBLIC OFFERING WINDOW'}</Text><Text style={styles.ipoCopy}>{companyListing?.stage === 'public' ? `Raised ${formatCurrency(companyListing.capitalRaised)} · founders retain 80%` : 'Unlock growth capital by selling a minority stake to public investors.'}</Text></View><Pressable onPress={() => setIpoOpen(true)} style={styles.ipoButton}><Text style={styles.ipoButtonText}>{companyListing?.stage === 'public' ? 'VIEW LISTING' : 'PREPARE IPO'}</Text></Pressable></View> : <View style={[styles.ipoCard, styles.ipoLockedCard]}><View style={{ flex: 1 }}><Text style={styles.ipoEyebrow}>LATE-GAME CAPITAL EVENT</Text><Text style={styles.ipoTitle}>IPO LOCKED</Text><Text style={styles.ipoCopy}>Need {formatCurrency(IPO_MIN_VALUATION - netWorth)} more net worth before the public-offering window opens.</Text></View><Text style={styles.ipoLockedLabel}>LOCKED</Text></View>}{business.sector === 'Retail' && <RetailControls business={business} cash={cash} spend={spend} onChange={onChange} />}{business.sector === 'Mobility' && <MobilityControls business={business} cash={cash} spend={spend} onChange={onChange} />}{business.sector === 'Tech_SaaS' && <SaaSControls business={business} cash={cash} spend={spend} onChange={onChange} />}{business.sector === 'Construction_Mega' && <ConstructionControls business={business} cash={cash} spend={spend} onChange={onChange} />}{['Real_Estate', 'Energy', 'Pharma', 'Media', 'Sports', 'Airline'].includes(business.sector) && <ExpansionControls business={business as ExpansionData} cash={cash} spend={spend} onChange={onChange} />}</ScrollView><IPOLaunchModal visible={ipoOpen} business={business} listing={companyListing} cash={cash} netWorth={netWorth} timestamp={timestamp} onClose={() => setIpoOpen(false)} onLaunch={listing => { onIPOComplete(listing); setIpoOpen(false); }} /></SafeAreaView></View>;
+export function BusinessMasterHubScreen({
+  business,
+  cash,
+  netWorth,
+  timestamp,
+  ipoListing,
+  focusRetail = false,
+  onBack,
+  onCashChange,
+  onChange,
+  onLedger,
+  onIPOComplete,
+}: Props) {
+  const companyListing =
+    ipoListing?.companyId === business.id ? ipoListing : null;
+  const [ipoOpen, setIpoOpen] = React.useState(false);
+  const spendLock = React.useRef(false);
+  const scrollRef = useRef<ScrollView>(null);
+  useEffect(() => {
+    if (focusRetail && business.sector === "Retail")
+      scrollRef.current?.scrollTo({ y: 260, animated: true });
+  }, [business.sector, focusRetail]);
+  const spend = (cost: number, update: () => BusinessEntity) => {
+    if (spendLock.current) return;
+    spendLock.current = true;
+    if (cash < cost) {
+      spendLock.current = false;
+      Alert.alert(
+        "INSUFFICIENT CASH",
+        `This operation requires ${formatCurrency(cost)}.`,
+      );
+      return;
+    }
+    onCashChange((value) => Math.max(0, value - cost));
+    onLedger?.({
+      id: `ledger-business-upgrade-${business.id}-${Date.now()}`,
+      kind: "UPKEEP",
+      label: `Business upgrade · ${business.name}`,
+      amount: -cost,
+      timestamp: Date.now(),
+      detail: "Business management spend",
+    });
+    onChange(update());
+    setTimeout(() => {
+      spendLock.current = false;
+    }, 160);
+  };
+  return (
+    <View style={styles.root}>
+      <SafeAreaView edges={["left", "right"]} style={styles.safe}>
+        <ScrollView ref={scrollRef} contentContainerStyle={styles.content}>
+          <Pressable onPress={onBack}>
+            <Text style={styles.back}>‹ BUSINESS REGISTRY</Text>
+          </Pressable>
+          <Text style={styles.eyebrow}>
+            {business.sector.toUpperCase()} · LIVE OPERATIONS
+          </Text>
+          <View style={styles.titleRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.title}>{business.name}</Text>
+              <Text
+                style={
+                  business.legalStatus === "Licensed_Legal"
+                    ? styles.legal
+                    : styles.shadow
+                }
+              >
+                {business.legalStatus === "Licensed_Legal"
+                  ? "LICENSED & AUDITED"
+                  : `SHADOW · ${business.policeHeat.toFixed(1)}% RAID RISK`}
+              </Text>
+            </View>
+            <Text style={styles.profit}>
+              {formatCurrency(business.hourlyNetProfit)}/hr
+            </Text>
+          </View>
+          <View style={styles.meta}>
+            <Metric
+              label="STABILITY"
+              value={`${business.stability.toFixed(0)}%`}
+            />
+            <Metric label="LIQUID CAPITAL" value={formatCurrency(cash)} />
+            <Metric
+              label="LEGAL EXPOSURE"
+              value={`${business.policeHeat.toFixed(1)}%`}
+            />
+          </View>
+          <Text style={styles.heatHelp}>
+            Legal exposure measures raid risk. Licensed entities remain at 0%;
+            shadow operations can attract inspections.
+          </Text>
+          {companyListing?.stage === "public" ||
+          netWorth >= IPO_MIN_VALUATION ? (
+            <View style={styles.ipoCard}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.ipoEyebrow}>LATE-GAME CAPITAL EVENT</Text>
+                <Text style={styles.ipoTitle}>
+                  {companyListing?.stage === "public"
+                    ? `${companyListing.ticker} · PUBLIC COMPANY`
+                    : "PUBLIC OFFERING WINDOW"}
+                </Text>
+                <Text style={styles.ipoCopy}>
+                  {companyListing?.stage === "public"
+                    ? `Raised ${formatCurrency(companyListing.capitalRaised)} · founders retain 80%`
+                    : "Unlock growth capital by selling a minority stake to public investors."}
+                </Text>
+              </View>
+              <Pressable
+                onPress={() => setIpoOpen(true)}
+                style={styles.ipoButton}
+              >
+                <Text style={styles.ipoButtonText}>
+                  {companyListing?.stage === "public"
+                    ? "VIEW LISTING"
+                    : "PREPARE IPO"}
+                </Text>
+              </Pressable>
+            </View>
+          ) : (
+            <View style={[styles.ipoCard, styles.ipoLockedCard]}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.ipoEyebrow}>LATE-GAME CAPITAL EVENT</Text>
+                <Text style={styles.ipoTitle}>IPO LOCKED</Text>
+                <Text style={styles.ipoCopy}>
+                  Need {formatCurrency(IPO_MIN_VALUATION - netWorth)} more net
+                  worth before the public-offering window opens.
+                </Text>
+              </View>
+              <Text style={styles.ipoLockedLabel}>LOCKED</Text>
+            </View>
+          )}
+          {business.sector === "Retail" && (
+            <RetailControls
+              business={business}
+              cash={cash}
+              spend={spend}
+              onChange={onChange}
+            />
+          )}
+          {business.sector === "Mobility" && (
+            <MobilityControls
+              business={business}
+              cash={cash}
+              spend={spend}
+              onChange={onChange}
+            />
+          )}
+          {business.sector === "Tech_SaaS" && (
+            <SaaSControls
+              business={business}
+              cash={cash}
+              spend={spend}
+              onChange={onChange}
+            />
+          )}
+          {business.sector === "Construction_Mega" && (
+            <ConstructionControls
+              business={business}
+              cash={cash}
+              spend={spend}
+              onChange={onChange}
+            />
+          )}
+          {[
+            "Real_Estate",
+            "Energy",
+            "Pharma",
+            "Media",
+            "Sports",
+            "Airline",
+          ].includes(business.sector) && (
+            <ExpansionControls
+              business={business as ExpansionData}
+              cash={cash}
+              spend={spend}
+              onChange={onChange}
+            />
+          )}
+        </ScrollView>
+        <IPOLaunchModal
+          visible={ipoOpen}
+          business={business}
+          listing={companyListing}
+          cash={cash}
+          netWorth={netWorth}
+          timestamp={timestamp}
+          onClose={() => setIpoOpen(false)}
+          onLaunch={(listing) => {
+            onIPOComplete(listing);
+            setIpoOpen(false);
+          }}
+        />
+      </SafeAreaView>
+    </View>
+  );
 }
-function RetailControls({ business, cash, spend, onChange }: { business: RetailData; cash: number; spend: (cost: number, update: () => BusinessEntity) => void; onChange: (business: BusinessEntity) => void }) { const saleFlash = useRef(new Animated.Value(0)).current; const previousSale = useRef(business.lastSaleSequence ?? 0); useEffect(() => { if ((business.lastSaleSequence ?? 0) <= previousSale.current) return; previousSale.current = business.lastSaleSequence ?? 0; saleFlash.setValue(1); Animated.timing(saleFlash, { toValue: 0, duration: 700, useNativeDriver: true }).start(); }, [business.lastSaleSequence, saleFlash]); const pricing = { Discount: 4, Standard: 5.5, Luxury: 8 } as const; const eventCopy = business.demandEvent && business.demandEvent !== 'None' ? `${business.demandEvent} · ${business.demandEventSeconds ?? 0}s remaining · pulse chain ${business.pulseChain ?? 0}` : 'No active pulse. A new customer-demand event cycles every minute.'; const order = (units: number, cost: number) => { if (business.stockUnits + units > business.maxStockCapacity) return Alert.alert('WAREHOUSE FULL', 'Expand warehouse capacity before ordering more stock.'); spend(cost, () => ({ ...business, stockUnits: business.stockUnits + units, onboardingStep: business.onboardingStep === 'ORDER_STOCK' ? 'WATCH_FIRST_SALE' : business.onboardingStep })); }; return <><GuidedStep step={business.onboardingStep} />{(business.lastSaleSequence ?? 0) > 0 && <Animated.View style={[styles.saleFlash, { opacity: saleFlash, transform: [{ translateY: saleFlash.interpolate({ inputRange: [0, 1], outputRange: [0, 8] }) }] }]}><Text style={styles.saleFlashText}>+{formatCurrency(business.lastSaleRevenue ?? 0)} SALE · PULSE {business.pulseChain ?? 0}</Text></Animated.View>}<Panel title="PULSE CHAIN · CUSTOMER DEMAND"><Text style={styles.demandEvent}>{eventCopy}</Text><Text style={styles.muted}>Match pricing to the pulse: Discount = 1.55× volume at $4.00, Standard = balanced volume at $5.50, Luxury = 0.55× volume at $8.00.</Text></Panel><Panel title="INVENTORY CONTROL"><Text style={styles.gaugeLabel}>{business.stockUnits.toLocaleString()} / {business.maxStockCapacity.toLocaleString()} units</Text><Gauge value={business.stockUnits / Math.max(1, business.maxStockCapacity)} color={business.stockUnits < business.maxStockCapacity * .15 ? C.red : C.green} /><View style={styles.grid}>{(['Discount', 'Standard', 'Luxury'] as const).map(tier => <Action key={tier} title={`${tier.toUpperCase()} SALE`} copy={`${formatCurrency(pricing[tier])} per unit`} active={business.pricingTier === tier} onPress={() => onChange({ ...business, pricingTier: tier })} />)}</View></Panel><Panel title="SAFE WAREHOUSE PURCHASING"><Action title="ORDER 1,000 UNITS" copy="$2,000 · $2.00 per unit" onPress={() => order(1000, 2000)} disabled={business.stockUnits + 1000 > business.maxStockCapacity || cash < 2000} lockedReason={cash < 2000 ? `Need ${formatCurrency(2000 - cash)} more` : 'Warehouse capacity reached'} /><Action title="ORDER 5,000 UNITS" copy="$8,500 · $1.70 per unit" onPress={() => order(5000, 8500)} disabled={business.stockUnits + 5000 > business.maxStockCapacity || cash < 8500} lockedReason={cash < 8500 ? `Need ${formatCurrency(8500 - cash)} more` : 'Warehouse capacity reached'} /><Action title="ORDER 20,000 UNITS" copy="$28,000 · $1.40 per unit" onPress={() => order(20000, 28000)} disabled={business.stockUnits + 20000 > business.maxStockCapacity || cash < 28000} lockedReason={cash < 28000 ? `Need ${formatCurrency(28000 - cash)} more` : 'Warehouse capacity reached'} /></Panel><Panel title="RETAIL UPGRADES"><Action title="EXPAND WAREHOUSE" copy="+15,000 units · $20,000" onPress={() => spend(20000, () => ({ ...business, maxStockCapacity: business.maxStockCapacity + 15000 }))} disabled={cash < 20000} lockedReason={`Need ${formatCurrency(Math.max(0, 20000 - cash))} more`} /><Action title={business.hasSecurity ? 'SECURITY SQUAD ACTIVE' : 'HIRE SECURITY SQUAD'} copy="$5,000 · eliminates shoplifting" onPress={() => spend(5000, () => ({ ...business, hasSecurity: true }))} disabled={business.hasSecurity || cash < 5000} lockedReason={business.hasSecurity ? 'Already active' : `Need ${formatCurrency(5000 - cash)} more`} /><Action title={business.hasManager ? 'STORE MANAGER ACTIVE' : 'HIRE STORE MANAGER'} copy="$12,000 · unlocks advanced auto-order" onPress={() => spend(12000, () => ({ ...business, hasManager: true }))} disabled={business.hasManager || cash < 12000} lockedReason={business.hasManager ? 'Already active' : `Need ${formatCurrency(12000 - cash)} more`} /><Action title={business.autoRestockEnabled ? 'SHELF RUNNER ACTIVE' : 'HIRE SHELF RUNNER'} copy={business.autoRestockEnabled ? 'Auto-orders 125 units for $250 below 15% stock' : '$250 · repeats a safe 125-unit order below 15% stock'} onPress={() => spend(250, () => ({ ...business, autoRestockEnabled: true }))} disabled={business.autoRestockEnabled || cash < 250} lockedReason={business.autoRestockEnabled ? 'Already active' : `Need ${formatCurrency(Math.max(0, 250 - cash))} more`} /></Panel></>; }
-function MobilityControls({ business, cash, spend, onChange }: { business: MobilityData; cash: number; spend: (cost: number, update: () => BusinessEntity) => void; onChange: (business: BusinessEntity) => void }) { const hourly = business.economySedans * 50 + business.electricEVs * 150 + business.luxuryLimos * 400; return <><Panel title="LIVE FLEET HEALTH"><Text style={styles.bigMetric}>{business.fleetHealth.toFixed(1)}%</Text><Gauge value={business.fleetHealth / 100} color={business.fleetHealth < 30 ? C.red : C.cyan} /><Text style={styles.muted}>Base yield {formatCurrency(hourly)}/hr · {business.surgeActive ? '1.7× surge active' : 'standard fares'}</Text></Panel><Panel title="VEHICLE SHOWROOM"><Action title="BUY ECONOMY SEDAN" copy="$12,000 · +$50/hr" onPress={() => spend(12000, () => ({ ...business, economySedans: business.economySedans + 1 }))} disabled={cash < 12000} lockedReason={`Need ${formatCurrency(12000 - cash)} more`} /><Action title="BUY ELECTRIC EV" copy="$32,000 · +$150/hr" onPress={() => spend(32000, () => ({ ...business, electricEVs: business.electricEVs + 1 }))} disabled={cash < 32000} lockedReason={`Need ${formatCurrency(32000 - cash)} more`} /><Action title="BUY LUXURY LIMO" copy="$85,000 · +$400/hr" onPress={() => spend(85000, () => ({ ...business, luxuryLimos: business.luxuryLimos + 1 }))} disabled={cash < 85000} lockedReason={`Need ${formatCurrency(85000 - cash)} more`} /></Panel><Panel title="WORKSHOP & PRICING"><Action title="FULL FLEET SERVICE & OVERHAUL" copy="$1,500 · restore health to 100%" onPress={() => spend(1500, () => ({ ...business, fleetHealth: 100 }))} disabled={cash < 1500 || business.fleetHealth >= 100} lockedReason={business.fleetHealth >= 100 ? 'Fleet already serviced' : `Need ${formatCurrency(1500 - cash)} more`} /><View style={styles.switchRow}><View style={{ flex: 1 }}><Text style={styles.actionTitle}>SURGE PRICING</Text><Text style={styles.muted}>Instant 1.7× fare multiplier</Text></View><Switch value={business.surgeActive} onValueChange={value => onChange({ ...business, surgeActive: value })} trackColor={{ false: '#263449', true: '#087C4A' }} thumbColor={business.surgeActive ? C.green : C.muted} /></View></Panel></>; }
-function SaaSControls({ business, cash, spend, onChange }: { business: SaaSData; cash: number; spend: (cost: number, update: () => BusinessEntity) => void; onChange: (business: BusinessEntity) => void }) { const overloaded = business.activeSubscribers > business.serverCapacity; return <><Panel title="CLOUD BANDWIDTH"><Text style={styles.gaugeLabel}>{business.activeSubscribers.toLocaleString()} / {business.serverCapacity.toLocaleString()} subscribers</Text><Gauge value={business.activeSubscribers / Math.max(1, business.serverCapacity)} color={overloaded ? C.red : C.violet} />{overloaded && <Text style={styles.warning}>SERVER OVERLOAD · churn is active at the next simulation tick</Text>}</Panel><Panel title="TECH OPERATIONS"><Action title="SCALE AWS SERVER NODES" copy="+$25,000 capacity · $6,000" onPress={() => spend(6000, () => ({ ...business, serverCapacity: business.serverCapacity + 25000 }))} disabled={cash < 6000} lockedReason={`Need ${formatCurrency(6000 - cash)} more`} /><Action title="ENGINEERING BUG BASH SPRINT" copy="Clears 25 bugs · $2,500" onPress={() => spend(2500, () => ({ ...business, openBugs: Math.max(0, business.openBugs - 25) }))} disabled={cash < 2500 || business.openBugs === 0} lockedReason={business.openBugs === 0 ? 'No open bugs' : `Need ${formatCurrency(2500 - cash)} more`} /><Action title="GLOBAL AD CAMPAIGN" copy="+2,500 subscribers · $5,000" onPress={() => spend(5000, () => ({ ...business, activeSubscribers: business.activeSubscribers + 2500 }))} disabled={cash < 5000} lockedReason={`Need ${formatCurrency(5000 - cash)} more`} /></Panel></>; }
-function ExpansionControls({ business, cash, spend, onChange }: { business: ExpansionData; cash: number; spend: (cost: number, update: () => BusinessEntity) => void; onChange: (business: BusinessEntity) => void }) { const branchCost = 25000 * Math.max(1, business.branchCount); const staffCost = 5000 * Math.max(1, business.staffCount); const upgradeCost = 30000 * (business.upgradeLevel + 1); return <><Panel title="EXPANSION OPERATIONS"><Metric label="REPUTATION" value={`${business.reputation.toFixed(0)} / 100`} /><Metric label="CUSTOMER SATISFACTION" value={`${business.customerSatisfaction.toFixed(0)} / 100`} /><Metric label="ACTIVE CONTRACT" value={`${Math.ceil(business.contractSecondsRemaining / 60)} min · ${formatCurrency(business.contractReward)}`} /><Text style={styles.muted}>{business.activeEvent === 'None' ? 'No active demand event. Contracts refresh as you operate.' : `${business.activeEvent} is active right now.`}</Text></Panel><Panel title="STAFF & AUTOMATION"><Action title={`HIRE STAFF · ${business.staffCount} ON ROSTER`} copy={`${formatCurrency(staffCost)} · improves satisfaction`} onPress={() => spend(staffCost, () => ({ ...business, staffCount: business.staffCount + 4 }))} disabled={cash < staffCost} lockedReason={`Need ${formatCurrency(Math.max(0, staffCost - cash))} more`} /><Action title={business.managerHired ? 'GENERAL MANAGER ACTIVE' : 'HIRE GENERAL MANAGER'} copy="$15,000 · unlocks automation and reputation growth" onPress={() => spend(15000, () => ({ ...business, managerHired: true }))} disabled={business.managerHired || cash < 15000} lockedReason={business.managerHired ? 'Already active' : `Need ${formatCurrency(15000 - cash)} more`} /></Panel><Panel title="BRANCH & UPGRADE TREE"><Action title={`OPEN BRANCH · ${business.branchCount} LIVE`} copy={`${formatCurrency(branchCost)} · +1 branch and more contracts`} onPress={() => spend(branchCost, () => ({ ...business, branchCount: business.branchCount + 1 }))} disabled={cash < branchCost} lockedReason={`Need ${formatCurrency(Math.max(0, branchCost - cash))} more`} /><Action title={`UPGRADE LEVEL ${business.upgradeLevel + 1}`} copy={`${formatCurrency(upgradeCost)} · +18% base yield`} onPress={() => spend(upgradeCost, () => ({ ...business, upgradeLevel: business.upgradeLevel + 1 }))} disabled={cash < upgradeCost} lockedReason={`Need ${formatCurrency(Math.max(0, upgradeCost - cash))} more`} /></Panel></>; }
-function ConstructionControls({ business, cash, spend, onChange }: { business: ConstructionData; cash: number; spend: (cost: number, update: () => BusinessEntity) => void; onChange: (business: BusinessEntity) => void }) { const phaseName = ['IDLE', 'DEEP PILING', 'STEEL TRUSS', 'FINISHING'][business.projectPhase]; return <><Panel title="ACTIVE MUNICIPAL TENDER">{business.projectPhase === 0 ? <Action title="BID ON MUNICIPAL SEA-BRIDGE" copy="$50,000 advance bond · $1,200,000 escrow payout" onPress={() => spend(50000, () => ({ ...business, activeTenderName: 'Municipal Sea-Bridge Tender', projectPhase: 1, phaseProgressPercent: 0 }))} disabled={cash < 50000} lockedReason={`Need ${formatCurrency(50000 - cash)} more`} /> : <><Text style={styles.phase}>{phaseName}</Text><Text style={styles.muted}>{business.phaseProgressPercent}% complete · {business.activeTenderName}</Text><Gauge value={business.phaseProgressPercent / 100} color={C.gold} /></>}</Panel><Panel title="CONSTRUCTION SITE ACTIONS"><Action title="DISPATCH HEAVY MACHINERY BATCH" copy="$15,000 · accelerates phase +15%" onPress={() => onChange({ ...business, phaseProgressPercent: Math.min(100, business.phaseProgressPercent + 15), machineryDispatched: true })} disabled={business.projectPhase === 0 || cash < 15000} lockedReason={business.projectPhase === 0 ? 'Start a tender first' : `Need ${formatCurrency(15000 - cash)} more`} /><Action title="SAFETY COMPLIANCE CLEARANCE" copy="$8,000 · protects against shutdown" onPress={() => spend(8000, () => ({ ...business, safetyCleared: true }))} disabled={business.projectPhase === 0 || business.safetyCleared || cash < 8000} lockedReason={business.projectPhase === 0 ? 'Start a tender first' : business.safetyCleared ? 'Already cleared' : `Need ${formatCurrency(8000 - cash)} more`} /></Panel></>; }
-function GuidedStep({ step }: { step?: RetailData['onboardingStep'] }) { const title = step === 'ORDER_STOCK' ? 'STEP 1 · ORDER YOUR FIRST STOCK' : step === 'WATCH_FIRST_SALE' ? 'STEP 2 · WATCH YOUR FIRST SALE' : 'RETAIL LOOP ONLINE'; const copy = step === 'ORDER_STOCK' ? 'Order a starter batch, then the simulation will begin selling inventory.' : step === 'WATCH_FIRST_SALE' ? 'Keep this business open for a few seconds. Your first sale will complete the guided loop.' : 'Stock, price, and operating systems are active.'; return <View style={styles.guided}><Text style={styles.guidedTitle}>{title}</Text><Text style={styles.guidedCopy}>{copy}</Text></View>; }
-function Panel({ title, children }: { title: string; children: React.ReactNode }) { return <View style={styles.panel}><Text style={styles.panelTitle}>{title}</Text>{children}</View>; }
-function Action({ title, copy, onPress, disabled = false, active = false, lockedReason }: { title: string; copy: string; onPress: () => void; disabled?: boolean; active?: boolean; lockedReason?: string }) { return <Pressable disabled={disabled} onPress={onPress} style={({ pressed }) => [styles.action, active && styles.actionActive, disabled && styles.actionDisabled, pressed && styles.pressed]}><View style={{ flex: 1 }}><Text style={styles.actionTitle}>{title}</Text><Text style={styles.muted}>{disabled && lockedReason ? lockedReason : copy}</Text></View><Text style={styles.chevron}>{active ? 'ACTIVE' : disabled ? 'LOCKED' : '›'}</Text></Pressable>; }
-function Metric({ label, value }: { label: string; value: string }) { return <View style={styles.metric}><Text style={styles.metricLabel}>{label}</Text><Text style={styles.metricValue}>{value}</Text></View>; }
-function Gauge({ value, color }: { value: number; color: string }) { return <View style={styles.gauge}><View style={[styles.gaugeFill, { width: `${Math.max(0, Math.min(100, value * 100))}%`, backgroundColor: color }]} /></View>; }
-const styles = StyleSheet.create({ root: { flex: 1, backgroundColor: C.bg }, safe: { flex: 1 }, content: { padding: 16, paddingBottom: 120 }, back: { color: C.cyan, fontSize: 11, fontWeight: '900', letterSpacing: 1, marginBottom: 18 }, eyebrow: { color: C.cyan, fontSize: 10, fontWeight: '900', letterSpacing: 1.5 }, titleRow: { flexDirection: 'row', alignItems: 'center', marginTop: 7 }, title: { color: C.white, fontSize: 26, fontWeight: '900' }, legal: { color: C.green, fontSize: 10, fontWeight: '900', marginTop: 6 }, shadow: { color: C.red, fontSize: 10, fontWeight: '900', marginTop: 6 }, profit: { color: C.green, fontSize: 15, fontWeight: '900' }, meta: { flexDirection: 'row', gap: 8, marginVertical: 18 }, metric: { flex: 1, backgroundColor: C.panel, borderRadius: 10, padding: 10 }, metricLabel: { color: C.muted, fontSize: 8, fontWeight: '900' }, metricValue: { color: C.white, fontSize: 13, fontWeight: '900', marginTop: 4 }, ipoCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#12372F', borderRadius: 16, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: C.green }, ipoEyebrow: { color: C.green, fontSize: 8, fontWeight: '900', letterSpacing: .8 }, ipoTitle: { color: C.white, fontSize: 14, fontWeight: '900', marginTop: 5 }, ipoCopy: { color: '#9ED9C4', fontSize: 10, lineHeight: 14, marginTop: 4 }, ipoButton: { backgroundColor: C.green, borderRadius: 9, paddingVertical: 10, paddingHorizontal: 9, marginLeft: 8 }, ipoButtonText: { color: C.bg, fontSize: 8, fontWeight: '900' }, ipoLockedCard: { borderColor: C.slate, backgroundColor: C.panel }, ipoLockedLabel: { color: C.muted, fontSize: 9, fontWeight: '900', marginLeft: 8 }, guided: { backgroundColor: '#102F3D', borderRadius: 14, padding: 13, marginBottom: 14, borderWidth: 1, borderColor: C.cyan }, guidedTitle: { color: C.cyan, fontSize: 10, fontWeight: '900', letterSpacing: .7 }, guidedCopy: { color: '#B7D6E3', fontSize: 11, lineHeight: 16, marginTop: 5 }, panel: { backgroundColor: C.card, borderRadius: 16, padding: 15, marginBottom: 14, borderWidth: 1, borderColor: '#263449' }, panelTitle: { color: C.white, fontSize: 12, fontWeight: '900', letterSpacing: 1, marginBottom: 12 }, gaugeLabel: { color: C.white, fontWeight: '800', marginBottom: 8 }, gauge: { height: 9, backgroundColor: '#263449', borderRadius: 9, overflow: 'hidden', marginBottom: 10 }, gaugeFill: { height: '100%', borderRadius: 9 }, bigMetric: { color: C.cyan, fontSize: 28, fontWeight: '900', marginBottom: 8 }, grid: { gap: 8 }, action: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.panel, borderRadius: 11, padding: 13, marginTop: 8, borderWidth: 1, borderColor: '#263449' }, actionActive: { borderColor: C.green, backgroundColor: '#0F2A24' }, actionDisabled: { opacity: .45 }, actionTitle: { color: C.white, fontSize: 11, fontWeight: '900' }, muted: { color: C.muted, fontSize: 11, marginTop: 4 }, chevron: { color: C.green, fontWeight: '900', fontSize: 12, marginLeft: 8 }, pressed: { transform: [{ scale: .98 }], opacity: .85 }, switchRow: { flexDirection: 'row', alignItems: 'center', marginTop: 10 }, heatHelp: { color: C.muted, fontSize: 9, lineHeight: 13, marginTop: -10, marginBottom: 12 }, warning: { color: C.red, fontSize: 11, fontWeight: '800', marginTop: 8 }, saleFlash: { backgroundColor: '#123D34', borderWidth: 1, borderColor: C.green, borderRadius: 12, padding: 12, marginBottom: 12 }, saleFlashText: { color: C.green, fontSize: 13, fontWeight: '900', textAlign: 'center' }, demandEvent: { color: C.gold, fontSize: 13, fontWeight: '900', lineHeight: 18 }, phase: { color: C.gold, fontSize: 20, fontWeight: '900', marginBottom: 4 } });
+function RetailControls({
+  business,
+  cash,
+  spend,
+  onChange,
+}: {
+  business: RetailData;
+  cash: number;
+  spend: (cost: number, update: () => BusinessEntity) => void;
+  onChange: (business: BusinessEntity) => void;
+}) {
+  const saleFlash = useRef(new Animated.Value(0)).current;
+  const previousSale = useRef(business.lastSaleSequence ?? 0);
+  useEffect(() => {
+    if ((business.lastSaleSequence ?? 0) <= previousSale.current) return;
+    previousSale.current = business.lastSaleSequence ?? 0;
+    saleFlash.setValue(1);
+    Animated.timing(saleFlash, {
+      toValue: 0,
+      duration: 700,
+      useNativeDriver: true,
+    }).start();
+  }, [business.lastSaleSequence, saleFlash]);
+  const pricing = { Discount: 4, Standard: 5.5, Luxury: 8 } as const;
+  const eventCopy =
+    business.demandEvent && business.demandEvent !== "None"
+      ? `${business.demandEvent} · ${business.demandEventSeconds ?? 0}s remaining · pulse chain ${business.pulseChain ?? 0}`
+      : "No active pulse. A new customer-demand event cycles every minute.";
+  const order = (units: number, cost: number) => {
+    if (business.stockUnits + units > business.maxStockCapacity)
+      return Alert.alert(
+        "WAREHOUSE FULL",
+        "Expand warehouse capacity before ordering more stock.",
+      );
+    spend(cost, () => ({
+      ...business,
+      stockUnits: business.stockUnits + units,
+      onboardingStep:
+        business.onboardingStep === "ORDER_STOCK"
+          ? "WATCH_FIRST_SALE"
+          : business.onboardingStep,
+    }));
+  };
+  return (
+    <>
+      <GuidedStep step={business.onboardingStep} />
+      {(business.lastSaleSequence ?? 0) > 0 && (
+        <Animated.View
+          style={[
+            styles.saleFlash,
+            {
+              opacity: saleFlash,
+              transform: [
+                {
+                  translateY: saleFlash.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0, 8],
+                  }),
+                },
+              ],
+            },
+          ]}
+        >
+          <Text style={styles.saleFlashText}>
+            +{formatCurrency(business.lastSaleRevenue ?? 0)} SALE · PULSE{" "}
+            {business.pulseChain ?? 0}
+          </Text>
+        </Animated.View>
+      )}
+      <Panel title="PULSE CHAIN · CUSTOMER DEMAND">
+        <Text style={styles.demandEvent}>{eventCopy}</Text>
+        <Text style={styles.muted}>
+          Match pricing to the pulse: Discount = 1.55× volume at $4.00, Standard
+          = balanced volume at $5.50, Luxury = 0.55× volume at $8.00.
+        </Text>
+      </Panel>
+      <Panel title="INVENTORY CONTROL">
+        <Text style={styles.gaugeLabel}>
+          {business.stockUnits.toLocaleString()} /{" "}
+          {business.maxStockCapacity.toLocaleString()} units
+        </Text>
+        <Gauge
+          value={business.stockUnits / Math.max(1, business.maxStockCapacity)}
+          color={
+            business.stockUnits < business.maxStockCapacity * 0.15
+              ? C.red
+              : C.green
+          }
+        />
+        <View style={styles.grid}>
+          {(["Discount", "Standard", "Luxury"] as const).map((tier) => (
+            <Action
+              key={tier}
+              title={`${tier.toUpperCase()} SALE`}
+              copy={`${formatCurrency(pricing[tier])} per unit`}
+              active={business.pricingTier === tier}
+              onPress={() => onChange({ ...business, pricingTier: tier })}
+            />
+          ))}
+        </View>
+      </Panel>
+      <Panel title="SAFE WAREHOUSE PURCHASING">
+        <Action
+          title="ORDER 1,000 UNITS"
+          copy="$2,000 · $2.00 per unit"
+          onPress={() => order(1000, 2000)}
+          disabled={
+            business.stockUnits + 1000 > business.maxStockCapacity ||
+            cash < 2000
+          }
+          lockedReason={
+            cash < 2000
+              ? `Need ${formatCurrency(2000 - cash)} more`
+              : "Warehouse capacity reached"
+          }
+        />
+        <Action
+          title="ORDER 5,000 UNITS"
+          copy="$8,500 · $1.70 per unit"
+          onPress={() => order(5000, 8500)}
+          disabled={
+            business.stockUnits + 5000 > business.maxStockCapacity ||
+            cash < 8500
+          }
+          lockedReason={
+            cash < 8500
+              ? `Need ${formatCurrency(8500 - cash)} more`
+              : "Warehouse capacity reached"
+          }
+        />
+        <Action
+          title="ORDER 20,000 UNITS"
+          copy="$28,000 · $1.40 per unit"
+          onPress={() => order(20000, 28000)}
+          disabled={
+            business.stockUnits + 20000 > business.maxStockCapacity ||
+            cash < 28000
+          }
+          lockedReason={
+            cash < 28000
+              ? `Need ${formatCurrency(28000 - cash)} more`
+              : "Warehouse capacity reached"
+          }
+        />
+      </Panel>
+      <Panel title="RETAIL UPGRADES">
+        <Action
+          title="EXPAND WAREHOUSE"
+          copy="+15,000 units · $20,000"
+          onPress={() =>
+            spend(20000, () => ({
+              ...business,
+              maxStockCapacity: business.maxStockCapacity + 15000,
+            }))
+          }
+          disabled={cash < 20000}
+          lockedReason={`Need ${formatCurrency(Math.max(0, 20000 - cash))} more`}
+        />
+        <Action
+          title={
+            business.hasSecurity
+              ? "SECURITY SQUAD ACTIVE"
+              : "HIRE SECURITY SQUAD"
+          }
+          copy="$5,000 · eliminates shoplifting"
+          onPress={() =>
+            spend(5000, () => ({ ...business, hasSecurity: true }))
+          }
+          disabled={business.hasSecurity || cash < 5000}
+          lockedReason={
+            business.hasSecurity
+              ? "Already active"
+              : `Need ${formatCurrency(5000 - cash)} more`
+          }
+        />
+        <Action
+          title={
+            business.hasManager ? "STORE MANAGER ACTIVE" : "HIRE STORE MANAGER"
+          }
+          copy="$12,000 · unlocks advanced auto-order"
+          onPress={() =>
+            spend(12000, () => ({ ...business, hasManager: true }))
+          }
+          disabled={business.hasManager || cash < 12000}
+          lockedReason={
+            business.hasManager
+              ? "Already active"
+              : `Need ${formatCurrency(12000 - cash)} more`
+          }
+        />
+        <Action
+          title={
+            business.autoRestockEnabled
+              ? "SHELF RUNNER ACTIVE"
+              : "HIRE SHELF RUNNER"
+          }
+          copy={
+            business.autoRestockEnabled
+              ? "Auto-orders 125 units for $250 below 15% stock"
+              : "$250 · repeats a safe 125-unit order below 15% stock"
+          }
+          onPress={() =>
+            spend(250, () => ({ ...business, autoRestockEnabled: true }))
+          }
+          disabled={business.autoRestockEnabled || cash < 250}
+          lockedReason={
+            business.autoRestockEnabled
+              ? "Already active"
+              : `Need ${formatCurrency(Math.max(0, 250 - cash))} more`
+          }
+        />
+      </Panel>
+    </>
+  );
+}
+function MobilityControls({
+  business,
+  cash,
+  spend,
+  onChange,
+}: {
+  business: MobilityData;
+  cash: number;
+  spend: (cost: number, update: () => BusinessEntity) => void;
+  onChange: (business: BusinessEntity) => void;
+}) {
+  const hourly =
+    business.economySedans * 50 +
+    business.electricEVs * 150 +
+    business.luxuryLimos * 400;
+  return (
+    <>
+      <Panel title="LIVE FLEET HEALTH">
+        <Text style={styles.bigMetric}>{business.fleetHealth.toFixed(1)}%</Text>
+        <Gauge
+          value={business.fleetHealth / 100}
+          color={business.fleetHealth < 30 ? C.red : C.cyan}
+        />
+        <Text style={styles.muted}>
+          Base yield {formatCurrency(hourly)}/hr ·{" "}
+          {business.surgeActive ? "1.7× surge active" : "standard fares"}
+        </Text>
+      </Panel>
+      <Panel title="VEHICLE SHOWROOM">
+        <Action
+          title="BUY ECONOMY SEDAN"
+          copy="$12,000 · +$50/hr"
+          onPress={() =>
+            spend(12000, () => ({
+              ...business,
+              economySedans: business.economySedans + 1,
+            }))
+          }
+          disabled={cash < 12000}
+          lockedReason={`Need ${formatCurrency(12000 - cash)} more`}
+        />
+        <Action
+          title="BUY ELECTRIC EV"
+          copy="$32,000 · +$150/hr"
+          onPress={() =>
+            spend(32000, () => ({
+              ...business,
+              electricEVs: business.electricEVs + 1,
+            }))
+          }
+          disabled={cash < 32000}
+          lockedReason={`Need ${formatCurrency(32000 - cash)} more`}
+        />
+        <Action
+          title="BUY LUXURY LIMO"
+          copy="$85,000 · +$400/hr"
+          onPress={() =>
+            spend(85000, () => ({
+              ...business,
+              luxuryLimos: business.luxuryLimos + 1,
+            }))
+          }
+          disabled={cash < 85000}
+          lockedReason={`Need ${formatCurrency(85000 - cash)} more`}
+        />
+      </Panel>
+      <Panel title="WORKSHOP & PRICING">
+        <Action
+          title="FULL FLEET SERVICE & OVERHAUL"
+          copy="$1,500 · restore health to 100%"
+          onPress={() => spend(1500, () => ({ ...business, fleetHealth: 100 }))}
+          disabled={cash < 1500 || business.fleetHealth >= 100}
+          lockedReason={
+            business.fleetHealth >= 100
+              ? "Fleet already serviced"
+              : `Need ${formatCurrency(1500 - cash)} more`
+          }
+        />
+        <View style={styles.switchRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.actionTitle}>SURGE PRICING</Text>
+            <Text style={styles.muted}>Instant 1.7× fare multiplier</Text>
+          </View>
+          <Switch
+            value={business.surgeActive}
+            onValueChange={(value) =>
+              onChange({ ...business, surgeActive: value })
+            }
+            trackColor={{ false: "#263449", true: "#087C4A" }}
+            thumbColor={business.surgeActive ? C.green : C.muted}
+          />
+        </View>
+      </Panel>
+    </>
+  );
+}
+function SaaSControls({
+  business,
+  cash,
+  spend,
+  onChange,
+}: {
+  business: SaaSData;
+  cash: number;
+  spend: (cost: number, update: () => BusinessEntity) => void;
+  onChange: (business: BusinessEntity) => void;
+}) {
+  const overloaded = business.activeSubscribers > business.serverCapacity;
+  return (
+    <>
+      <Panel title="CLOUD BANDWIDTH">
+        <Text style={styles.gaugeLabel}>
+          {business.activeSubscribers.toLocaleString()} /{" "}
+          {business.serverCapacity.toLocaleString()} subscribers
+        </Text>
+        <Gauge
+          value={
+            business.activeSubscribers / Math.max(1, business.serverCapacity)
+          }
+          color={overloaded ? C.red : C.violet}
+        />
+        {overloaded && (
+          <Text style={styles.warning}>
+            SERVER OVERLOAD · churn is active at the next simulation tick
+          </Text>
+        )}
+      </Panel>
+      <Panel title="TECH OPERATIONS">
+        <Action
+          title="SCALE AWS SERVER NODES"
+          copy="+$25,000 capacity · $6,000"
+          onPress={() =>
+            spend(6000, () => ({
+              ...business,
+              serverCapacity: business.serverCapacity + 25000,
+            }))
+          }
+          disabled={cash < 6000}
+          lockedReason={`Need ${formatCurrency(6000 - cash)} more`}
+        />
+        <Action
+          title="ENGINEERING BUG BASH SPRINT"
+          copy="Clears 25 bugs · $2,500"
+          onPress={() =>
+            spend(2500, () => ({
+              ...business,
+              openBugs: Math.max(0, business.openBugs - 25),
+            }))
+          }
+          disabled={cash < 2500 || business.openBugs === 0}
+          lockedReason={
+            business.openBugs === 0
+              ? "No open bugs"
+              : `Need ${formatCurrency(2500 - cash)} more`
+          }
+        />
+        <Action
+          title="GLOBAL AD CAMPAIGN"
+          copy="+2,500 subscribers · $5,000"
+          onPress={() =>
+            spend(5000, () => ({
+              ...business,
+              activeSubscribers: business.activeSubscribers + 2500,
+            }))
+          }
+          disabled={cash < 5000}
+          lockedReason={`Need ${formatCurrency(5000 - cash)} more`}
+        />
+      </Panel>
+    </>
+  );
+}
+function ExpansionControls({
+  business,
+  cash,
+  spend,
+  onChange,
+}: {
+  business: ExpansionData;
+  cash: number;
+  spend: (cost: number, update: () => BusinessEntity) => void;
+  onChange: (business: BusinessEntity) => void;
+}) {
+  const branchCost = 25000 * Math.max(1, business.branchCount);
+  const staffCost = 5000 * Math.max(1, business.staffCount);
+  const upgradeCost = 30000 * (business.upgradeLevel + 1);
+  return (
+    <>
+      <Panel title="EXPANSION OPERATIONS">
+        <Metric
+          label="REPUTATION"
+          value={`${business.reputation.toFixed(0)} / 100`}
+        />
+        <Metric
+          label="CUSTOMER SATISFACTION"
+          value={`${business.customerSatisfaction.toFixed(0)} / 100`}
+        />
+        <Metric
+          label="ACTIVE CONTRACT"
+          value={`${Math.ceil(business.contractSecondsRemaining / 60)} min · ${formatCurrency(business.contractReward)}`}
+        />
+        <Text style={styles.muted}>
+          {business.activeEvent === "None"
+            ? "No active demand event. Contracts refresh as you operate."
+            : `${business.activeEvent} is active right now.`}
+        </Text>
+      </Panel>
+      <Panel title="STAFF & AUTOMATION">
+        <Action
+          title={`HIRE STAFF · ${business.staffCount} ON ROSTER`}
+          copy={`${formatCurrency(staffCost)} · improves satisfaction`}
+          onPress={() =>
+            spend(staffCost, () => ({
+              ...business,
+              staffCount: business.staffCount + 4,
+            }))
+          }
+          disabled={cash < staffCost}
+          lockedReason={`Need ${formatCurrency(Math.max(0, staffCost - cash))} more`}
+        />
+        <Action
+          title={
+            business.managerHired
+              ? "GENERAL MANAGER ACTIVE"
+              : "HIRE GENERAL MANAGER"
+          }
+          copy="$15,000 · unlocks automation and reputation growth"
+          onPress={() =>
+            spend(15000, () => ({ ...business, managerHired: true }))
+          }
+          disabled={business.managerHired || cash < 15000}
+          lockedReason={
+            business.managerHired
+              ? "Already active"
+              : `Need ${formatCurrency(15000 - cash)} more`
+          }
+        />
+      </Panel>
+      <Panel title="BRANCH & UPGRADE TREE">
+        <Action
+          title={`OPEN BRANCH · ${business.branchCount} LIVE`}
+          copy={`${formatCurrency(branchCost)} · +1 branch and more contracts`}
+          onPress={() =>
+            spend(branchCost, () => ({
+              ...business,
+              branchCount: business.branchCount + 1,
+            }))
+          }
+          disabled={cash < branchCost}
+          lockedReason={`Need ${formatCurrency(Math.max(0, branchCost - cash))} more`}
+        />
+        <Action
+          title={`UPGRADE LEVEL ${business.upgradeLevel + 1}`}
+          copy={`${formatCurrency(upgradeCost)} · +18% base yield`}
+          onPress={() =>
+            spend(upgradeCost, () => ({
+              ...business,
+              upgradeLevel: business.upgradeLevel + 1,
+            }))
+          }
+          disabled={cash < upgradeCost}
+          lockedReason={`Need ${formatCurrency(Math.max(0, upgradeCost - cash))} more`}
+        />
+      </Panel>
+    </>
+  );
+}
+function ConstructionControls({
+  business,
+  cash,
+  spend,
+  onChange,
+}: {
+  business: ConstructionData;
+  cash: number;
+  spend: (cost: number, update: () => BusinessEntity) => void;
+  onChange: (business: BusinessEntity) => void;
+}) {
+  const phaseName = ["IDLE", "DEEP PILING", "STEEL TRUSS", "FINISHING"][
+    business.projectPhase
+  ];
+  return (
+    <>
+      <Panel title="ACTIVE MUNICIPAL TENDER">
+        {business.projectPhase === 0 ? (
+          <Action
+            title="BID ON MUNICIPAL SEA-BRIDGE"
+            copy="$50,000 advance bond · $1,200,000 escrow payout"
+            onPress={() =>
+              spend(50000, () => ({
+                ...business,
+                activeTenderName: "Municipal Sea-Bridge Tender",
+                projectPhase: 1,
+                phaseProgressPercent: 0,
+              }))
+            }
+            disabled={cash < 50000}
+            lockedReason={`Need ${formatCurrency(50000 - cash)} more`}
+          />
+        ) : (
+          <>
+            <Text style={styles.phase}>{phaseName}</Text>
+            <Text style={styles.muted}>
+              {business.phaseProgressPercent}% complete ·{" "}
+              {business.activeTenderName}
+            </Text>
+            <Gauge value={business.phaseProgressPercent / 100} color={C.gold} />
+          </>
+        )}
+      </Panel>
+      <Panel title="CONSTRUCTION SITE ACTIONS">
+        <Action
+          title="DISPATCH HEAVY MACHINERY BATCH"
+          copy="$15,000 · accelerates phase +15%"
+          onPress={() =>
+            onChange({
+              ...business,
+              phaseProgressPercent: Math.min(
+                100,
+                business.phaseProgressPercent + 15,
+              ),
+              machineryDispatched: true,
+            })
+          }
+          disabled={business.projectPhase === 0 || cash < 15000}
+          lockedReason={
+            business.projectPhase === 0
+              ? "Start a tender first"
+              : `Need ${formatCurrency(15000 - cash)} more`
+          }
+        />
+        <Action
+          title="SAFETY COMPLIANCE CLEARANCE"
+          copy="$8,000 · protects against shutdown"
+          onPress={() =>
+            spend(8000, () => ({ ...business, safetyCleared: true }))
+          }
+          disabled={
+            business.projectPhase === 0 || business.safetyCleared || cash < 8000
+          }
+          lockedReason={
+            business.projectPhase === 0
+              ? "Start a tender first"
+              : business.safetyCleared
+                ? "Already cleared"
+                : `Need ${formatCurrency(8000 - cash)} more`
+          }
+        />
+      </Panel>
+    </>
+  );
+}
+function GuidedStep({ step }: { step?: RetailData["onboardingStep"] }) {
+  const title =
+    step === "ORDER_STOCK"
+      ? "STEP 1 · ORDER YOUR FIRST STOCK"
+      : step === "WATCH_FIRST_SALE"
+        ? "STEP 2 · WATCH YOUR FIRST SALE"
+        : "RETAIL LOOP ONLINE";
+  const copy =
+    step === "ORDER_STOCK"
+      ? "Order a starter batch, then the simulation will begin selling inventory."
+      : step === "WATCH_FIRST_SALE"
+        ? "Keep this business open for a few seconds. Your first sale will complete the guided loop."
+        : "Stock, price, and operating systems are active.";
+  return (
+    <View style={styles.guided}>
+      <Text style={styles.guidedTitle}>{title}</Text>
+      <Text style={styles.guidedCopy}>{copy}</Text>
+    </View>
+  );
+}
+function Panel({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <View style={styles.panel}>
+      <Text style={styles.panelTitle}>{title}</Text>
+      {children}
+    </View>
+  );
+}
+function Action({
+  title,
+  copy,
+  onPress,
+  disabled = false,
+  active = false,
+  lockedReason,
+}: {
+  title: string;
+  copy: string;
+  onPress: () => void;
+  disabled?: boolean;
+  active?: boolean;
+  lockedReason?: string;
+}) {
+  return (
+    <Pressable
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.action,
+        active && styles.actionActive,
+        disabled && styles.actionDisabled,
+        pressed && styles.pressed,
+      ]}
+    >
+      <View style={{ flex: 1 }}>
+        <Text style={styles.actionTitle}>{title}</Text>
+        <Text style={styles.muted}>
+          {disabled && lockedReason ? lockedReason : copy}
+        </Text>
+      </View>
+      <Text style={styles.chevron}>
+        {active ? "ACTIVE" : disabled ? "LOCKED" : "›"}
+      </Text>
+    </Pressable>
+  );
+}
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.metric}>
+      <Text style={styles.metricLabel}>{label}</Text>
+      <Text style={styles.metricValue}>{value}</Text>
+    </View>
+  );
+}
+function Gauge({ value, color }: { value: number; color: string }) {
+  return (
+    <View style={styles.gauge}>
+      <View
+        style={[
+          styles.gaugeFill,
+          {
+            width: `${Math.max(0, Math.min(100, value * 100))}%`,
+            backgroundColor: color,
+          },
+        ]}
+      />
+    </View>
+  );
+}
+const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: C.bg },
+  safe: { flex: 1 },
+  content: { padding: 16, paddingBottom: 120 },
+  back: {
+    color: C.cyan,
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 1,
+    marginBottom: 18,
+  },
+  eyebrow: {
+    color: C.cyan,
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 1.5,
+  },
+  titleRow: { flexDirection: "row", alignItems: "center", marginTop: 7 },
+  title: { color: C.white, fontSize: 26, fontWeight: "900" },
+  legal: { color: C.green, fontSize: 10, fontWeight: "900", marginTop: 6 },
+  shadow: { color: C.red, fontSize: 10, fontWeight: "900", marginTop: 6 },
+  profit: { color: C.green, fontSize: 15, fontWeight: "900" },
+  meta: { flexDirection: "row", gap: 8, marginVertical: 18 },
+  metric: { flex: 1, backgroundColor: C.panel, borderRadius: 10, padding: 10 },
+  metricLabel: { color: C.muted, fontSize: 8, fontWeight: "900" },
+  metricValue: {
+    color: C.white,
+    fontSize: 13,
+    fontWeight: "900",
+    marginTop: 4,
+  },
+  ipoCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#12372F",
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: C.green,
+  },
+  ipoEyebrow: {
+    color: C.green,
+    fontSize: 8,
+    fontWeight: "900",
+    letterSpacing: 0.8,
+  },
+  ipoTitle: { color: C.white, fontSize: 14, fontWeight: "900", marginTop: 5 },
+  ipoCopy: { color: "#9ED9C4", fontSize: 10, lineHeight: 14, marginTop: 4 },
+  ipoButton: {
+    backgroundColor: C.green,
+    borderRadius: 9,
+    paddingVertical: 10,
+    paddingHorizontal: 9,
+    marginLeft: 8,
+  },
+  ipoButtonText: { color: C.bg, fontSize: 8, fontWeight: "900" },
+  ipoLockedCard: { borderColor: C.slate, backgroundColor: C.panel },
+  ipoLockedLabel: {
+    color: C.muted,
+    fontSize: 9,
+    fontWeight: "900",
+    marginLeft: 8,
+  },
+  guided: {
+    backgroundColor: "#102F3D",
+    borderRadius: 14,
+    padding: 13,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: C.cyan,
+  },
+  guidedTitle: {
+    color: C.cyan,
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 0.7,
+  },
+  guidedCopy: { color: "#B7D6E3", fontSize: 11, lineHeight: 16, marginTop: 5 },
+  panel: {
+    backgroundColor: C.card,
+    borderRadius: 16,
+    padding: 15,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: "#263449",
+  },
+  panelTitle: {
+    color: C.white,
+    fontSize: 12,
+    fontWeight: "900",
+    letterSpacing: 1,
+    marginBottom: 12,
+  },
+  gaugeLabel: { color: C.white, fontWeight: "800", marginBottom: 8 },
+  gauge: {
+    height: 9,
+    backgroundColor: "#263449",
+    borderRadius: 9,
+    overflow: "hidden",
+    marginBottom: 10,
+  },
+  gaugeFill: { height: "100%", borderRadius: 9 },
+  bigMetric: {
+    color: C.cyan,
+    fontSize: 28,
+    fontWeight: "900",
+    marginBottom: 8,
+  },
+  grid: { gap: 8 },
+  action: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: C.panel,
+    borderRadius: 11,
+    padding: 13,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: "#263449",
+  },
+  actionActive: { borderColor: C.green, backgroundColor: "#0F2A24" },
+  actionDisabled: { opacity: 0.45 },
+  actionTitle: { color: C.white, fontSize: 11, fontWeight: "900" },
+  muted: { color: C.muted, fontSize: 11, marginTop: 4 },
+  chevron: { color: C.green, fontWeight: "900", fontSize: 12, marginLeft: 8 },
+  pressed: { transform: [{ scale: 0.98 }], opacity: 0.85 },
+  switchRow: { flexDirection: "row", alignItems: "center", marginTop: 10 },
+  heatHelp: {
+    color: C.muted,
+    fontSize: 9,
+    lineHeight: 13,
+    marginTop: -10,
+    marginBottom: 12,
+  },
+  warning: { color: C.red, fontSize: 11, fontWeight: "800", marginTop: 8 },
+  saleFlash: {
+    backgroundColor: "#123D34",
+    borderWidth: 1,
+    borderColor: C.green,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+  },
+  saleFlashText: {
+    color: C.green,
+    fontSize: 13,
+    fontWeight: "900",
+    textAlign: "center",
+  },
+  demandEvent: {
+    color: C.gold,
+    fontSize: 13,
+    fontWeight: "900",
+    lineHeight: 18,
+  },
+  phase: { color: C.gold, fontSize: 20, fontWeight: "900", marginBottom: 4 },
+});
 export default BusinessMasterHubScreen;

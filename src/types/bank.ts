@@ -160,6 +160,8 @@ export type TaxRecord = {
   paid: number;
   dueAt: number;
   status: "ESTIMATE" | "PAID" | "LATE";
+  shortTermGain?: number;
+  longTermGain?: number;
 };
 export type BankLedgerEntry = {
   id: string;
