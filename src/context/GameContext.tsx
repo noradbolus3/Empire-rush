@@ -18,9 +18,11 @@ import {
   DEFAULT_SHIPPING_COMPANY,
   ShippingCompanyState,
 } from "../types/shipping";
+import { DEFAULT_FACTORY_COMPANY, FactoryCompanyState } from "../types/factory";
 
 export const TAXI_COMPANY_SAVE = "empire-rush-taxi-company-v1";
 export const SHIPPING_COMPANY_SAVE = "empire-rush-shipping-company-v1";
+export const FACTORY_COMPANY_SAVE = "empire-rush-factory-company-v1";
 type GameContextValue = {
   businesses: BusinessEntity[];
   setBusinesses: React.Dispatch<React.SetStateAction<BusinessEntity[]>>;
@@ -29,6 +31,10 @@ type GameContextValue = {
   shippingCompany: ShippingCompanyState | null;
   setShippingCompany: React.Dispatch<
     React.SetStateAction<ShippingCompanyState | null>
+  >;
+  factoryCompany: FactoryCompanyState | null;
+  setFactoryCompany: React.Dispatch<
+    React.SetStateAction<FactoryCompanyState | null>
   >;
   resetBusinesses: () => void;
 };
@@ -39,6 +45,8 @@ const GameContext = createContext<GameContextValue>({
   setTaxiCompany: () => undefined,
   shippingCompany: null,
   setShippingCompany: () => undefined,
+  factoryCompany: null,
+  setFactoryCompany: () => undefined,
   resetBusinesses: () => undefined,
 });
 
@@ -48,6 +56,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [taxiCompany, setTaxiCompany] = useState<TaxiCompanyState | null>(null);
   const [shippingCompany, setShippingCompany] =
     useState<ShippingCompanyState | null>(null);
+  const [factoryCompany, setFactoryCompany] =
+    useState<FactoryCompanyState | null>(null);
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => {
     let active = true;
@@ -55,7 +65,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       loadBusinessSimulation(),
       AsyncStorage.getItem(TAXI_COMPANY_SAVE),
       AsyncStorage.getItem(SHIPPING_COMPANY_SAVE),
-    ]).then(([loadedBusinesses, rawTaxi, rawShipping]) => {
+      AsyncStorage.getItem(FACTORY_COMPANY_SAVE),
+    ]).then(([loadedBusinesses, rawTaxi, rawShipping, rawFactory]) => {
       if (!active) return;
       setBusinesses(loadedBusinesses);
       if (rawTaxi) {
@@ -76,6 +87,15 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
           setShippingCompany(null);
         }
       }
+      if (rawFactory) {
+        try {
+          const parsed = JSON.parse(rawFactory);
+          if (parsed?.id === DEFAULT_FACTORY_COMPANY.id)
+            setFactoryCompany({ ...DEFAULT_FACTORY_COMPANY, ...parsed });
+        } catch {
+          setFactoryCompany(null);
+        }
+      }
       setHydrated(true);
     });
     return () => {
@@ -94,17 +114,25 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         JSON.stringify(shippingCompany),
       );
     else void AsyncStorage.removeItem(SHIPPING_COMPANY_SAVE);
-  }, [businesses, taxiCompany, shippingCompany, hydrated]);
+    if (factoryCompany)
+      void AsyncStorage.setItem(
+        FACTORY_COMPANY_SAVE,
+        JSON.stringify(factoryCompany),
+      );
+    else void AsyncStorage.removeItem(FACTORY_COMPANY_SAVE);
+  }, [businesses, taxiCompany, shippingCompany, factoryCompany, hydrated]);
   const resetBusinesses = () => {
     setBusinesses(DEFAULT_BUSINESSES);
     setTaxiCompany(null);
     setShippingCompany(null);
+    setFactoryCompany(null);
     void AsyncStorage.setItem(
       BUSINESS_SIMULATION_SAVE,
       JSON.stringify({ schemaVersion: 2, businesses: DEFAULT_BUSINESSES }),
     );
     void AsyncStorage.removeItem(TAXI_COMPANY_SAVE);
     void AsyncStorage.removeItem(SHIPPING_COMPANY_SAVE);
+    void AsyncStorage.removeItem(FACTORY_COMPANY_SAVE);
   };
   const value = useMemo(
     () => ({
@@ -114,9 +142,11 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       setTaxiCompany,
       shippingCompany,
       setShippingCompany,
+      factoryCompany,
+      setFactoryCompany,
       resetBusinesses,
     }),
-    [businesses, taxiCompany, shippingCompany],
+    [businesses, taxiCompany, shippingCompany, factoryCompany],
   );
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
 }

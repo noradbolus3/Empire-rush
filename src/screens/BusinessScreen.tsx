@@ -33,6 +33,7 @@ import { formatCurrency } from "../utils/formatCurrency";
 import BusinessMasterHubScreen from "./business/BusinessMasterHubScreen";
 import TaxiCompanyScreen from "./TaxiCompanyScreen";
 import ShippingCompanyScreen from "./ShippingCompanyScreen";
+import FactoryCompanyScreen from "./FactoryCompanyScreen";
 import {
   clearLevelUpNotice,
   levelConfig,
@@ -207,10 +208,13 @@ function BusinessScreenContent({
     setTaxiCompany,
     shippingCompany,
     setShippingCompany,
+    factoryCompany,
+    setFactoryCompany,
   } = useGame();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [taxiOpen, setTaxiOpen] = useState(false);
   const [shippingOpen, setShippingOpen] = useState(false);
+  const [factoryOpen, setFactoryOpen] = useState(false);
   const [registrationId, setRegistrationId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"start" | "companies">("start");
   const celebratedRef = useRef("");
@@ -308,6 +312,17 @@ function BusinessScreenContent({
           rate > 0 ? Math.max(1, Math.ceil(shortfall / rate)) : "—";
         return `affordable in ~${settlements} settlements at +${formatCurrency(rate)}/hr`;
       })();
+  if (factoryOpen)
+    return (
+      <FactoryCompanyScreen
+        company={factoryCompany}
+        cash={cash}
+        onCashChange={onCashChange}
+        onChange={setFactoryCompany || (() => undefined)}
+        onBack={() => setFactoryOpen(false)}
+        onLedger={onLedger}
+      />
+    );
   if (shippingOpen)
     return (
       <ShippingCompanyScreen
@@ -492,6 +507,29 @@ function BusinessScreenContent({
             >
               <Text style={styles.shippingButtonText}>
                 {shippingCompany ? "MANAGE SHIPPING" : "START SHIPPING"}
+              </Text>
+            </Pressable>
+          </View>
+          <View style={styles.factoryCard}>
+            <View style={styles.factoryCardCopy}>
+              <Text style={styles.factoryEyebrow}>MANUFACTURING COMPANY</Text>
+              <Text style={styles.factoryTitle}>
+                {factoryCompany
+                  ? "My Factory Company"
+                  : "Start a Factory Company"}
+              </Text>
+              <Text style={styles.factoryCopy}>
+                {factoryCompany
+                  ? `${factoryCompany.factoryType} · ${factoryCompany.level} · ${factoryCompany.machineLines} production lines · ${factoryCompany.finishedGoods.toLocaleString()} finished goods`
+                  : "Turn raw materials into products with machines, workers, inventory and sales."}
+              </Text>
+            </View>
+            <Pressable
+              style={styles.factoryButton}
+              onPress={() => setFactoryOpen(true)}
+            >
+              <Text style={styles.factoryButtonText}>
+                {factoryCompany ? "MANAGE FACTORY" : "START FACTORY"}
               </Text>
             </Pressable>
           </View>
@@ -1001,6 +1039,38 @@ const styles = StyleSheet.create({
     paddingTop: 0,
     paddingBottom: 120,
   },
+  factoryCard: {
+    backgroundColor: "#FFFFFF",
+    borderColor: "#B9C7D0",
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  factoryCardCopy: { flex: 1 },
+  factoryEyebrow: {
+    color: "#49677C",
+    fontSize: 8,
+    fontWeight: "900",
+    letterSpacing: 1,
+  },
+  factoryTitle: {
+    color: "#132334",
+    fontSize: 16,
+    fontWeight: "900",
+    marginTop: 4,
+  },
+  factoryCopy: { color: "#708293", fontSize: 10, lineHeight: 15, marginTop: 4 },
+  factoryButton: {
+    backgroundColor: "#132334",
+    borderRadius: 10,
+    paddingHorizontal: 11,
+    paddingVertical: 10,
+  },
+  factoryButtonText: { color: "#FFFFFF", fontSize: 9, fontWeight: "900" },
   shippingCard: {
     backgroundColor: "#FFFFFF",
     borderColor: "#B9D2F5",

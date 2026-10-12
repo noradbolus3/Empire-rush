@@ -93,6 +93,8 @@ const asyncStorage = {
 };
 let currentBusinesses = [];
 let currentTaxiCompany = null;
+let currentShippingCompany = null;
+let currentFactoryCompany = null;
 const gameContextMock = {
   useGame: () => ({
     businesses: currentBusinesses,
@@ -104,6 +106,20 @@ const gameContextMock = {
     setTaxiCompany: (updater) => {
       currentTaxiCompany =
         typeof updater === "function" ? updater(currentTaxiCompany) : updater;
+    },
+    shippingCompany: currentShippingCompany,
+    setShippingCompany: (updater) => {
+      currentShippingCompany =
+        typeof updater === "function"
+          ? updater(currentShippingCompany)
+          : updater;
+    },
+    factoryCompany: currentFactoryCompany,
+    setFactoryCompany: (updater) => {
+      currentFactoryCompany =
+        typeof updater === "function"
+          ? updater(currentFactoryCompany)
+          : updater;
     },
     resetBusinesses: () => undefined,
   }),
@@ -143,6 +159,9 @@ const { DEFAULT_TAXI_COMPANY } = require("../src/types/taxi");
 const ShippingCompanyScreen =
   require("../src/screens/ShippingCompanyScreen").default;
 const { DEFAULT_SHIPPING_COMPANY } = require("../src/types/shipping");
+const FactoryCompanyScreen =
+  require("../src/screens/FactoryCompanyScreen").default;
+const { DEFAULT_FACTORY_COMPANY } = require("../src/types/factory");
 
 const retail = {
   ...DEFAULT_BUSINESSES.find((item) => item.sector === "Retail"),
@@ -382,6 +401,37 @@ results.push(
     }),
   ),
 );
+results.push(
+  render(
+    "factory-setup-mount",
+    React.createElement(FactoryCompanyScreen, {
+      company: null,
+      cash: 120000,
+      onCashChange: () => undefined,
+      onChange: () => undefined,
+      onBack: () => undefined,
+      onLedger: () => undefined,
+    }),
+  ),
+);
+results.push(
+  render(
+    "factory-operating-mount",
+    React.createElement(FactoryCompanyScreen, {
+      company: {
+        ...DEFAULT_FACTORY_COMPANY,
+        status: "operating",
+        machineLines: 1,
+        workers: 2,
+      },
+      cash: 120000,
+      onCashChange: () => undefined,
+      onChange: () => undefined,
+      onBack: () => undefined,
+      onLedger: () => undefined,
+    }),
+  ),
+);
 const textContent = (node) => {
   if (node == null) return "";
   if (typeof node === "string" || typeof node === "number") return String(node);
@@ -473,6 +523,35 @@ const shippingInteraction = async (label, company, cash, actions) => {
     await act(async () => {
       renderer = TestRenderer.create(
         React.createElement(ShippingCompanyScreen, {
+          company,
+          cash,
+          onCashChange: () => undefined,
+          onChange: () => undefined,
+          onBack: () => undefined,
+          onLedger: () => undefined,
+        }),
+      );
+    });
+    for (const action of actions)
+      await act(async () => {
+        pressLabel(renderer, action);
+      });
+    renderer.unmount();
+    interactionResults.push({ label, ok: true });
+  } catch (error) {
+    interactionResults.push({
+      label,
+      ok: false,
+      error: String(error?.stack || error),
+    });
+  }
+};
+const factoryInteraction = async (label, company, cash, actions) => {
+  try {
+    let renderer;
+    await act(async () => {
+      renderer = TestRenderer.create(
+        React.createElement(FactoryCompanyScreen, {
           company,
           cash,
           onCashChange: () => undefined,
@@ -614,6 +693,31 @@ const shippingInteraction = async (label, company, cash, actions) => {
   await shippingInteraction("shipping-screen-expansion", shippingBase, 80000, [
     "EXPANSION",
     "UPGRADE WAREHOUSE TO LEVEL 2",
+  ]);
+  const factoryBase = {
+    ...DEFAULT_FACTORY_COMPANY,
+    status: "operating",
+    machineLines: 1,
+    workers: 2,
+    rawMaterials: 300,
+  };
+  await factoryInteraction("factory-screen-dashboard", factoryBase, 120000, []);
+  await factoryInteraction("factory-screen-machinery", factoryBase, 120000, [
+    "MACHINERY",
+    "BUY ASSEMBLY LINE",
+  ]);
+  await factoryInteraction("factory-screen-employees", factoryBase, 120000, [
+    "EMPLOYEES",
+    "HIRE PRODUCTION WORKER",
+  ]);
+  await factoryInteraction("factory-screen-inventory", factoryBase, 120000, [
+    "INVENTORY",
+    "BUY RAW MATERIALS",
+    "RUN PRODUCTION BATCH",
+  ]);
+  await factoryInteraction("factory-screen-expansion", factoryBase, 120000, [
+    "EXPANSION",
+    "UPGRADE BUILDING TO LEVEL 2",
   ]);
   const failed = results.filter((item) => !item.ok);
   const interactionFailed = interactionResults.filter((item) => !item.ok);
