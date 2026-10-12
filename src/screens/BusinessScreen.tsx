@@ -32,6 +32,7 @@ import { RetailShopState } from "../types/retail";
 import { formatCurrency } from "../utils/formatCurrency";
 import BusinessMasterHubScreen from "./business/BusinessMasterHubScreen";
 import TaxiCompanyScreen from "./TaxiCompanyScreen";
+import ShippingCompanyScreen from "./ShippingCompanyScreen";
 import {
   clearLevelUpNotice,
   levelConfig,
@@ -199,9 +200,17 @@ function BusinessScreenContent({
   onRetailFocusHandled,
   onLedger,
 }: Props) {
-  const { businesses, setBusinesses, taxiCompany, setTaxiCompany } = useGame();
+  const {
+    businesses,
+    setBusinesses,
+    taxiCompany,
+    setTaxiCompany,
+    shippingCompany,
+    setShippingCompany,
+  } = useGame();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [taxiOpen, setTaxiOpen] = useState(false);
+  const [shippingOpen, setShippingOpen] = useState(false);
   const [registrationId, setRegistrationId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"start" | "companies">("start");
   const celebratedRef = useRef("");
@@ -299,6 +308,17 @@ function BusinessScreenContent({
           rate > 0 ? Math.max(1, Math.ceil(shortfall / rate)) : "—";
         return `affordable in ~${settlements} settlements at +${formatCurrency(rate)}/hr`;
       })();
+  if (shippingOpen)
+    return (
+      <ShippingCompanyScreen
+        company={shippingCompany}
+        cash={cash}
+        onCashChange={onCashChange}
+        onChange={setShippingCompany || (() => undefined)}
+        onBack={() => setShippingOpen(false)}
+        onLedger={onLedger}
+      />
+    );
   if (taxiOpen)
     return (
       <TaxiCompanyScreen
@@ -449,6 +469,29 @@ function BusinessScreenContent({
             >
               <Text style={styles.taxiButtonText}>
                 {taxiCompany ? "MANAGE TAXI" : "START TAXI"}
+              </Text>
+            </Pressable>
+          </View>
+          <View style={styles.shippingCard}>
+            <View style={styles.shippingCardCopy}>
+              <Text style={styles.shippingEyebrow}>LOGISTICS COMPANY</Text>
+              <Text style={styles.shippingTitle}>
+                {shippingCompany
+                  ? "My Shipping Company"
+                  : "Start a Shipping Company"}
+              </Text>
+              <Text style={styles.shippingCopy}>
+                {shippingCompany
+                  ? `${shippingCompany.city} · ${shippingCompany.level} · ${shippingCompany.shipments.filter((item) => item.status !== "delivered").length} active shipments · ${shippingCompany.warehouseCapacity.toLocaleString()} cargo units`
+                  : "Build warehouses, manage cargo, assign vehicles and complete delivery orders."}
+              </Text>
+            </View>
+            <Pressable
+              style={styles.shippingButton}
+              onPress={() => setShippingOpen(true)}
+            >
+              <Text style={styles.shippingButtonText}>
+                {shippingCompany ? "MANAGE SHIPPING" : "START SHIPPING"}
               </Text>
             </Pressable>
           </View>
@@ -958,6 +1001,43 @@ const styles = StyleSheet.create({
     paddingTop: 0,
     paddingBottom: 120,
   },
+  shippingCard: {
+    backgroundColor: "#FFFFFF",
+    borderColor: "#B9D2F5",
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  shippingCardCopy: { flex: 1 },
+  shippingEyebrow: {
+    color: "#1769E0",
+    fontSize: 8,
+    fontWeight: "900",
+    letterSpacing: 1,
+  },
+  shippingTitle: {
+    color: "#10233F",
+    fontSize: 16,
+    fontWeight: "900",
+    marginTop: 4,
+  },
+  shippingCopy: {
+    color: "#64748B",
+    fontSize: 10,
+    lineHeight: 15,
+    marginTop: 4,
+  },
+  shippingButton: {
+    backgroundColor: "#1769E0",
+    borderRadius: 10,
+    paddingHorizontal: 11,
+    paddingVertical: 10,
+  },
+  shippingButtonText: { color: "#FFFFFF", fontSize: 9, fontWeight: "900" },
   taxiCard: {
     backgroundColor: "#FFFFFF",
     borderColor: "#B9D2F5",

@@ -140,6 +140,9 @@ const MarketScreen =
 const { LifestyleScreen } = require("../src/screens/LifestyleScreen");
 const TaxiCompanyScreen = require("../src/screens/TaxiCompanyScreen").default;
 const { DEFAULT_TAXI_COMPANY } = require("../src/types/taxi");
+const ShippingCompanyScreen =
+  require("../src/screens/ShippingCompanyScreen").default;
+const { DEFAULT_SHIPPING_COMPANY } = require("../src/types/shipping");
 
 const retail = {
   ...DEFAULT_BUSINESSES.find((item) => item.sector === "Retail"),
@@ -348,6 +351,37 @@ results.push(
     }),
   ),
 );
+results.push(
+  render(
+    "shipping-setup-mount",
+    React.createElement(ShippingCompanyScreen, {
+      company: null,
+      cash: 80000,
+      onCashChange: () => undefined,
+      onChange: () => undefined,
+      onBack: () => undefined,
+      onLedger: () => undefined,
+    }),
+  ),
+);
+results.push(
+  render(
+    "shipping-operating-mount",
+    React.createElement(ShippingCompanyScreen, {
+      company: {
+        ...DEFAULT_SHIPPING_COMPANY,
+        status: "operating",
+        vans: 1,
+        drivers: 1,
+      },
+      cash: 80000,
+      onCashChange: () => undefined,
+      onChange: () => undefined,
+      onBack: () => undefined,
+      onLedger: () => undefined,
+    }),
+  ),
+);
 const textContent = (node) => {
   if (node == null) return "";
   if (typeof node === "string" || typeof node === "number") return String(node);
@@ -433,6 +467,35 @@ const taxiInteraction = async (label, company, cash, actions) => {
     });
   }
 };
+const shippingInteraction = async (label, company, cash, actions) => {
+  try {
+    let renderer;
+    await act(async () => {
+      renderer = TestRenderer.create(
+        React.createElement(ShippingCompanyScreen, {
+          company,
+          cash,
+          onCashChange: () => undefined,
+          onChange: () => undefined,
+          onBack: () => undefined,
+          onLedger: () => undefined,
+        }),
+      );
+    });
+    for (const action of actions)
+      await act(async () => {
+        pressLabel(renderer, action);
+      });
+    renderer.unmount();
+    interactionResults.push({ label, ok: true });
+  } catch (error) {
+    interactionResults.push({
+      label,
+      ok: false,
+      error: String(error?.stack || error),
+    });
+  }
+};
 (async () => {
   await interaction("interaction-retail-l1-quick-action", [retail], 10000, [
     "RESTOCK 1,000",
@@ -478,6 +541,79 @@ const taxiInteraction = async (label, company, cash, actions) => {
   await taxiInteraction("taxi-screen-expansion", operatingTaxi, 50000, [
     "EXPANSION",
     "EXPAND TO DEPOT LEVEL 2",
+  ]);
+  const shippingBase = {
+    ...DEFAULT_SHIPPING_COMPANY,
+    status: "operating",
+    vans: 1,
+    drivers: 1,
+  };
+  await shippingInteraction(
+    "shipping-screen-dashboard",
+    shippingBase,
+    80000,
+    [],
+  );
+  await shippingInteraction("shipping-screen-fleet", shippingBase, 80000, [
+    "FLEET",
+    "BUY DELIVERY VAN",
+  ]);
+  await shippingInteraction(
+    "shipping-screen-shipments-accept",
+    shippingBase,
+    80000,
+    ["SHIPMENTS", "ACCEPT DELIVERY ORDER"],
+  );
+  const pendingShipment = {
+    ...shippingBase,
+    cargoStored: 80,
+    shipments: [
+      {
+        id: "smoke",
+        customer: "Smoke Test Client",
+        cargoUnits: 80,
+        reward: 420,
+        status: "pending",
+        route: shippingBase.city,
+        createdAt: Date.now(),
+      },
+    ],
+  };
+  await shippingInteraction(
+    "shipping-screen-shipments-assign",
+    pendingShipment,
+    80000,
+    ["SHIPMENTS", "ASSIGN SHIPMENT TO FLEET"],
+  );
+  const transitShipment = {
+    ...shippingBase,
+    cargoStored: 80,
+    shipments: [
+      {
+        id: "smoke",
+        customer: "Smoke Test Client",
+        cargoUnits: 80,
+        reward: 420,
+        status: "in_transit",
+        route: shippingBase.city,
+        assignedVehicle: "Delivery van",
+        createdAt: Date.now(),
+      },
+    ],
+  };
+  await shippingInteraction(
+    "shipping-screen-shipments-deliver",
+    transitShipment,
+    80000,
+    ["SHIPMENTS", "COMPLETE DELIVERY"],
+  );
+  await shippingInteraction("shipping-screen-staff", shippingBase, 80000, [
+    "STAFF",
+    "HIRE WAREHOUSE STAFF",
+  ]);
+  await shippingInteraction("shipping-screen-expansion", shippingBase, 80000, [
+    "EXPANSION",
+    "UPGRADE WAREHOUSE TO LEVEL 2",
   ]);
   const failed = results.filter((item) => !item.ok);
   const interactionFailed = interactionResults.filter((item) => !item.ok);
