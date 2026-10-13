@@ -23,7 +23,7 @@
 
 ## Option B dashboard content update
 
-The white interactive dashboard now also includes the reference content as playable UI: six tappable gameplay-flow cards for Dashboard, Land & Project Selection, Machinery & Equipment, Project Management, Contracts & Earnings, and Expansion & Upgrades, plus a four-row growth table covering Small contractor, Growing company, Large company, and Enterprise unlocks. The existing tabs and controls remain the source of truth; the new cards navigate directly to those tabs.
+The white interactive flow now opens on a dedicated vertical Construction overview page. It uses the actual local construction images in a picture-led list, with each card opening its own working page. The overview uses the app's white background, blue/green operating accents, safe-area layout, and existing bottom-navigation shell; it is not a black document screen. The four-row growth table remains part of the overview. The seeded `Ironline Civic Works` label and persisted legacy name are migrated to `Construction Company`.
 
 ## Deterministic proof
 

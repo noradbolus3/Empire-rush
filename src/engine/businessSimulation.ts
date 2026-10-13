@@ -88,7 +88,7 @@ export const DEFAULT_BUSINESSES: BusinessEntity[] = [
   },
   {
     id: "titan-infrastructure",
-    name: "Ironline Civic Works",
+    name: "Construction Company",
     sector: "Construction_Mega",
     isUnlocked: false,
     unlockNetWorthRequired: 250000,
@@ -692,7 +692,10 @@ const normalizeBusinessNames = (
             acquisitionCost: baseline.acquisitionCost,
           }
         : item;
-      return merged.id === "brightgrid-energy" ||
+      return merged.id === "titan-infrastructure" ||
+        merged.name === "Ironline Civic Works"
+        ? { ...merged, name: "Construction Company" }
+        : merged.id === "brightgrid-energy" ||
         (merged.sector === "Energy" &&
           ["BrightGrid Energy", "Surya Energy"].includes(merged.name))
         ? { ...merged, name: "Sunward Gridworks" }
