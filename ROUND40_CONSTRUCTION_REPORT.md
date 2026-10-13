@@ -21,6 +21,10 @@
 - Five original local WebP visuals used by the Construction screen.
 - Offline JS bundle regenerated.
 
+## Option B dashboard content update
+
+The white interactive dashboard now also includes the reference content as playable UI: six tappable gameplay-flow cards for Dashboard, Land & Project Selection, Machinery & Equipment, Project Management, Contracts & Earnings, and Expansion & Upgrades, plus a four-row growth table covering Small contractor, Growing company, Large company, and Enterprise unlocks. The existing tabs and controls remain the source of truth; the new cards navigate directly to those tabs.
+
 ## Deterministic proof
 
 `npx -y tsx scripts/round40-construction-proof.ts`
