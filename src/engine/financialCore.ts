@@ -3,6 +3,7 @@ import type { CollectionItem } from '../data/collectionTypes';
 import type { Asset, Holding } from '../types/marketAsset';
 import type { BankDeposit, BankInvestor, BankLoan, BankMarketEvent, BankState, InsurancePolicy, BankLedgerEntry, TaxRecord } from '../types/bank';
 import { calculateTax, depositSpec } from './bankEngine';
+import { constructionAssetValue } from './constructionCompanyEngine';
 
 export type FinancialGameState = {
   cash: number;
@@ -34,7 +35,8 @@ export function calculateNetWorth(state: FinancialGameState): number {
   const businessAssets = (state.businesses || []).reduce((sum, business) => {
     if (!business.isAcquired) return sum;
     const inventory = business.sector === 'Retail' ? positive(business.stockUnits) * positive(business.unitWholesaleCost ?? 0) : 0;
-    return sum + positive(business.acquisitionCost) + inventory + positive(business.pendingSettlementAmount);
+    const constructionAssets = business.sector === 'Construction_Mega' ? constructionAssetValue(business) - positive(business.acquisitionCost) : 0;
+    return sum + positive(business.acquisitionCost) + inventory + constructionAssets + positive(business.pendingSettlementAmount);
   }, 0);
   const deposits = (state.bank.deposits || []).reduce((sum, deposit) => sum + (deposit.status === 'ACTIVE' ? positive(deposit.principal) : 0), 0);
   const debt = (state.bank.loans || []).reduce((sum, loan) => sum + (loan.status === 'ACTIVE' ? positive(loan.balance) : 0), 0);

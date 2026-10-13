@@ -40,6 +40,24 @@ export interface SaaSData extends BaseBusiness {
 }
 export interface ConstructionData extends BaseBusiness {
   sector: 'Construction_Mega'; activeTenderName: string | null; projectPhase: 0 | 1 | 2 | 3; phaseProgressPercent: number; projectEscrowPayout: number; machineryDispatched?: boolean; safetyCleared?: boolean;
+  constructionStage?: 'Small contractor' | 'Growing company' | 'Large company' | 'Enterprise';
+  landOwned?: number;
+  landCapacity?: number;
+  selectedMarket?: 'Residential' | 'Commercial' | 'Industrial';
+  machinery?: { excavators: number; cranes: number; mixers: number; dumpTrucks: number };
+  materialsStock?: number;
+  workers?: number;
+  activeProjectId?: string | null;
+  projectBudget?: number;
+  projectCostSpent?: number;
+  projectDeadlineSeconds?: number;
+  projectDurationSeconds?: number;
+  projectsCompleted?: number;
+  activeContractType?: 'Government' | 'Private' | null;
+  activeContractName?: string | null;
+  contractPayout?: number;
+  contractDeadlineSeconds?: number;
+  contractReputation?: number;
 }
 export type ExpansionSector = 'Real_Estate' | 'Energy' | 'Pharma' | 'Media' | 'Sports' | 'Airline';
 export interface ExpansionData extends BaseBusiness {

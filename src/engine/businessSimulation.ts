@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BusinessEntity, ConstructionData, ExpansionData, ExpansionSector, MobilityData, RetailData, SaaSData } from '../types/business';
 import { passiveIncomeMultiplier } from './economyPlan';
+import { advanceConstruction, constructionHourlyProfit } from './constructionCompanyEngine';
 
 export const BUSINESS_SIMULATION_SAVE = 'empire-rush-unified-businesses-v2';
 export const BUSINESS_SIMULATION_SAVE_VERSION = 3;
@@ -9,7 +10,7 @@ export const DEFAULT_BUSINESSES: BusinessEntity[] = [
   { id: 'apex-retail', name: 'Copper & Bloom Market', sector: 'Retail', isUnlocked: true, unlockNetWorthRequired: 0, isAcquired: false, acquisitionCost: 500, legalStatus: 'Licensed_Legal', policeHeat: 0, stability: 92, hourlyNetProfit: 0, stockUnits: 0, maxStockCapacity: 2500, pricingTier: 'Standard', hasSecurity: false, hasManager: false, onboardingStep: 'ORDER_STOCK', unitWholesaleCost: 2, monthlyRent: 800, monthlyPayroll: 1200, salesRemainder: 0, autoRestockEnabled: false, demandEvent: 'None', demandEventSeconds: 0, demandClockSeconds: 0, pulseChain: 0, lastSaleSequence: 0, lastSaleRevenue: 0 },
   { id: 'metro-mobility', name: 'Neon Mile Fleet', sector: 'Mobility', isUnlocked: false, unlockNetWorthRequired: 15000, isAcquired: false, acquisitionCost: 12000, legalStatus: 'Licensed_Legal', policeHeat: 0, stability: 90, hourlyNetProfit: 0, economySedans: 10, electricEVs: 0, luxuryLimos: 0, fleetHealth: 100, surgeActive: false },
   { id: 'cyberpulse-saas', name: 'SignalForge Cloud', sector: 'Tech_SaaS', isUnlocked: false, unlockNetWorthRequired: 75000, isAcquired: false, acquisitionCost: 60000, legalStatus: 'Licensed_Legal', policeHeat: 0, stability: 88, hourlyNetProfit: 0, activeSubscribers: 20000, serverCapacity: 25000, openBugs: 0 },
-  { id: 'titan-infrastructure', name: 'Ironline Civic Works', sector: 'Construction_Mega', isUnlocked: false, unlockNetWorthRequired: 250000, isAcquired: false, acquisitionCost: 180000, legalStatus: 'Licensed_Legal', policeHeat: 0, stability: 85, hourlyNetProfit: 0, activeTenderName: null, projectPhase: 0, phaseProgressPercent: 0, projectEscrowPayout: 250000, machineryDispatched: false, safetyCleared: false },
+  { id: 'titan-infrastructure', name: 'Ironline Civic Works', sector: 'Construction_Mega', isUnlocked: false, unlockNetWorthRequired: 250000, isAcquired: false, acquisitionCost: 180000, legalStatus: 'Licensed_Legal', policeHeat: 0, stability: 85, hourlyNetProfit: 0, activeTenderName: null, projectPhase: 0, phaseProgressPercent: 0, projectEscrowPayout: 250000, machineryDispatched: false, safetyCleared: false, constructionStage: 'Small contractor', landOwned: 0, landCapacity: 1, selectedMarket: 'Residential', machinery: { excavators: 0, cranes: 0, mixers: 0, dumpTrucks: 0 }, materialsStock: 0, workers: 4, activeProjectId: null, projectBudget: 0, projectCostSpent: 0, projectDeadlineSeconds: 0, projectDurationSeconds: 0, projectsCompleted: 0, activeContractType: null, activeContractName: null, contractPayout: 0, contractDeadlineSeconds: 0 },
   { id: 'harbor-estates', name: 'Harborlight Properties', sector: 'Real_Estate', isUnlocked: false, unlockNetWorthRequired: 750000, isAcquired: false, acquisitionCost: 550000, legalStatus: 'Licensed_Legal', policeHeat: 0, stability: 82, hourlyNetProfit: 0, branchCount: 1, staffCount: 8, managerHired: false, upgradeLevel: 0, reputation: 70, customerSatisfaction: 78, contractSecondsRemaining: 14400, contractReward: 5000, activeEvent: 'None' },
   { id: 'brightgrid-energy', name: 'Sunward Gridworks', sector: 'Energy', isUnlocked: false, unlockNetWorthRequired: 2500000, isAcquired: false, acquisitionCost: 1800000, legalStatus: 'Licensed_Legal', policeHeat: 0, stability: 78, hourlyNetProfit: 0, branchCount: 1, staffCount: 16, managerHired: false, upgradeLevel: 0, reputation: 66, customerSatisfaction: 74, contractSecondsRemaining: 21600, contractReward: 10000, activeEvent: 'None' },
   { id: 'northstar-pharma', name: 'Northstar Therapeutics', sector: 'Pharma', isUnlocked: false, unlockNetWorthRequired: 8000000, isAcquired: false, acquisitionCost: 5500000, legalStatus: 'Licensed_Legal', policeHeat: 0, stability: 75, hourlyNetProfit: 0, branchCount: 1, staffCount: 28, managerHired: false, upgradeLevel: 0, reputation: 62, customerSatisfaction: 72, contractSecondsRemaining: 28800, contractReward: 20000, activeEvent: 'None' },
@@ -110,12 +111,10 @@ function saasOperations(business: SaaSData, seconds: number, events: string[]): 
 
 function constructionOperations(business: ConstructionData, elapsedSeconds: number, events: string[]): OperationResult<ConstructionData> {
   if (!business.isAcquired) return { business: { ...business, hourlyNetProfit: 0 }, hourlyRate: 0 };
-  if (!business.activeTenderName || business.projectPhase === 0) return { business: { ...business, hourlyNetProfit: 250000, baseHourlyNetProfit: 250000 }, hourlyRate: 250000 };
-  let next = { ...business }; let progress = next.phaseProgressPercent;
-  if (elapsedSeconds >= 3) progress += 1;
-  if (progress >= 100) { if (next.projectPhase < 3) { next = { ...next, projectPhase: (next.projectPhase + 1) as ConstructionData['projectPhase'], phaseProgressPercent: 0 }; events.push(`${next.name}: advanced to construction phase ${next.projectPhase}.`); } else { events.push(`${next.name}: tender complete; settlement bonus is queued.`); next = { ...next, activeTenderName: null, projectPhase: 0, phaseProgressPercent: 0, machineryDispatched: false, safetyCleared: false }; } } else next = { ...next, phaseProgressPercent: progress };
-  const hourlyRate = next.activeTenderName ? 0 : 250000;
-  return { business: { ...next, baseHourlyNetProfit: hourlyRate, hourlyNetProfit: hourlyRate }, hourlyRate, pendingAmount: hourlyRate * elapsedSeconds / 3600 };
+  const result = advanceConstruction(business, elapsedSeconds);
+  events.push(...result.events);
+  const hourlyRate = constructionHourlyProfit(result.business);
+  return { business: { ...result.business, baseHourlyNetProfit: hourlyRate, hourlyNetProfit: hourlyRate }, hourlyRate, pendingAmount: hourlyRate * elapsedSeconds / 3600 + result.cashDelta };
 }
 
 export type SimulationResult = { businesses: BusinessEntity[]; events: string[]; hourlyByBusiness: Record<string, number> };
