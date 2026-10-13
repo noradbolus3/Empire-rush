@@ -17,6 +17,7 @@ import {
   isActiveLoan,
   isDebtBearingLoan,
 } from "./bankEngine";
+import { constructionAssetValue } from "./constructionCompanyEngine";
 
 export type FinancialGameState = {
   cash: number;
@@ -49,6 +50,7 @@ export type SettlementResult = {
   breakdown: {
     businessRevenue: number;
     interest: number;
+    loanInterest?: number;
     emi: number;
     premiums: number;
     upkeep: number;
@@ -83,10 +85,15 @@ export function calculateNetWorth(state: FinancialGameState): number {
         ? positive(business.stockUnits) *
           positive(business.unitWholesaleCost ?? 0)
         : 0;
+    const constructionAssets =
+      business.sector === "Construction_Mega"
+        ? constructionAssetValue(business) - positive(business.acquisitionCost)
+        : 0;
     return (
       sum +
       positive(business.acquisitionCost) +
       inventory +
+      constructionAssets +
       positive(business.pendingSettlementAmount)
     );
   }, 0);

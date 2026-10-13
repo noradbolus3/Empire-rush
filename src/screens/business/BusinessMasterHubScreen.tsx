@@ -24,6 +24,7 @@ import { IPOListing } from "../../types/ipo";
 import { IPO_MIN_VALUATION } from "../../engine/ipoEngine";
 import type { BankLedgerEntry } from "../../types/bank";
 import { normalizeBusinessLevel } from "../../engine/businessLevels";
+import ConstructionCompanyScreen from "./ConstructionCompanyScreen";
 
 const C = {
   bg: "#0B0F17",
@@ -107,6 +108,17 @@ export function BusinessMasterHubScreen({
       spendLock.current = false;
     }, 160);
   };
+  if (business.sector === "Construction_Mega")
+    return (
+      <ConstructionCompanyScreen
+        business={business}
+        cash={cash}
+        netWorth={netWorth}
+        onBack={onBack}
+        onCashChange={onCashChange}
+        onChange={onChange}
+      />
+    );
   return (
     <View style={styles.root}>
       <SafeAreaView edges={["left", "right"]} style={styles.safe}>
@@ -247,14 +259,6 @@ export function BusinessMasterHubScreen({
               )}
               {business.sector === "Tech_SaaS" && (
                 <SaaSControls
-                  business={business}
-                  cash={cash}
-                  spend={spend}
-                  onChange={onChange}
-                />
-              )}
-              {business.sector === "Construction_Mega" && (
-                <ConstructionControls
                   business={business}
                   cash={cash}
                   spend={spend}

@@ -86,6 +86,24 @@ export interface ConstructionData extends BaseBusiness {
   projectEscrowPayout: number;
   machineryDispatched?: boolean;
   safetyCleared?: boolean;
+  constructionStage?: "Small contractor" | "Growing company" | "Large company" | "Enterprise";
+  landOwned?: number;
+  landCapacity?: number;
+  selectedMarket?: "Residential" | "Commercial" | "Industrial";
+  machinery?: { excavators: number; cranes: number; mixers: number; dumpTrucks: number };
+  materialsStock?: number;
+  workers?: number;
+  activeProjectId?: string | null;
+  projectBudget?: number;
+  projectCostSpent?: number;
+  projectDeadlineSeconds?: number;
+  projectDurationSeconds?: number;
+  projectsCompleted?: number;
+  activeContractType?: "Government" | "Private" | null;
+  activeContractName?: string | null;
+  contractPayout?: number;
+  contractDeadlineSeconds?: number;
+  contractReputation?: number;
 }
 export type ExpansionSector =
   "Real_Estate" | "Energy" | "Pharma" | "Media" | "Sports" | "Airline";

@@ -13,6 +13,10 @@ import {
   businessUnitsOrAssets,
   normalizeBusinessLevel,
 } from "./businessLevels";
+import {
+  advanceConstruction,
+  constructionHourlyProfit,
+} from "./constructionCompanyEngine";
 
 export const BUSINESS_SIMULATION_SAVE = "empire-rush-unified-businesses-v2";
 export const BUSINESS_SIMULATION_SAVE_VERSION = 3;
@@ -100,6 +104,24 @@ export const DEFAULT_BUSINESSES: BusinessEntity[] = [
     projectEscrowPayout: 250000,
     machineryDispatched: false,
     safetyCleared: false,
+    constructionStage: "Small contractor",
+    landOwned: 0,
+    landCapacity: 1,
+    selectedMarket: "Residential",
+    machinery: { excavators: 0, cranes: 0, mixers: 0, dumpTrucks: 0 },
+    materialsStock: 0,
+    workers: 4,
+    activeProjectId: null,
+    projectBudget: 0,
+    projectCostSpent: 0,
+    projectDeadlineSeconds: 0,
+    projectDurationSeconds: 0,
+    projectsCompleted: 0,
+    activeContractType: null,
+    activeContractName: null,
+    contractPayout: 0,
+    contractDeadlineSeconds: 0,
+    contractReputation: 0,
   },
   {
     id: "harbor-estates",
@@ -543,50 +565,17 @@ function constructionOperations(
 ): OperationResult<ConstructionData> {
   if (!business.isAcquired)
     return { business: { ...business, hourlyNetProfit: 0 }, hourlyRate: 0 };
-  if (!business.activeTenderName || business.projectPhase === 0)
-    return {
-      business: {
-        ...business,
-        hourlyNetProfit: 250000,
-        baseHourlyNetProfit: 250000,
-      },
-      hourlyRate: 250000,
-    };
-  let next = { ...business };
-  let progress = next.phaseProgressPercent;
-  if (elapsedSeconds >= 3) progress += 1;
-  if (progress >= 100) {
-    if (next.projectPhase < 3) {
-      next = {
-        ...next,
-        projectPhase: (next.projectPhase +
-          1) as ConstructionData["projectPhase"],
-        phaseProgressPercent: 0,
-      };
-      events.push(
-        `${next.name}: advanced to construction phase ${next.projectPhase}.`,
-      );
-    } else {
-      events.push(`${next.name}: tender complete; settlement bonus is queued.`);
-      next = {
-        ...next,
-        activeTenderName: null,
-        projectPhase: 0,
-        phaseProgressPercent: 0,
-        machineryDispatched: false,
-        safetyCleared: false,
-      };
-    }
-  } else next = { ...next, phaseProgressPercent: progress };
-  const hourlyRate = next.activeTenderName ? 0 : 250000;
+  const result = advanceConstruction(business, elapsedSeconds);
+  events.push(...result.events);
+  const hourlyRate = constructionHourlyProfit(result.business);
   return {
     business: {
-      ...next,
+      ...result.business,
       baseHourlyNetProfit: hourlyRate,
       hourlyNetProfit: hourlyRate,
     },
     hourlyRate,
-    pendingAmount: (hourlyRate * elapsedSeconds) / 3600,
+    pendingAmount: (hourlyRate * elapsedSeconds) / 3600 + result.cashDelta,
   };
 }
 
