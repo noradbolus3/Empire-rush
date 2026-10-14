@@ -1,0 +1,58 @@
+{
+  "test": "round39-factory-proof-with-settlement-tick",
+  "scenarioCount": 6,
+  "failed": 0,
+  "scenarios": [
+    {
+      "label": "factory launch",
+      "ok": true,
+      "cashBefore": 120000,
+      "launchCost": 45000,
+      "cashAfter": 75000,
+      "location": "Central Industrial Park",
+      "type": "Consumer Goods"
+    },
+    {
+      "label": "production capacity",
+      "ok": true,
+      "capacity": 500,
+      "productionUnits": 300,
+      "rawMaterials": 300
+    },
+    {
+      "label": "inventory to sales",
+      "ok": true,
+      "produced": 300,
+      "soldRevenue": 2400,
+      "finishedGoods": 0
+    },
+    {
+      "label": "machinery and level progression",
+      "ok": true,
+      "level": "Plant",
+      "lines": 3,
+      "efficiency": 1.25,
+      "capacity": 1875
+    },
+    {
+      "label": "save and reload",
+      "ok": true,
+      "savedBytes": 543,
+      "totalSales": 2400,
+      "buildingLevel": 2
+    },
+    {
+      "label": "factory settlement tick",
+      "ok": true,
+      "cashBefore": 10000,
+      "production": 300,
+      "sales": 235,
+      "revenue": 1880,
+      "expenses": 114,
+      "cashDelta": 1766,
+      "cashAfter": 11766,
+      "rawMaterialsAfter": 0,
+      "finishedGoodsAfter": 65
+    }
+  ]
+}

@@ -4,6 +4,7 @@ import {
   factoryEconomics,
   factoryLevelFor,
   factoryProductionCapacity,
+  factorySettlementTick,
   FactoryCompanyState,
 } from "../src/types/factory";
 const scenarios: Record<string, unknown>[] = [];
@@ -91,10 +92,40 @@ check(
     buildingLevel: reloaded.buildingLevel,
   },
 );
+const settlementInput: FactoryCompanyState = {
+  ...DEFAULT_FACTORY_COMPANY,
+  status: "operating",
+  machineLines: 1,
+  workers: 2,
+  rawMaterials: 300,
+  finishedGoods: 0,
+};
+const settlement = factorySettlementTick(settlementInput, 10000);
+check(
+  "factory settlement tick",
+  settlement.production === 300 &&
+    settlement.sales === 235 &&
+    settlement.revenue === 1880 &&
+    settlement.expenses === 114 &&
+    settlement.cashAfter === 11766 &&
+    settlement.factory.rawMaterials === 0 &&
+    settlement.factory.finishedGoods === 65,
+  {
+    cashBefore: settlement.cashBefore,
+    production: settlement.production,
+    sales: settlement.sales,
+    revenue: settlement.revenue,
+    expenses: settlement.expenses,
+    cashDelta: settlement.cashDelta,
+    cashAfter: settlement.cashAfter,
+    rawMaterialsAfter: settlement.factory.rawMaterials,
+    finishedGoodsAfter: settlement.factory.finishedGoods,
+  },
+);
 console.log(
   JSON.stringify(
     {
-      test: "round39-factory-proof",
+      test: "round39-factory-proof-with-settlement-tick",
       scenarioCount: scenarios.length,
       failed: scenarios.filter((item) => !item.ok).length,
       scenarios,
