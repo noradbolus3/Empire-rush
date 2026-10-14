@@ -1,0 +1,203 @@
+
+> empire-expo@1.0.0 test:render
+> node scripts/round36-render-smoke.cjs
+
+{
+  "test": "round36-render-and-interaction-smoke",
+  "renderTotal": 23,
+  "renderFailed": 0,
+  "interactionTotal": 24,
+  "interactionFailed": 0,
+  "results": [
+    {
+      "label": "business-empty-save",
+      "ok": true
+    },
+    {
+      "label": "business-retail-l1",
+      "ok": true
+    },
+    {
+      "label": "business-retail-l2",
+      "ok": true
+    },
+    {
+      "label": "business-mobility-l1",
+      "ok": true
+    },
+    {
+      "label": "business-mobility-l2",
+      "ok": true
+    },
+    {
+      "label": "business-unaffordable-category",
+      "ok": true
+    },
+    {
+      "label": "business-tech",
+      "ok": true
+    },
+    {
+      "label": "business-construction",
+      "ok": true
+    },
+    {
+      "label": "business-real-estate",
+      "ok": true
+    },
+    {
+      "label": "business-energy",
+      "ok": true
+    },
+    {
+      "label": "business-pharma",
+      "ok": true
+    },
+    {
+      "label": "business-media",
+      "ok": true
+    },
+    {
+      "label": "business-sports",
+      "ok": true
+    },
+    {
+      "label": "business-airline",
+      "ok": true
+    },
+    {
+      "label": "bank-mount",
+      "ok": true
+    },
+    {
+      "label": "markets-mount",
+      "ok": true
+    },
+    {
+      "label": "lifestyle-mount",
+      "ok": true
+    },
+    {
+      "label": "taxi-setup-mount",
+      "ok": true
+    },
+    {
+      "label": "taxi-operating-mount",
+      "ok": true
+    },
+    {
+      "label": "shipping-setup-mount",
+      "ok": true
+    },
+    {
+      "label": "shipping-operating-mount",
+      "ok": true
+    },
+    {
+      "label": "factory-setup-mount",
+      "ok": true
+    },
+    {
+      "label": "factory-operating-mount",
+      "ok": true
+    }
+  ],
+  "interactionResults": [
+    {
+      "label": "interaction-retail-l1-quick-action",
+      "ok": true
+    },
+    {
+      "label": "interaction-mobility-l1-quick-action",
+      "ok": true
+    },
+    {
+      "label": "interaction-my-companies",
+      "ok": true
+    },
+    {
+      "label": "interaction-start-a-business",
+      "ok": true
+    },
+    {
+      "label": "interaction-insufficient-funds-purchase",
+      "ok": true
+    },
+    {
+      "label": "interaction-taxi-launch",
+      "ok": true
+    },
+    {
+      "label": "taxi-screen-overview",
+      "ok": true
+    },
+    {
+      "label": "taxi-screen-fleet",
+      "ok": true
+    },
+    {
+      "label": "taxi-screen-operations",
+      "ok": true
+    },
+    {
+      "label": "taxi-screen-workforce",
+      "ok": true
+    },
+    {
+      "label": "taxi-screen-expansion",
+      "ok": true
+    },
+    {
+      "label": "shipping-screen-dashboard",
+      "ok": true
+    },
+    {
+      "label": "shipping-screen-fleet",
+      "ok": true
+    },
+    {
+      "label": "shipping-screen-shipments-accept",
+      "ok": true
+    },
+    {
+      "label": "shipping-screen-shipments-assign",
+      "ok": true
+    },
+    {
+      "label": "shipping-screen-shipments-deliver",
+      "ok": true
+    },
+    {
+      "label": "shipping-screen-staff",
+      "ok": true
+    },
+    {
+      "label": "shipping-screen-expansion",
+      "ok": true
+    },
+    {
+      "label": "factory-screen-setup",
+      "ok": true
+    },
+    {
+      "label": "factory-screen-dashboard",
+      "ok": true
+    },
+    {
+      "label": "factory-screen-machinery",
+      "ok": true
+    },
+    {
+      "label": "factory-screen-employees",
+      "ok": true
+    },
+    {
+      "label": "factory-screen-inventory",
+      "ok": true
+    },
+    {
+      "label": "factory-screen-expansion",
+      "ok": true
+    }
+  ]
+}

@@ -701,6 +701,9 @@ const factoryInteraction = async (label, company, cash, actions) => {
     workers: 2,
     rawMaterials: 300,
   };
+  await factoryInteraction("factory-screen-setup", null, 120000, [
+    "CONFIRM & LAUNCH FACTORY",
+  ]);
   await factoryInteraction("factory-screen-dashboard", factoryBase, 120000, []);
   await factoryInteraction("factory-screen-machinery", factoryBase, 120000, [
     "MACHINERY",

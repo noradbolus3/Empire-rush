@@ -135,6 +135,54 @@ export function factoryEconomics(factory: FactoryCompanyState) {
     product: info.product,
   };
 }
+
+export function factorySettlementTick(factory: FactoryCompanyState, cash = 0) {
+  const info = FACTORY_TYPE_INFO[factory.factoryType];
+  const production = Math.floor(
+    Math.max(
+      0,
+      Math.min(
+        factory.rawMaterials / info.rawPerUnit,
+        factoryProductionCapacity(factory),
+        factory.inventoryCapacity - factory.finishedGoods,
+      ),
+    ),
+  );
+  const finishedBeforeSales = factory.finishedGoods + production;
+  const sales = Math.floor(
+    Math.min(finishedBeforeSales, production * 0.7 + factory.demandIndex * 25),
+  );
+  const revenue = sales * info.unitValue * factory.demandIndex;
+  const expenses =
+    factory.workers * 42 +
+    factory.supervisors * 70 +
+    factory.maintenanceTeam * 55 +
+    factory.machineLines * 30 +
+    (100 - factory.machineCondition) * 4;
+  const nextFactory: FactoryCompanyState = {
+    ...factory,
+    level: factoryLevelFor(factory),
+    rawMaterials: factory.rawMaterials - production * info.rawPerUnit,
+    finishedGoods: finishedBeforeSales - sales,
+    totalProduction: factory.totalProduction + production,
+    totalSales: factory.totalSales + revenue,
+    totalExpenses: factory.totalExpenses + expenses,
+    lastProductionAt: Date.now(),
+    lastRevenue: revenue,
+    lastExpenses: expenses,
+  };
+  return {
+    factory: nextFactory,
+    cashBefore: cash,
+    cashAfter: cash + revenue - expenses,
+    cashDelta: revenue - expenses,
+    production,
+    sales,
+    revenue,
+    expenses,
+  };
+}
+
 export function factoryUnitsLabel(factory: FactoryCompanyState) {
   return `${factory.finishedGoods.toLocaleString()} finished / ${factory.rawMaterials.toLocaleString()} raw`;
 }
