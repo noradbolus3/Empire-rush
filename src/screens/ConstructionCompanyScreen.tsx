@@ -40,7 +40,7 @@ const C = {
   muted: "#718392",
   border: "#D5E0E7",
 };
-const dashboard = require("../../assets/construction/construction-dashboard.jpg");
+const dashboard = require("../../assets/construction/construction-dashboard.webp");
 const land = require("../../assets/construction/land-project-selection.jpg");
 const machinery = require("../../assets/construction/heavy-machinery.jpg");
 const projects = require("../../assets/construction/project-management.jpg");
