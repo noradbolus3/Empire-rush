@@ -19,10 +19,15 @@ import {
   ShippingCompanyState,
 } from "../types/shipping";
 import { DEFAULT_FACTORY_COMPANY, FactoryCompanyState } from "../types/factory";
+import {
+  DEFAULT_CONSTRUCTION_COMPANY,
+  ConstructionCompanyState,
+} from "../types/construction";
 
 export const TAXI_COMPANY_SAVE = "empire-rush-taxi-company-v1";
 export const SHIPPING_COMPANY_SAVE = "empire-rush-shipping-company-v1";
 export const FACTORY_COMPANY_SAVE = "empire-rush-factory-company-v1";
+export const CONSTRUCTION_COMPANY_SAVE = "empire-rush-construction-company-v1";
 type GameContextValue = {
   businesses: BusinessEntity[];
   setBusinesses: React.Dispatch<React.SetStateAction<BusinessEntity[]>>;
@@ -36,6 +41,10 @@ type GameContextValue = {
   setFactoryCompany: React.Dispatch<
     React.SetStateAction<FactoryCompanyState | null>
   >;
+  constructionCompany: ConstructionCompanyState | null;
+  setConstructionCompany: React.Dispatch<
+    React.SetStateAction<ConstructionCompanyState | null>
+  >;
   resetBusinesses: () => void;
 };
 const GameContext = createContext<GameContextValue>({
@@ -47,6 +56,8 @@ const GameContext = createContext<GameContextValue>({
   setShippingCompany: () => undefined,
   factoryCompany: null,
   setFactoryCompany: () => undefined,
+  constructionCompany: null,
+  setConstructionCompany: () => undefined,
   resetBusinesses: () => undefined,
 });
 
@@ -58,6 +69,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     useState<ShippingCompanyState | null>(null);
   const [factoryCompany, setFactoryCompany] =
     useState<FactoryCompanyState | null>(null);
+  const [constructionCompany, setConstructionCompany] =
+    useState<ConstructionCompanyState | null>(null);
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => {
     let active = true;
@@ -66,38 +79,59 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       AsyncStorage.getItem(TAXI_COMPANY_SAVE),
       AsyncStorage.getItem(SHIPPING_COMPANY_SAVE),
       AsyncStorage.getItem(FACTORY_COMPANY_SAVE),
-    ]).then(([loadedBusinesses, rawTaxi, rawShipping, rawFactory]) => {
-      if (!active) return;
-      setBusinesses(loadedBusinesses);
-      if (rawTaxi) {
-        try {
-          const parsed = JSON.parse(rawTaxi);
-          if (parsed?.id === DEFAULT_TAXI_COMPANY.id)
-            setTaxiCompany({ ...DEFAULT_TAXI_COMPANY, ...parsed });
-        } catch {
-          setTaxiCompany(null);
+      AsyncStorage.getItem(CONSTRUCTION_COMPANY_SAVE),
+    ]).then(
+      ([
+        loadedBusinesses,
+        rawTaxi,
+        rawShipping,
+        rawFactory,
+        rawConstruction,
+      ]) => {
+        if (!active) return;
+        setBusinesses(loadedBusinesses);
+        if (rawTaxi) {
+          try {
+            const parsed = JSON.parse(rawTaxi);
+            if (parsed?.id === DEFAULT_TAXI_COMPANY.id)
+              setTaxiCompany({ ...DEFAULT_TAXI_COMPANY, ...parsed });
+          } catch {
+            setTaxiCompany(null);
+          }
         }
-      }
-      if (rawShipping) {
-        try {
-          const parsed = JSON.parse(rawShipping);
-          if (parsed?.id === DEFAULT_SHIPPING_COMPANY.id)
-            setShippingCompany({ ...DEFAULT_SHIPPING_COMPANY, ...parsed });
-        } catch {
-          setShippingCompany(null);
+        if (rawShipping) {
+          try {
+            const parsed = JSON.parse(rawShipping);
+            if (parsed?.id === DEFAULT_SHIPPING_COMPANY.id)
+              setShippingCompany({ ...DEFAULT_SHIPPING_COMPANY, ...parsed });
+          } catch {
+            setShippingCompany(null);
+          }
         }
-      }
-      if (rawFactory) {
-        try {
-          const parsed = JSON.parse(rawFactory);
-          if (parsed?.id === DEFAULT_FACTORY_COMPANY.id)
-            setFactoryCompany({ ...DEFAULT_FACTORY_COMPANY, ...parsed });
-        } catch {
-          setFactoryCompany(null);
+        if (rawFactory) {
+          try {
+            const parsed = JSON.parse(rawFactory);
+            if (parsed?.id === DEFAULT_FACTORY_COMPANY.id)
+              setFactoryCompany({ ...DEFAULT_FACTORY_COMPANY, ...parsed });
+          } catch {
+            setFactoryCompany(null);
+          }
         }
-      }
-      setHydrated(true);
-    });
+        if (rawConstruction) {
+          try {
+            const parsed = JSON.parse(rawConstruction);
+            if (parsed?.id === DEFAULT_CONSTRUCTION_COMPANY.id)
+              setConstructionCompany({
+                ...DEFAULT_CONSTRUCTION_COMPANY,
+                ...parsed,
+              });
+          } catch {
+            setConstructionCompany(null);
+          }
+        }
+        setHydrated(true);
+      },
+    );
     return () => {
       active = false;
     };
@@ -120,12 +154,26 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         JSON.stringify(factoryCompany),
       );
     else void AsyncStorage.removeItem(FACTORY_COMPANY_SAVE);
-  }, [businesses, taxiCompany, shippingCompany, factoryCompany, hydrated]);
+    if (constructionCompany)
+      void AsyncStorage.setItem(
+        CONSTRUCTION_COMPANY_SAVE,
+        JSON.stringify(constructionCompany),
+      );
+    else void AsyncStorage.removeItem(CONSTRUCTION_COMPANY_SAVE);
+  }, [
+    businesses,
+    taxiCompany,
+    shippingCompany,
+    factoryCompany,
+    constructionCompany,
+    hydrated,
+  ]);
   const resetBusinesses = () => {
     setBusinesses(DEFAULT_BUSINESSES);
     setTaxiCompany(null);
     setShippingCompany(null);
     setFactoryCompany(null);
+    setConstructionCompany(null);
     void AsyncStorage.setItem(
       BUSINESS_SIMULATION_SAVE,
       JSON.stringify({ schemaVersion: 2, businesses: DEFAULT_BUSINESSES }),
@@ -133,6 +181,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     void AsyncStorage.removeItem(TAXI_COMPANY_SAVE);
     void AsyncStorage.removeItem(SHIPPING_COMPANY_SAVE);
     void AsyncStorage.removeItem(FACTORY_COMPANY_SAVE);
+    void AsyncStorage.removeItem(CONSTRUCTION_COMPANY_SAVE);
   };
   const value = useMemo(
     () => ({
@@ -144,9 +193,17 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       setShippingCompany,
       factoryCompany,
       setFactoryCompany,
+      constructionCompany,
+      setConstructionCompany,
       resetBusinesses,
     }),
-    [businesses, taxiCompany, shippingCompany, factoryCompany],
+    [
+      businesses,
+      taxiCompany,
+      shippingCompany,
+      factoryCompany,
+      constructionCompany,
+    ],
   );
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
 }

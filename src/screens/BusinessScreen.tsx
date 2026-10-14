@@ -34,6 +34,7 @@ import BusinessMasterHubScreen from "./business/BusinessMasterHubScreen";
 import TaxiCompanyScreen from "./TaxiCompanyScreen";
 import ShippingCompanyScreen from "./ShippingCompanyScreen";
 import FactoryCompanyScreen from "./FactoryCompanyScreen";
+import ConstructionCompanyScreen from "./ConstructionCompanyScreen";
 import {
   clearLevelUpNotice,
   levelConfig,
@@ -210,11 +211,14 @@ function BusinessScreenContent({
     setShippingCompany,
     factoryCompany,
     setFactoryCompany,
+    constructionCompany,
+    setConstructionCompany,
   } = useGame();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [taxiOpen, setTaxiOpen] = useState(false);
   const [shippingOpen, setShippingOpen] = useState(false);
   const [factoryOpen, setFactoryOpen] = useState(false);
+  const [constructionOpen, setConstructionOpen] = useState(false);
   const [registrationId, setRegistrationId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"start" | "companies">("start");
   const celebratedRef = useRef("");
@@ -320,6 +324,17 @@ function BusinessScreenContent({
         onCashChange={onCashChange}
         onChange={setFactoryCompany || (() => undefined)}
         onBack={() => setFactoryOpen(false)}
+        onLedger={onLedger}
+      />
+    );
+  if (constructionOpen)
+    return (
+      <ConstructionCompanyScreen
+        company={constructionCompany}
+        cash={cash}
+        onCashChange={onCashChange}
+        onChange={setConstructionCompany || (() => undefined)}
+        onBack={() => setConstructionOpen(false)}
         onLedger={onLedger}
       />
     );
@@ -530,6 +545,33 @@ function BusinessScreenContent({
             >
               <Text style={styles.factoryButtonText}>
                 {factoryCompany ? "MANAGE FACTORY" : "START FACTORY"}
+              </Text>
+            </Pressable>
+          </View>
+          <View style={styles.constructionCard}>
+            <View style={styles.factoryCardCopy}>
+              <Text style={styles.constructionEyebrow}>
+                DEVELOPMENT COMPANY
+              </Text>
+              <Text style={styles.factoryTitle}>
+                {constructionCompany
+                  ? "My Construction Company"
+                  : "Start a Construction Company"}
+              </Text>
+              <Text style={styles.factoryCopy}>
+                {constructionCompany
+                  ? `${constructionCompany.level} · ${constructionCompany.activeProjects} active projects · ${constructionCompany.landParcels} parcels`
+                  : "Buy land, manage machinery, build projects and win construction contracts."}
+              </Text>
+            </View>
+            <Pressable
+              style={styles.constructionButton}
+              onPress={() => setConstructionOpen(true)}
+            >
+              <Text style={styles.factoryButtonText}>
+                {constructionCompany
+                  ? "MANAGE CONSTRUCTION"
+                  : "START CONSTRUCTION"}
               </Text>
             </Pressable>
           </View>
@@ -1071,6 +1113,29 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   factoryButtonText: { color: "#FFFFFF", fontSize: 9, fontWeight: "900" },
+  constructionCard: {
+    backgroundColor: "#FFF8E7",
+    borderColor: "#E7C976",
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  constructionEyebrow: {
+    color: "#B26E0D",
+    fontSize: 8,
+    fontWeight: "900",
+    letterSpacing: 1,
+  },
+  constructionButton: {
+    backgroundColor: "#B26E0D",
+    borderRadius: 10,
+    paddingHorizontal: 11,
+    paddingVertical: 10,
+  },
   shippingCard: {
     backgroundColor: "#FFFFFF",
     borderColor: "#B9D2F5",

@@ -1,0 +1,41 @@
+{
+  "test": "round40-construction-proof",
+  "scenarioCount": 4,
+  "failed": 0,
+  "scenarios": [
+    {
+      "label": "land and launch",
+      "ok": true,
+      "cashBefore": 120000,
+      "launchCost": 60000,
+      "cashAfter": 60000,
+      "projectType": "Residential"
+    },
+    {
+      "label": "project settlement completion",
+      "ok": true,
+      "cashBefore": 10000,
+      "progressBefore": 90,
+      "progressAfter": 0,
+      "revenue": 90000,
+      "expenses": 505,
+      "cashDelta": 89495,
+      "cashAfter": 99495,
+      "completedProjects": 1
+    },
+    {
+      "label": "level progression",
+      "ok": true,
+      "level": "Large Company",
+      "parcels": 4,
+      "activeProjects": 2
+    },
+    {
+      "label": "save and reload",
+      "ok": true,
+      "bytes": 399,
+      "completedProjects": 1,
+      "landParcels": 4
+    }
+  ]
+}

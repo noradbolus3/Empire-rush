@@ -95,6 +95,7 @@ let currentBusinesses = [];
 let currentTaxiCompany = null;
 let currentShippingCompany = null;
 let currentFactoryCompany = null;
+let currentConstructionCompany = null;
 const gameContextMock = {
   useGame: () => ({
     businesses: currentBusinesses,
@@ -119,6 +120,13 @@ const gameContextMock = {
       currentFactoryCompany =
         typeof updater === "function"
           ? updater(currentFactoryCompany)
+          : updater;
+    },
+    constructionCompany: currentConstructionCompany,
+    setConstructionCompany: (updater) => {
+      currentConstructionCompany =
+        typeof updater === "function"
+          ? updater(currentConstructionCompany)
           : updater;
     },
     resetBusinesses: () => undefined,
@@ -162,6 +170,9 @@ const { DEFAULT_SHIPPING_COMPANY } = require("../src/types/shipping");
 const FactoryCompanyScreen =
   require("../src/screens/FactoryCompanyScreen").default;
 const { DEFAULT_FACTORY_COMPANY } = require("../src/types/factory");
+const ConstructionCompanyScreen =
+  require("../src/screens/ConstructionCompanyScreen").default;
+const { DEFAULT_CONSTRUCTION_COMPANY } = require("../src/types/construction");
 
 const retail = {
   ...DEFAULT_BUSINESSES.find((item) => item.sector === "Retail"),
@@ -432,6 +443,39 @@ results.push(
     }),
   ),
 );
+results.push(
+  render(
+    "construction-setup-mount",
+    React.createElement(ConstructionCompanyScreen, {
+      company: null,
+      cash: 120000,
+      onCashChange: () => undefined,
+      onChange: () => undefined,
+      onBack: () => undefined,
+      onLedger: () => undefined,
+    }),
+  ),
+);
+results.push(
+  render(
+    "construction-operating-mount",
+    React.createElement(ConstructionCompanyScreen, {
+      company: {
+        ...DEFAULT_CONSTRUCTION_COMPANY,
+        status: "operating",
+        landParcels: 1,
+        workers: 4,
+        excavators: 1,
+        mixers: 1,
+      },
+      cash: 120000,
+      onCashChange: () => undefined,
+      onChange: () => undefined,
+      onBack: () => undefined,
+      onLedger: () => undefined,
+    }),
+  ),
+);
 const textContent = (node) => {
   if (node == null) return "";
   if (typeof node === "string" || typeof node === "number") return String(node);
@@ -523,6 +567,35 @@ const shippingInteraction = async (label, company, cash, actions) => {
     await act(async () => {
       renderer = TestRenderer.create(
         React.createElement(ShippingCompanyScreen, {
+          company,
+          cash,
+          onCashChange: () => undefined,
+          onChange: () => undefined,
+          onBack: () => undefined,
+          onLedger: () => undefined,
+        }),
+      );
+    });
+    for (const action of actions)
+      await act(async () => {
+        pressLabel(renderer, action);
+      });
+    renderer.unmount();
+    interactionResults.push({ label, ok: true });
+  } catch (error) {
+    interactionResults.push({
+      label,
+      ok: false,
+      error: String(error?.stack || error),
+    });
+  }
+};
+const constructionInteraction = async (label, company, cash, actions) => {
+  try {
+    let renderer;
+    await act(async () => {
+      renderer = TestRenderer.create(
+        React.createElement(ConstructionCompanyScreen, {
           company,
           cash,
           onCashChange: () => undefined,
@@ -722,6 +795,55 @@ const factoryInteraction = async (label, company, cash, actions) => {
     "EXPANSION",
     "UPGRADE BUILDING TO LEVEL 2",
   ]);
+  const constructionBase = {
+    ...DEFAULT_CONSTRUCTION_COMPANY,
+    status: "operating",
+    landParcels: 1,
+    workers: 4,
+    excavators: 1,
+    mixers: 1,
+    activeProjects: 1,
+    contractValue: 90000,
+  };
+  await constructionInteraction("construction-screen-setup", null, 120000, [
+    "PURCHASE LAND & LAUNCH COMPANY",
+  ]);
+  await constructionInteraction(
+    "construction-screen-dashboard",
+    constructionBase,
+    120000,
+    [],
+  );
+  await constructionInteraction(
+    "construction-screen-land",
+    constructionBase,
+    120000,
+    ["LAND", "BUY DEVELOPMENT PARCEL"],
+  );
+  await constructionInteraction(
+    "construction-screen-machinery",
+    constructionBase,
+    120000,
+    ["MACHINERY", "BUY EXCAVATOR"],
+  );
+  await constructionInteraction(
+    "construction-screen-projects",
+    constructionBase,
+    120000,
+    ["PROJECTS", "RUN NEXT CONSTRUCTION SHIFT"],
+  );
+  await constructionInteraction(
+    "construction-screen-contracts",
+    constructionBase,
+    120000,
+    ["CONTRACTS", "ACCEPT PRIVATE CONTRACT"],
+  );
+  await constructionInteraction(
+    "construction-screen-expansion",
+    constructionBase,
+    120000,
+    ["EXPANSION", "OPEN SECOND SITE"],
+  );
   const failed = results.filter((item) => !item.ok);
   const interactionFailed = interactionResults.filter((item) => !item.ok);
   console.log(
