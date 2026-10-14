@@ -45,6 +45,7 @@ const land = require("../../assets/construction/land-project-selection.jpg");
 const machinery = require("../../assets/construction/heavy-machinery.jpg");
 const projects = require("../../assets/construction/project-management.jpg");
 const contracts = require("../../assets/construction/contracts-expansion.jpg");
+const expansion = require("../../assets/construction/expansion-multi-site.jpg");
 const types: ConstructionProjectType[] = [
   "Residential",
   "Commercial",
@@ -307,6 +308,7 @@ function Dashboard({
         <Action
           title="EXPANSION & UPGRADES"
           copy="Grow into multiple sites and larger contracts"
+          image={expansion}
           onPress={() => setPage("expansion")}
         />
       </Section>
@@ -333,6 +335,7 @@ function Land({
       <Action
         title="BUY DEVELOPMENT PARCEL"
         copy="$35,000 · +1 land parcel"
+        image={land}
         onPress={() =>
           spend(35000, "Development parcel purchased", {
             ...c,
@@ -343,6 +346,7 @@ function Land({
       <Action
         title="START RESIDENTIAL PROJECT"
         copy="$25,000 material reserve · $70,000 contract value"
+        image={projects}
         onPress={() => {
           spend(25000, "Residential project started", {
             ...c,
@@ -356,6 +360,7 @@ function Land({
       <Action
         title="START COMMERCIAL PROJECT"
         copy="$45,000 material reserve · $140,000 contract value"
+        image={projects}
         onPress={() =>
           spend(45000, "Commercial project started", {
             ...c,
@@ -369,6 +374,7 @@ function Land({
       <Action
         title="START INDUSTRIAL PROJECT"
         copy="$65,000 material reserve · $220,000 contract value"
+        image={projects}
         onPress={() =>
           spend(65000, "Industrial project started", {
             ...c,
@@ -403,6 +409,7 @@ function Machinery({
       <Action
         title="BUY EXCAVATOR"
         copy="$28,000 · +1 excavator"
+        image={machinery}
         onPress={() =>
           spend(28000, "Excavator purchased", {
             ...c,
@@ -414,6 +421,7 @@ function Machinery({
       <Action
         title="BUY TOWER CRANE"
         copy="$75,000 · +1 crane"
+        image={machinery}
         onPress={() =>
           spend(75000, "Tower crane purchased", { ...c, cranes: c.cranes + 1 })
         }
@@ -422,6 +430,7 @@ function Machinery({
       <Action
         title="BUY CONCRETE MIXER"
         copy="$18,000 · +1 mixer"
+        image={machinery}
         onPress={() =>
           spend(18000, "Concrete mixer purchased", {
             ...c,
@@ -469,6 +478,7 @@ function Projects({
       <Action
         title="RUN NEXT CONSTRUCTION SHIFT"
         copy="Advance labour, materials and project progress"
+        image={projects}
         onPress={tick}
         disabled={c.activeProjects < 1}
       />
@@ -518,11 +528,13 @@ function Contracts({
       <Action
         title="ACCEPT PRIVATE CONTRACT"
         copy="$90,000 commercial build · $10,000 bonding reserve"
+        image={contracts}
         onPress={accept}
       />
       <Action
         title="ACCEPT GOVERNMENT CONTRACT"
         copy="$180,000 infrastructure build · larger deadline"
+        image={contracts}
         onPress={() =>
           update({
             ...c,
@@ -549,12 +561,13 @@ function Expansion({
       title="EXPANSION & UPGRADES"
       copy="Move from a small contractor to multi-city infrastructure operations."
     >
-      <Image source={contracts} style={s.sectionImage} />
+      <Image source={expansion} style={s.sectionImage} />
       <Metric label="Company stage" value={c.level} />
       <Metric label="Sites" value={`${c.landParcels}`} />
       <Action
         title="OPEN SECOND SITE"
         copy="$80,000 · +2 land parcels"
+        image={expansion}
         onPress={() =>
           spend(80000, "Second construction site opened", {
             ...c,
@@ -566,6 +579,7 @@ function Expansion({
       <Action
         title="BUILD PROJECT OFFICE"
         copy="$120,000 · +4 workers and larger bids"
+        image={expansion}
         onPress={() =>
           spend(120000, "Project office built", {
             ...c,
