@@ -1,0 +1,39 @@
+{
+  "test": "round41-dealership-proof",
+  "scenarioCount": 4,
+  "failed": 0,
+  "scenarios": [
+    {
+      "label": "showroom launch",
+      "ok": true,
+      "status": "operating",
+      "showroomSize": 1,
+      "capacity": 4,
+      "cashInvested": 75000
+    },
+    {
+      "label": "vehicle sale",
+      "ok": true,
+      "sold": true,
+      "revenue": 18000,
+      "cost": 13000,
+      "profit": 5000,
+      "inventoryAfter": 1,
+      "totalSales": 1
+    },
+    {
+      "label": "growth progression",
+      "ok": true,
+      "level": "Large Dealership",
+      "showroomSize": 3,
+      "totalSales": 10
+    },
+    {
+      "label": "save and reload",
+      "ok": true,
+      "bytes": 335,
+      "totalSales": 10,
+      "branches": 1
+    }
+  ]
+}

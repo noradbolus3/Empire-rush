@@ -96,6 +96,7 @@ let currentTaxiCompany = null;
 let currentShippingCompany = null;
 let currentFactoryCompany = null;
 let currentConstructionCompany = null;
+let currentDealership = null;
 const gameContextMock = {
   useGame: () => ({
     businesses: currentBusinesses,
@@ -128,6 +129,11 @@ const gameContextMock = {
         typeof updater === "function"
           ? updater(currentConstructionCompany)
           : updater;
+    },
+    dealership: currentDealership,
+    setDealership: (updater) => {
+      currentDealership =
+        typeof updater === "function" ? updater(currentDealership) : updater;
     },
     resetBusinesses: () => undefined,
   }),
@@ -173,6 +179,9 @@ const { DEFAULT_FACTORY_COMPANY } = require("../src/types/factory");
 const ConstructionCompanyScreen =
   require("../src/screens/ConstructionCompanyScreen").default;
 const { DEFAULT_CONSTRUCTION_COMPANY } = require("../src/types/construction");
+const CarDealershipScreen =
+  require("../src/screens/CarDealershipScreen").default;
+const { DEFAULT_DEALERSHIP } = require("../src/types/dealership");
 
 const retail = {
   ...DEFAULT_BUSINESSES.find((item) => item.sector === "Retail"),
@@ -476,6 +485,38 @@ results.push(
     }),
   ),
 );
+results.push(
+  render(
+    "dealership-setup-mount",
+    React.createElement(CarDealershipScreen, {
+      company: null,
+      cash: 120000,
+      onCashChange: () => undefined,
+      onChange: () => undefined,
+      onBack: () => undefined,
+      onLedger: () => undefined,
+    }),
+  ),
+);
+results.push(
+  render(
+    "dealership-operating-mount",
+    React.createElement(CarDealershipScreen, {
+      company: {
+        ...DEFAULT_DEALERSHIP,
+        status: "operating",
+        showroomSize: 1,
+        inventory: 2,
+        salesStaff: 2,
+      },
+      cash: 120000,
+      onCashChange: () => undefined,
+      onChange: () => undefined,
+      onBack: () => undefined,
+      onLedger: () => undefined,
+    }),
+  ),
+);
 const textContent = (node) => {
   if (node == null) return "";
   if (typeof node === "string" || typeof node === "number") return String(node);
@@ -596,6 +637,35 @@ const constructionInteraction = async (label, company, cash, actions) => {
     await act(async () => {
       renderer = TestRenderer.create(
         React.createElement(ConstructionCompanyScreen, {
+          company,
+          cash,
+          onCashChange: () => undefined,
+          onChange: () => undefined,
+          onBack: () => undefined,
+          onLedger: () => undefined,
+        }),
+      );
+    });
+    for (const action of actions)
+      await act(async () => {
+        pressLabel(renderer, action);
+      });
+    renderer.unmount();
+    interactionResults.push({ label, ok: true });
+  } catch (error) {
+    interactionResults.push({
+      label,
+      ok: false,
+      error: String(error?.stack || error),
+    });
+  }
+};
+const dealershipInteraction = async (label, company, cash, actions) => {
+  try {
+    let renderer;
+    await act(async () => {
+      renderer = TestRenderer.create(
+        React.createElement(CarDealershipScreen, {
           company,
           cash,
           onCashChange: () => undefined,
@@ -843,6 +913,53 @@ const factoryInteraction = async (label, company, cash, actions) => {
     constructionBase,
     120000,
     ["EXPANSION", "OPEN SECOND SITE"],
+  );
+  const dealershipBase = {
+    ...DEFAULT_DEALERSHIP,
+    status: "operating",
+    showroomSize: 1,
+    inventory: 2,
+    salesStaff: 2,
+    showroomCapacity: 4,
+  };
+  await dealershipInteraction("dealership-screen-setup", null, 120000, [
+    "BUILD SHOWROOM & LAUNCH DEALERSHIP",
+  ]);
+  await dealershipInteraction(
+    "dealership-screen-dashboard",
+    dealershipBase,
+    120000,
+    [],
+  );
+  await dealershipInteraction(
+    "dealership-screen-showroom",
+    dealershipBase,
+    120000,
+    ["SHOWROOM", "EXPAND SHOWROOM"],
+  );
+  await dealershipInteraction(
+    "dealership-screen-inventory",
+    dealershipBase,
+    120000,
+    ["INVENTORY", "BUY STARTER VEHICLE"],
+  );
+  await dealershipInteraction(
+    "dealership-screen-sales",
+    dealershipBase,
+    120000,
+    ["SALES", "SERVE NEXT CUSTOMER"],
+  );
+  await dealershipInteraction(
+    "dealership-screen-finance",
+    dealershipBase,
+    120000,
+    ["FINANCE", "HIRE SALES SPECIALIST"],
+  );
+  await dealershipInteraction(
+    "dealership-screen-expansion",
+    dealershipBase,
+    120000,
+    ["EXPANSION", "OPEN SECOND BRANCH"],
   );
   const failed = results.filter((item) => !item.ok);
   const interactionFailed = interactionResults.filter((item) => !item.ok);

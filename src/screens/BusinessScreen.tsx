@@ -35,6 +35,7 @@ import TaxiCompanyScreen from "./TaxiCompanyScreen";
 import ShippingCompanyScreen from "./ShippingCompanyScreen";
 import FactoryCompanyScreen from "./FactoryCompanyScreen";
 import ConstructionCompanyScreen from "./ConstructionCompanyScreen";
+import CarDealershipScreen from "./CarDealershipScreen";
 import {
   clearLevelUpNotice,
   levelConfig,
@@ -213,12 +214,15 @@ function BusinessScreenContent({
     setFactoryCompany,
     constructionCompany,
     setConstructionCompany,
+    dealership,
+    setDealership,
   } = useGame();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [taxiOpen, setTaxiOpen] = useState(false);
   const [shippingOpen, setShippingOpen] = useState(false);
   const [factoryOpen, setFactoryOpen] = useState(false);
   const [constructionOpen, setConstructionOpen] = useState(false);
+  const [dealershipOpen, setDealershipOpen] = useState(false);
   const [registrationId, setRegistrationId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"start" | "companies">("start");
   const celebratedRef = useRef("");
@@ -335,6 +339,17 @@ function BusinessScreenContent({
         onCashChange={onCashChange}
         onChange={setConstructionCompany || (() => undefined)}
         onBack={() => setConstructionOpen(false)}
+        onLedger={onLedger}
+      />
+    );
+  if (dealershipOpen)
+    return (
+      <CarDealershipScreen
+        company={dealership}
+        cash={cash}
+        onCashChange={onCashChange}
+        onChange={setDealership || (() => undefined)}
+        onBack={() => setDealershipOpen(false)}
         onLedger={onLedger}
       />
     );
@@ -572,6 +587,27 @@ function BusinessScreenContent({
                 {constructionCompany
                   ? "MANAGE CONSTRUCTION"
                   : "START CONSTRUCTION"}
+              </Text>
+            </Pressable>
+          </View>
+          <View style={styles.dealershipCard}>
+            <View style={styles.factoryCardCopy}>
+              <Text style={styles.dealershipEyebrow}>AUTOMOTIVE COMPANY</Text>
+              <Text style={styles.factoryTitle}>
+                {dealership ? "My Car Dealership" : "Start a Car Dealership"}
+              </Text>
+              <Text style={styles.factoryCopy}>
+                {dealership
+                  ? `${dealership.level} · ${dealership.inventory} cars in stock · ${dealership.totalSales} sales · ${dealership.branches} branches`
+                  : "Buy vehicles, build a showroom, serve customers and expand into an automobile group."}
+              </Text>
+            </View>
+            <Pressable
+              style={styles.dealershipButton}
+              onPress={() => setDealershipOpen(true)}
+            >
+              <Text style={styles.factoryButtonText}>
+                {dealership ? "MANAGE DEALERSHIP" : "START DEALERSHIP"}
               </Text>
             </Pressable>
           </View>
@@ -1132,6 +1168,29 @@ const styles = StyleSheet.create({
   },
   constructionButton: {
     backgroundColor: "#B26E0D",
+    borderRadius: 10,
+    paddingHorizontal: 11,
+    paddingVertical: 10,
+  },
+  dealershipCard: {
+    backgroundColor: "#EEF6FF",
+    borderColor: "#A9C8F2",
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  dealershipEyebrow: {
+    color: "#1769D3",
+    fontSize: 8,
+    fontWeight: "900",
+    letterSpacing: 1,
+  },
+  dealershipButton: {
+    backgroundColor: "#1769D3",
     borderRadius: 10,
     paddingHorizontal: 11,
     paddingVertical: 10,
