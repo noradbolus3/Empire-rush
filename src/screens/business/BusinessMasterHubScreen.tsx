@@ -25,6 +25,7 @@ import { IPO_MIN_VALUATION } from "../../engine/ipoEngine";
 import type { BankLedgerEntry } from "../../types/bank";
 import { normalizeBusinessLevel } from "../../engine/businessLevels";
 import ConstructionCompanyScreen from "./ConstructionCompanyScreen";
+import ITSoftwareCompanyScreen from "./ITSoftwareCompanyScreen";
 
 const C = {
   bg: "#0B0F17",
@@ -117,6 +118,17 @@ export function BusinessMasterHubScreen({
         onBack={onBack}
         onCashChange={onCashChange}
         onChange={onChange}
+      />
+    );
+  if (business.sector === "Tech_SaaS")
+    return (
+      <ITSoftwareCompanyScreen
+        business={business as SaaSData}
+        cash={cash}
+        netWorth={netWorth}
+        onBack={onBack}
+        onCashChange={onCashChange}
+        onChange={(next: BusinessEntity) => onChange(next)}
       />
     );
   return (
@@ -251,14 +263,6 @@ export function BusinessMasterHubScreen({
               )}
               {business.sector === "Mobility" && (
                 <MobilityControls
-                  business={business}
-                  cash={cash}
-                  spend={spend}
-                  onChange={onChange}
-                />
-              )}
-              {business.sector === "Tech_SaaS" && (
-                <SaaSControls
                   business={business}
                   cash={cash}
                   spend={spend}

@@ -17,9 +17,10 @@ import {
   advanceConstruction,
   constructionHourlyProfit,
 } from "./constructionCompanyEngine";
+import { advanceITCompany, DEFAULT_IT_SOFTWARE_STATE } from "./itCompanyEngine";
 
 export const BUSINESS_SIMULATION_SAVE = "empire-rush-unified-businesses-v2";
-export const BUSINESS_SIMULATION_SAVE_VERSION = 3;
+export const BUSINESS_SIMULATION_SAVE_VERSION = 4;
 export { passiveIncomeMultiplier } from "./economyPlan";
 export const DEFAULT_BUSINESSES: BusinessEntity[] = [
   {
@@ -72,7 +73,7 @@ export const DEFAULT_BUSINESSES: BusinessEntity[] = [
   },
   {
     id: "cyberpulse-saas",
-    name: "SignalForge Cloud",
+    name: "Arcfield Software Company",
     sector: "Tech_SaaS",
     isUnlocked: false,
     unlockNetWorthRequired: 75000,
@@ -82,6 +83,7 @@ export const DEFAULT_BUSINESSES: BusinessEntity[] = [
     policeHeat: 0,
     stability: 88,
     hourlyNetProfit: 0,
+    ...DEFAULT_IT_SOFTWARE_STATE,
     activeSubscribers: 20000,
     serverCapacity: 25000,
     openBugs: 0,
@@ -537,24 +539,14 @@ function saasOperations(
   business: SaaSData,
   seconds: number,
   events: string[],
+  playerNetWorth: number,
 ): OperationResult<SaaSData> {
-  if (!business.isAcquired)
-    return { business: { ...business, hourlyNetProfit: 0 }, hourlyRate: 0 };
-  let subscribers = business.activeSubscribers;
-  if (subscribers > business.serverCapacity) {
-    subscribers = Math.floor(subscribers * 0.95);
-    events.push(`${business.name}: SERVER OVERLOAD · 5% subscriber churn.`);
-  }
-  const hourlyRate = Number((subscribers * 3.5).toFixed(2));
+  const result = advanceITCompany(business, seconds, playerNetWorth);
+  events.push(...result.events);
   return {
-    business: {
-      ...business,
-      activeSubscribers: subscribers,
-      hourlyNetProfit: hourlyRate,
-      baseHourlyNetProfit: hourlyRate,
-    },
-    hourlyRate,
-    pendingAmount: (hourlyRate * seconds) / 3600,
+    business: result.business,
+    hourlyRate: result.hourlyRate,
+    pendingAmount: result.pendingAmount + result.cashDelta,
   };
 }
 
@@ -604,7 +596,7 @@ export function simulateBusinessOperations(
         : item.sector === "Mobility"
           ? mobilityOperations(item, seconds)
           : item.sector === "Tech_SaaS"
-            ? saasOperations(item, seconds, events)
+            ? saasOperations(item, seconds, events, playerNetWorth)
             : item.sector === "Construction_Mega"
               ? constructionOperations(item, constructionElapsedSeconds, events)
               : expansionOperations(item, seconds, events);
@@ -699,52 +691,31 @@ const normalizeBusinessNames = (
         (merged.sector === "Energy" &&
           ["BrightGrid Energy", "Surya Energy"].includes(merged.name))
         ? { ...merged, name: "Sunward Gridworks" }
-        : merged;
+        : merged.id === "cyberpulse-saas" ||
+          ["SignalForge Cloud", "IT & Tech SaaS Startup"].includes(merged.name)
+          ? { ...merged, name: "Arcfield Software Company" }
+          : merged;
     });
+export function migrateBusinessSave(parsed: unknown): BusinessEntity[] {
+  const businesses = Array.isArray(parsed)
+    ? parsed
+    : parsed && typeof parsed === "object" && Array.isArray((parsed as { businesses?: unknown }).businesses)
+      ? (parsed as { businesses: unknown[] }).businesses
+      : null;
+  const valid = Array.isArray(businesses) && businesses.length > 0 && businesses.every((item) => item && typeof item === "object" && typeof (item as { id?: unknown }).id === "string" && typeof (item as { name?: unknown }).name === "string" && ["Retail", "Mobility", "Tech_SaaS", "Construction_Mega", "Real_Estate", "Energy", "Pharma", "Media", "Sports", "Airline"].includes(String((item as { sector?: unknown }).sector)) && typeof (item as { isAcquired?: unknown }).isAcquired === "boolean");
+  if (!valid) throw new Error("Invalid business save");
+  const existing = new Set((businesses as BusinessEntity[]).map((item) => item.id));
+  return normalizeBusinessNames([...(businesses as BusinessEntity[]), ...DEFAULT_BUSINESSES.filter((item) => !existing.has(item.id))]);
+}
+
 export async function loadBusinessSimulation(): Promise<BusinessEntity[]> {
   try {
     const raw = await AsyncStorage.getItem(BUSINESS_SIMULATION_SAVE);
     if (!raw) {
-      await AsyncStorage.setItem(
-        BUSINESS_SIMULATION_SAVE,
-        JSON.stringify(DEFAULT_BUSINESSES),
-      );
+      await AsyncStorage.setItem(BUSINESS_SIMULATION_SAVE, JSON.stringify(DEFAULT_BUSINESSES));
       return DEFAULT_BUSINESSES;
     }
-    const parsed = JSON.parse(raw);
-    const businesses = Array.isArray(parsed)
-      ? parsed
-      : parsed && Array.isArray(parsed.businesses)
-        ? parsed.businesses
-        : null;
-    const valid =
-      Array.isArray(businesses) &&
-      businesses.length > 0 &&
-      businesses.every(
-        (item) =>
-          item &&
-          typeof item.id === "string" &&
-          typeof item.name === "string" &&
-          [
-            "Retail",
-            "Mobility",
-            "Tech_SaaS",
-            "Construction_Mega",
-            "Real_Estate",
-            "Energy",
-            "Pharma",
-            "Media",
-            "Sports",
-            "Airline",
-          ].includes(item.sector) &&
-          typeof item.isAcquired === "boolean",
-      );
-    if (!valid) throw new Error("Invalid business save");
-    const existing = new Set(businesses.map((item) => item.id));
-    return normalizeBusinessNames([
-      ...(businesses as BusinessEntity[]),
-      ...DEFAULT_BUSINESSES.filter((item) => !existing.has(item.id)),
-    ]);
+    return migrateBusinessSave(JSON.parse(raw));
   } catch {
     await AsyncStorage.setItem(
       BUSINESS_SIMULATION_SAVE,

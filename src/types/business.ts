@@ -1,3 +1,5 @@
+import type { ITSoftwareState } from './itCompany';
+
 export type OperatingStructure = "Licensed_Legal" | "Shadow_Underground";
 export type LegalStatus = OperatingStructure;
 export type SectorType =
@@ -72,12 +74,11 @@ export interface MobilityData extends BaseBusiness {
   fleetHealth: number;
   surgeActive: boolean;
 }
-export interface SaaSData extends BaseBusiness {
+export interface ITSoftwareData extends BaseBusiness, ITSoftwareState {
   sector: "Tech_SaaS";
-  activeSubscribers: number;
-  serverCapacity: number;
-  openBugs: number;
 }
+/** Compatibility name retained for existing screens, tests and saved-game code. */
+export type SaaSData = ITSoftwareData;
 export interface ConstructionData extends BaseBusiness {
   sector: "Construction_Mega";
   activeTenderName: string | null;
