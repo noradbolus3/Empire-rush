@@ -182,6 +182,9 @@ const { DEFAULT_CONSTRUCTION_COMPANY } = require("../src/types/construction");
 const CarDealershipScreen =
   require("../src/screens/CarDealershipScreen").default;
 const { DEFAULT_DEALERSHIP } = require("../src/types/dealership");
+const SoftwareCompanyScreen =
+  require("../src/screens/SoftwareCompanyScreen").default;
+const { DEFAULT_SOFTWARE_COMPANY } = require("../src/types/software");
 
 const retail = {
   ...DEFAULT_BUSINESSES.find((item) => item.sector === "Retail"),
@@ -517,6 +520,38 @@ results.push(
     }),
   ),
 );
+results.push(
+  render(
+    "software-setup-mount",
+    React.createElement(SoftwareCompanyScreen, {
+      company: null,
+      cash: 100000,
+      onCashChange: () => undefined,
+      onChange: () => undefined,
+      onBack: () => undefined,
+      onLedger: () => undefined,
+    }),
+  ),
+);
+results.push(
+  render(
+    "software-operating-mount",
+    React.createElement(SoftwareCompanyScreen, {
+      company: {
+        ...DEFAULT_SOFTWARE_COMPANY,
+        status: "operating",
+        developers: 1,
+        activeProjects: 1,
+        clientContracts: 1,
+      },
+      cash: 100000,
+      onCashChange: () => undefined,
+      onChange: () => undefined,
+      onBack: () => undefined,
+      onLedger: () => undefined,
+    }),
+  ),
+);
 const textContent = (node) => {
   if (node == null) return "";
   if (typeof node === "string" || typeof node === "number") return String(node);
@@ -637,6 +672,35 @@ const constructionInteraction = async (label, company, cash, actions) => {
     await act(async () => {
       renderer = TestRenderer.create(
         React.createElement(ConstructionCompanyScreen, {
+          company,
+          cash,
+          onCashChange: () => undefined,
+          onChange: () => undefined,
+          onBack: () => undefined,
+          onLedger: () => undefined,
+        }),
+      );
+    });
+    for (const action of actions)
+      await act(async () => {
+        pressLabel(renderer, action);
+      });
+    renderer.unmount();
+    interactionResults.push({ label, ok: true });
+  } catch (error) {
+    interactionResults.push({
+      label,
+      ok: false,
+      error: String(error?.stack || error),
+    });
+  }
+};
+const softwareInteraction = async (label, company, cash, actions) => {
+  try {
+    let renderer;
+    await act(async () => {
+      renderer = TestRenderer.create(
+        React.createElement(SoftwareCompanyScreen, {
           company,
           cash,
           onCashChange: () => undefined,
@@ -960,6 +1024,45 @@ const factoryInteraction = async (label, company, cash, actions) => {
     dealershipBase,
     120000,
     ["EXPANSION", "OPEN SECOND BRANCH"],
+  );
+  const softwareBase = {
+    ...DEFAULT_SOFTWARE_COMPANY,
+    status: "operating",
+    developers: 2,
+    activeProjects: 1,
+    clientContracts: 1,
+    offices: 1,
+  };
+  await softwareInteraction("software-screen-setup", null, 100000, [
+    "REGISTER SOFTWARE COMPANY",
+  ]);
+  await softwareInteraction(
+    "software-screen-dashboard",
+    softwareBase,
+    100000,
+    [],
+  );
+  await softwareInteraction("software-screen-setup-ops", softwareBase, 100000, [
+    "SETUP",
+    "RENT SMALL OFFICE",
+  ]);
+  await softwareInteraction("software-screen-pipeline", softwareBase, 100000, [
+    "PIPELINE",
+    "DELIVER CLIENT PROJECT",
+  ]);
+  await softwareInteraction("software-screen-teams", softwareBase, 100000, [
+    "TEAMS",
+    "HIRE DEVELOPER",
+  ]);
+  await softwareInteraction("software-screen-cloud", softwareBase, 100000, [
+    "CLOUD",
+    "HARDEN CLOUD SECURITY",
+  ]);
+  await softwareInteraction(
+    "software-screen-enterprise",
+    softwareBase,
+    200000,
+    ["ENTERPRISE", "LAUNCH SAAS PRODUCT"],
   );
   const failed = results.filter((item) => !item.ok);
   const interactionFailed = interactionResults.filter((item) => !item.ok);

@@ -36,6 +36,7 @@ import ShippingCompanyScreen from "./ShippingCompanyScreen";
 import FactoryCompanyScreen from "./FactoryCompanyScreen";
 import ConstructionCompanyScreen from "./ConstructionCompanyScreen";
 import CarDealershipScreen from "./CarDealershipScreen";
+import SoftwareCompanyScreen from "./SoftwareCompanyScreen";
 import {
   clearLevelUpNotice,
   levelConfig,
@@ -216,6 +217,8 @@ function BusinessScreenContent({
     setConstructionCompany,
     dealership,
     setDealership,
+    softwareCompany,
+    setSoftwareCompany,
   } = useGame();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [taxiOpen, setTaxiOpen] = useState(false);
@@ -223,6 +226,7 @@ function BusinessScreenContent({
   const [factoryOpen, setFactoryOpen] = useState(false);
   const [constructionOpen, setConstructionOpen] = useState(false);
   const [dealershipOpen, setDealershipOpen] = useState(false);
+  const [softwareOpen, setSoftwareOpen] = useState(false);
   const [registrationId, setRegistrationId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"start" | "companies">("start");
   const celebratedRef = useRef("");
@@ -350,6 +354,17 @@ function BusinessScreenContent({
         onCashChange={onCashChange}
         onChange={setDealership || (() => undefined)}
         onBack={() => setDealershipOpen(false)}
+        onLedger={onLedger}
+      />
+    );
+  if (softwareOpen)
+    return (
+      <SoftwareCompanyScreen
+        company={softwareCompany}
+        cash={cash}
+        onCashChange={onCashChange}
+        onChange={setSoftwareCompany || (() => undefined)}
+        onBack={() => setSoftwareOpen(false)}
         onLedger={onLedger}
       />
     );
@@ -608,6 +623,29 @@ function BusinessScreenContent({
             >
               <Text style={styles.factoryButtonText}>
                 {dealership ? "MANAGE DEALERSHIP" : "START DEALERSHIP"}
+              </Text>
+            </Pressable>
+          </View>
+          <View style={styles.softwareCard}>
+            <View style={styles.factoryCardCopy}>
+              <Text style={styles.softwareEyebrow}>TECHNOLOGY COMPANY</Text>
+              <Text style={styles.factoryTitle}>
+                {softwareCompany
+                  ? "My Software Company"
+                  : "Start an IT & Software Company"}
+              </Text>
+              <Text style={styles.factoryCopy}>
+                {softwareCompany
+                  ? `${softwareCompany.stage} · ${softwareCompany.developers} developers · ${softwareCompany.activeProjects} active projects · ${softwareCompany.saasProducts} SaaS products`
+                  : "Hire developers, win client contracts, deliver software and grow into a technology enterprise."}
+              </Text>
+            </View>
+            <Pressable
+              style={styles.softwareButton}
+              onPress={() => setSoftwareOpen(true)}
+            >
+              <Text style={styles.factoryButtonText}>
+                {softwareCompany ? "MANAGE SOFTWARE" : "START SOFTWARE"}
               </Text>
             </Pressable>
           </View>
@@ -1191,6 +1229,29 @@ const styles = StyleSheet.create({
   },
   dealershipButton: {
     backgroundColor: "#1769D3",
+    borderRadius: 10,
+    paddingHorizontal: 11,
+    paddingVertical: 10,
+  },
+  softwareCard: {
+    backgroundColor: "#F1EEFF",
+    borderColor: "#C7B8F6",
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  softwareEyebrow: {
+    color: "#7250C7",
+    fontSize: 8,
+    fontWeight: "900",
+    letterSpacing: 1,
+  },
+  softwareButton: {
+    backgroundColor: "#7250C7",
     borderRadius: 10,
     paddingHorizontal: 11,
     paddingVertical: 10,

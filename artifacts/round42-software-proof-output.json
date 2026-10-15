@@ -1,0 +1,47 @@
+{
+  "test": "round42-software-proof",
+  "scenarioCount": 5,
+  "failed": 0,
+  "scenarios": [
+    {
+      "label": "startup launch",
+      "ok": true,
+      "status": "operating",
+      "developers": 1,
+      "activeProjects": 1,
+      "cashInvested": 50000
+    },
+    {
+      "label": "project delivery",
+      "ok": true,
+      "delivered": true,
+      "revenue": 13000,
+      "expenses": 160,
+      "profit": 12840,
+      "deliveredProjects": 1
+    },
+    {
+      "label": "stage progression",
+      "ok": true,
+      "stage": "Growing Company",
+      "developers": 4,
+      "activeProjects": 2,
+      "deliveredProjects": 2
+    },
+    {
+      "label": "enterprise unlock",
+      "ok": true,
+      "stage": "Technology Enterprise",
+      "offices": 3,
+      "managers": 4,
+      "saasProducts": 2
+    },
+    {
+      "label": "save and reload",
+      "ok": true,
+      "bytes": 397,
+      "stage": "Technology Enterprise",
+      "saasProducts": 2
+    }
+  ]
+}

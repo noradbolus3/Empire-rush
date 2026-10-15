@@ -24,12 +24,17 @@ import {
   ConstructionCompanyState,
 } from "../types/construction";
 import { DEFAULT_DEALERSHIP, DealershipState } from "../types/dealership";
+import {
+  DEFAULT_SOFTWARE_COMPANY,
+  SoftwareCompanyState,
+} from "../types/software";
 
 export const TAXI_COMPANY_SAVE = "empire-rush-taxi-company-v1";
 export const SHIPPING_COMPANY_SAVE = "empire-rush-shipping-company-v1";
 export const FACTORY_COMPANY_SAVE = "empire-rush-factory-company-v1";
 export const CONSTRUCTION_COMPANY_SAVE = "empire-rush-construction-company-v1";
 export const DEALERSHIP_SAVE = "empire-rush-dealership-v1";
+export const SOFTWARE_COMPANY_SAVE = "empire-rush-software-company-v1";
 type GameContextValue = {
   businesses: BusinessEntity[];
   setBusinesses: React.Dispatch<React.SetStateAction<BusinessEntity[]>>;
@@ -49,6 +54,10 @@ type GameContextValue = {
   >;
   dealership: DealershipState | null;
   setDealership: React.Dispatch<React.SetStateAction<DealershipState | null>>;
+  softwareCompany: SoftwareCompanyState | null;
+  setSoftwareCompany: React.Dispatch<
+    React.SetStateAction<SoftwareCompanyState | null>
+  >;
   resetBusinesses: () => void;
 };
 const GameContext = createContext<GameContextValue>({
@@ -64,6 +73,8 @@ const GameContext = createContext<GameContextValue>({
   setConstructionCompany: () => undefined,
   dealership: null,
   setDealership: () => undefined,
+  softwareCompany: null,
+  setSoftwareCompany: () => undefined,
   resetBusinesses: () => undefined,
 });
 
@@ -78,6 +89,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [constructionCompany, setConstructionCompany] =
     useState<ConstructionCompanyState | null>(null);
   const [dealership, setDealership] = useState<DealershipState | null>(null);
+  const [softwareCompany, setSoftwareCompany] =
+    useState<SoftwareCompanyState | null>(null);
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => {
     let active = true;
@@ -88,6 +101,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       AsyncStorage.getItem(FACTORY_COMPANY_SAVE),
       AsyncStorage.getItem(CONSTRUCTION_COMPANY_SAVE),
       AsyncStorage.getItem(DEALERSHIP_SAVE),
+      AsyncStorage.getItem(SOFTWARE_COMPANY_SAVE),
     ]).then(
       ([
         loadedBusinesses,
@@ -96,6 +110,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         rawFactory,
         rawConstruction,
         rawDealership,
+        rawSoftware,
       ]) => {
         if (!active) return;
         setBusinesses(loadedBusinesses);
@@ -147,6 +162,15 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             setDealership(null);
           }
         }
+        if (rawSoftware) {
+          try {
+            const parsed = JSON.parse(rawSoftware);
+            if (parsed?.id === DEFAULT_SOFTWARE_COMPANY.id)
+              setSoftwareCompany({ ...DEFAULT_SOFTWARE_COMPANY, ...parsed });
+          } catch {
+            setSoftwareCompany(null);
+          }
+        }
         setHydrated(true);
       },
     );
@@ -181,6 +205,12 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     if (dealership)
       void AsyncStorage.setItem(DEALERSHIP_SAVE, JSON.stringify(dealership));
     else void AsyncStorage.removeItem(DEALERSHIP_SAVE);
+    if (softwareCompany)
+      void AsyncStorage.setItem(
+        SOFTWARE_COMPANY_SAVE,
+        JSON.stringify(softwareCompany),
+      );
+    else void AsyncStorage.removeItem(SOFTWARE_COMPANY_SAVE);
   }, [
     businesses,
     taxiCompany,
@@ -188,6 +218,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     factoryCompany,
     constructionCompany,
     dealership,
+    softwareCompany,
     hydrated,
   ]);
   const resetBusinesses = () => {
@@ -197,6 +228,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     setFactoryCompany(null);
     setConstructionCompany(null);
     setDealership(null);
+    setSoftwareCompany(null);
     void AsyncStorage.setItem(
       BUSINESS_SIMULATION_SAVE,
       JSON.stringify({ schemaVersion: 2, businesses: DEFAULT_BUSINESSES }),
@@ -206,6 +238,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     void AsyncStorage.removeItem(FACTORY_COMPANY_SAVE);
     void AsyncStorage.removeItem(CONSTRUCTION_COMPANY_SAVE);
     void AsyncStorage.removeItem(DEALERSHIP_SAVE);
+    void AsyncStorage.removeItem(SOFTWARE_COMPANY_SAVE);
   };
   const value = useMemo(
     () => ({
@@ -221,6 +254,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       setConstructionCompany,
       dealership,
       setDealership,
+      softwareCompany,
+      setSoftwareCompany,
       resetBusinesses,
     }),
     [
@@ -230,6 +265,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       factoryCompany,
       constructionCompany,
       dealership,
+      softwareCompany,
     ],
   );
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
