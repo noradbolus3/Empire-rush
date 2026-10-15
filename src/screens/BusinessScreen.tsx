@@ -96,7 +96,7 @@ const iconAccent: Record<BusinessEntity["sector"], string> = {
 const sectorLabel: Record<BusinessEntity["sector"], string> = {
   Retail: "RETAIL",
   Mobility: "MOBILITY",
-  Tech_SaaS: "TECH",
+  Tech_SaaS: "IT & SOFTWARE",
   Construction_Mega: "INFRASTRUCTURE",
   Real_Estate: "REAL ESTATE",
   Energy: "ENERGY",
@@ -108,7 +108,7 @@ const sectorLabel: Record<BusinessEntity["sector"], string> = {
 const tierLabel: Record<BusinessEntity["sector"], string> = {
   Retail: "STARTER",
   Mobility: "GROWTH",
-  Tech_SaaS: "SCALE",
+  Tech_SaaS: "PRODUCT",
   Construction_Mega: "TITAN",
   Real_Estate: "ASSET",
   Energy: "UTILITY",
@@ -120,7 +120,7 @@ const tierLabel: Record<BusinessEntity["sector"], string> = {
 const sectorDescription: Record<BusinessEntity["sector"], string> = {
   Retail: "Stock shelves, price smart, and compound daily footfall.",
   Mobility: "Build a city fleet where surge pricing meets reliability.",
-  Tech_SaaS: "Turn subscribers and uptime into recurring software cashflow.",
+  Tech_SaaS: "Build software products, teams and contracts into recurring cashflow.",
   Construction_Mega: "Win tenders, manage phases, and release escrow payouts.",
   Real_Estate: "Own property branches and capture dependable rental demand.",
   Energy: "Sell grid capacity as American infrastructure modernizes.",
