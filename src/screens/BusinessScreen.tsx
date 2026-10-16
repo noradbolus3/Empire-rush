@@ -30,6 +30,7 @@ import { IPOListing } from "../types/ipo";
 import type { BankLedgerEntry } from "../types/bank";
 import { RetailShopState } from "../types/retail";
 import { formatCurrency } from "../utils/formatCurrency";
+import { CommandDeckPulse } from "../components/CommandDeckPulse";
 import BusinessMasterHubScreen from "./business/BusinessMasterHubScreen";
 import TaxiCompanyScreen from "./TaxiCompanyScreen";
 import ShippingCompanyScreen from "./ShippingCompanyScreen";
@@ -496,6 +497,12 @@ function BusinessScreenContent({
               value={`${activeCount} / ${businesses.length}`}
             />
           </View>
+          <CommandDeckPulse
+            label="BUSINESS PULSE"
+            value={`${netIncomePerHour >= 0 ? "+" : ""}${formatCurrency(netIncomePerHour)}/hr projected`}
+            detail={`${activeCount} active compan${activeCount === 1 ? "y" : "ies"} contributing to the shared cashflow.`}
+            accent={netIncomePerHour >= 0 ? "#16E98A" : "#FF6D62"}
+          />
           <View style={styles.taxiCard}>
             <View style={styles.taxiCardCopy}>
               <Text style={styles.taxiEyebrow}>FIRST SPECIALIZED BUSINESS</Text>
