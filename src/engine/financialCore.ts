@@ -19,6 +19,7 @@ import {
 } from "./bankEngine";
 import { constructionAssetValue } from "./constructionCompanyEngine";
 import { itCompanyAssetValue } from "./itCompanyEngine";
+import { bankingCompanyAssetValue } from "./bankingCompanyEngine";
 
 export type FinancialGameState = {
   cash: number;
@@ -94,12 +95,17 @@ export function calculateNetWorth(state: FinancialGameState): number {
       business.sector === "Tech_SaaS"
         ? itCompanyAssetValue(business) - positive(business.acquisitionCost)
         : 0;
+    const bankingAssets =
+      business.sector === "Banking"
+        ? bankingCompanyAssetValue(business) - positive(business.acquisitionCost)
+        : 0;
     return (
       sum +
       positive(business.acquisitionCost) +
       inventory +
       constructionAssets +
       itAssets +
+      bankingAssets +
       positive(business.pendingSettlementAmount)
     );
   }, 0);

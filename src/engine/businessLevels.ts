@@ -63,6 +63,7 @@ export const BUSINESS_LEVEL_CONFIG: Record<
   Media: common("assets", 2, 10, 50),
   Sports: common("assets", 2, 10, 50),
   Airline: common("assets", 2, 10, 50),
+  Banking: common("assets", 2, 6, 20, "branches/accounts"),
 };
 
 export function businessUnitsOrAssets(business: BusinessEntity): number {

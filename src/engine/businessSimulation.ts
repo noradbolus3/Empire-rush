@@ -18,6 +18,7 @@ import {
   constructionHourlyProfit,
 } from "./constructionCompanyEngine";
 import { advanceITCompany, DEFAULT_IT_SOFTWARE_STATE } from "./itCompanyEngine";
+import { advanceBankingCompany, DEFAULT_BANKING_COMPANY_STATE } from "./bankingCompanyEngine";
 
 export const BUSINESS_SIMULATION_SAVE = "empire-rush-unified-businesses-v2";
 export const BUSINESS_SIMULATION_SAVE_VERSION = 4;
@@ -124,6 +125,20 @@ export const DEFAULT_BUSINESSES: BusinessEntity[] = [
     contractPayout: 0,
     contractDeadlineSeconds: 0,
     contractReputation: 0,
+  },
+  {
+    id: "blueharbor-banking",
+    name: "BlueHarbor Banking Company",
+    sector: "Banking",
+    isUnlocked: false,
+    unlockNetWorthRequired: 1_500_000,
+    isAcquired: false,
+    acquisitionCost: 1_000_000,
+    legalStatus: "Licensed_Legal",
+    policeHeat: 0,
+    stability: 88,
+    ...DEFAULT_BANKING_COMPANY_STATE,
+    hourlyNetProfit: 0,
   },
   {
     id: "harbor-estates",
@@ -571,6 +586,21 @@ function constructionOperations(
   };
 }
 
+function bankingOperations(
+  business: Extract<BusinessEntity, { sector: "Banking" }>,
+  seconds: number,
+  events: string[],
+  playerNetWorth: number,
+): OperationResult<Extract<BusinessEntity, { sector: "Banking" }>> {
+  const result = advanceBankingCompany(business, seconds, playerNetWorth);
+  events.push(...result.events);
+  return {
+    business: result.business,
+    hourlyRate: result.hourlyRate,
+    pendingAmount: result.pendingAmount,
+  };
+}
+
 export type SimulationResult = {
   businesses: BusinessEntity[];
   events: string[];
@@ -599,7 +629,9 @@ export function simulateBusinessOperations(
             ? saasOperations(item, seconds, events, playerNetWorth)
             : item.sector === "Construction_Mega"
               ? constructionOperations(item, constructionElapsedSeconds, events)
-              : expansionOperations(item, seconds, events);
+              : item.sector === "Banking"
+                ? bankingOperations(item, seconds, events, playerNetWorth)
+                : expansionOperations(item, seconds, events);
     const synergized = applySynergy(operation, acquiredCount);
     const founderShare = Math.min(
       1,

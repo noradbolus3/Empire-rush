@@ -71,7 +71,7 @@ const settlementFixture = { ...retail, hourlyNetProfit: 500, pendingSettlementAm
 const settlement = settleElapsedBusinessIncome([settlementFixture], 0, 2 * SETTLEMENT_INTERVAL_MS);
 assert.equal(settlement.completedHours, 2, 'settlement: two elapsed hours were not recognized');
 assert.equal(settlement.totalAmount, 1000, 'settlement: hourly amount was not credited exactly');
-assert.equal(DEFAULT_BUSINESSES.length, 10, 'businesses: ten-sector catalog missing');
+assert.equal(DEFAULT_BUSINESSES.length, 11, 'businesses: eleven-sector catalog missing');
 const expansion = DEFAULT_BUSINESSES.find(item => item.sector === 'Energy')!;
 assert.equal(simulateBusinessOperations([{ ...expansion, isAcquired: true }], 2).businesses[0].isAcquired, true, 'businesses: expansion sector tick failed');
 assert.doesNotMatch(businessScreen, /result\.cashDelta|onProfitChange|onIncome/, 'wallet: BusinessScreen still has a per-tick payout path');

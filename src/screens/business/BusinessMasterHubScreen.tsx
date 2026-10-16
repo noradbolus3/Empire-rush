@@ -26,6 +26,7 @@ import type { BankLedgerEntry } from "../../types/bank";
 import { normalizeBusinessLevel } from "../../engine/businessLevels";
 import ConstructionCompanyScreen from "./ConstructionCompanyScreen";
 import ITSoftwareCompanyScreen from "./ITSoftwareCompanyScreen";
+import BankingCompanyScreen from "./BankingCompanyScreen";
 
 const C = {
   bg: "#0B0F17",
@@ -129,6 +130,16 @@ export function BusinessMasterHubScreen({
         onBack={onBack}
         onCashChange={onCashChange}
         onChange={(next: BusinessEntity) => onChange(next)}
+      />
+    );
+  if (business.sector === "Banking")
+    return (
+      <BankingCompanyScreen
+        business={business}
+        cash={cash}
+        onBack={onBack}
+        onCashChange={onCashChange}
+        onChange={(next) => onChange(next)}
       />
     );
   return (

@@ -82,6 +82,7 @@ const accent: Record<BusinessEntity["sector"], string> = {
   Media: "#C084FC",
   Sports: "#FB923C",
   Airline: "#60A5FA",
+  Banking: "#1769AA",
 };
 const iconAccent: Record<BusinessEntity["sector"], string> = {
   Retail: "#28E39A",
@@ -94,6 +95,7 @@ const iconAccent: Record<BusinessEntity["sector"], string> = {
   Media: "#C084FC",
   Sports: "#FB923C",
   Airline: "#60A5FA",
+  Banking: "#1769AA",
 };
 const sectorLabel: Record<BusinessEntity["sector"], string> = {
   Retail: "RETAIL",
@@ -106,6 +108,7 @@ const sectorLabel: Record<BusinessEntity["sector"], string> = {
   Media: "MEDIA",
   Sports: "SPORTS",
   Airline: "AIRLINE",
+  Banking: "BANKING",
 };
 const tierLabel: Record<BusinessEntity["sector"], string> = {
   Retail: "STARTER",
@@ -118,6 +121,7 @@ const tierLabel: Record<BusinessEntity["sector"], string> = {
   Media: "CULTURE",
   Sports: "MOMENTUM",
   Airline: "GLOBAL",
+  Banking: "FINANCE",
 };
 const sectorDescription: Record<BusinessEntity["sector"], string> = {
   Retail: "Stock shelves, price smart, and compound daily footfall.",
@@ -130,6 +134,7 @@ const sectorDescription: Record<BusinessEntity["sector"], string> = {
   Media: "Convert attention, contracts, and viral reach into revenue.",
   Sports: "Monetize fans, events, and championship momentum.",
   Airline: "Operate a national route network with premium demand.",
+  Banking: "Grow deposits, manage credit risk, and compound trusted capital.",
 };
 const unlockMilestones = [
   {
@@ -799,6 +804,8 @@ function BusinessCard({
             ? business.projectPhase === 0
               ? "$1.2M tender opportunity"
               : `Phase ${business.projectPhase} · ${business.phaseProgressPercent}% complete`
+            : business.sector === "Banking"
+              ? `${business.branches.length} branches · ${business.customerAccounts.length} accounts`
             : `${business.branchCount} branch${business.branchCount === 1 ? "" : "es"} · ${business.reputation.toFixed(0)} reputation`;
   return (
     <Pressable
