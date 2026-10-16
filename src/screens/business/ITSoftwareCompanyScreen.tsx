@@ -32,7 +32,7 @@ export default function ITSoftwareCompanyScreen({ business: rawBusiness, cash, n
   return <View style={styles.root}><SafeAreaView edges={['top', 'left', 'right']} style={styles.safe}><ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
     <Pressable onPress={onBack}><Text style={styles.back}>‹ BUSINESS REGISTRY</Text></Pressable>
     <View style={styles.hero}><Text style={styles.kicker}>IT & SOFTWARE COMPANY · {stage.toUpperCase()}</Text><Text style={styles.title}>Build products people depend on.</Text><Text style={styles.subtitle}>Projects, people, products and trust—one operating system for the next company in your empire.</Text><View style={styles.metrics}><Metric label="NET / HOUR" value={itHourlyProfit(business).toLocaleString('en-US', { style: 'currency', currency: 'USD' })} accent={ITC.green} /><Metric label="PROJECTS" value={`${business.activeProjects.length}/${business.projectSlots}`} accent={ITC.blue} /><Metric label="PRODUCT USERS" value={business.activeSubscribers.toLocaleString()} /></View></View>
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}><View style={styles.tabRail}>{(['Formation & Office', 'Workforce', 'Projects & Contracts', 'Products & Security', 'Enterprise'] as ITTab[]).map((item) => <Pressable key={item} onPress={() => setTab(item)} style={[styles.tab, tab === item && styles.tabActive]}><Text style={[styles.tabText, tab === item && styles.tabTextActive]}>{item}</Text></Pressable>)}</View></ScrollView>
+    <ScrollView horizontal style={styles.tabScroller} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}><View style={styles.tabRail}>{(['Formation & Office', 'Workforce', 'Projects & Contracts', 'Products & Security', 'Enterprise'] as ITTab[]).map((item) => <Pressable key={item} onPress={() => setTab(item)} style={[styles.tab, tab === item && styles.tabActive]}><Text style={[styles.tabText, tab === item && styles.tabTextActive]}>{item}</Text></Pressable>)}</View></ScrollView>
     {tab === 'Formation & Office' && <ITFormationOfficeScreen {...pageProps} />}
     {tab === 'Workforce' && <ITWorkforceScreen {...pageProps} />}
     {tab === 'Projects & Contracts' && <ITProjectsContractsScreen {...pageProps} />}
@@ -52,8 +52,9 @@ const styles = StyleSheet.create({
   title: { color: '#10243B', fontSize: 29, lineHeight: 33, fontWeight: '900' },
   subtitle: { color: '#60758B', fontSize: 14, lineHeight: 20 },
   metrics: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginTop: 8 },
-  tabs: { alignItems: 'center', paddingVertical: 2 },
-  tabRail: { flexDirection: 'row', gap: 8 },
+  tabScroller: { flexGrow: 0, flexShrink: 0 },
+  tabs: { flexGrow: 0, flexShrink: 0, alignItems: 'center', paddingVertical: 2 },
+  tabRail: { flexDirection: 'row', flexGrow: 0, flexShrink: 0, gap: 8 },
   tab: { minHeight: 42, paddingHorizontal: 13, borderRadius: 12, borderWidth: 1, borderColor: '#D8E5F0', backgroundColor: '#FFFFFF', justifyContent: 'center' },
   tabActive: { backgroundColor: '#E8F2FF', borderColor: '#147BE8' },
   tabText: { color: '#60758B', fontSize: 11, fontWeight: '800' },
