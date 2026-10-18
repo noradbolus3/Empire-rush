@@ -35,7 +35,7 @@ assert(legacy.companyStage === 'Established Company', 'legacy stage migration');
 assert(Array.isArray(legacy.activeProjects) && Array.isArray(legacy.products), 'legacy arrays should migrate');
 const migrated = migrateBusinessSave({ schemaVersion: 3, businesses: [{ ...base, name: 'SignalForge Cloud', activeProjects: undefined, products: undefined }] });
 const migratedIT = migrated.find((item) => item.id === base.id) as ITSoftwareData;
-assert(migratedIT.name === 'Arcfield Software Company', 'legacy SaaS name should migrate');
+assert(migratedIT.name === 'IT & Software Company', 'legacy SaaS name should migrate');
 
 console.log(JSON.stringify({
   stageProgression: [itStageFor(75_000), itStageFor(250_000), itStageFor(1_000_000), itStageFor(10_000_000)],

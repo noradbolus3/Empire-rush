@@ -74,7 +74,7 @@ export const DEFAULT_BUSINESSES: BusinessEntity[] = [
   },
   {
     id: "cyberpulse-saas",
-    name: "Arcfield Software Company",
+    name: "IT & Software Company",
     sector: "Tech_SaaS",
     isUnlocked: false,
     unlockNetWorthRequired: 75000,
@@ -128,7 +128,7 @@ export const DEFAULT_BUSINESSES: BusinessEntity[] = [
   },
   {
     id: "blueharbor-banking",
-    name: "BlueHarbor Banking Company",
+    name: "Banking Company",
     sector: "Banking",
     isUnlocked: false,
     unlockNetWorthRequired: 1_500_000,
@@ -724,8 +724,8 @@ const normalizeBusinessNames = (
           ["BrightGrid Energy", "Surya Energy"].includes(merged.name))
         ? { ...merged, name: "Sunward Gridworks" }
         : merged.id === "cyberpulse-saas" ||
-          ["SignalForge Cloud", "IT & Tech SaaS Startup"].includes(merged.name)
-          ? { ...merged, name: "Arcfield Software Company" }
+          ["SignalForge Cloud", "IT & Tech SaaS Startup", "Arcfield Software Company"].includes(merged.name)
+          ? { ...merged, name: "IT & Software Company" }
           : merged;
     });
 export function migrateBusinessSave(parsed: unknown): BusinessEntity[] {
