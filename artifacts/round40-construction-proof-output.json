@@ -1,0 +1,85 @@
+{
+  "test": "round40-construction-proof",
+  "status": "PASS",
+  "scenarioCount": 10,
+  "failed": 0,
+  "scenarios": [
+    {
+      "label": "stage progression",
+      "ok": true,
+      "thresholds": [
+        0,
+        100000,
+        500000,
+        2500000
+      ]
+    },
+    {
+      "label": "catalog coverage",
+      "ok": true,
+      "projects": 4,
+      "contracts": 4
+    },
+    {
+      "label": "asset valuation",
+      "ok": true,
+      "value": 695000,
+      "acquisitionCost": 180000
+    },
+    {
+      "label": "hourly economics",
+      "ok": true,
+      "hourlyProfit": 11939
+    },
+    {
+      "label": "project and contract completion",
+      "ok": true,
+      "cashDelta": 103000,
+      "projectsCompleted": 1,
+      "events": [
+        "Construction Company: Northline Office Build completed and paid.",
+        "Construction Company: private-developer paid out."
+      ]
+    },
+    {
+      "label": "partial progress",
+      "ok": true,
+      "remainingSeconds": 1.7,
+      "phaseProgressPercent": 66
+    },
+    {
+      "label": "land and launch",
+      "ok": true,
+      "cashBefore": 120000,
+      "launchCost": 60000,
+      "cashAfter": 60000,
+      "projectType": "Residential"
+    },
+    {
+      "label": "project settlement completion",
+      "ok": true,
+      "cashBefore": 10000,
+      "progressBefore": 90,
+      "progressAfter": 0,
+      "revenue": 90000,
+      "expenses": 505,
+      "cashDelta": 89495,
+      "cashAfter": 99495,
+      "completedProjects": 1
+    },
+    {
+      "label": "level progression",
+      "ok": true,
+      "level": "Large Company",
+      "parcels": 4,
+      "activeProjects": 2
+    },
+    {
+      "label": "save and reload",
+      "ok": true,
+      "bytes": 399,
+      "completedProjects": 1,
+      "landParcels": 4
+    }
+  ]
+}

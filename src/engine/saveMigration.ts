@@ -1,4 +1,5 @@
-export const GAME_SAVE_VERSION = 9;
+import { defaultBankState } from '../types/bank';
+export const GAME_SAVE_VERSION = 14;
 
 export type GameSaveRecord = Record<string, any> & { schemaVersion: number };
 
@@ -53,5 +54,19 @@ export function migrateGameSave(input: unknown): GameSaveRecord {
     migrated.limitOrders = Array.isArray(source.limitOrders) ? source.limitOrders.filter((order: any) => order && typeof order.assetId === 'string' && (order.side === 'BUY' || order.side === 'SELL') && (order.status === 'OPEN' || order.status === 'FILLED' || order.status === 'CANCELLED') && Number.isFinite(order.quantity) && Number.isFinite(order.limitPrice)) : [];
     migrated.portfolioHistory = Array.isArray(source.portfolioHistory) ? source.portfolioHistory.filter((point: any) => point && Number.isFinite(point.timestamp) && Number.isFinite(point.value)).slice(-48) : [];
   }
+  if (version < 10) {
+    migrated.priceAlerts = Array.isArray(source.priceAlerts) ? source.priceAlerts.filter((alert: any) => alert && typeof alert.assetId === 'string' && typeof alert.symbol === 'string' && (alert.condition === 'ABOVE' || alert.condition === 'BELOW' || alert.condition === 'PCT_MOVE') && Number.isFinite(alert.target) && Number.isFinite(alert.baselinePrice)).slice(-50) : [];
+  } else {
+    migrated.priceAlerts = Array.isArray(source.priceAlerts) ? source.priceAlerts.filter((alert: any) => alert && typeof alert.assetId === 'string' && typeof alert.symbol === 'string' && (alert.condition === 'ABOVE' || alert.condition === 'BELOW' || alert.condition === 'PCT_MOVE') && Number.isFinite(alert.target) && Number.isFinite(alert.baselinePrice)).slice(-50) : [];
+  }
+  if (version < 13 || !source.bankState || typeof source.bankState !== 'object') {
+    migrated.bankState = defaultBankState(Number.isFinite(migrated.settlementAt) ? migrated.settlementAt : Date.now());
+  } else {
+    migrated.bankState = source.bankState;
+  }
+  migrated.lastDividendQuarter = typeof source.lastDividendQuarter === 'string' ? source.lastDividendQuarter : '';
+  migrated.marketEventHistory = Array.isArray(source.marketEventHistory)
+    ? source.marketEventHistory.filter((event: any) => event && typeof event.id === 'string' && typeof event.headline === 'string' && Number.isFinite(event.tick)).slice(-24)
+    : [];
   return migrated;
 }

@@ -1,8 +1,8 @@
 export { HomeScreen } from './HomeScreen';
 export { default as BusinessScreen } from './BusinessScreen';
-export { default as MarketScreen } from './MarketScreen';
+export { default as MarketScreen } from './markets/MarketsModuleScreen';
 export { LifestyleScreen } from './LifestyleScreen';
-export { CasinoScreen } from './CasinoScreen';
+export { default as BankScreen } from './BankScreen';
 export { CarsTab } from './CarsTab';
 export { YachtsTab } from './YachtsTab';
 export { JetsTab } from './JetsTab';

@@ -1,0 +1,37 @@
+// @ts-nocheck
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const { defaultBankState } = require('../src/types/bank');
+const { migrateGameSave } = require('../src/engine/saveMigration');
+const { bankTier, bankApr, monthlyPayment, underwriteLoan, createLoan, settleBank, sanitizeBankState } = require('../src/engine/bankEngine');
+
+const now = 1_800_000_000_000;
+const state = defaultBankState(now);
+assert.equal(bankTier(0).tier, 'Basic');
+assert.equal(bankTier(100000).tier, 'Gold');
+assert.ok(bankApr(760, 'SBA_MICROLOAN') < bankApr(640, 'SBA_MICROLOAN'));
+assert.ok(monthlyPayment(50000, 10, 36) > 0);
+const decision = underwriteLoan(state, 'SBA_MICROLOAN', 5000, 12000, 100);
+assert.equal(decision.decision, 'APPROVE');
+const loan = createLoan(state, 'SBA_MICROLOAN', decision.amount, decision.apr, now);
+assert.equal(loan.balance, 5000);
+const withSavings = { ...state, savingsBalance: 10000, loans: [{ ...loan, nextDueAt: now - (60 * 60 * 1000) }], lastSettlementAt: now - (26 * 60 * 60 * 1000) };
+const settled = settleBank(withSavings, now, 20000);
+assert.equal(settled.completedHours, 24);
+assert.ok(settled.interestEarned > 0);
+assert.ok(settled.newOffers >= 3);
+assert.ok(settled.state.loans[0].balance < 5000);
+assert.equal(settleBank(settled.state, now, 20000).completedHours, 2);
+const oldSave = migrateGameSave({ schemaVersion: 11, cash: 1000 });
+assert.ok(oldSave.bankState && oldSave.bankState.ficoScore === 680);
+const migrated = sanitizeBankState({ savingsBalance: -10, ficoScore: 900 }, now);
+assert.equal(migrated.savingsBalance, 0);
+assert.equal(migrated.ficoScore, 850);
+const app = fs.readFileSync(path.join(__dirname, '..', 'App.tsx'), 'utf8');
+assert.match(app, /<BankScreen/);
+assert.match(app, /bankState/);
+assert.doesNotMatch(app, /CasinoScreen/);
+assert.match(app, /\["bank", "▣", "BANK"\]/);
+assert.ok(!fs.existsSync(path.join(__dirname, '..', 'src/screens/CasinoScreen.tsx')));
+console.log(JSON.stringify({ passed: true, tierAt100k: bankTier(100000), loanDecision: decision, loanBalanceAfter24Hours: settled.state.loans[0].balance, interestEarnedAfter24Hours: settled.interestEarned, offersGenerated: settled.newOffers, bankRoute: 'PASS', casinoRouteRemoved: 'PASS' }, null, 2));

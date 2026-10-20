@@ -25,6 +25,8 @@ export interface TradeRecord {
   realizedPnl: number;
   timestamp: number;
   source: 'MARKET' | 'LIMIT';
+  transactionType?: 'BUY' | 'SELL' | 'DIVIDEND' | 'EVENT';
+  eventId?: string;
 }
 
 export interface PortfolioPoint {
