@@ -2,6 +2,7 @@ import * as Haptics from "expo-haptics";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   Alert,
+  Image,
   Modal,
   Pressable,
   ScrollView,
@@ -55,17 +56,29 @@ import type { BankLedgerEntry } from "../types/bank";
 import { calculateNetWorth } from "../engine/financialCore";
 
 const C = {
-  bg: "#07130F",
-  panel: "#0D241A",
-  panel2: "#123726",
-  green: "#16E98A",
-  red: "#FF6D62",
-  cyan: "#61E8FF",
-  gold: "#FFC928",
-  slate: "#236A45",
-  text: "#F7FFF9",
-  muted: "#8FB5A4",
+  bg: "#FFFFFF",
+  panel: "#F7FAFD",
+  panel2: "#EAF2FA",
+  green: "#1769AA",
+  red: "#C62828",
+  cyan: "#1769AA",
+  gold: "#A15C00",
+  slate: "#B8C9DA",
+  text: "#172B4D",
+  muted: "#52657D",
 };
+const bankingVisuals = {
+  home: { source: require("../../assets/banking/headquarters.webp"), label: "HEADQUARTERS · BANKING OPERATIONS" },
+  accounts: { source: require("../../assets/banking/banking-hall.webp"), label: "BANKING HALL · CUSTOMER ACCOUNTS" },
+  loans: { source: require("../../assets/banking/loans-credit.webp"), label: "CREDIT DESK · LOANS & UNDERWRITING" },
+  investors: { source: require("../../assets/banking/treasury-risk.webp"), label: "TREASURY FLOOR · INVESTOR CAPITAL" },
+  credit: { source: require("../../assets/banking/loans-credit.webp"), label: "CREDIT DESK · FICO & RISK" },
+  deposits: { source: require("../../assets/banking/banking-hall.webp"), label: "CUSTOMER ACCOUNTS · DEPOSITS" },
+  insurance: { source: require("../../assets/banking/treasury-risk.webp"), label: "RISK OFFICE · INSURANCE COVERAGE" },
+  tax: { source: require("../../assets/banking/treasury-risk.webp"), label: "CONTROL ROOM · TAX & REPORTING" },
+  history: { source: require("../../assets/banking/banking-hall.webp"), label: "OPERATIONS · FINANCIAL LEDGER" },
+  inspector: { source: require("../../assets/banking/digital-branches.webp"), label: "DIGITAL BANKING · LIVE INSPECTOR" },
+} as const;
 const tabs = [
   { id: "home", label: "Bank Home" },
   { id: "accounts", label: "Accounts" },
@@ -548,6 +561,7 @@ export default function BankScreen({
         activeTextStyle={styles.tabTextActive}
       />
       <View style={styles.screenGap} />
+      <BankVisual tab={tab} />
       {tab === "home" && (
         <BankHome
           cash={cash}
@@ -643,6 +657,17 @@ export default function BankScreen({
           business: state.businessCheckingBalance,
         }}
       />
+    </View>
+  );
+}
+
+function BankVisual({ tab }: { tab: BankTab }) {
+  const visual = bankingVisuals[tab];
+  return (
+    <View style={styles.visualFrame}>
+      <Image source={visual.source} style={styles.visualImage} resizeMode="cover" />
+      <View style={styles.visualShade} />
+      <Text style={styles.visualLabel}>{visual.label}</Text>
     </View>
   );
 }
@@ -961,7 +986,7 @@ function Accounts({ cash, state, onTransfer, onStateChange }: any) {
           onValueChange={(value) =>
             onStateChange({ ...state, overdraftProtection: value })
           }
-          trackColor={{ false: C.slate, true: "#087C4A" }}
+          trackColor={{ false: C.slate, true: C.green }}
           thumbColor={state.overdraftProtection ? C.green : C.muted}
         />
       </View>
@@ -1604,6 +1629,31 @@ const styles = StyleSheet.create({
   body: { flex: 1, minHeight: 0 },
   bodyContent: { paddingHorizontal: 18, paddingBottom: 96, gap: 10 },
   screenGap: { height: 12 },
+  visualFrame: {
+    marginHorizontal: 18,
+    height: 132,
+    borderRadius: 16,
+    overflow: "hidden",
+    backgroundColor: C.panel2,
+    borderWidth: 1,
+    borderColor: C.slate,
+  },
+  visualImage: { width: "100%", height: "100%" },
+  visualShade: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(23,43,77,0.24)",
+  },
+  visualLabel: {
+    position: "absolute",
+    left: 14,
+    bottom: 12,
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 1,
+    textShadowColor: "rgba(0,0,0,0.45)",
+    textShadowRadius: 4,
+  },
   sectionBlock: { gap: 8 },
   badgeGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   badgeCard: {
@@ -1615,7 +1665,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: C.slate,
   },
-  badgeUnlocked: { borderColor: C.green, backgroundColor: "#103B29" },
+  badgeUnlocked: { borderColor: C.green, backgroundColor: "#EAF2FA" },
   badgeState: { color: C.muted, fontSize: 7, fontWeight: "900" },
   badgeTitle: { color: C.text, fontSize: 10, fontWeight: "900", marginTop: 7 },
   rankRow: {
@@ -1715,7 +1765,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   actionText: {
-    color: C.bg,
+    color: "#FFFFFF",
     fontSize: 9,
     fontWeight: "900",
     textAlign: "center",
@@ -1734,7 +1784,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: C.slate,
   },
-  tabChipActive: { backgroundColor: "#123D34", borderColor: C.cyan },
+  tabChipActive: { backgroundColor: "#D9EAF7", borderColor: C.cyan },
   tabText: { color: C.muted, fontSize: 10, fontWeight: "900" },
   tabTextActive: { color: C.cyan, fontSize: 10, fontWeight: "900" },
   smallChip: {
@@ -1744,7 +1794,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: C.slate,
   },
-  smallChipActive: { backgroundColor: "#123D34", borderColor: C.green },
+  smallChipActive: { backgroundColor: "#D9EAF7", borderColor: C.green },
   smallChipText: { color: C.muted, fontSize: 10, fontWeight: "800" },
   listCard: {
     backgroundColor: C.panel,
@@ -1789,7 +1839,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   preview: {
-    backgroundColor: "#0B1D18",
+    backgroundColor: "#EAF2FA",
     borderRadius: 10,
     padding: 12,
     gap: 6,
