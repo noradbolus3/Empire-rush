@@ -16,7 +16,7 @@ for (const asset of requiredAssets) {
   assert.equal(fs.existsSync(file), true, `missing ${asset}`);
   assert.ok(fs.statSync(file).size < 160_000, `${asset} is too large`);
 }
-for (const key of ["home", "accounts", "loans", "investors", "credit", "deposits", "insurance", "tax", "history", "inspector"]) {
+for (const key of ["home", "setup", "accounts", "loans", "operations", "branches", "investors", "enterprise", "credit", "deposits", "insurance", "tax", "history", "inspector"]) {
   assert.match(screen, new RegExp(`${key}: \\{ source: require`), `missing visual mapping for ${key}`);
 }
 assert.match(screen, /bg: "#FFFFFF"/);
@@ -28,7 +28,7 @@ console.log(JSON.stringify({
   assets: requiredAssets.length,
   allAssetsPresent: true,
   maxAssetBytes: Math.max(...requiredAssets.map((asset) => fs.statSync(path.join(root, "assets/banking", asset)).size)),
-  mappedTabs: 10,
+  mappedTabs: 14,
   whiteTheme: true,
   sectionVisuals: true,
   status: "PASS",

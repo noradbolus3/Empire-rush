@@ -69,9 +69,13 @@ const C = {
 };
 const bankingVisuals = {
   home: { source: require("../../assets/banking/headquarters.webp"), label: "HEADQUARTERS · BANKING OPERATIONS" },
+  setup: { source: require("../../assets/banking/headquarters.webp"), label: "BANK SETUP · HEADQUARTERS" },
   accounts: { source: require("../../assets/banking/banking-hall.webp"), label: "BANKING HALL · CUSTOMER ACCOUNTS" },
   loans: { source: require("../../assets/banking/loans-credit.webp"), label: "CREDIT DESK · LOANS & UNDERWRITING" },
+  operations: { source: require("../../assets/banking/treasury-risk.webp"), label: "OPERATIONS FLOOR · EMPLOYEES & EXPENSES" },
+  branches: { source: require("../../assets/banking/digital-branches.webp"), label: "DIGITAL BANKING · BRANCH NETWORK" },
   investors: { source: require("../../assets/banking/treasury-risk.webp"), label: "TREASURY FLOOR · INVESTOR CAPITAL" },
+  enterprise: { source: require("../../assets/banking/treasury-risk.webp"), label: "ENTERPRISE BANKING · EXPANSION" },
   credit: { source: require("../../assets/banking/loans-credit.webp"), label: "CREDIT DESK · FICO & RISK" },
   deposits: { source: require("../../assets/banking/banking-hall.webp"), label: "CUSTOMER ACCOUNTS · DEPOSITS" },
   insurance: { source: require("../../assets/banking/treasury-risk.webp"), label: "RISK OFFICE · INSURANCE COVERAGE" },
@@ -81,9 +85,13 @@ const bankingVisuals = {
 } as const;
 const tabs = [
   { id: "home", label: "Bank Home" },
+  { id: "setup", label: "Setup & HQ" },
   { id: "accounts", label: "Accounts" },
   { id: "loans", label: "Loans" },
+  { id: "operations", label: "Operations" },
+  { id: "branches", label: "Branches" },
   { id: "investors", label: "Investors" },
+  { id: "enterprise", label: "Enterprise" },
   { id: "credit", label: "Credit" },
   { id: "deposits", label: "Deposits" },
   { id: "insurance", label: "Insurance" },
@@ -151,6 +159,14 @@ type Props = {
   onBreaking: (message: string) => void;
   onHaptic?: (success?: boolean) => void;
 };
+type BankExpansionState = {
+  headquartersLevel?: number;
+  employeeCount?: number;
+  branchCount?: number;
+  digitalUsers?: number;
+  operatingExpensePerSettlement?: number;
+  enterpriseTier?: "LOCAL" | "REGIONAL" | "NATIONAL";
+};
 
 export default function BankScreen({
   cash,
@@ -172,6 +188,42 @@ export default function BankScreen({
   const current = tabs.find((item) => item.id === tab)?.label || "Bank Home";
   const update = (next: BankState) =>
     onStateChange({ ...next, companyValuation: companyValue });
+  const expansion = state as BankState & BankExpansionState;
+  const chargeCapital = (amount: number, label: string, detail: string) => {
+    if (cash < amount) {
+      Alert.alert("CAPITAL REQUIRED", `Need ${money(amount - cash)} more in Checking.`);
+      return false;
+    }
+    onCashChange((value) => Math.max(0, value - amount));
+    onBreaking(`${label} · ${money(amount)} invested.`);
+    onHaptic?.(true);
+    return true;
+  };
+  const upgradeHeadquarters = () => {
+    const level = Math.max(1, Number(expansion.headquartersLevel) || 1);
+    const cost = 12_000 * level;
+    if (!chargeCapital(cost, `Headquarters Level ${level + 1}`, "Bank setup and compliance capacity")) return;
+    update(addLedger({ ...state, headquartersLevel: level + 1, operatingExpensePerSettlement: Math.max(25, (expansion.operatingExpensePerSettlement || 25) + 10) } as BankState, "PURCHASE", `Headquarters Level ${level + 1}`, -cost, Date.now(), "Bank setup and compliance capacity"));
+  };
+  const hireEmployee = () => {
+    const cost = 2_500;
+    if (!chargeCapital(cost, "Bank employee onboarding", "Adds one employee; payroll is charged each settlement")) return;
+    const employees = (expansion.employeeCount || 0) + 1;
+    update(addLedger({ ...state, employeeCount: employees, operatingExpensePerSettlement: (expansion.operatingExpensePerSettlement || 25) + 18 } as BankState, "PURCHASE", "Bank employee onboarding", -cost, Date.now(), "Adds one employee; payroll is charged each settlement"));
+  };
+  const openBranch = () => {
+    const cost = 18_000;
+    if (!chargeCapital(cost, "Branch opening", "Adds one physical branch and customer capacity")) return;
+    const branches = (expansion.branchCount || 0) + 1;
+    update(addLedger({ ...state, branchCount: branches, digitalUsers: (expansion.digitalUsers || 0) + 250, operatingExpensePerSettlement: (expansion.operatingExpensePerSettlement || 25) + 35 } as BankState, "PURCHASE", "Branch opening", -cost, Date.now(), "Adds one physical branch and customer capacity"));
+  };
+  const launchEnterprise = () => {
+    const tier = expansion.enterpriseTier || "LOCAL";
+    const cost = tier === "LOCAL" ? 40_000 : tier === "REGIONAL" ? 150_000 : 0;
+    const next = tier === "LOCAL" ? "REGIONAL" : tier === "REGIONAL" ? "NATIONAL" : "NATIONAL";
+    if (cost && !chargeCapital(cost, `${next} enterprise banking`, "Expansion capital for commercial accounts")) return;
+    update(addLedger({ ...state, enterpriseTier: next } as BankState, "PURCHASE", `${next} enterprise banking`, -cost, Date.now(), "Expansion capital for commercial accounts"));
+  };
   const celebrate = (label: string) => {
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     Alert.alert(
@@ -576,6 +628,14 @@ export default function BankScreen({
           onAcceptOffer={acceptOffer}
         />
       )}
+      {tab === "setup" && (
+        <BankSetup
+          cash={cash}
+          state={expansion}
+          companyValue={companyValue}
+          onUpgrade={upgradeHeadquarters}
+        />
+      )}
       {tab === "accounts" && (
         <Accounts
           cash={cash}
@@ -595,12 +655,27 @@ export default function BankScreen({
           onPrepay={prepayLoan}
         />
       )}
+      {tab === "operations" && (
+        <BankOperations cash={cash} state={expansion} onHire={hireEmployee} />
+      )}
+      {tab === "branches" && (
+        <BankBranches cash={cash} state={expansion} onOpen={openBranch} />
+      )}
       {tab === "investors" && (
         <Investors
           netWorth={netWorth}
           companyValue={companyValue}
           state={state}
           onPitch={pitch}
+        />
+      )}
+      {tab === "enterprise" && (
+        <EnterpriseBanking
+          netWorth={netWorth}
+          companyValue={companyValue}
+          state={expansion}
+          onExpand={launchEnterprise}
+          onPitch={() => pitch("SERIES_B", "SAFE")}
         />
       )}
       {tab === "credit" && (
@@ -669,6 +744,90 @@ function BankVisual({ tab }: { tab: BankTab }) {
       <View style={styles.visualShade} />
       <Text style={styles.visualLabel}>{visual.label}</Text>
     </View>
+  );
+}
+
+function BankSetup({ cash, state, companyValue, onUpgrade }: any) {
+  const level = Math.max(1, Number(state.headquartersLevel) || 1);
+  const cost = 12_000 * level;
+  return (
+    <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}>
+      <Card title="BANK SETUP & HEADQUARTERS" copy="Build the compliance, treasury and customer-service foundation before expanding the network." accent={C.cyan} />
+      <View style={styles.metricGrid}>
+        <Metric label="HQ LEVEL" value={`Level ${level}`} />
+        <Metric label="LIQUID CAPITAL" value={money(cash)} />
+        <Metric label="COMPANY VALUE" value={money(companyValue)} />
+      </View>
+      <View style={styles.listCard}>
+        <Text style={styles.cardTitle}>OPERATING CHARTER</Text>
+        <Text style={styles.muted}>US simulation bank · fictional deposits, lending and treasury products.</Text>
+        <Text style={styles.muted}>Next headquarters upgrade: {money(cost)} · improves compliance capacity.</Text>
+        <Action label={`UPGRADE HQ · ${money(cost)}`} onPress={onUpgrade} />
+      </View>
+    </ScrollView>
+  );
+}
+
+function BankOperations({ cash, state, onHire }: any) {
+  const employees = Math.max(0, Number(state.employeeCount) || 0);
+  const expense = Math.max(25, Number(state.operatingExpensePerSettlement) || 25);
+  return (
+    <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}>
+      <Card title="OPERATIONS & EMPLOYEES" copy="Hire risk, servicing and treasury staff. Payroll and operating expenses are included in settlement accounting." accent={C.gold} />
+      <View style={styles.metricGrid}>
+        <Metric label="EMPLOYEES" value={String(employees)} />
+        <Metric label="SETTLEMENT EXPENSE" value={money(expense)} />
+        <Metric label="CHECKING" value={money(cash)} />
+      </View>
+      <View style={styles.listCard}>
+        <Text style={styles.cardTitle}>NEXT HIRE</Text>
+        <Text style={styles.muted}>Bank employee onboarding costs $2,500 and adds $18 per settlement for payroll and benefits.</Text>
+        <Action label="HIRE EMPLOYEE · $2,500" onPress={onHire} />
+      </View>
+    </ScrollView>
+  );
+}
+
+function BankBranches({ cash, state, onOpen }: any) {
+  const branches = Math.max(0, Number(state.branchCount) || 0);
+  const users = Math.max(0, Number(state.digitalUsers) || 0);
+  return (
+    <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}>
+      <Card title="BRANCHES & DIGITAL BANKING" copy="Expand physical service points and grow a digital customer base. Each branch adds operating expense and lending capacity." accent={C.cyan} />
+      <View style={styles.metricGrid}>
+        <Metric label="BRANCHES" value={String(branches)} />
+        <Metric label="DIGITAL USERS" value={users.toLocaleString("en-US")} />
+        <Metric label="AVAILABLE CASH" value={money(cash)} />
+      </View>
+      <View style={styles.listCard}>
+        <Text style={styles.cardTitle}>NEXT BRANCH</Text>
+        <Text style={styles.muted}>Opening cost $18,000 · adds 250 digital users and $35 operating expense per settlement.</Text>
+        <Action label="OPEN BRANCH · $18,000" onPress={onOpen} />
+      </View>
+    </ScrollView>
+  );
+}
+
+function EnterpriseBanking({ netWorth, companyValue, state, onExpand, onPitch }: any) {
+  const tier = state.enterpriseTier || "LOCAL";
+  const next = tier === "LOCAL" ? "REGIONAL" : tier === "REGIONAL" ? "NATIONAL" : "NATIONAL · CAP TABLE";
+  return (
+    <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}>
+      <Card title="ENTERPRISE BANKING & EXPANSION" copy="Move from local deposits to regional commercial banking, then raise institutional capital through the existing investor engine." accent={C.gold} />
+      <View style={styles.metricGrid}>
+        <Metric label="BANK TIER" value={tier} />
+        <Metric label="NET WORTH" value={money(netWorth)} />
+        <Metric label="COMPANY VALUE" value={money(companyValue)} />
+      </View>
+      <View style={styles.listCard}>
+        <Text style={styles.cardTitle}>NEXT EXPANSION · {next}</Text>
+        <Text style={styles.muted}>Expansion costs $40,000 from Local to Regional and $150,000 from Regional to National. The action is ledgered and cash-clamped.</Text>
+        <View style={styles.actions}>
+          {tier !== "NATIONAL" && <Action label={`EXPAND TO ${next}`} onPress={onExpand} />}
+          <Action label="PITCH SERIES B" onPress={onPitch} />
+        </View>
+      </View>
+    </ScrollView>
   );
 }
 
