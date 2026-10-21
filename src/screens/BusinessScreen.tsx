@@ -67,6 +67,7 @@ type Props = {
   onIPOComplete: (listing: IPOListing) => void;
   onStateChange?: React.Dispatch<React.SetStateAction<RetailShopState>>;
   onCashChange: React.Dispatch<React.SetStateAction<number>>;
+  onOpenBank?: () => void;
   focusRetail?: boolean;
   onRetailFocusHandled?: () => void;
   onLedger?: (entry: BankLedgerEntry) => void;
@@ -200,6 +201,7 @@ function BusinessScreenContent({
   ipoListing,
   onIPOComplete,
   onCashChange,
+  onOpenBank,
   focusRetail = false,
   onRetailFocusHandled,
   onLedger,
@@ -647,6 +649,18 @@ function BusinessScreenContent({
               <Text style={styles.factoryButtonText}>
                 {softwareCompany ? "MANAGE SOFTWARE" : "START SOFTWARE"}
               </Text>
+            </Pressable>
+          </View>
+          <View style={styles.bankingCard}>
+            <View style={styles.factoryCardCopy}>
+              <Text style={styles.bankingEyebrow}>FINANCIAL SERVICES</Text>
+              <Text style={styles.factoryTitle}>Banking Company</Text>
+              <Text style={styles.factoryCopy}>
+                Manage credit, deposits, insurance, tax, treasury risk and investor capital in the dedicated Bank module.
+              </Text>
+            </View>
+            <Pressable style={styles.bankingButton} onPress={onOpenBank}>
+              <Text style={styles.factoryButtonText}>OPEN BANKING</Text>
             </Pressable>
           </View>
           <View style={styles.primaryActions}>
@@ -1252,6 +1266,29 @@ const styles = StyleSheet.create({
   },
   softwareButton: {
     backgroundColor: "#7250C7",
+    borderRadius: 10,
+    paddingHorizontal: 11,
+    paddingVertical: 10,
+  },
+  bankingCard: {
+    backgroundColor: "#F4F9FF",
+    borderColor: "#A9C8F2",
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  bankingEyebrow: {
+    color: "#1769AA",
+    fontSize: 8,
+    fontWeight: "900",
+    letterSpacing: 1,
+  },
+  bankingButton: {
+    backgroundColor: "#1769AA",
     borderRadius: 10,
     paddingHorizontal: 11,
     paddingVertical: 10,

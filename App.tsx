@@ -1465,6 +1465,7 @@ function AppContent() {
               onStateChange={setRetail}
               onCashChange={setCash}
               onLedger={postLedger}
+              onOpenBank={() => setTab("bank")}
             />
           ) : tab === "empire" ? (
             <HomeScreen
