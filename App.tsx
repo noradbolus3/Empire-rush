@@ -128,16 +128,16 @@ import { calculateNetWorth, settleHour } from "./src/engine/financialCore";
 type Tab = "empire" | "business" | "markets" | "lifestyle" | "bank";
 type Filter = "dividend" | "cheap" | "crypto" | "watchlist" | "all";
 const C = {
-  bg: "#07130F",
-  panel: "#0D241A",
-  panel2: "#123726",
-  green: "#16E98A",
-  red: "#FF6D62",
-  cyan: "#61E8FF",
-  gold: "#FFC928",
-  slate: "#236A45",
-  text: "#F7FFF9",
-  muted: "#8FB5A4",
+  bg: "#F6F9FC",
+  panel: "#FFFFFF",
+  panel2: "#EEF6F2",
+  green: "#079669",
+  red: "#D64B57",
+  cyan: "#0084A3",
+  gold: "#B77700",
+  slate: "#C4DDD2",
+  text: "#132334",
+  muted: "#607487",
 };
 const money = (n: number) => {
   const safe = Number.isFinite(n) ? Math.max(0, n) : 0;
@@ -2016,7 +2016,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 7,
-    backgroundColor: "#123C2A",
+    backgroundColor: "#E7F7EF",
     borderWidth: 1,
     borderColor: "#3A8C57",
     borderRadius: 12,
@@ -2353,7 +2353,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 54,
-    backgroundColor: "#0D141F",
+    backgroundColor: "#FFFFFF",
     borderTopWidth: 1,
     borderTopColor: C.slate,
     flexDirection: "row",
@@ -2379,7 +2379,7 @@ const styles = StyleSheet.create({
     alignSelf: "center",
   },
   navCenterIcon: { color: C.bg, fontSize: 22 },
-  navOn: { backgroundColor: "#153329" },
+  navOn: { backgroundColor: "#E7F7EF" },
   navIcon: { color: C.muted, fontSize: 18 },
   navIconOn: { color: C.green },
   navLabel: { color: C.muted, fontSize: 8, fontWeight: "900", marginTop: 3 },

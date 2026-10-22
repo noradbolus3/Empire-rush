@@ -15,7 +15,7 @@ type MarketProps = { playerNetWorth:number; cash:number; assets:Asset[]; holding
 type Channel='STOCKS'|'CRYPTO';
 type Page='HOME'|'LIST'|'DETAIL'|'PORTFOLIO'|'WATCHLIST'|'ORDERS'|'TRANSACTIONS'|'INDICES'|'INDEX_DETAIL'|'MOVERS'|'EVENTS';
 type Sort='CHANGE'|'PRICE'|'DIVIDEND'|'NAME';
-const C={bg:'#05080D',surface:'#09131A',surface2:'#0D1B22',border:'#203642',text:'#F5F8FA',muted:'#8797A6',stock:'#20C7E8',stockSoft:'#123340',crypto:'#9A68FF',cryptoSoft:'#281E4C',up:'#35D98A',down:'#F07878',amber:'#F4BC4B'};
+const C={bg:'#F6F9FC',surface:'#FFFFFF',surface2:'#F0F5F8',border:'#D5E1E8',text:'#132334',muted:'#607487',stock:'#20C7E8',stockSoft:'#E3F6FA',crypto:'#9A68FF',cryptoSoft:'#EEE9FF',up:'#079669',down:'#D64B57',amber:'#B77700'};
 const money=(n:number)=>{const v=Number.isFinite(n)?n:0;return `${v<0?'-':''}$${Math.abs(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`};
 const short=(n:number)=>{const v=Number.isFinite(n)?n:0;const a=Math.abs(v);const s=v<0?'-':'';if(a>=1e9)return `${s}$${(a/1e9).toFixed(2)}B`;if(a>=1e6)return `${s}$${(a/1e6).toFixed(2)}M`;if(a>=1e3)return `${s}$${(a/1e3).toFixed(2)}K`;return money(v)};
 const pct=(n:number)=>`${n>=0?'+':''}${(Number.isFinite(n)?n:0).toFixed(2)}%`;

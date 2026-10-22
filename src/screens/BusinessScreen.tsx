@@ -58,16 +58,16 @@ import {
 } from "../engine/businessLevels";
 
 const C = {
-  bg: "#07130F",
-  surface: "#0D241A",
-  card: "#102B20",
-  cardBorder: "#236A45",
-  white: "#F7FFF9",
-  muted: "#8FB5A4",
-  green: "#16E98A",
-  cyan: "#61E8FF",
+  bg: "#F6F9FC",
+  surface: "#FFFFFF",
+  card: "#FFFFFF",
+  cardBorder: "#C4DDD2",
+  white: "#132334",
+  muted: "#607487",
+  green: "#079669",
+  cyan: "#0084A3",
   red: "#FF6D62",
-  gold: "#FFC928",
+  gold: "#B77700",
   violet: "#B59CFF",
   ink: "#08110E",
 };
