@@ -4,6 +4,8 @@
 
 This follow-up fixes actual component-level contrast defects reported after the first Round 42 theme pass. No new business module was added and no gameplay, save/load, market, transaction or financial formula was changed.
 
+The remaining screenshot defect was traced to `src/screens/BusinessScreen.tsx`, not the previously patched `HomeScreen.tsx`: the visible `FOUNDER COMMAND DECK`, `CASH`, `NET / HR` and `COMPANIES` strings are rendered by `commandLine`, `summaryStrip` and `summaryMetric` in BusinessScreen.
+
 ## Corrected files
 
 - `App.tsx`
@@ -14,6 +16,9 @@ This follow-up fixes actual component-level contrast defects reported after the 
 - `src/screens/HomeScreen.tsx`
   - Fixed the actual Founder Command Deck hero heading, level value, cashflow/streak/rank statistic values, panel headings and linked-card titles that were still using light text on light pastel surfaces.
   - Kept the active tap-boost surface light so its shared text styles remain readable.
+- `src/screens/BusinessScreen.tsx`
+  - Changed the actual Founder Command Deck header to a light surface with dark navy text.
+  - Changed Cash, Net / Hr and Companies cards to white surfaces with dark navy values, readable labels and blue borders.
 - `src/screens/BusinessScreen.tsx`
   - Removed whole-card opacity from locked opportunities.
   - Added neutral light-grey locked surface and readable border.
