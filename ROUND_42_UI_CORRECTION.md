@@ -11,6 +11,9 @@ This follow-up fixes actual component-level contrast defects reported after the 
   - Fixed the active Markets route's selected filter and SELL button contrast.
 - `src/components/WealthCard.tsx`
   - Forced high-contrast white Founder Command Deck title, balance labels and card metadata on dark tiers.
+- `src/screens/HomeScreen.tsx`
+  - Fixed the actual Founder Command Deck hero heading, level value, cashflow/streak/rank statistic values, panel headings and linked-card titles that were still using light text on light pastel surfaces.
+  - Kept the active tap-boost surface light so its shared text styles remain readable.
 - `src/screens/BusinessScreen.tsx`
   - Removed whole-card opacity from locked opportunities.
   - Added neutral light-grey locked surface and readable border.
@@ -34,4 +37,4 @@ This follow-up fixes actual component-level contrast defects reported after the 
 - `git diff --check`: PASS
 - Physical Android screenshots at the supplied device dimensions: NOT TESTED in this sandbox
 
-The Android build must be generated from this correction commit before an APK can be called current. The previous APK is from commit `c7a11f3ddf41dc04e60ec823cb35248059df3a36` and must not be presented as proof of these follow-up fixes.
+The Android build must be generated from the final Home contrast correction commit before an APK can be called current. The previous APK from commit `9eca3fa640b8d8bd78a9ce202d87f7d2c6523e61` predates this final Home fix and must not be presented as proof of it.
