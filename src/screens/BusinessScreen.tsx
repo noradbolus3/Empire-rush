@@ -34,6 +34,7 @@ import { DEFAULT_OIL_GAS } from "../types/oilGas";
 import { DEFAULT_AIRLINE } from "../types/airline";
 import { DEFAULT_HOTEL } from "../types/hotel";
 import { DEFAULT_BLOCKCHAIN } from "../types/blockchain";
+import { DEFAULT_SPACE } from "../types/space";
 import { formatCurrency } from "../utils/formatCurrency";
 import BusinessMasterHubScreen from "./business/BusinessMasterHubScreen";
 import TaxiCompanyScreen from "./TaxiCompanyScreen";
@@ -47,6 +48,7 @@ import OilGasCompanyScreen from "./OilGasCompanyScreen";
 import AirlineCompanyScreen from "./AirlineCompanyScreen";
 import HotelCompanyScreen from "./HotelCompanyScreen";
 import BlockchainCompanyScreen from "./BlockchainCompanyScreen";
+import SpaceCompanyScreen from "./SpaceCompanyScreen";
 import {
   clearLevelUpNotice,
   levelConfig,
@@ -241,6 +243,8 @@ function BusinessScreenContent({
     setHotel,
     blockchain,
     setBlockchain,
+    space,
+    setSpace,
   } = useGame();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [taxiOpen, setTaxiOpen] = useState(false);
@@ -254,6 +258,7 @@ function BusinessScreenContent({
   const [airlineOpen, setAirlineOpen] = useState(false);
   const [hotelOpen, setHotelOpen] = useState(false);
   const [blockchainOpen, setBlockchainOpen] = useState(false);
+  const [spaceOpen, setSpaceOpen] = useState(false);
   const [registrationId, setRegistrationId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"start" | "companies">("start");
   const celebratedRef = useRef("");
@@ -401,6 +406,18 @@ function BusinessScreenContent({
     onLedger?.({ id: `blockchain-charter-${Date.now()}`, kind: "PURCHASE", label: "Technology company charter", amount: -setupCost, timestamp: Date.now(), detail: "Infrastructure and research launch reserve" });
     setBlockchainOpen(true);
   };
+  const openSpace = () => {
+    if (space) return setSpaceOpen(true);
+    const setupCost = 850000;
+    if (cash < setupCost) {
+      Alert.alert("AEROSPACE LOCKED", `Need ${formatCurrency(setupCost - cash)} more for the launch program and engineering team.`);
+      return;
+    }
+    onCashChange((value) => value - setupCost);
+    setSpace({ ...DEFAULT_SPACE, cashReserve: setupCost });
+    onLedger?.({ id: `space-charter-${Date.now()}`, kind: "PURCHASE", label: "Aerospace company charter", amount: -setupCost, timestamp: Date.now(), detail: "Launch program and engineering team reserve" });
+    setSpaceOpen(true);
+  };
   const nextMove = bestAffordable
     ? `Start ${bestAffordable.item.name} · ~${Math.max(1, Math.ceil(bestAffordable.cost / bestAffordable.hourly))} settlements to pay back at +${formatCurrency(bestAffordable.hourly)}/hr`
     : (() => {
@@ -507,6 +524,17 @@ function BusinessScreenContent({
         onCashChange={onCashChange}
         onChange={setBlockchain}
         onBack={() => setBlockchainOpen(false)}
+        onLedger={onLedger}
+      />
+    );
+  if (spaceOpen)
+    return (
+      <SpaceCompanyScreen
+        company={space}
+        cash={cash}
+        onCashChange={onCashChange}
+        onChange={setSpace}
+        onBack={() => setSpaceOpen(false)}
         onLedger={onLedger}
       />
     );
@@ -863,6 +891,18 @@ function BusinessScreenContent({
             </View>
             <Pressable style={styles.blockchainButton} onPress={openBlockchain}>
               <Text style={styles.factoryButtonText}>{blockchain ? "MANAGE TECHNOLOGY" : "START TECHNOLOGY"}</Text>
+            </Pressable>
+          </View>
+          <View style={styles.spaceCard}>
+            <View style={styles.factoryCardCopy}>
+              <Text style={styles.spaceEyebrow}>AEROSPACE & EXPLORATION</Text>
+              <Text style={styles.factoryTitle}>{space ? space.companyName : "Space & Aerospace Company"}</Text>
+              <Text style={styles.factoryCopy}>
+                {space ? `${space.stage} · ${space.launches} launches · ${space.satellites} satellites` : "Fund research, build rockets, schedule missions and grow an advanced space enterprise."}
+              </Text>
+            </View>
+            <Pressable style={styles.spaceButton} onPress={openSpace}>
+              <Text style={styles.factoryButtonText}>{space ? "MANAGE AEROSPACE" : "START AEROSPACE"}</Text>
             </Pressable>
           </View>
           <View style={styles.primaryActions}>
@@ -1583,6 +1623,29 @@ const styles = StyleSheet.create({
   },
   blockchainButton: {
     backgroundColor: "#087E9E",
+    borderRadius: 10,
+    paddingHorizontal: 11,
+    paddingVertical: 10,
+  },
+  spaceCard: {
+    backgroundColor: "#EEF3FF",
+    borderColor: "#9BAFE5",
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  spaceEyebrow: {
+    color: "#3856A7",
+    fontSize: 8,
+    fontWeight: "900",
+    letterSpacing: 1,
+  },
+  spaceButton: {
+    backgroundColor: "#3856A7",
     borderRadius: 10,
     paddingHorizontal: 11,
     paddingVertical: 10,

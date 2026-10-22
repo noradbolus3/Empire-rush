@@ -38,6 +38,8 @@ import { HotelState } from "../types/hotel";
 import { HOTEL_SAVE, sanitizeHotel } from "../engine/hotelEngine";
 import { BlockchainState } from "../types/blockchain";
 import { BLOCKCHAIN_SAVE, sanitizeBlockchain } from "../engine/blockchainEngine";
+import { SpaceState } from "../types/space";
+import { SPACE_SAVE, sanitizeSpace } from "../engine/spaceEngine";
 
 export const TAXI_COMPANY_SAVE = "empire-rush-taxi-company-v1";
 export const SHIPPING_COMPANY_SAVE = "empire-rush-shipping-company-v1";
@@ -78,6 +80,8 @@ type GameContextValue = {
   setHotel: React.Dispatch<React.SetStateAction<HotelState | null>>;
   blockchain: BlockchainState | null;
   setBlockchain: React.Dispatch<React.SetStateAction<BlockchainState | null>>;
+  space: SpaceState | null;
+  setSpace: React.Dispatch<React.SetStateAction<SpaceState | null>>;
   resetBusinesses: () => void;
 };
 const GameContext = createContext<GameContextValue>({
@@ -105,6 +109,8 @@ const GameContext = createContext<GameContextValue>({
   setHotel: () => undefined,
   blockchain: null,
   setBlockchain: () => undefined,
+  space: null,
+  setSpace: () => undefined,
   resetBusinesses: () => undefined,
 });
 
@@ -126,6 +132,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [airline, setAirline] = useState<AirlineState | null>(null);
   const [hotel, setHotel] = useState<HotelState | null>(null);
   const [blockchain, setBlockchain] = useState<BlockchainState | null>(null);
+  const [space, setSpace] = useState<SpaceState | null>(null);
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => {
     let active = true;
@@ -142,6 +149,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       AsyncStorage.getItem(AIRLINE_SAVE),
       AsyncStorage.getItem(HOTEL_SAVE),
       AsyncStorage.getItem(BLOCKCHAIN_SAVE),
+      AsyncStorage.getItem(SPACE_SAVE),
     ]).then(
       ([
         loadedBusinesses,
@@ -156,6 +164,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         rawAirline,
         rawHotel,
         rawBlockchain,
+        rawSpace,
       ]) => {
         if (!active) return;
         setBusinesses(loadedBusinesses);
@@ -251,6 +260,13 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             setBlockchain(null);
           }
         }
+        if (rawSpace) {
+          try {
+            setSpace(sanitizeSpace(JSON.parse(rawSpace)));
+          } catch {
+            setSpace(null);
+          }
+        }
         setHydrated(true);
       },
     );
@@ -306,6 +322,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     if (blockchain)
       void AsyncStorage.setItem(BLOCKCHAIN_SAVE, JSON.stringify(blockchain));
     else void AsyncStorage.removeItem(BLOCKCHAIN_SAVE);
+    if (space)
+      void AsyncStorage.setItem(SPACE_SAVE, JSON.stringify(space));
+    else void AsyncStorage.removeItem(SPACE_SAVE);
   }, [
     businesses,
     taxiCompany,
@@ -319,6 +338,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     airline,
     hotel,
     blockchain,
+    space,
     hydrated,
   ]);
   const resetBusinesses = () => {
@@ -334,6 +354,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     setAirline(null);
     setHotel(null);
     setBlockchain(null);
+    setSpace(null);
     void AsyncStorage.setItem(
       BUSINESS_SIMULATION_SAVE,
       JSON.stringify({ schemaVersion: 2, businesses: DEFAULT_BUSINESSES }),
@@ -349,6 +370,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     void AsyncStorage.removeItem(AIRLINE_SAVE);
     void AsyncStorage.removeItem(HOTEL_SAVE);
     void AsyncStorage.removeItem(BLOCKCHAIN_SAVE);
+    void AsyncStorage.removeItem(SPACE_SAVE);
   };
   const value = useMemo(
     () => ({
@@ -376,6 +398,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       setHotel,
       blockchain,
       setBlockchain,
+      space,
+      setSpace,
       resetBusinesses,
     }),
     [
@@ -391,6 +415,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       airline,
       hotel,
       blockchain,
+      space,
     ],
   );
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
