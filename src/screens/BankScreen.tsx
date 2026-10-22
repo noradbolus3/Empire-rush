@@ -54,18 +54,19 @@ import {
 } from "../types/bank";
 import type { BankLedgerEntry } from "../types/bank";
 import { calculateNetWorth } from "../engine/financialCore";
+import { designSystem } from "../theme/designSystem";
 
 const C = {
-  bg: "#FFFFFF",
-  panel: "#F7FAFD",
-  panel2: "#EAF2FA",
-  green: "#1769AA",
-  red: "#C62828",
-  cyan: "#1769AA",
-  gold: "#A15C00",
-  slate: "#B8C9DA",
-  text: "#172B4D",
-  muted: "#52657D",
+  bg: designSystem.colors.background,
+  panel: designSystem.colors.card,
+  panel2: designSystem.colors.highlight,
+  green: designSystem.colors.primary,
+  red: designSystem.colors.negative,
+  cyan: designSystem.colors.cyan,
+  gold: designSystem.colors.gold,
+  slate: designSystem.colors.border,
+  text: designSystem.colors.heading,
+  muted: designSystem.colors.secondary,
 };
 const bankingVisuals = {
   home: { source: require("../../assets/banking/headquarters.webp"), label: "HEADQUARTERS · BANKING OPERATIONS" },

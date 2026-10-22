@@ -56,19 +56,20 @@ import {
   levelConfig,
   normalizeBusinessLevel,
 } from "../engine/businessLevels";
+import { designSystem } from "../theme/designSystem";
 
 const C = {
-  bg: "#F6F9FC",
-  surface: "#FFFFFF",
-  card: "#FFFFFF",
-  cardBorder: "#C4DDD2",
-  white: "#132334",
-  muted: "#607487",
-  green: "#079669",
-  cyan: "#0084A3",
-  red: "#FF6D62",
-  gold: "#B77700",
-  violet: "#B59CFF",
+  bg: designSystem.colors.background,
+  surface: designSystem.colors.card,
+  card: designSystem.colors.card,
+  cardBorder: designSystem.colors.border,
+  white: designSystem.colors.heading,
+  muted: designSystem.colors.secondary,
+  green: designSystem.colors.primary,
+  cyan: designSystem.colors.cyan,
+  red: designSystem.colors.negative,
+  gold: designSystem.colors.gold,
+  violet: designSystem.colors.violet,
   ink: "#08110E",
 };
 type Props = {

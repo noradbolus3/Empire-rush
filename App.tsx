@@ -125,19 +125,20 @@ import { defaultBankState } from "./src/types/bank";
 import type { BankLedgerEntry } from "./src/types/bank";
 import { sanitizeBankState } from "./src/engine/bankEngine";
 import { calculateNetWorth, settleHour } from "./src/engine/financialCore";
+import { designSystem } from "./src/theme/designSystem";
 type Tab = "empire" | "business" | "markets" | "lifestyle" | "bank";
 type Filter = "dividend" | "cheap" | "crypto" | "watchlist" | "all";
 const C = {
-  bg: "#F6F9FC",
-  panel: "#FFFFFF",
-  panel2: "#EEF6F2",
-  green: "#079669",
-  red: "#D64B57",
-  cyan: "#0084A3",
-  gold: "#B77700",
-  slate: "#C4DDD2",
-  text: "#132334",
-  muted: "#607487",
+  bg: designSystem.colors.background,
+  panel: designSystem.colors.card,
+  panel2: designSystem.colors.highlight,
+  green: designSystem.colors.primary,
+  red: designSystem.colors.negative,
+  cyan: designSystem.colors.cyan,
+  gold: designSystem.colors.gold,
+  slate: designSystem.colors.border,
+  text: designSystem.colors.heading,
+  muted: designSystem.colors.secondary,
 };
 const money = (n: number) => {
   const safe = Number.isFinite(n) ? Math.max(0, n) : 0;

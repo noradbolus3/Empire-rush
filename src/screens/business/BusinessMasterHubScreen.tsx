@@ -25,20 +25,9 @@ import { IPO_MIN_VALUATION } from "../../engine/ipoEngine";
 import type { BankLedgerEntry } from "../../types/bank";
 import { normalizeBusinessLevel } from "../../engine/businessLevels";
 import ConstructionCompanyScreen from "./ConstructionCompanyScreen";
+import { designSystem } from '../../theme/designSystem';
 
-const C = {
-  bg: "#0B0F17",
-  card: "#161F30",
-  panel: "#111A28",
-  slate: "#1E293B",
-  green: "#10B981",
-  cyan: "#00D2FF",
-  red: "#FF3D71",
-  white: "#F8FAFC",
-  muted: "#94A3B8",
-  gold: "#E6B86A",
-  violet: "#A78BFA",
-};
+const C = { bg: designSystem.colors.background, card: designSystem.colors.card, panel: designSystem.colors.highlight, slate: designSystem.colors.border, green: designSystem.colors.primary, cyan: designSystem.colors.cyan, red: designSystem.colors.negative, white: designSystem.colors.heading, muted: designSystem.colors.secondary, gold: designSystem.colors.gold, violet: designSystem.colors.violet };
 type Props = {
   business: BusinessEntity;
   cash: number;

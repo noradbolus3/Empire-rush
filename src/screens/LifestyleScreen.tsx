@@ -8,8 +8,9 @@ import { JetsTab } from './JetsTab';
 import { PropertiesTab } from './PropertiesTab';
 import type { CollectionItem } from '../data/collectionTypes';
 import type { BankLedgerEntry } from '../types/bank';
+import { designSystem } from '../theme/designSystem';
 
-const C = { bg: '#F6F9FC', panel: '#FFFFFF', panel2: '#EEF6F2', green: '#079669', cyan: '#0084A3', gold: '#B77700', slate: '#C4DDD2', text: '#132334', muted: '#607487' };
+const C = { bg: designSystem.colors.background, panel: designSystem.colors.card, panel2: designSystem.colors.highlight, green: designSystem.colors.primary, cyan: designSystem.colors.cyan, gold: designSystem.colors.gold, slate: designSystem.colors.border, text: designSystem.colors.heading, muted: designSystem.colors.secondary };
 type LifestyleTab = 'CARS' | 'YACHTS' | 'JETS' | 'PROPERTIES';
 const TABS: { id: LifestyleTab; label: string; caption: string }[] = [
   { id: 'CARS', label: 'Cars', caption: 'Road icons from daily drivers to hypercars.' },

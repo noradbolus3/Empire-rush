@@ -6,7 +6,9 @@ import { getRetailUnitEconomics, getWarehouseCapacity, getWarehouseStage } from 
 import { formatCurrency } from '../utils/formatCurrency';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { BusinessStackParamList } from './businessNavigation';
-const C = { bg: '#0B0F17', panel: '#121923', green: '#00E676', red: '#FF3D71', cyan: '#00D2FF', text: '#F7FAFC', muted: '#8190A5', slate: '#1E293B', gold: '#E6B86A' };
+import { designSystem } from '../theme/designSystem';
+
+const C = { bg: designSystem.colors.background, panel: designSystem.colors.card, green: designSystem.colors.primary, red: designSystem.colors.negative, cyan: designSystem.colors.cyan, text: designSystem.colors.heading, muted: designSystem.colors.secondary, slate: designSystem.colors.border, gold: designSystem.colors.gold };
 export function BusinessSupplyChainScreen({ route }: NativeStackScreenProps<BusinessStackParamList, 'BusinessSupplyChain'>) {
   const { business, cash, onCashChange, onChange } = route.params;
   const retail = business.resources.kind === 'retail' ? business.resources : null;

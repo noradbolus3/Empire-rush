@@ -6,11 +6,12 @@ import Svg, { Circle, Line, Path } from 'react-native-svg';
 import { WealthCard } from '../components/WealthCard';
 import { formatCurrency } from '../utils/formatCurrency';
 import { TAP_VALUE_CAP } from '../engine/tapUpgradeEngine';
+import { designSystem } from '../theme/designSystem';
 
 type BadgeItem = { id: number; amount: number; lane: number };
 type HomeScreenProps = { cash: number; netWorth: number; projectedHourlyIncome: number; settlementCountdown: string; clickValue: number; tapUpgradeLevel: number; clickUpgradeCost: number; tapUpgradeGain: number; loginStreak: number; tapsToday: number; tapCashToday: number; tapBoostMultiplier: number; tapBoostActive: boolean; dailyTapGoal: number; missionClaimed: boolean; rank: string; nextGoal: string; prestigeLevel: number; achievements: number; weeklyEvent: string; onPrestige: () => void; prestigeLocked: boolean; prestigeShortfall: number; hapticsEnabled: boolean; soundEnabled: boolean; onWatchBoost: () => void; onWatchTapBoost: () => void; onEarn: (amount: number) => void; onUpgrade: () => void; onClaimMission: () => void; onOpenBusiness: () => void; onOpenStore: () => void; onOpenNextGoal: () => void; onOpenEarnings: () => void };
 
-const C = { bg: '#F6F9FC', ink: '#08110E', panel: '#FFFFFF', emerald: '#079669', lime: '#16824F', gold: '#B77700', white: '#132334', muted: '#607487', cyan: '#0084A3' };
+const C = { bg: designSystem.colors.background, ink: '#08110E', panel: designSystem.colors.card, emerald: designSystem.colors.primary, lime: designSystem.colors.primary, gold: designSystem.colors.gold, white: designSystem.colors.heading, muted: designSystem.colors.secondary, cyan: designSystem.colors.cyan };
 
 export function HomeScreen({ cash, netWorth, projectedHourlyIncome, settlementCountdown, clickValue, tapUpgradeLevel, clickUpgradeCost, tapUpgradeGain, loginStreak, tapsToday, tapCashToday, tapBoostMultiplier, tapBoostActive, dailyTapGoal, missionClaimed, rank, nextGoal, prestigeLevel, achievements, weeklyEvent, onPrestige, prestigeLocked, prestigeShortfall, hapticsEnabled, soundEnabled, onWatchBoost, onWatchTapBoost, onEarn, onUpgrade, onClaimMission, onOpenBusiness, onOpenStore, onOpenNextGoal, onOpenEarnings }: HomeScreenProps) {
   const [badges, setBadges] = useState<BadgeItem[]>([]);

@@ -10,12 +10,13 @@ import { calculateIndex, STOCK_INDEX_DEFINITIONS, CRYPTO_INDEX_DEFINITIONS } fro
 import { PriceAlert } from '../../types/marketIntelligence';
 import { TechnicalChartModal } from '../TechnicalChartModal';
 import { ChipRow } from '../../components/ChipRow';
+import { designSystem } from '../../theme/designSystem';
 
 type MarketProps = { playerNetWorth:number; cash:number; assets:Asset[]; holdings:Record<string,Holding>; watchlist:string[]; toggleWatchlist:(id:string)=>void; filter:any; setFilter:(filter:any)=>void; executeTrade:(asset:Asset,side:'BUY'|'SELL',quantity:number)=>void; summary:PortfolioSummary; tradeHistory:TradeRecord[]; limitOrders:LimitOrder[]; portfolioHistory:PortfolioPoint[]; rivalInvestors:RivalInvestor[]; allocation:PortfolioAllocation[]; systemTimeMs:number; marketEventHistory?:Array<{id:string;headline:string;tick:number;timestamp:number}>; priceAlerts:PriceAlert[]; onCreatePriceAlert:(alert:PriceAlert)=>void; onRemovePriceAlert:(id:string)=>void; onCreateLimitOrder:(asset:Asset,side:'BUY'|'SELL',quantity:number,price:number)=>void; onCancelLimitOrder:(id:string)=>void };
 type Channel='STOCKS'|'CRYPTO';
 type Page='HOME'|'LIST'|'DETAIL'|'PORTFOLIO'|'WATCHLIST'|'ORDERS'|'TRANSACTIONS'|'INDICES'|'INDEX_DETAIL'|'MOVERS'|'EVENTS';
 type Sort='CHANGE'|'PRICE'|'DIVIDEND'|'NAME';
-const C={bg:'#F6F9FC',surface:'#FFFFFF',surface2:'#F0F5F8',border:'#D5E1E8',text:'#132334',muted:'#607487',stock:'#20C7E8',stockSoft:'#E3F6FA',crypto:'#9A68FF',cryptoSoft:'#EEE9FF',up:'#079669',down:'#D64B57',amber:'#B77700'};
+const C={bg:designSystem.colors.background,surface:designSystem.colors.card,surface2:'#F0F5F8',border:designSystem.colors.border,text:designSystem.colors.heading,muted:designSystem.colors.secondary,stock:designSystem.colors.cyan,stockSoft:'#E3F6FA',crypto:designSystem.colors.violet,cryptoSoft:'#EEE9FF',up:designSystem.colors.positive,down:designSystem.colors.negative,amber:designSystem.colors.gold};
 const money=(n:number)=>{const v=Number.isFinite(n)?n:0;return `${v<0?'-':''}$${Math.abs(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`};
 const short=(n:number)=>{const v=Number.isFinite(n)?n:0;const a=Math.abs(v);const s=v<0?'-':'';if(a>=1e9)return `${s}$${(a/1e9).toFixed(2)}B`;if(a>=1e6)return `${s}$${(a/1e6).toFixed(2)}M`;if(a>=1e3)return `${s}$${(a/1e3).toFixed(2)}K`;return money(v)};
 const pct=(n:number)=>`${n>=0?'+':''}${(Number.isFinite(n)?n:0).toFixed(2)}%`;
