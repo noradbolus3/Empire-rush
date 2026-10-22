@@ -1799,7 +1799,7 @@ const styles = StyleSheet.create({
   },
   visualImage: { width: "100%", height: "100%" },
   visualShade: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: "rgba(23,43,77,0.24)",
   },
   visualLabel: {
