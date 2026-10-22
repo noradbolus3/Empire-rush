@@ -1,0 +1,23 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import { DEFAULT_SPORTS_CLUB } from "../src/types/sportsClub";
+import { expandClub, matchOutcome, projectedHourlyRevenue, signSponsor, trainTeam, upgradeFacility } from "../src/engine/sportsClubEngine";
+
+const root = path.resolve(__dirname, "..");
+const screen = fs.readFileSync(path.join(root, "src/screens/SportsClubCompanyScreen.tsx"), "utf8");
+const assets = ["club-headquarters.webp", "stadium-facilities.webp", "team-management.webp", "matches-tournaments.webp", "sponsorship-revenue.webp", "expansion-group.webp"];
+for (const asset of assets) assert.ok(fs.existsSync(path.join(root, "assets/sports", asset)), asset);
+for (const label of ["Dashboard", "Facilities", "Teams", "Matches", "Revenue", "Expansion"]) assert.match(screen, new RegExp(label));
+const trained = trainTeam(DEFAULT_SPORTS_CLUB);
+const played = matchOutcome(trained, 17);
+const sponsored = signSponsor(played);
+const expanded = expandClub(sponsored);
+const facility = upgradeFacility(expanded, "stadium");
+assert.equal(facility.players, 20);
+assert.equal(facility.matchesPlayed, 1);
+assert.equal(facility.cityCount, 2);
+assert.ok(projectedHourlyRevenue(facility) > 0);
+assert.match(screen, /ScrollView/);
+assert.match(screen, /white|#FFF/);
+console.log(JSON.stringify({ test: "sports-club-proof", pages: 6, uniqueVisualAssets: assets.length, progression: { players: facility.players, matches: facility.matchesPlayed, cities: facility.cityCount, projectedHourlyRevenue: projectedHourlyRevenue(facility) }, persistenceSchema: DEFAULT_SPORTS_CLUB.schemaVersion, status: "PASS" }, null, 2));

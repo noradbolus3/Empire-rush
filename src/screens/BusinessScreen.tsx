@@ -29,6 +29,7 @@ import {
 import { IPOListing } from "../types/ipo";
 import type { BankLedgerEntry } from "../types/bank";
 import { RetailShopState } from "../types/retail";
+import { DEFAULT_SPORTS_CLUB } from "../types/sportsClub";
 import { formatCurrency } from "../utils/formatCurrency";
 import BusinessMasterHubScreen from "./business/BusinessMasterHubScreen";
 import TaxiCompanyScreen from "./TaxiCompanyScreen";
@@ -37,6 +38,7 @@ import FactoryCompanyScreen from "./FactoryCompanyScreen";
 import ConstructionCompanyScreen from "./ConstructionCompanyScreen";
 import CarDealershipScreen from "./CarDealershipScreen";
 import SoftwareCompanyScreen from "./SoftwareCompanyScreen";
+import SportsClubCompanyScreen from "./SportsClubCompanyScreen";
 import {
   clearLevelUpNotice,
   levelConfig,
@@ -221,6 +223,8 @@ function BusinessScreenContent({
     setDealership,
     softwareCompany,
     setSoftwareCompany,
+    sportsClub,
+    setSportsClub,
   } = useGame();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [taxiOpen, setTaxiOpen] = useState(false);
@@ -229,6 +233,7 @@ function BusinessScreenContent({
   const [constructionOpen, setConstructionOpen] = useState(false);
   const [dealershipOpen, setDealershipOpen] = useState(false);
   const [softwareOpen, setSoftwareOpen] = useState(false);
+  const [sportsOpen, setSportsOpen] = useState(false);
   const [registrationId, setRegistrationId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"start" | "companies">("start");
   const celebratedRef = useRef("");
@@ -316,6 +321,18 @@ function BusinessScreenContent({
     .filter((entry) => entry.hourly > 0)
     .sort((a, b) => a.cost / a.hourly - b.cost / b.hourly);
   const bestAffordable = opportunities.find((entry) => entry.cost <= cash);
+  const openSportsClub = () => {
+    if (sportsClub) return setSportsOpen(true);
+    const setupCost = 250000;
+    if (cash < setupCost) {
+      Alert.alert("SPORTS CLUB LOCKED", `Need ${formatCurrency(setupCost - cash)} more for the club charter and first season budget.`);
+      return;
+    }
+    onCashChange((value) => value - setupCost);
+    setSportsClub({ ...DEFAULT_SPORTS_CLUB, cashReserve: setupCost });
+    onLedger?.({ id: `sports-charter-${Date.now()}`, kind: "PURCHASE", label: "Sports Club charter", amount: -setupCost, timestamp: Date.now(), detail: "Club headquarters and first-season operating reserve" });
+    setSportsOpen(true);
+  };
   const nextMove = bestAffordable
     ? `Start ${bestAffordable.item.name} · ~${Math.max(1, Math.ceil(bestAffordable.cost / bestAffordable.hourly))} settlements to pay back at +${formatCurrency(bestAffordable.hourly)}/hr`
     : (() => {
@@ -367,6 +384,17 @@ function BusinessScreenContent({
         onCashChange={onCashChange}
         onChange={setSoftwareCompany || (() => undefined)}
         onBack={() => setSoftwareOpen(false)}
+        onLedger={onLedger}
+      />
+    );
+  if (sportsOpen)
+    return (
+      <SportsClubCompanyScreen
+        company={sportsClub}
+        cash={cash}
+        onCashChange={onCashChange}
+        onChange={setSportsClub}
+        onBack={() => setSportsOpen(false)}
         onLedger={onLedger}
       />
     );
@@ -649,6 +677,20 @@ function BusinessScreenContent({
               <Text style={styles.factoryButtonText}>
                 {softwareCompany ? "MANAGE SOFTWARE" : "START SOFTWARE"}
               </Text>
+            </Pressable>
+          </View>
+          <View style={styles.sportsCard}>
+            <View style={styles.factoryCardCopy}>
+              <Text style={styles.sportsEyebrow}>SPORTS & ENTERTAINMENT</Text>
+              <Text style={styles.factoryTitle}>{sportsClub ? sportsClub.clubName : "Sports Club Company"}</Text>
+              <Text style={styles.factoryCopy}>
+                {sportsClub
+                  ? `${sportsClub.stage} · ${sportsClub.teams} teams · ${sportsClub.stadiumCapacity.toLocaleString()} seats`
+                  : "Build teams, stadiums, tournaments, sponsorships and a multi-city sports group."}
+              </Text>
+            </View>
+            <Pressable style={styles.sportsButton} onPress={openSportsClub}>
+              <Text style={styles.factoryButtonText}>{sportsClub ? "MANAGE SPORTS" : "START SPORTS"}</Text>
             </Pressable>
           </View>
           <View style={styles.bankingCard}>
@@ -1266,6 +1308,29 @@ const styles = StyleSheet.create({
   },
   softwareButton: {
     backgroundColor: "#7250C7",
+    borderRadius: 10,
+    paddingHorizontal: 11,
+    paddingVertical: 10,
+  },
+  sportsCard: {
+    backgroundColor: "#F1F8FF",
+    borderColor: "#A9C8F2",
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  sportsEyebrow: {
+    color: "#1769AA",
+    fontSize: 8,
+    fontWeight: "900",
+    letterSpacing: 1,
+  },
+  sportsButton: {
+    backgroundColor: "#1769AA",
     borderRadius: 10,
     paddingHorizontal: 11,
     paddingVertical: 10,
