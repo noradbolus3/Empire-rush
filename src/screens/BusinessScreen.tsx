@@ -31,6 +31,7 @@ import type { BankLedgerEntry } from "../types/bank";
 import { RetailShopState } from "../types/retail";
 import { DEFAULT_SPORTS_CLUB } from "../types/sportsClub";
 import { DEFAULT_OIL_GAS } from "../types/oilGas";
+import { DEFAULT_AIRLINE } from "../types/airline";
 import { formatCurrency } from "../utils/formatCurrency";
 import BusinessMasterHubScreen from "./business/BusinessMasterHubScreen";
 import TaxiCompanyScreen from "./TaxiCompanyScreen";
@@ -41,6 +42,7 @@ import CarDealershipScreen from "./CarDealershipScreen";
 import SoftwareCompanyScreen from "./SoftwareCompanyScreen";
 import SportsClubCompanyScreen from "./SportsClubCompanyScreen";
 import OilGasCompanyScreen from "./OilGasCompanyScreen";
+import AirlineCompanyScreen from "./AirlineCompanyScreen";
 import {
   clearLevelUpNotice,
   levelConfig,
@@ -229,6 +231,8 @@ function BusinessScreenContent({
     setSportsClub,
     oilGas,
     setOilGas,
+    airline,
+    setAirline,
   } = useGame();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [taxiOpen, setTaxiOpen] = useState(false);
@@ -239,6 +243,7 @@ function BusinessScreenContent({
   const [softwareOpen, setSoftwareOpen] = useState(false);
   const [sportsOpen, setSportsOpen] = useState(false);
   const [oilGasOpen, setOilGasOpen] = useState(false);
+  const [airlineOpen, setAirlineOpen] = useState(false);
   const [registrationId, setRegistrationId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"start" | "companies">("start");
   const celebratedRef = useRef("");
@@ -350,6 +355,18 @@ function BusinessScreenContent({
     onLedger?.({ id: `oilgas-charter-${Date.now()}`, kind: "PURCHASE", label: "Oil & Gas charter", amount: -setupCost, timestamp: Date.now(), detail: "Energy headquarters and first-field operating reserve" });
     setOilGasOpen(true);
   };
+  const openAirline = () => {
+    if (airline) return setAirlineOpen(true);
+    const setupCost = 600000;
+    if (cash < setupCost) {
+      Alert.alert("AIRLINE LOCKED", `Need ${formatCurrency(setupCost - cash)} more for the air operator certificate and launch fleet.`);
+      return;
+    }
+    onCashChange((value) => value - setupCost);
+    setAirline({ ...DEFAULT_AIRLINE, cashReserve: setupCost });
+    onLedger?.({ id: `airline-charter-${Date.now()}`, kind: "PURCHASE", label: "Airline charter", amount: -setupCost, timestamp: Date.now(), detail: "Air operator certificate and launch fleet reserve" });
+    setAirlineOpen(true);
+  };
   const nextMove = bestAffordable
     ? `Start ${bestAffordable.item.name} · ~${Math.max(1, Math.ceil(bestAffordable.cost / bestAffordable.hourly))} settlements to pay back at +${formatCurrency(bestAffordable.hourly)}/hr`
     : (() => {
@@ -423,6 +440,17 @@ function BusinessScreenContent({
         onCashChange={onCashChange}
         onChange={setOilGas}
         onBack={() => setOilGasOpen(false)}
+        onLedger={onLedger}
+      />
+    );
+  if (airlineOpen)
+    return (
+      <AirlineCompanyScreen
+        company={airline}
+        cash={cash}
+        onCashChange={onCashChange}
+        onChange={setAirline}
+        onBack={() => setAirlineOpen(false)}
         onLedger={onLedger}
       />
     );
@@ -743,6 +771,18 @@ function BusinessScreenContent({
             </View>
             <Pressable style={styles.bankingButton} onPress={onOpenBank}>
               <Text style={styles.factoryButtonText}>OPEN BANKING</Text>
+            </Pressable>
+          </View>
+          <View style={styles.airlineCard}>
+            <View style={styles.factoryCardCopy}>
+              <Text style={styles.airlineEyebrow}>AVIATION & TRAVEL</Text>
+              <Text style={styles.factoryTitle}>{airline ? airline.companyName : "Airline Company"}</Text>
+              <Text style={styles.factoryCopy}>
+                {airline ? `${airline.stage} · ${airline.aircraft} aircraft · ${airline.routes} routes` : "Build a regional carrier, schedule routes, fill seats and expand into a global airline group."}
+              </Text>
+            </View>
+            <Pressable style={styles.airlineButton} onPress={openAirline}>
+              <Text style={styles.factoryButtonText}>{airline ? "MANAGE AIRLINE" : "START AIRLINE"}</Text>
             </Pressable>
           </View>
           <View style={styles.primaryActions}>
@@ -1394,6 +1434,29 @@ const styles = StyleSheet.create({
   },
   oilGasButton: {
     backgroundColor: "#087E9E",
+    borderRadius: 10,
+    paddingHorizontal: 11,
+    paddingVertical: 10,
+  },
+  airlineCard: {
+    backgroundColor: "#F2F7FF",
+    borderColor: "#9BBCE8",
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  airlineEyebrow: {
+    color: "#2C63B6",
+    fontSize: 8,
+    fontWeight: "900",
+    letterSpacing: 1,
+  },
+  airlineButton: {
+    backgroundColor: "#2C63B6",
     borderRadius: 10,
     paddingHorizontal: 11,
     paddingVertical: 10,

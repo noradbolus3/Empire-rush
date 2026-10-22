@@ -1,0 +1,13 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import { DEFAULT_AIRLINE } from "../src/types/airline";
+import { acquireAircraft, expandGlobal, openRoute, optimizeTicketing, performMaintenance, projectedHourlyProfit, trainCrew } from "../src/engine/airlineEngine";
+const root=path.resolve(__dirname,"..");
+const screen=fs.readFileSync(path.join(root,"src/screens/AirlineCompanyScreen.tsx"),"utf8");
+const assets=["headquarters.webp","fleet-management.webp","routes-scheduling.webp","ticketing-services.webp","maintenance-operations.webp","crew-service.webp","global-network.webp"];
+for(const asset of assets) assert.ok(fs.existsSync(path.join(root,"assets/airline",asset)),asset);
+for(const label of ["Dashboard","Fleet","Routes","Ticketing","Maintenance","Crew","Expansion"]) assert.match(screen,new RegExp(label));
+let state=acquireAircraft(DEFAULT_AIRLINE); state=openRoute(state); state=optimizeTicketing(state); state=performMaintenance(state); state=trainCrew(state); state=expandGlobal(state);
+assert.equal(state.aircraft,1); assert.equal(state.routes,3); assert.equal(state.internationalRoutes,2); assert.ok(projectedHourlyProfit(state)>0);
+console.log(JSON.stringify({test:"airline-proof",pages:7,uniqueVisualAssets:assets.length,progression:{aircraft:state.aircraft,routes:state.routes,hubs:state.hubs,internationalRoutes:state.internationalRoutes,projectedHourlyProfit:projectedHourlyProfit(state)},persistenceSchema:DEFAULT_AIRLINE.schemaVersion,status:"PASS"},null,2));
