@@ -70,6 +70,7 @@ import {
 } from "./src/services/notifications";
 import { BUILD_COMMIT, BUILD_VERSION } from "./src/config/buildInfo";
 import { GAME_SAVE_VERSION, migrateGameSave } from "./src/engine/saveMigration";
+import { resolveCashUpdate, sanitizeCash } from "./src/engine/walletGuard";
 import {
   advanceMarketTick,
   appendPortfolioPoint,
@@ -278,6 +279,12 @@ function AppContent() {
   const [tab, setTab] = useState<Tab>("empire");
   const [focusRetail, setFocusRetail] = useState(false);
   const [cash, setCash] = useState(STARTING_CASH);
+  const guardedSetCash = useCallback<React.Dispatch<React.SetStateAction<number>>>(
+    (update) => {
+      setCash((current) => resolveCashUpdate(current, update));
+    },
+    [],
+  );
   const [progression, setProgression] = useState<ProgressionState>(() =>
     hydrateDailyProgress(DEFAULT_PROGRESSION),
   );
@@ -769,7 +776,7 @@ function AppContent() {
       };
     }
     setLastSettlementAtMs((value) => value + elapsedHours * 3600000);
-    setCash((value) =>
+    guardedSetCash((value) =>
       Math.max(0, Math.min(Number.MAX_SAFE_INTEGER, value + totalDelta)),
     );
     setLedger((previous) => [...previous, ...allEntries].slice(-500));
@@ -870,7 +877,7 @@ function AppContent() {
           : order,
       ),
     );
-    setCash(Math.max(0, cashCursor));
+    guardedSetCash(sanitizeCash(cashCursor));
     setHoldings(holdingsCursor);
     setTradeHistory((previous) => capTradeHistory([...previous, ...records]));
     records.forEach((record) =>
@@ -916,7 +923,7 @@ function AppContent() {
     if (lastDividendQuarter.current === dividend.quarter) return;
     lastDividendQuarter.current = dividend.quarter;
     if (dividend.payout > 0) {
-      setCash((value) =>
+      guardedSetCash((value) =>
         Math.min(Number.MAX_SAFE_INTEGER, value + dividend.payout),
       );
       setTradeHistory((previous) =>
@@ -1019,7 +1026,7 @@ function AppContent() {
     const award =
       amount * (1 + progression.prestigeLevel * 0.05) * liveTapBoostMultiplier;
     haptic();
-    setCash((n) => Math.min(Number.MAX_SAFE_INTEGER, n + award));
+    guardedSetCash((n) => Math.min(Number.MAX_SAFE_INTEGER, n + award));
     pushIncomeEvent({ source: "Tap actions", amount: award, category: "tap" });
     setProgression((current) => ({
       ...current,
@@ -1038,7 +1045,7 @@ function AppContent() {
         `Need ${money(clickUpgradeCost)} liquid cash.`,
       );
     haptic(true);
-    setCash((n) => n - clickUpgradeCost);
+    guardedSetCash((n) => n - clickUpgradeCost);
     setClickValue((n) =>
       Math.min(TAP_VALUE_CAP, Number((n + nextTapUpgradeGain).toFixed(2))),
     );
@@ -1116,7 +1123,7 @@ function AppContent() {
       return;
     missionClaimLock.current = true;
     haptic(true);
-    setCash((value) => Math.min(Number.MAX_SAFE_INTEGER, value + 1000));
+    guardedSetCash((value) => Math.min(Number.MAX_SAFE_INTEGER, value + 1000));
     pushIncomeEvent({
       source: "Founder mission",
       amount: 1000,
@@ -1148,7 +1155,7 @@ function AppContent() {
       ...list.filter((asset) => !asset.isPlayerCompany),
       listingToAsset(safeListing) as Asset,
     ]);
-    setCash((value) =>
+    guardedSetCash((value) =>
       Math.min(Number.MAX_SAFE_INTEGER, value + safeListing.capitalRaised),
     );
     pushIncomeEvent({
@@ -1288,7 +1295,7 @@ function AppContent() {
       transactionType: side,
     };
     haptic(side === "BUY");
-    setCash(result.cash);
+    guardedSetCash(result.cash);
     setHoldings((previous) => ({
       ...previous,
       [asset.id]:
@@ -1463,7 +1470,7 @@ function AppContent() {
               focusRetail={focusRetail}
               onRetailFocusHandled={() => setFocusRetail(false)}
               onStateChange={setRetail}
-              onCashChange={setCash}
+              onCashChange={guardedSetCash}
               onLedger={postLedger}
               onOpenBank={() => setTab("bank")}
             />
@@ -1545,7 +1552,7 @@ function AppContent() {
                 <LifestyleScreen
                   owned={owned}
                   cash={cash}
-                  setCash={setCash}
+                  setCash={guardedSetCash}
                   setOwned={setOwned}
                   onLedger={postLedger}
                 />
@@ -1576,7 +1583,7 @@ function AppContent() {
                     }[]
                   }
                   onStateChange={handleBankStateChange}
-                  onCashChange={setCash}
+                  onCashChange={guardedSetCash}
                   onBreaking={setHeadline}
                   onHaptic={haptic}
                 />
@@ -1600,7 +1607,7 @@ function AppContent() {
           close={() => setStoreOpen(false)}
           adFree={adFree}
           setAdFree={setAdFree}
-          setCash={setCash}
+          setCash={guardedSetCash}
           setMultiplier={setMultiplier}
         />
         <SettingsModal
