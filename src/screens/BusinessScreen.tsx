@@ -35,6 +35,7 @@ import { DEFAULT_AIRLINE } from "../types/airline";
 import { DEFAULT_HOTEL } from "../types/hotel";
 import { DEFAULT_BLOCKCHAIN } from "../types/blockchain";
 import { DEFAULT_SPACE } from "../types/space";
+import { DEFAULT_HOLDING } from "../types/holding";
 import { formatCurrency } from "../utils/formatCurrency";
 import BusinessMasterHubScreen from "./business/BusinessMasterHubScreen";
 import TaxiCompanyScreen from "./TaxiCompanyScreen";
@@ -49,6 +50,7 @@ import AirlineCompanyScreen from "./AirlineCompanyScreen";
 import HotelCompanyScreen from "./HotelCompanyScreen";
 import BlockchainCompanyScreen from "./BlockchainCompanyScreen";
 import SpaceCompanyScreen from "./SpaceCompanyScreen";
+import HoldingCompanyScreen from "./HoldingCompanyScreen";
 import {
   clearLevelUpNotice,
   levelConfig,
@@ -245,6 +247,8 @@ function BusinessScreenContent({
     setBlockchain,
     space,
     setSpace,
+    holding,
+    setHolding,
   } = useGame();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [taxiOpen, setTaxiOpen] = useState(false);
@@ -259,6 +263,7 @@ function BusinessScreenContent({
   const [hotelOpen, setHotelOpen] = useState(false);
   const [blockchainOpen, setBlockchainOpen] = useState(false);
   const [spaceOpen, setSpaceOpen] = useState(false);
+  const [holdingOpen, setHoldingOpen] = useState(false);
   const [registrationId, setRegistrationId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"start" | "companies">("start");
   const celebratedRef = useRef("");
@@ -418,6 +423,18 @@ function BusinessScreenContent({
     onLedger?.({ id: `space-charter-${Date.now()}`, kind: "PURCHASE", label: "Aerospace company charter", amount: -setupCost, timestamp: Date.now(), detail: "Launch program and engineering team reserve" });
     setSpaceOpen(true);
   };
+  const openHolding = () => {
+    if (holding) return setHoldingOpen(true);
+    const setupCost = 1200000;
+    if (cash < setupCost) {
+      Alert.alert("HOLDING COMPANY LOCKED", `Need ${formatCurrency(setupCost - cash)} more for the corporate headquarters and group treasury.`);
+      return;
+    }
+    onCashChange((value) => value - setupCost);
+    setHolding({ ...DEFAULT_HOLDING, cashReserve: setupCost });
+    onLedger?.({ id: `holding-charter-${Date.now()}`, kind: "PURCHASE", label: "Holding Company charter", amount: -setupCost, timestamp: Date.now(), detail: "Corporate headquarters and group treasury reserve" });
+    setHoldingOpen(true);
+  };
   const nextMove = bestAffordable
     ? `Start ${bestAffordable.item.name} · ~${Math.max(1, Math.ceil(bestAffordable.cost / bestAffordable.hourly))} settlements to pay back at +${formatCurrency(bestAffordable.hourly)}/hr`
     : (() => {
@@ -535,6 +552,17 @@ function BusinessScreenContent({
         onCashChange={onCashChange}
         onChange={setSpace}
         onBack={() => setSpaceOpen(false)}
+        onLedger={onLedger}
+      />
+    );
+  if (holdingOpen)
+    return (
+      <HoldingCompanyScreen
+        holding={holding}
+        cash={cash}
+        onCashChange={onCashChange}
+        onChange={setHolding}
+        onBack={() => setHoldingOpen(false)}
         onLedger={onLedger}
       />
     );
@@ -903,6 +931,18 @@ function BusinessScreenContent({
             </View>
             <Pressable style={styles.spaceButton} onPress={openSpace}>
               <Text style={styles.factoryButtonText}>{space ? "MANAGE AEROSPACE" : "START AEROSPACE"}</Text>
+            </Pressable>
+          </View>
+          <View style={styles.holdingCard}>
+            <View style={styles.factoryCardCopy}>
+              <Text style={styles.holdingEyebrow}>GROUP MANAGEMENT LAYER</Text>
+              <Text style={styles.factoryTitle}>{holding ? holding.companyName : "Holding Company & Mergers"}</Text>
+              <Text style={styles.factoryCopy}>
+                {holding ? `${holding.stage} · ${holding.subsidiaries.length} subsidiaries · ${Math.round(holding.synergyRate * 100)}% synergy` : "Consolidate profitable businesses, acquire targets and manage group-wide treasury above the operating companies."}
+              </Text>
+            </View>
+            <Pressable style={styles.holdingButton} onPress={openHolding}>
+              <Text style={styles.factoryButtonText}>{holding ? "MANAGE GROUP" : "FORM HOLDING"}</Text>
             </Pressable>
           </View>
           <View style={styles.primaryActions}>
@@ -1646,6 +1686,29 @@ const styles = StyleSheet.create({
   },
   spaceButton: {
     backgroundColor: "#3856A7",
+    borderRadius: 10,
+    paddingHorizontal: 11,
+    paddingVertical: 10,
+  },
+  holdingCard: {
+    backgroundColor: "#F1F7FF",
+    borderColor: "#78A8D8",
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  holdingEyebrow: {
+    color: "#245B91",
+    fontSize: 8,
+    fontWeight: "900",
+    letterSpacing: 1,
+  },
+  holdingButton: {
+    backgroundColor: "#245B91",
     borderRadius: 10,
     paddingHorizontal: 11,
     paddingVertical: 10,
