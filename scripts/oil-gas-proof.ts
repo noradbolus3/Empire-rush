@@ -1,0 +1,13 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import { DEFAULT_OIL_GAS } from "../src/types/oilGas";
+import { expandStorage, exploreField, openStation, offshoreProject, processCrude, projectedHourlyProfit, signInternationalContract } from "../src/engine/oilGasEngine";
+const root=path.resolve(__dirname,"..");
+const screen=fs.readFileSync(path.join(root,"src/screens/OilGasCompanyScreen.tsx"),"utf8");
+const assets=["headquarters.webp","exploration-fields.webp","refinery-processing.webp","storage-distribution.webp","fuel-stations.webp","offshore-operations.webp","energy-group.webp"];
+for(const asset of assets) assert.ok(fs.existsSync(path.join(root,"assets/oilgas",asset)),asset);
+for(const label of ["Dashboard","Exploration","Refinery","Storage","Stations","Offshore","Expansion"]) assert.match(screen,new RegExp(label));
+let state=exploreField(DEFAULT_OIL_GAS); state=processCrude(state); state=expandStorage(state); state=openStation(state); state=offshoreProject(state,11); state=signInternationalContract(state);
+assert.equal(state.fields,1); assert.equal(state.fuelStations,1); assert.equal(state.internationalContracts,1); assert.ok(projectedHourlyProfit(state)>0);
+console.log(JSON.stringify({test:"oil-gas-proof",pages:7,uniqueVisualAssets:assets.length,progression:{fields:state.fields,stations:state.fuelStations,contracts:state.internationalContracts,projectedHourlyProfit:projectedHourlyProfit(state)},persistenceSchema:DEFAULT_OIL_GAS.schemaVersion,status:"PASS"},null,2));

@@ -30,6 +30,7 @@ import { IPOListing } from "../types/ipo";
 import type { BankLedgerEntry } from "../types/bank";
 import { RetailShopState } from "../types/retail";
 import { DEFAULT_SPORTS_CLUB } from "../types/sportsClub";
+import { DEFAULT_OIL_GAS } from "../types/oilGas";
 import { formatCurrency } from "../utils/formatCurrency";
 import BusinessMasterHubScreen from "./business/BusinessMasterHubScreen";
 import TaxiCompanyScreen from "./TaxiCompanyScreen";
@@ -39,6 +40,7 @@ import ConstructionCompanyScreen from "./ConstructionCompanyScreen";
 import CarDealershipScreen from "./CarDealershipScreen";
 import SoftwareCompanyScreen from "./SoftwareCompanyScreen";
 import SportsClubCompanyScreen from "./SportsClubCompanyScreen";
+import OilGasCompanyScreen from "./OilGasCompanyScreen";
 import {
   clearLevelUpNotice,
   levelConfig,
@@ -225,6 +227,8 @@ function BusinessScreenContent({
     setSoftwareCompany,
     sportsClub,
     setSportsClub,
+    oilGas,
+    setOilGas,
   } = useGame();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [taxiOpen, setTaxiOpen] = useState(false);
@@ -234,6 +238,7 @@ function BusinessScreenContent({
   const [dealershipOpen, setDealershipOpen] = useState(false);
   const [softwareOpen, setSoftwareOpen] = useState(false);
   const [sportsOpen, setSportsOpen] = useState(false);
+  const [oilGasOpen, setOilGasOpen] = useState(false);
   const [registrationId, setRegistrationId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"start" | "companies">("start");
   const celebratedRef = useRef("");
@@ -333,6 +338,18 @@ function BusinessScreenContent({
     onLedger?.({ id: `sports-charter-${Date.now()}`, kind: "PURCHASE", label: "Sports Club charter", amount: -setupCost, timestamp: Date.now(), detail: "Club headquarters and first-season operating reserve" });
     setSportsOpen(true);
   };
+  const openOilGas = () => {
+    if (oilGas) return setOilGasOpen(true);
+    const setupCost = 400000;
+    if (cash < setupCost) {
+      Alert.alert("OIL & GAS LOCKED", `Need ${formatCurrency(setupCost - cash)} more for the energy charter and first field budget.`);
+      return;
+    }
+    onCashChange((value) => value - setupCost);
+    setOilGas({ ...DEFAULT_OIL_GAS, cashReserve: setupCost });
+    onLedger?.({ id: `oilgas-charter-${Date.now()}`, kind: "PURCHASE", label: "Oil & Gas charter", amount: -setupCost, timestamp: Date.now(), detail: "Energy headquarters and first-field operating reserve" });
+    setOilGasOpen(true);
+  };
   const nextMove = bestAffordable
     ? `Start ${bestAffordable.item.name} · ~${Math.max(1, Math.ceil(bestAffordable.cost / bestAffordable.hourly))} settlements to pay back at +${formatCurrency(bestAffordable.hourly)}/hr`
     : (() => {
@@ -395,6 +412,17 @@ function BusinessScreenContent({
         onCashChange={onCashChange}
         onChange={setSportsClub}
         onBack={() => setSportsOpen(false)}
+        onLedger={onLedger}
+      />
+    );
+  if (oilGasOpen)
+    return (
+      <OilGasCompanyScreen
+        company={oilGas}
+        cash={cash}
+        onCashChange={onCashChange}
+        onChange={setOilGas}
+        onBack={() => setOilGasOpen(false)}
         onLedger={onLedger}
       />
     );
@@ -691,6 +719,18 @@ function BusinessScreenContent({
             </View>
             <Pressable style={styles.sportsButton} onPress={openSportsClub}>
               <Text style={styles.factoryButtonText}>{sportsClub ? "MANAGE SPORTS" : "START SPORTS"}</Text>
+            </Pressable>
+          </View>
+          <View style={styles.oilGasCard}>
+            <View style={styles.factoryCardCopy}>
+              <Text style={styles.oilGasEyebrow}>ENERGY & INFRASTRUCTURE</Text>
+              <Text style={styles.factoryTitle}>{oilGas ? oilGas.companyName : "Oil & Gas Company"}</Text>
+              <Text style={styles.factoryCopy}>
+                {oilGas ? `${oilGas.stage} · ${oilGas.fields} fields · ${oilGas.fuelStations} stations` : "Build fields, refineries, terminals, fuel stations and global energy operations."}
+              </Text>
+            </View>
+            <Pressable style={styles.oilGasButton} onPress={openOilGas}>
+              <Text style={styles.factoryButtonText}>{oilGas ? "MANAGE ENERGY" : "START ENERGY"}</Text>
             </Pressable>
           </View>
           <View style={styles.bankingCard}>
@@ -1331,6 +1371,29 @@ const styles = StyleSheet.create({
   },
   sportsButton: {
     backgroundColor: "#1769AA",
+    borderRadius: 10,
+    paddingHorizontal: 11,
+    paddingVertical: 10,
+  },
+  oilGasCard: {
+    backgroundColor: "#F4FAFF",
+    borderColor: "#8CC7E8",
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  oilGasEyebrow: {
+    color: "#087E9E",
+    fontSize: 8,
+    fontWeight: "900",
+    letterSpacing: 1,
+  },
+  oilGasButton: {
+    backgroundColor: "#087E9E",
     borderRadius: 10,
     paddingHorizontal: 11,
     paddingVertical: 10,
