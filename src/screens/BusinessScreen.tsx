@@ -32,6 +32,7 @@ import { RetailShopState } from "../types/retail";
 import { DEFAULT_SPORTS_CLUB } from "../types/sportsClub";
 import { DEFAULT_OIL_GAS } from "../types/oilGas";
 import { DEFAULT_AIRLINE } from "../types/airline";
+import { DEFAULT_HOTEL } from "../types/hotel";
 import { formatCurrency } from "../utils/formatCurrency";
 import BusinessMasterHubScreen from "./business/BusinessMasterHubScreen";
 import TaxiCompanyScreen from "./TaxiCompanyScreen";
@@ -43,6 +44,7 @@ import SoftwareCompanyScreen from "./SoftwareCompanyScreen";
 import SportsClubCompanyScreen from "./SportsClubCompanyScreen";
 import OilGasCompanyScreen from "./OilGasCompanyScreen";
 import AirlineCompanyScreen from "./AirlineCompanyScreen";
+import HotelCompanyScreen from "./HotelCompanyScreen";
 import {
   clearLevelUpNotice,
   levelConfig,
@@ -233,6 +235,8 @@ function BusinessScreenContent({
     setOilGas,
     airline,
     setAirline,
+    hotel,
+    setHotel,
   } = useGame();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [taxiOpen, setTaxiOpen] = useState(false);
@@ -244,6 +248,7 @@ function BusinessScreenContent({
   const [sportsOpen, setSportsOpen] = useState(false);
   const [oilGasOpen, setOilGasOpen] = useState(false);
   const [airlineOpen, setAirlineOpen] = useState(false);
+  const [hotelOpen, setHotelOpen] = useState(false);
   const [registrationId, setRegistrationId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"start" | "companies">("start");
   const celebratedRef = useRef("");
@@ -367,6 +372,18 @@ function BusinessScreenContent({
     onLedger?.({ id: `airline-charter-${Date.now()}`, kind: "PURCHASE", label: "Airline charter", amount: -setupCost, timestamp: Date.now(), detail: "Air operator certificate and launch fleet reserve" });
     setAirlineOpen(true);
   };
+  const openHotel = () => {
+    if (hotel) return setHotelOpen(true);
+    const setupCost = 420000;
+    if (cash < setupCost) {
+      Alert.alert("HOTEL LOCKED", `Need ${formatCurrency(setupCost - cash)} more for the property acquisition and opening team.`);
+      return;
+    }
+    onCashChange((value) => value - setupCost);
+    setHotel({ ...DEFAULT_HOTEL, cashReserve: setupCost });
+    onLedger?.({ id: `hotel-charter-${Date.now()}`, kind: "PURCHASE", label: "Hotel property charter", amount: -setupCost, timestamp: Date.now(), detail: "Property acquisition and opening team reserve" });
+    setHotelOpen(true);
+  };
   const nextMove = bestAffordable
     ? `Start ${bestAffordable.item.name} · ~${Math.max(1, Math.ceil(bestAffordable.cost / bestAffordable.hourly))} settlements to pay back at +${formatCurrency(bestAffordable.hourly)}/hr`
     : (() => {
@@ -451,6 +468,17 @@ function BusinessScreenContent({
         onCashChange={onCashChange}
         onChange={setAirline}
         onBack={() => setAirlineOpen(false)}
+        onLedger={onLedger}
+      />
+    );
+  if (hotelOpen)
+    return (
+      <HotelCompanyScreen
+        company={hotel}
+        cash={cash}
+        onCashChange={onCashChange}
+        onChange={setHotel}
+        onBack={() => setHotelOpen(false)}
         onLedger={onLedger}
       />
     );
@@ -783,6 +811,18 @@ function BusinessScreenContent({
             </View>
             <Pressable style={styles.airlineButton} onPress={openAirline}>
               <Text style={styles.factoryButtonText}>{airline ? "MANAGE AIRLINE" : "START AIRLINE"}</Text>
+            </Pressable>
+          </View>
+          <View style={styles.hotelCard}>
+            <View style={styles.factoryCardCopy}>
+              <Text style={styles.hotelEyebrow}>HOSPITALITY & TRAVEL</Text>
+              <Text style={styles.factoryTitle}>{hotel ? hotel.companyName : "Hotel & Hospitality Company"}</Text>
+              <Text style={styles.factoryCopy}>
+                {hotel ? `${hotel.stage} · ${hotel.properties} properties · ${hotel.rooms} rooms` : "Acquire properties, fill rooms, build guest services and grow an international hospitality group."}
+              </Text>
+            </View>
+            <Pressable style={styles.hotelButton} onPress={openHotel}>
+              <Text style={styles.factoryButtonText}>{hotel ? "MANAGE HOTEL" : "START HOTEL"}</Text>
             </Pressable>
           </View>
           <View style={styles.primaryActions}>
@@ -1457,6 +1497,29 @@ const styles = StyleSheet.create({
   },
   airlineButton: {
     backgroundColor: "#2C63B6",
+    borderRadius: 10,
+    paddingHorizontal: 11,
+    paddingVertical: 10,
+  },
+  hotelCard: {
+    backgroundColor: "#FFF8EA",
+    borderColor: "#E6C982",
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  hotelEyebrow: {
+    color: "#9B6B18",
+    fontSize: 8,
+    fontWeight: "900",
+    letterSpacing: 1,
+  },
+  hotelButton: {
+    backgroundColor: "#B37A1B",
     borderRadius: 10,
     paddingHorizontal: 11,
     paddingVertical: 10,

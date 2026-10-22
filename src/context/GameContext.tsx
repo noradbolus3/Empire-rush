@@ -34,6 +34,8 @@ import { OIL_GAS_SAVE, sanitizeOilGas } from "../engine/oilGasEngine";
 import { OilGasState } from "../types/oilGas";
 import { AirlineState } from "../types/airline";
 import { AIRLINE_SAVE, sanitizeAirline } from "../engine/airlineEngine";
+import { HotelState } from "../types/hotel";
+import { HOTEL_SAVE, sanitizeHotel } from "../engine/hotelEngine";
 
 export const TAXI_COMPANY_SAVE = "empire-rush-taxi-company-v1";
 export const SHIPPING_COMPANY_SAVE = "empire-rush-shipping-company-v1";
@@ -70,6 +72,8 @@ type GameContextValue = {
   setOilGas: React.Dispatch<React.SetStateAction<OilGasState | null>>;
   airline: AirlineState | null;
   setAirline: React.Dispatch<React.SetStateAction<AirlineState | null>>;
+  hotel: HotelState | null;
+  setHotel: React.Dispatch<React.SetStateAction<HotelState | null>>;
   resetBusinesses: () => void;
 };
 const GameContext = createContext<GameContextValue>({
@@ -93,6 +97,8 @@ const GameContext = createContext<GameContextValue>({
   setOilGas: () => undefined,
   airline: null,
   setAirline: () => undefined,
+  hotel: null,
+  setHotel: () => undefined,
   resetBusinesses: () => undefined,
 });
 
@@ -112,6 +118,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [sportsClub, setSportsClub] = useState<SportsClubState | null>(null);
   const [oilGas, setOilGas] = useState<OilGasState | null>(null);
   const [airline, setAirline] = useState<AirlineState | null>(null);
+  const [hotel, setHotel] = useState<HotelState | null>(null);
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => {
     let active = true;
@@ -126,6 +133,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       AsyncStorage.getItem(SPORTS_CLUB_SAVE),
       AsyncStorage.getItem(OIL_GAS_SAVE),
       AsyncStorage.getItem(AIRLINE_SAVE),
+      AsyncStorage.getItem(HOTEL_SAVE),
     ]).then(
       ([
         loadedBusinesses,
@@ -138,6 +146,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         rawSportsClub,
         rawOilGas,
         rawAirline,
+        rawHotel,
       ]) => {
         if (!active) return;
         setBusinesses(loadedBusinesses);
@@ -219,6 +228,13 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             setAirline(null);
           }
         }
+        if (rawHotel) {
+          try {
+            setHotel(sanitizeHotel(JSON.parse(rawHotel)));
+          } catch {
+            setHotel(null);
+          }
+        }
         setHydrated(true);
       },
     );
@@ -268,6 +284,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     if (airline)
       void AsyncStorage.setItem(AIRLINE_SAVE, JSON.stringify(airline));
     else void AsyncStorage.removeItem(AIRLINE_SAVE);
+    if (hotel)
+      void AsyncStorage.setItem(HOTEL_SAVE, JSON.stringify(hotel));
+    else void AsyncStorage.removeItem(HOTEL_SAVE);
   }, [
     businesses,
     taxiCompany,
@@ -279,6 +298,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     sportsClub,
     oilGas,
     airline,
+    hotel,
     hydrated,
   ]);
   const resetBusinesses = () => {
@@ -292,6 +312,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     setSportsClub(null);
     setOilGas(null);
     setAirline(null);
+    setHotel(null);
     void AsyncStorage.setItem(
       BUSINESS_SIMULATION_SAVE,
       JSON.stringify({ schemaVersion: 2, businesses: DEFAULT_BUSINESSES }),
@@ -305,6 +326,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     void AsyncStorage.removeItem(SPORTS_CLUB_SAVE);
     void AsyncStorage.removeItem(OIL_GAS_SAVE);
     void AsyncStorage.removeItem(AIRLINE_SAVE);
+    void AsyncStorage.removeItem(HOTEL_SAVE);
   };
   const value = useMemo(
     () => ({
@@ -328,6 +350,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       setOilGas,
       airline,
       setAirline,
+      hotel,
+      setHotel,
       resetBusinesses,
     }),
     [
@@ -341,6 +365,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       sportsClub,
       oilGas,
       airline,
+      hotel,
     ],
   );
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
