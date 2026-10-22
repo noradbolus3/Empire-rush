@@ -2071,7 +2071,10 @@ const styles = StyleSheet.create({
     top: -34,
     opacity: 0.08,
   },
-  lockedCard: { opacity: 0.58 },
+  lockedCard: {
+    backgroundColor: "#F1F4F7",
+    borderColor: C.cardBorder,
+  },
   pressed: { transform: [{ scale: 0.98 }], opacity: 0.9 },
   cardHeader: {
     flexDirection: "row",
@@ -2152,7 +2155,7 @@ const styles = StyleSheet.create({
   },
   cardActionText: { fontSize: 9, fontWeight: "900", letterSpacing: 0.5 },
   cardDescription: {
-    color: "#B7C9D8",
+    color: C.muted,
     fontSize: 9,
     lineHeight: 13,
     marginTop: 5,
