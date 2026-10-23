@@ -1391,7 +1391,7 @@ function AppContent() {
       edges={["top", "bottom", "left", "right"]}
       style={styles.safe}
     >
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <View style={styles.app}>
         <View style={styles.header}>
           <View>

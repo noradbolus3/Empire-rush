@@ -985,7 +985,7 @@ function BusinessScreenContent({
             </View>
           )}
           <View style={styles.sectionHead}>
-            <View>
+            <View style={styles.sectionHeadCopy}>
               <Text style={styles.sectionEyebrow}>YOUR COMPANIES</Text>
               <Text style={styles.sectionTitle}>Owned and operating</Text>
             </View>
@@ -1044,7 +1044,7 @@ function BusinessScreenContent({
             </View>
           </View>
           <View style={styles.sectionHead}>
-            <View>
+            <View style={styles.sectionHeadCopy}>
               <Text style={styles.sectionEyebrow}>START A NEW BUSINESS</Text>
               <Text style={styles.sectionTitle}>Choose your next company</Text>
             </View>
@@ -1877,7 +1877,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
   },
   nextMoveCard: {
-    backgroundColor: "#112D26",
+    backgroundColor: "#E7F5EF",
     borderRadius: 14,
     borderWidth: 1,
     borderColor: C.green,
@@ -1885,7 +1885,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   nextMoveText: {
-    color: C.white,
+    color: C.ink,
     fontSize: 13,
     fontWeight: "800",
     lineHeight: 18,
@@ -2025,9 +2025,10 @@ const styles = StyleSheet.create({
   sectionHead: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-end",
+    alignItems: "flex-start",
     marginBottom: 12,
   },
+  sectionHeadCopy: { flex: 1, minWidth: 0, paddingRight: 10 },
   sectionEyebrow: {
     color: C.muted,
     fontSize: 8,
@@ -2045,6 +2046,9 @@ const styles = StyleSheet.create({
     fontSize: 8,
     fontWeight: "900",
     letterSpacing: 0.8,
+    flexShrink: 1,
+    maxWidth: 92,
+    textAlign: "right",
   },
   grid: {
     flexDirection: "row",
