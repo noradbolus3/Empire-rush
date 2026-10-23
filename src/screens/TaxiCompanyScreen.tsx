@@ -18,6 +18,7 @@ import {
 } from "../types/taxi";
 import { formatCurrency } from "../utils/formatCurrency";
 import type { BankLedgerEntry } from "../types/bank";
+import { designSystem } from "../theme/designSystem";
 
 type Page =
   "overview" | "setup" | "fleet" | "operations" | "workforce" | "expansion";
@@ -35,16 +36,16 @@ const areas: TaxiArea[] = [
   "Airport Corridor",
 ];
 const C = {
-  bg: "#F5F8FC",
-  card: "#FFFFFF",
-  ink: "#10233F",
-  blue: "#1769E0",
-  pale: "#EAF2FF",
-  muted: "#64748B",
-  green: "#0F9D68",
-  red: "#C2415D",
-  border: "#D8E3F0",
-  gold: "#B7791F",
+  bg: designSystem.colors.background,
+  card: designSystem.colors.card,
+  ink: designSystem.colors.heading,
+  blue: designSystem.colors.cyan,
+  pale: designSystem.colors.highlight,
+  muted: designSystem.colors.secondary,
+  green: designSystem.colors.primary,
+  red: designSystem.colors.negative,
+  border: designSystem.colors.border,
+  gold: designSystem.colors.gold,
 };
 
 export default function TaxiCompanyScreen({
@@ -147,7 +148,12 @@ export default function TaxiCompanyScreen({
             </View>
           </View>
           {company?.status === "operating" && (
-            <View style={styles.navRow}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.navScroller}
+              contentContainerStyle={styles.navRow}
+            >
               {(
                 [
                   "overview",
@@ -172,7 +178,7 @@ export default function TaxiCompanyScreen({
                   </Text>
                 </Pressable>
               ))}
-            </View>
+            </ScrollView>
           )}
           {page === "setup" ? (
             <SetupPage
@@ -670,14 +676,14 @@ function Metric({ label, value }: { label: string; value: string }) {
 }
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
-  safe: { flex: 1 },
-  content: { padding: 18, paddingBottom: 120 },
-  back: { color: C.blue, fontWeight: "900", marginBottom: 20 },
+  safe: { flex: 1, backgroundColor: C.bg },
+  content: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 140 },
+  back: { color: C.blue, fontWeight: "900", marginBottom: 12 },
   brandRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    marginBottom: 18,
+    marginBottom: 12,
   },
   logo: {
     width: 42,
@@ -710,14 +716,16 @@ const styles = StyleSheet.create({
   heroTitle: { color: "#FFF", fontSize: 26, fontWeight: "900", marginTop: 8 },
   heroSub: { color: "#DCEAFF", marginTop: 5 },
   heroProfit: { color: "#FFF", fontSize: 31, fontWeight: "900", marginTop: 22 },
-  navRow: { flexDirection: "row", flexWrap: "wrap", gap: 7, marginBottom: 14 },
+  navScroller: { flexGrow: 0, flexShrink: 0, marginBottom: 12 },
+  navRow: { flexDirection: "row", alignItems: "center", gap: 7, paddingVertical: 2 },
   navButton: {
     backgroundColor: C.card,
     borderColor: C.border,
     borderWidth: 1,
     borderRadius: 9,
-    paddingHorizontal: 9,
-    paddingVertical: 8,
+    minHeight: 40,
+    paddingHorizontal: 11,
+    paddingVertical: 9,
   },
   navActive: { backgroundColor: C.pale, borderColor: C.blue },
   navText: { color: C.muted, fontSize: 9, fontWeight: "900" },
@@ -801,7 +809,7 @@ const styles = StyleSheet.create({
     padding: 13,
   },
   metricLabel: { color: C.muted, fontSize: 9, fontWeight: "900" },
-  metricValue: { color: C.ink, fontSize: 17, fontWeight: "900", marginTop: 5 },
+  metricValue: { color: C.ink, fontSize: 16, fontWeight: "900", marginTop: 5, flexShrink: 1 },
   action: {
     borderColor: C.border,
     borderWidth: 1,

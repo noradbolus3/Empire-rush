@@ -2,6 +2,8 @@ import { calculateQuarterlyDividends } from './marketEngine';
 import { BusinessEntity } from '../types/business';
 import { IncomeSource } from '../types/income';
 import { Asset, Holding } from '../types/marketAsset';
+import type { TaxiCompanyState } from '../types/taxi';
+import { taxiHourlyEconomics } from '../types/taxi';
 
 export const INCOME_SOURCE_COLORS = {
   retail: '#16E98A',
@@ -16,9 +18,10 @@ type IncomeLedgerInput = {
   holdings: Record<string, Holding>;
   businessProfitPerHour: number;
   realizedDividendAmount?: number;
+  taxiCompany?: TaxiCompanyState | null;
 };
 
-export function buildIncomeSources({ businesses, assets, holdings, businessProfitPerHour, realizedDividendAmount = 0 }: IncomeLedgerInput): IncomeSource[] {
+export function buildIncomeSources({ businesses, assets, holdings, businessProfitPerHour, realizedDividendAmount = 0, taxiCompany }: IncomeLedgerInput): IncomeSource[] {
   const active = businesses.filter(item => item.isAcquired);
   const rawTotal = active.reduce((sum, item) => sum + Math.max(0, item.hourlyNetProfit), 0);
   const businessRows: IncomeSource[] = active.map(item => ({
@@ -27,6 +30,15 @@ export function buildIncomeSources({ businesses, assets, holdings, businessProfi
     color: item.sector === 'Retail' ? INCOME_SOURCE_COLORS.retail : item.sector === 'Mobility' ? INCOME_SOURCE_COLORS.mobility : INCOME_SOURCE_COLORS.business,
     note: item.hourlyNetProfit > 0 ? `${item.sector} · credited at the next hourly settlement` : `${item.sector} · operating ramp / awaiting demand`,
   }));
+  if (taxiCompany?.status === 'operating') {
+    const taxiNet = Math.max(0, taxiHourlyEconomics(taxiCompany).net);
+    businessRows.push({
+      label: taxiCompany.name || 'Taxi Company',
+      hourlyProjected: Number(taxiNet.toFixed(2)),
+      color: INCOME_SOURCE_COLORS.mobility,
+      note: 'Mobility · credited at the next hourly settlement',
+    });
+  }
   const dividendQuarterlyPotential = Number(calculateQuarterlyDividends(assets, holdings).toFixed(2));
   const realizedDividend = Math.max(0, Number(realizedDividendAmount) || 0);
   const stockNote = realizedDividend > 0
