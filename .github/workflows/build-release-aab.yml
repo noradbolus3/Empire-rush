@@ -9,8 +9,15 @@ jobs:
     environment:
       name: production
     permissions:
+      actions: read
       contents: read
     timeout-minutes: 60
+    env:
+      KEYSTORE_GENERATION_RUN_ID: '39946321331'
+      KEYSTORE_GENERATION_WORKFLOW_ID: '393905812'
+      KEYSTORE_GENERATION_COMMIT: '0eca135baadf6fc05a07fe67dd211ace3fae959a'
+      KEYSTORE_GENERATION_ARTIFACT_ID: '12497849066'
+      EXPECTED_UPLOAD_CERT_SHA256: 'a3ee45b2a55aff0dbdd196d93faf1388422f9a20b452303ca753b24e6895f314'
     steps:
       - name: Checkout approved Round 42 source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -62,24 +69,96 @@ jobs:
             "$BUNDLETOOL" | sha256sum --check --status
           printf 'BUNDLETOOL_JAR=%s\n' "$BUNDLETOOL" >> "$GITHUB_ENV"
 
-      - name: Configure release signing
+      - name: Verify the exact successful keystore-generation run and artifact
         env:
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          [[ "$KEYSTORE_GENERATION_RUN_ID" =~ ^[0-9]+$ ]]
+          run_json="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${KEYSTORE_GENERATION_RUN_ID}")"
+          printf '%s' "$run_json" | jq -e \
+            --argjson run_id "$KEYSTORE_GENERATION_RUN_ID" \
+            --argjson workflow_id "$KEYSTORE_GENERATION_WORKFLOW_ID" \
+            --arg commit "$KEYSTORE_GENERATION_COMMIT" \
+            '(.id == $run_id) and (.workflow_id == $workflow_id) and (.event == "workflow_dispatch") and (.status == "completed") and (.conclusion == "success") and (.head_branch == "main") and (.head_sha == $commit)' >/dev/null
+
+          artifact_name="empire-rush-encrypted-upload-keystore-${KEYSTORE_GENERATION_RUN_ID}"
+          artifact_json="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${KEYSTORE_GENERATION_RUN_ID}/artifacts")"
+          printf '%s' "$artifact_json" | jq -e \
+            --arg name "$artifact_name" \
+            --argjson artifact_id "$KEYSTORE_GENERATION_ARTIFACT_ID" \
+            '[.artifacts[] | select(.name == $name and .id == $artifact_id and .expired == false)] | length == 1' >/dev/null
+          echo 'Verified the pinned successful generation run and unexpired encrypted artifact.'
+
+      - name: Download encrypted upload-keystore backup
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: empire-rush-encrypted-upload-keystore-39946321331
+          run-id: '39946321331'
+          repository: ${{ github.repository }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/empire-rush-key-backup
+
+      - name: Verify encrypted backup checksum and pinned metadata
+        run: |
+          set -euo pipefail
+          BACKUP_DIR="$RUNNER_TEMP/empire-rush-key-backup"
+          EXPECTED_FILES="$(printf '%s\n' \
+            'ENCRYPTED_BACKUP_SHA256.txt' \
+            'UPLOAD_KEY_CERT_SHA256.txt' \
+            'UPLOAD_KEY_METADATA.txt' \
+            'empire-rush-upload.jks.gpg' | sort)"
+          ACTUAL_FILES="$(find "$BACKUP_DIR" -maxdepth 1 -type f -printf '%f\n' | sort)"
+          test "$ACTUAL_FILES" = "$EXPECTED_FILES"
+
+          CIPHERTEXT="$BACKUP_DIR/empire-rush-upload.jks.gpg"
+          expected_cipher_sha256="$(tr -d '\r\n' < "$BACKUP_DIR/ENCRYPTED_BACKUP_SHA256.txt")"
+          actual_cipher_sha256="$(sha256sum -- "$CIPHERTEXT" | awk '{print $1}')"
+          [[ "$expected_cipher_sha256" =~ ^[0-9a-f]{64}$ ]]
+          test "$actual_cipher_sha256" = "$expected_cipher_sha256"
+
+          certificate_sha256="$(tr -d '\r\n' < "$BACKUP_DIR/UPLOAD_KEY_CERT_SHA256.txt")"
+          [[ "$certificate_sha256" =~ ^[0-9a-f]{64}$ ]]
+          test "$certificate_sha256" = "$EXPECTED_UPLOAD_CERT_SHA256"
+          grep -Fxq 'Format: JKS' "$BACKUP_DIR/UPLOAD_KEY_METADATA.txt"
+          grep -Fxq 'Alias: empirerush-upload' "$BACKUP_DIR/UPLOAD_KEY_METADATA.txt"
+          grep -Fxq "Certificate SHA-256: $EXPECTED_UPLOAD_CERT_SHA256" "$BACKUP_DIR/UPLOAD_KEY_METADATA.txt"
+          grep -Fxq "Encrypted backup SHA-256: $expected_cipher_sha256" "$BACKUP_DIR/UPLOAD_KEY_METADATA.txt"
+          grep -Fxq 'Runner recovery test: PASS; decrypted bytes and certificate fingerprint match' "$BACKUP_DIR/UPLOAD_KEY_METADATA.txt"
+          echo 'Encrypted artifact checksum, alias, JKS metadata, and pinned certificate fingerprint match.'
+
+      - name: Decrypt verified keystore to runner temporary storage
+        env:
+          ANDROID_KEYSTORE_BACKUP_PASSPHRASE: ${{ secrets.ANDROID_KEYSTORE_BACKUP_PASSPHRASE }}
         run: |
           set -euo pipefail
           set +x
-          : "${ANDROID_KEYSTORE_BASE64:?Missing ANDROID_KEYSTORE_BASE64}"
+          : "${ANDROID_KEYSTORE_BACKUP_PASSPHRASE:?Missing ANDROID_KEYSTORE_BACKUP_PASSPHRASE}"
+          umask 077
+          KEYSTORE="$RUNNER_TEMP/empire-rush-upload.jks"
+          CIPHERTEXT="$RUNNER_TEMP/empire-rush-key-backup/empire-rush-upload.jks.gpg"
+          gpg --batch --yes --quiet --no-symkey-cache \
+            --pinentry-mode loopback --passphrase-fd 3 \
+            --output "$KEYSTORE" --decrypt "$CIPHERTEXT" \
+            3<<<"$ANDROID_KEYSTORE_BACKUP_PASSPHRASE"
+          chmod 600 "$KEYSTORE"
+          test -s "$KEYSTORE"
+          printf 'ANDROID_KEYSTORE_FILE=%s\n' "$KEYSTORE" >> "$GITHUB_ENV"
+
+      - name: Configure release signing
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS: empirerush-upload
+        run: |
+          set -euo pipefail
+          set +x
           : "${ANDROID_KEYSTORE_PASSWORD:?Missing ANDROID_KEYSTORE_PASSWORD}"
           : "${ANDROID_KEY_PASSWORD:?Missing ANDROID_KEY_PASSWORD}"
-          : "${ANDROID_KEY_ALIAS:?Missing ANDROID_KEY_ALIAS}"
+          : "${ANDROID_KEY_ALIAS:?Missing configured alias}"
 
           umask 077
           KEYSTORE="$RUNNER_TEMP/empire-rush-upload.jks"
-          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE"
-          chmod 600 "$KEYSTORE"
           test -s "$KEYSTORE"
           export ANDROID_KEYSTORE_FILE="$KEYSTORE"
 
@@ -134,6 +213,7 @@ jobs:
 
           UPLOAD_KEY_CERT_SHA256="$(java "$RUNNER_TEMP/UploadKeyCert.java")"
           test "${#UPLOAD_KEY_CERT_SHA256}" -eq 64
+          test "$UPLOAD_KEY_CERT_SHA256" = "$EXPECTED_UPLOAD_CERT_SHA256"
           printf 'ANDROID_KEYSTORE_FILE=%s\n' "$KEYSTORE" >> "$GITHUB_ENV"
           printf 'UPLOAD_KEY_CERT_SHA256=%s\n' "$UPLOAD_KEY_CERT_SHA256" >> "$GITHUB_ENV"
 
@@ -207,7 +287,7 @@ jobs:
         env:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_ALIAS: empirerush-upload
         run: ./gradlew clean bundleRelease --no-daemon --stacktrace
 
       - name: Verify AAB, package ID, signing certificate, and source commit
@@ -255,9 +335,13 @@ jobs:
       - name: Remove temporary signing material
         if: always()
         run: |
+          set -u
+          cleanup_status=0
           rm -f -- \
             "$RUNNER_TEMP/empire-rush-upload.jks" \
             "$RUNNER_TEMP/UploadKeyCert.java" \
             "$RUNNER_TEMP/UploadKeyCert.class" \
             "$RUNNER_TEMP/jarsigner-verify.txt" \
-            "$RUNNER_TEMP/bundletool-all-1.18.3.jar"
+            "$RUNNER_TEMP/bundletool-all-1.18.3.jar" || cleanup_status=$?
+          rm -rf -- "$RUNNER_TEMP/empire-rush-key-backup" || cleanup_status=$?
+          exit "$cleanup_status"
