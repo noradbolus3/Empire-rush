@@ -70,7 +70,7 @@ const C = {
   red: designSystem.colors.negative,
   gold: designSystem.colors.gold,
   violet: designSystem.colors.violet,
-  ink: "#08110E",
+  ink: designSystem.colors.heading,
 };
 type Props = {
   state?: RetailShopState;
@@ -100,16 +100,16 @@ const accent: Record<BusinessEntity["sector"], string> = {
   Airline: "#60A5FA",
 };
 const iconAccent: Record<BusinessEntity["sector"], string> = {
-  Retail: "#28E39A",
-  Mobility: "#FFC857",
-  Tech_SaaS: "#B59CFF",
-  Construction_Mega: "#49C8FF",
-  Real_Estate: "#38BDF8",
-  Energy: "#FACC15",
-  Pharma: "#FB7185",
-  Media: "#C084FC",
-  Sports: "#FB923C",
-  Airline: "#60A5FA",
+  Retail: "#63B49C",
+  Mobility: "#C39A5B",
+  Tech_SaaS: "#9B8BC3",
+  Construction_Mega: "#6FA8C7",
+  Real_Estate: "#6EAAC7",
+  Energy: "#C9A85A",
+  Pharma: "#C9828A",
+  Media: "#A68BC5",
+  Sports: "#C7936E",
+  Airline: "#7EA5C5",
 };
 const sectorLabel: Record<BusinessEntity["sector"], string> = {
   Retail: "RETAIL",
