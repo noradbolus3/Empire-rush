@@ -70,6 +70,7 @@ import {
 } from "./src/services/notifications";
 import { BUILD_COMMIT, BUILD_VERSION } from "./src/config/buildInfo";
 import { GAME_SAVE_VERSION, migrateGameSave } from "./src/engine/saveMigration";
+import { resolveCashUpdate, sanitizeCash } from "./src/engine/walletGuard";
 import {
   advanceMarketTick,
   appendPortfolioPoint,
@@ -124,19 +125,20 @@ import { defaultBankState } from "./src/types/bank";
 import type { BankLedgerEntry } from "./src/types/bank";
 import { sanitizeBankState } from "./src/engine/bankEngine";
 import { calculateNetWorth, settleHour } from "./src/engine/financialCore";
+import { designSystem } from "./src/theme/designSystem";
 type Tab = "empire" | "business" | "markets" | "lifestyle" | "bank";
 type Filter = "dividend" | "cheap" | "crypto" | "watchlist" | "all";
 const C = {
-  bg: "#07130F",
-  panel: "#0D241A",
-  panel2: "#123726",
-  green: "#16E98A",
-  red: "#FF6D62",
-  cyan: "#61E8FF",
-  gold: "#FFC928",
-  slate: "#236A45",
-  text: "#F7FFF9",
-  muted: "#8FB5A4",
+  bg: designSystem.colors.background,
+  panel: designSystem.colors.card,
+  panel2: designSystem.colors.highlight,
+  green: designSystem.colors.primary,
+  red: designSystem.colors.negative,
+  cyan: designSystem.colors.cyan,
+  gold: designSystem.colors.gold,
+  slate: designSystem.colors.border,
+  text: designSystem.colors.heading,
+  muted: designSystem.colors.secondary,
 };
 const money = (n: number) => {
   const safe = Number.isFinite(n) ? Math.max(0, n) : 0;
@@ -278,6 +280,12 @@ function AppContent() {
   const [tab, setTab] = useState<Tab>("empire");
   const [focusRetail, setFocusRetail] = useState(false);
   const [cash, setCash] = useState(STARTING_CASH);
+  const guardedSetCash = useCallback<React.Dispatch<React.SetStateAction<number>>>(
+    (update) => {
+      setCash((current) => resolveCashUpdate(current, update));
+    },
+    [],
+  );
   const [progression, setProgression] = useState<ProgressionState>(() =>
     hydrateDailyProgress(DEFAULT_PROGRESSION),
   );
@@ -769,7 +777,7 @@ function AppContent() {
       };
     }
     setLastSettlementAtMs((value) => value + elapsedHours * 3600000);
-    setCash((value) =>
+    guardedSetCash((value) =>
       Math.max(0, Math.min(Number.MAX_SAFE_INTEGER, value + totalDelta)),
     );
     setLedger((previous) => [...previous, ...allEntries].slice(-500));
@@ -870,7 +878,7 @@ function AppContent() {
           : order,
       ),
     );
-    setCash(Math.max(0, cashCursor));
+    guardedSetCash(sanitizeCash(cashCursor));
     setHoldings(holdingsCursor);
     setTradeHistory((previous) => capTradeHistory([...previous, ...records]));
     records.forEach((record) =>
@@ -916,7 +924,7 @@ function AppContent() {
     if (lastDividendQuarter.current === dividend.quarter) return;
     lastDividendQuarter.current = dividend.quarter;
     if (dividend.payout > 0) {
-      setCash((value) =>
+      guardedSetCash((value) =>
         Math.min(Number.MAX_SAFE_INTEGER, value + dividend.payout),
       );
       setTradeHistory((previous) =>
@@ -1019,7 +1027,7 @@ function AppContent() {
     const award =
       amount * (1 + progression.prestigeLevel * 0.05) * liveTapBoostMultiplier;
     haptic();
-    setCash((n) => Math.min(Number.MAX_SAFE_INTEGER, n + award));
+    guardedSetCash((n) => Math.min(Number.MAX_SAFE_INTEGER, n + award));
     pushIncomeEvent({ source: "Tap actions", amount: award, category: "tap" });
     setProgression((current) => ({
       ...current,
@@ -1038,7 +1046,7 @@ function AppContent() {
         `Need ${money(clickUpgradeCost)} liquid cash.`,
       );
     haptic(true);
-    setCash((n) => n - clickUpgradeCost);
+    guardedSetCash((n) => n - clickUpgradeCost);
     setClickValue((n) =>
       Math.min(TAP_VALUE_CAP, Number((n + nextTapUpgradeGain).toFixed(2))),
     );
@@ -1116,7 +1124,7 @@ function AppContent() {
       return;
     missionClaimLock.current = true;
     haptic(true);
-    setCash((value) => Math.min(Number.MAX_SAFE_INTEGER, value + 1000));
+    guardedSetCash((value) => Math.min(Number.MAX_SAFE_INTEGER, value + 1000));
     pushIncomeEvent({
       source: "Founder mission",
       amount: 1000,
@@ -1148,7 +1156,7 @@ function AppContent() {
       ...list.filter((asset) => !asset.isPlayerCompany),
       listingToAsset(safeListing) as Asset,
     ]);
-    setCash((value) =>
+    guardedSetCash((value) =>
       Math.min(Number.MAX_SAFE_INTEGER, value + safeListing.capitalRaised),
     );
     pushIncomeEvent({
@@ -1288,7 +1296,7 @@ function AppContent() {
       transactionType: side,
     };
     haptic(side === "BUY");
-    setCash(result.cash);
+    guardedSetCash(result.cash);
     setHoldings((previous) => ({
       ...previous,
       [asset.id]:
@@ -1383,7 +1391,7 @@ function AppContent() {
       edges={["top", "bottom", "left", "right"]}
       style={styles.safe}
     >
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <View style={styles.app}>
         <View style={styles.header}>
           <View>
@@ -1463,8 +1471,9 @@ function AppContent() {
               focusRetail={focusRetail}
               onRetailFocusHandled={() => setFocusRetail(false)}
               onStateChange={setRetail}
-              onCashChange={setCash}
+              onCashChange={guardedSetCash}
               onLedger={postLedger}
+              onOpenBank={() => setTab("bank")}
             />
           ) : tab === "empire" ? (
             <HomeScreen
@@ -1544,7 +1553,7 @@ function AppContent() {
                 <LifestyleScreen
                   owned={owned}
                   cash={cash}
-                  setCash={setCash}
+                  setCash={guardedSetCash}
                   setOwned={setOwned}
                   onLedger={postLedger}
                 />
@@ -1575,7 +1584,7 @@ function AppContent() {
                     }[]
                   }
                   onStateChange={handleBankStateChange}
-                  onCashChange={setCash}
+                  onCashChange={guardedSetCash}
                   onBreaking={setHeadline}
                   onHaptic={haptic}
                 />
@@ -1599,7 +1608,7 @@ function AppContent() {
           close={() => setStoreOpen(false)}
           adFree={adFree}
           setAdFree={setAdFree}
-          setCash={setCash}
+          setCash={guardedSetCash}
           setMultiplier={setMultiplier}
         />
         <SettingsModal
@@ -2008,7 +2017,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 7,
-    backgroundColor: "#123C2A",
+    backgroundColor: "#E7F7EF",
     borderWidth: 1,
     borderColor: "#3A8C57",
     borderRadius: 12,
@@ -2262,7 +2271,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: C.slate,
   },
-  filterOn: { backgroundColor: "#123D34", borderColor: C.green },
+  filterOn: { backgroundColor: C.panel2, borderColor: C.green },
   filterText: { color: C.muted, fontSize: 9, fontWeight: "900" },
   filterTextOn: { color: C.green },
   marketRow: {
@@ -2292,12 +2301,14 @@ const styles = StyleSheet.create({
   marketValue: { color: C.text, fontSize: 11, fontWeight: "900" },
   tradeBtns: { gap: 4 },
   sellBtn: {
-    backgroundColor: "#252A36",
+    backgroundColor: "#FCEBEC",
+    borderWidth: 1,
+    borderColor: C.red,
     borderRadius: 6,
     paddingVertical: 5,
     paddingHorizontal: 7,
   },
-  sellText: { color: C.text, fontSize: 8, fontWeight: "900" },
+  sellText: { color: C.red, fontSize: 8, fontWeight: "900" },
   lifeCard: {
     backgroundColor: C.panel,
     borderRadius: 16,
@@ -2345,7 +2356,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 54,
-    backgroundColor: "#0D141F",
+    backgroundColor: C.panel,
     borderTopWidth: 1,
     borderTopColor: C.slate,
     flexDirection: "row",
@@ -2371,7 +2382,7 @@ const styles = StyleSheet.create({
     alignSelf: "center",
   },
   navCenterIcon: { color: C.bg, fontSize: 22 },
-  navOn: { backgroundColor: "#153329" },
+  navOn: { backgroundColor: C.panel2 },
   navIcon: { color: C.muted, fontSize: 18 },
   navIconOn: { color: C.green },
   navLabel: { color: C.muted, fontSize: 8, fontWeight: "900", marginTop: 3 },

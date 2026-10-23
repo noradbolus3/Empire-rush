@@ -8,8 +8,9 @@ import { JetsTab } from './JetsTab';
 import { PropertiesTab } from './PropertiesTab';
 import type { CollectionItem } from '../data/collectionTypes';
 import type { BankLedgerEntry } from '../types/bank';
+import { designSystem } from '../theme/designSystem';
 
-const C = { bg: '#07130F', panel: '#0D241A', panel2: '#123726', green: '#16E98A', cyan: '#61E8FF', gold: '#FFC928', slate: '#236A45', text: '#F7FFF9', muted: '#8FB5A4' };
+const C = { bg: designSystem.colors.background, panel: designSystem.colors.card, panel2: designSystem.colors.highlight, green: designSystem.colors.primary, cyan: designSystem.colors.cyan, gold: designSystem.colors.gold, slate: designSystem.colors.border, text: designSystem.colors.heading, muted: designSystem.colors.secondary };
 type LifestyleTab = 'CARS' | 'YACHTS' | 'JETS' | 'PROPERTIES';
 const TABS: { id: LifestyleTab; label: string; caption: string }[] = [
   { id: 'CARS', label: 'Cars', caption: 'Road icons from daily drivers to hypercars.' },
@@ -46,6 +47,6 @@ const styles = StyleSheet.create({
   root: { flex: 1, minHeight: 0 }, content: { padding: 16, paddingBottom: 78 },
   hero: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', backgroundColor: C.panel2, borderRadius: 20, borderWidth: 1, borderColor: C.slate, padding: 15, marginBottom: 10 },
   heroCopy: { flex: 1, paddingRight: 10 }, eyebrow: { color: C.cyan, fontSize: 9, fontWeight: '900', letterSpacing: 1.5 }, title: { color: C.text, fontSize: 27, fontWeight: '900', marginTop: 5 }, subtitle: { color: C.muted, fontSize: 10, lineHeight: 15, marginTop: 6 },
-  badge: { alignItems: 'center', backgroundColor: '#0D3A26', borderRadius: 13, borderWidth: 1, borderColor: C.green, paddingHorizontal: 11, paddingVertical: 8 }, badgeValue: { color: '#B8F34A', fontSize: 20, fontWeight: '900' }, badgeLabel: { color: C.muted, fontSize: 7, fontWeight: '900', marginTop: 2 },
-  tabRow: { flexDirection: 'row', gap: 7, marginBottom: 6 }, tab: { height: 42, backgroundColor: C.panel, borderRadius: 11, borderWidth: 1, borderColor: C.slate, alignItems: 'center', justifyContent: 'center' }, tabOn: { backgroundColor: '#123D34', borderColor: C.green }, tabText: { color: C.muted, fontSize: 9, fontWeight: '900', letterSpacing: .6 }, tabTextOn: { color: C.green }, caption: { color: C.muted, fontSize: 10, marginBottom: 10 }, pressed: { opacity: .78, transform: [{ scale: .985 }] },
+  badge: { alignItems: 'center', backgroundColor: '#F0FBF5', borderRadius: 13, borderWidth: 1, borderColor: C.green, paddingHorizontal: 11, paddingVertical: 8 }, badgeValue: { color: C.green, fontSize: 20, fontWeight: '900' }, badgeLabel: { color: C.muted, fontSize: 7, fontWeight: '900', marginTop: 2 },
+  tabRow: { flexDirection: 'row', gap: 7, marginBottom: 6 }, tab: { height: 42, backgroundColor: C.panel, borderRadius: 11, borderWidth: 1, borderColor: C.slate, alignItems: 'center', justifyContent: 'center' }, tabOn: { backgroundColor: '#E7F7EF', borderColor: C.green }, tabText: { color: C.muted, fontSize: 9, fontWeight: '900', letterSpacing: .6 }, tabTextOn: { color: C.green }, caption: { color: C.muted, fontSize: 10, marginBottom: 10 }, pressed: { opacity: .78, transform: [{ scale: .985 }] },
 });

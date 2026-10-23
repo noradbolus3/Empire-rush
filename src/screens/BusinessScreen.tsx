@@ -29,6 +29,13 @@ import {
 import { IPOListing } from "../types/ipo";
 import type { BankLedgerEntry } from "../types/bank";
 import { RetailShopState } from "../types/retail";
+import { DEFAULT_SPORTS_CLUB } from "../types/sportsClub";
+import { DEFAULT_OIL_GAS } from "../types/oilGas";
+import { DEFAULT_AIRLINE } from "../types/airline";
+import { DEFAULT_HOTEL } from "../types/hotel";
+import { DEFAULT_BLOCKCHAIN } from "../types/blockchain";
+import { DEFAULT_SPACE } from "../types/space";
+import { DEFAULT_HOLDING } from "../types/holding";
 import { formatCurrency } from "../utils/formatCurrency";
 import BusinessMasterHubScreen from "./business/BusinessMasterHubScreen";
 import TaxiCompanyScreen from "./TaxiCompanyScreen";
@@ -37,24 +44,32 @@ import FactoryCompanyScreen from "./FactoryCompanyScreen";
 import ConstructionCompanyScreen from "./ConstructionCompanyScreen";
 import CarDealershipScreen from "./CarDealershipScreen";
 import SoftwareCompanyScreen from "./SoftwareCompanyScreen";
+import SportsClubCompanyScreen from "./SportsClubCompanyScreen";
+import OilGasCompanyScreen from "./OilGasCompanyScreen";
+import AirlineCompanyScreen from "./AirlineCompanyScreen";
+import HotelCompanyScreen from "./HotelCompanyScreen";
+import BlockchainCompanyScreen from "./BlockchainCompanyScreen";
+import SpaceCompanyScreen from "./SpaceCompanyScreen";
+import HoldingCompanyScreen from "./HoldingCompanyScreen";
 import {
   clearLevelUpNotice,
   levelConfig,
   normalizeBusinessLevel,
 } from "../engine/businessLevels";
+import { designSystem } from "../theme/designSystem";
 
 const C = {
-  bg: "#07130F",
-  surface: "#0D241A",
-  card: "#102B20",
-  cardBorder: "#236A45",
-  white: "#F7FFF9",
-  muted: "#8FB5A4",
-  green: "#16E98A",
-  cyan: "#61E8FF",
-  red: "#FF6D62",
-  gold: "#FFC928",
-  violet: "#B59CFF",
+  bg: designSystem.colors.background,
+  surface: designSystem.colors.card,
+  card: designSystem.colors.card,
+  cardBorder: designSystem.colors.border,
+  white: designSystem.colors.heading,
+  muted: designSystem.colors.secondary,
+  green: designSystem.colors.primary,
+  cyan: designSystem.colors.cyan,
+  red: designSystem.colors.negative,
+  gold: designSystem.colors.gold,
+  violet: designSystem.colors.violet,
   ink: "#08110E",
 };
 type Props = {
@@ -67,6 +82,7 @@ type Props = {
   onIPOComplete: (listing: IPOListing) => void;
   onStateChange?: React.Dispatch<React.SetStateAction<RetailShopState>>;
   onCashChange: React.Dispatch<React.SetStateAction<number>>;
+  onOpenBank?: () => void;
   focusRetail?: boolean;
   onRetailFocusHandled?: () => void;
   onLedger?: (entry: BankLedgerEntry) => void;
@@ -200,6 +216,7 @@ function BusinessScreenContent({
   ipoListing,
   onIPOComplete,
   onCashChange,
+  onOpenBank,
   focusRetail = false,
   onRetailFocusHandled,
   onLedger,
@@ -219,6 +236,20 @@ function BusinessScreenContent({
     setDealership,
     softwareCompany,
     setSoftwareCompany,
+    sportsClub,
+    setSportsClub,
+    oilGas,
+    setOilGas,
+    airline,
+    setAirline,
+    hotel,
+    setHotel,
+    blockchain,
+    setBlockchain,
+    space,
+    setSpace,
+    holding,
+    setHolding,
   } = useGame();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [taxiOpen, setTaxiOpen] = useState(false);
@@ -227,6 +258,13 @@ function BusinessScreenContent({
   const [constructionOpen, setConstructionOpen] = useState(false);
   const [dealershipOpen, setDealershipOpen] = useState(false);
   const [softwareOpen, setSoftwareOpen] = useState(false);
+  const [sportsOpen, setSportsOpen] = useState(false);
+  const [oilGasOpen, setOilGasOpen] = useState(false);
+  const [airlineOpen, setAirlineOpen] = useState(false);
+  const [hotelOpen, setHotelOpen] = useState(false);
+  const [blockchainOpen, setBlockchainOpen] = useState(false);
+  const [spaceOpen, setSpaceOpen] = useState(false);
+  const [holdingOpen, setHoldingOpen] = useState(false);
   const [registrationId, setRegistrationId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"start" | "companies">("start");
   const celebratedRef = useRef("");
@@ -314,6 +352,90 @@ function BusinessScreenContent({
     .filter((entry) => entry.hourly > 0)
     .sort((a, b) => a.cost / a.hourly - b.cost / b.hourly);
   const bestAffordable = opportunities.find((entry) => entry.cost <= cash);
+  const openSportsClub = () => {
+    if (sportsClub) return setSportsOpen(true);
+    const setupCost = 250000;
+    if (cash < setupCost) {
+      Alert.alert("SPORTS CLUB LOCKED", `Need ${formatCurrency(setupCost - cash)} more for the club charter and first season budget.`);
+      return;
+    }
+    onCashChange((value) => value - setupCost);
+    setSportsClub({ ...DEFAULT_SPORTS_CLUB, cashReserve: setupCost });
+    onLedger?.({ id: `sports-charter-${Date.now()}`, kind: "PURCHASE", label: "Sports Club charter", amount: -setupCost, timestamp: Date.now(), detail: "Club headquarters and first-season operating reserve" });
+    setSportsOpen(true);
+  };
+  const openOilGas = () => {
+    if (oilGas) return setOilGasOpen(true);
+    const setupCost = 400000;
+    if (cash < setupCost) {
+      Alert.alert("OIL & GAS LOCKED", `Need ${formatCurrency(setupCost - cash)} more for the energy charter and first field budget.`);
+      return;
+    }
+    onCashChange((value) => value - setupCost);
+    setOilGas({ ...DEFAULT_OIL_GAS, cashReserve: setupCost });
+    onLedger?.({ id: `oilgas-charter-${Date.now()}`, kind: "PURCHASE", label: "Oil & Gas charter", amount: -setupCost, timestamp: Date.now(), detail: "Energy headquarters and first-field operating reserve" });
+    setOilGasOpen(true);
+  };
+  const openAirline = () => {
+    if (airline) return setAirlineOpen(true);
+    const setupCost = 600000;
+    if (cash < setupCost) {
+      Alert.alert("AIRLINE LOCKED", `Need ${formatCurrency(setupCost - cash)} more for the air operator certificate and launch fleet.`);
+      return;
+    }
+    onCashChange((value) => value - setupCost);
+    setAirline({ ...DEFAULT_AIRLINE, cashReserve: setupCost });
+    onLedger?.({ id: `airline-charter-${Date.now()}`, kind: "PURCHASE", label: "Airline charter", amount: -setupCost, timestamp: Date.now(), detail: "Air operator certificate and launch fleet reserve" });
+    setAirlineOpen(true);
+  };
+  const openHotel = () => {
+    if (hotel) return setHotelOpen(true);
+    const setupCost = 420000;
+    if (cash < setupCost) {
+      Alert.alert("HOTEL LOCKED", `Need ${formatCurrency(setupCost - cash)} more for the property acquisition and opening team.`);
+      return;
+    }
+    onCashChange((value) => value - setupCost);
+    setHotel({ ...DEFAULT_HOTEL, cashReserve: setupCost });
+    onLedger?.({ id: `hotel-charter-${Date.now()}`, kind: "PURCHASE", label: "Hotel property charter", amount: -setupCost, timestamp: Date.now(), detail: "Property acquisition and opening team reserve" });
+    setHotelOpen(true);
+  };
+  const openBlockchain = () => {
+    if (blockchain) return setBlockchainOpen(true);
+    const setupCost = 300000;
+    if (cash < setupCost) {
+      Alert.alert("TECHNOLOGY LOCKED", `Need ${formatCurrency(setupCost - cash)} more for the infrastructure and research launch.`);
+      return;
+    }
+    onCashChange((value) => value - setupCost);
+    setBlockchain({ ...DEFAULT_BLOCKCHAIN, cashReserve: setupCost });
+    onLedger?.({ id: `blockchain-charter-${Date.now()}`, kind: "PURCHASE", label: "Technology company charter", amount: -setupCost, timestamp: Date.now(), detail: "Infrastructure and research launch reserve" });
+    setBlockchainOpen(true);
+  };
+  const openSpace = () => {
+    if (space) return setSpaceOpen(true);
+    const setupCost = 850000;
+    if (cash < setupCost) {
+      Alert.alert("AEROSPACE LOCKED", `Need ${formatCurrency(setupCost - cash)} more for the launch program and engineering team.`);
+      return;
+    }
+    onCashChange((value) => value - setupCost);
+    setSpace({ ...DEFAULT_SPACE, cashReserve: setupCost });
+    onLedger?.({ id: `space-charter-${Date.now()}`, kind: "PURCHASE", label: "Aerospace company charter", amount: -setupCost, timestamp: Date.now(), detail: "Launch program and engineering team reserve" });
+    setSpaceOpen(true);
+  };
+  const openHolding = () => {
+    if (holding) return setHoldingOpen(true);
+    const setupCost = 1200000;
+    if (cash < setupCost) {
+      Alert.alert("HOLDING COMPANY LOCKED", `Need ${formatCurrency(setupCost - cash)} more for the corporate headquarters and group treasury.`);
+      return;
+    }
+    onCashChange((value) => value - setupCost);
+    setHolding({ ...DEFAULT_HOLDING, cashReserve: setupCost });
+    onLedger?.({ id: `holding-charter-${Date.now()}`, kind: "PURCHASE", label: "Holding Company charter", amount: -setupCost, timestamp: Date.now(), detail: "Corporate headquarters and group treasury reserve" });
+    setHoldingOpen(true);
+  };
   const nextMove = bestAffordable
     ? `Start ${bestAffordable.item.name} · ~${Math.max(1, Math.ceil(bestAffordable.cost / bestAffordable.hourly))} settlements to pay back at +${formatCurrency(bestAffordable.hourly)}/hr`
     : (() => {
@@ -365,6 +487,83 @@ function BusinessScreenContent({
         onCashChange={onCashChange}
         onChange={setSoftwareCompany || (() => undefined)}
         onBack={() => setSoftwareOpen(false)}
+        onLedger={onLedger}
+      />
+    );
+  if (sportsOpen)
+    return (
+      <SportsClubCompanyScreen
+        company={sportsClub}
+        cash={cash}
+        onCashChange={onCashChange}
+        onChange={setSportsClub}
+        onBack={() => setSportsOpen(false)}
+        onLedger={onLedger}
+      />
+    );
+  if (oilGasOpen)
+    return (
+      <OilGasCompanyScreen
+        company={oilGas}
+        cash={cash}
+        onCashChange={onCashChange}
+        onChange={setOilGas}
+        onBack={() => setOilGasOpen(false)}
+        onLedger={onLedger}
+      />
+    );
+  if (airlineOpen)
+    return (
+      <AirlineCompanyScreen
+        company={airline}
+        cash={cash}
+        onCashChange={onCashChange}
+        onChange={setAirline}
+        onBack={() => setAirlineOpen(false)}
+        onLedger={onLedger}
+      />
+    );
+  if (hotelOpen)
+    return (
+      <HotelCompanyScreen
+        company={hotel}
+        cash={cash}
+        onCashChange={onCashChange}
+        onChange={setHotel}
+        onBack={() => setHotelOpen(false)}
+        onLedger={onLedger}
+      />
+    );
+  if (blockchainOpen)
+    return (
+      <BlockchainCompanyScreen
+        company={blockchain}
+        cash={cash}
+        onCashChange={onCashChange}
+        onChange={setBlockchain}
+        onBack={() => setBlockchainOpen(false)}
+        onLedger={onLedger}
+      />
+    );
+  if (spaceOpen)
+    return (
+      <SpaceCompanyScreen
+        company={space}
+        cash={cash}
+        onCashChange={onCashChange}
+        onChange={setSpace}
+        onBack={() => setSpaceOpen(false)}
+        onLedger={onLedger}
+      />
+    );
+  if (holdingOpen)
+    return (
+      <HoldingCompanyScreen
+        holding={holding}
+        cash={cash}
+        onCashChange={onCashChange}
+        onChange={setHolding}
+        onBack={() => setHoldingOpen(false)}
         onLedger={onLedger}
       />
     );
@@ -649,6 +848,104 @@ function BusinessScreenContent({
               </Text>
             </Pressable>
           </View>
+          <View style={styles.sportsCard}>
+            <View style={styles.factoryCardCopy}>
+              <Text style={styles.sportsEyebrow}>SPORTS & ENTERTAINMENT</Text>
+              <Text style={styles.factoryTitle}>{sportsClub ? sportsClub.clubName : "Sports Club Company"}</Text>
+              <Text style={styles.factoryCopy}>
+                {sportsClub
+                  ? `${sportsClub.stage} · ${sportsClub.teams} teams · ${sportsClub.stadiumCapacity.toLocaleString()} seats`
+                  : "Build teams, stadiums, tournaments, sponsorships and a multi-city sports group."}
+              </Text>
+            </View>
+            <Pressable style={styles.sportsButton} onPress={openSportsClub}>
+              <Text style={styles.factoryButtonText}>{sportsClub ? "MANAGE SPORTS" : "START SPORTS"}</Text>
+            </Pressable>
+          </View>
+          <View style={styles.oilGasCard}>
+            <View style={styles.factoryCardCopy}>
+              <Text style={styles.oilGasEyebrow}>ENERGY & INFRASTRUCTURE</Text>
+              <Text style={styles.factoryTitle}>{oilGas ? oilGas.companyName : "Oil & Gas Company"}</Text>
+              <Text style={styles.factoryCopy}>
+                {oilGas ? `${oilGas.stage} · ${oilGas.fields} fields · ${oilGas.fuelStations} stations` : "Build fields, refineries, terminals, fuel stations and global energy operations."}
+              </Text>
+            </View>
+            <Pressable style={styles.oilGasButton} onPress={openOilGas}>
+              <Text style={styles.factoryButtonText}>{oilGas ? "MANAGE ENERGY" : "START ENERGY"}</Text>
+            </Pressable>
+          </View>
+          <View style={styles.bankingCard}>
+            <View style={styles.factoryCardCopy}>
+              <Text style={styles.bankingEyebrow}>FINANCIAL SERVICES</Text>
+              <Text style={styles.factoryTitle}>Banking Company</Text>
+              <Text style={styles.factoryCopy}>
+                Manage credit, deposits, insurance, tax, treasury risk and investor capital in the dedicated Bank module.
+              </Text>
+            </View>
+            <Pressable style={styles.bankingButton} onPress={onOpenBank}>
+              <Text style={styles.factoryButtonText}>OPEN BANKING</Text>
+            </Pressable>
+          </View>
+          <View style={styles.airlineCard}>
+            <View style={styles.factoryCardCopy}>
+              <Text style={styles.airlineEyebrow}>AVIATION & TRAVEL</Text>
+              <Text style={styles.factoryTitle}>{airline ? airline.companyName : "Airline Company"}</Text>
+              <Text style={styles.factoryCopy}>
+                {airline ? `${airline.stage} · ${airline.aircraft} aircraft · ${airline.routes} routes` : "Build a regional carrier, schedule routes, fill seats and expand into a global airline group."}
+              </Text>
+            </View>
+            <Pressable style={styles.airlineButton} onPress={openAirline}>
+              <Text style={styles.factoryButtonText}>{airline ? "MANAGE AIRLINE" : "START AIRLINE"}</Text>
+            </Pressable>
+          </View>
+          <View style={styles.hotelCard}>
+            <View style={styles.factoryCardCopy}>
+              <Text style={styles.hotelEyebrow}>HOSPITALITY & TRAVEL</Text>
+              <Text style={styles.factoryTitle}>{hotel ? hotel.companyName : "Hotel & Hospitality Company"}</Text>
+              <Text style={styles.factoryCopy}>
+                {hotel ? `${hotel.stage} · ${hotel.properties} properties · ${hotel.rooms} rooms` : "Acquire properties, fill rooms, build guest services and grow an international hospitality group."}
+              </Text>
+            </View>
+            <Pressable style={styles.hotelButton} onPress={openHotel}>
+              <Text style={styles.factoryButtonText}>{hotel ? "MANAGE HOTEL" : "START HOTEL"}</Text>
+            </Pressable>
+          </View>
+          <View style={styles.blockchainCard}>
+            <View style={styles.factoryCardCopy}>
+              <Text style={styles.blockchainEyebrow}>DIGITAL INFRASTRUCTURE</Text>
+              <Text style={styles.factoryTitle}>{blockchain ? blockchain.companyName : "Blockchain & Digital Technology"}</Text>
+              <Text style={styles.factoryCopy}>
+                {blockchain ? `${blockchain.stage} · ${blockchain.servers} servers · ${blockchain.clients} clients` : "Build infrastructure, research products, launch a reliable platform and win enterprise technology clients."}
+              </Text>
+            </View>
+            <Pressable style={styles.blockchainButton} onPress={openBlockchain}>
+              <Text style={styles.factoryButtonText}>{blockchain ? "MANAGE TECHNOLOGY" : "START TECHNOLOGY"}</Text>
+            </Pressable>
+          </View>
+          <View style={styles.spaceCard}>
+            <View style={styles.factoryCardCopy}>
+              <Text style={styles.spaceEyebrow}>AEROSPACE & EXPLORATION</Text>
+              <Text style={styles.factoryTitle}>{space ? space.companyName : "Space & Aerospace Company"}</Text>
+              <Text style={styles.factoryCopy}>
+                {space ? `${space.stage} · ${space.launches} launches · ${space.satellites} satellites` : "Fund research, build rockets, schedule missions and grow an advanced space enterprise."}
+              </Text>
+            </View>
+            <Pressable style={styles.spaceButton} onPress={openSpace}>
+              <Text style={styles.factoryButtonText}>{space ? "MANAGE AEROSPACE" : "START AEROSPACE"}</Text>
+            </Pressable>
+          </View>
+          <View style={styles.holdingCard}>
+            <View style={styles.factoryCardCopy}>
+              <Text style={styles.holdingEyebrow}>GROUP MANAGEMENT LAYER</Text>
+              <Text style={styles.factoryTitle}>{holding ? holding.companyName : "Holding Company & Mergers"}</Text>
+              <Text style={styles.factoryCopy}>
+                {holding ? `${holding.stage} · ${holding.subsidiaries.length} subsidiaries · ${Math.round(holding.synergyRate * 100)}% synergy` : "Consolidate profitable businesses, acquire targets and manage group-wide treasury above the operating companies."}
+              </Text>
+            </View>
+            <Pressable style={styles.holdingButton} onPress={openHolding}>
+              <Text style={styles.factoryButtonText}>{holding ? "MANAGE GROUP" : "FORM HOLDING"}</Text>
+            </Pressable>
+          </View>
           <View style={styles.primaryActions}>
             <Pressable
               style={styles.primaryButton}
@@ -688,7 +985,7 @@ function BusinessScreenContent({
             </View>
           )}
           <View style={styles.sectionHead}>
-            <View>
+            <View style={styles.sectionHeadCopy}>
               <Text style={styles.sectionEyebrow}>YOUR COMPANIES</Text>
               <Text style={styles.sectionTitle}>Owned and operating</Text>
             </View>
@@ -747,7 +1044,7 @@ function BusinessScreenContent({
             </View>
           </View>
           <View style={styles.sectionHead}>
-            <View>
+            <View style={styles.sectionHeadCopy}>
               <Text style={styles.sectionEyebrow}>START A NEW BUSINESS</Text>
               <Text style={styles.sectionTitle}>Choose your next company</Text>
             </View>
@@ -1256,6 +1553,190 @@ const styles = StyleSheet.create({
     paddingHorizontal: 11,
     paddingVertical: 10,
   },
+  sportsCard: {
+    backgroundColor: "#F1F8FF",
+    borderColor: "#A9C8F2",
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  sportsEyebrow: {
+    color: "#1769AA",
+    fontSize: 8,
+    fontWeight: "900",
+    letterSpacing: 1,
+  },
+  sportsButton: {
+    backgroundColor: "#1769AA",
+    borderRadius: 10,
+    paddingHorizontal: 11,
+    paddingVertical: 10,
+  },
+  oilGasCard: {
+    backgroundColor: "#F4FAFF",
+    borderColor: "#8CC7E8",
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  oilGasEyebrow: {
+    color: "#087E9E",
+    fontSize: 8,
+    fontWeight: "900",
+    letterSpacing: 1,
+  },
+  oilGasButton: {
+    backgroundColor: "#087E9E",
+    borderRadius: 10,
+    paddingHorizontal: 11,
+    paddingVertical: 10,
+  },
+  airlineCard: {
+    backgroundColor: "#F2F7FF",
+    borderColor: "#9BBCE8",
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  airlineEyebrow: {
+    color: "#2C63B6",
+    fontSize: 8,
+    fontWeight: "900",
+    letterSpacing: 1,
+  },
+  airlineButton: {
+    backgroundColor: "#2C63B6",
+    borderRadius: 10,
+    paddingHorizontal: 11,
+    paddingVertical: 10,
+  },
+  hotelCard: {
+    backgroundColor: "#FFF8EA",
+    borderColor: "#E6C982",
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  hotelEyebrow: {
+    color: "#9B6B18",
+    fontSize: 8,
+    fontWeight: "900",
+    letterSpacing: 1,
+  },
+  hotelButton: {
+    backgroundColor: "#B37A1B",
+    borderRadius: 10,
+    paddingHorizontal: 11,
+    paddingVertical: 10,
+  },
+  blockchainCard: {
+    backgroundColor: "#EEF7FF",
+    borderColor: "#8CC8EA",
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  blockchainEyebrow: {
+    color: "#087E9E",
+    fontSize: 8,
+    fontWeight: "900",
+    letterSpacing: 1,
+  },
+  blockchainButton: {
+    backgroundColor: "#087E9E",
+    borderRadius: 10,
+    paddingHorizontal: 11,
+    paddingVertical: 10,
+  },
+  spaceCard: {
+    backgroundColor: "#EEF3FF",
+    borderColor: "#9BAFE5",
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  spaceEyebrow: {
+    color: "#3856A7",
+    fontSize: 8,
+    fontWeight: "900",
+    letterSpacing: 1,
+  },
+  spaceButton: {
+    backgroundColor: "#3856A7",
+    borderRadius: 10,
+    paddingHorizontal: 11,
+    paddingVertical: 10,
+  },
+  holdingCard: {
+    backgroundColor: "#F1F7FF",
+    borderColor: "#78A8D8",
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  holdingEyebrow: {
+    color: "#245B91",
+    fontSize: 8,
+    fontWeight: "900",
+    letterSpacing: 1,
+  },
+  holdingButton: {
+    backgroundColor: "#245B91",
+    borderRadius: 10,
+    paddingHorizontal: 11,
+    paddingVertical: 10,
+  },
+  bankingCard: {
+    backgroundColor: "#F4F9FF",
+    borderColor: "#A9C8F2",
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  bankingEyebrow: {
+    color: "#1769AA",
+    fontSize: 8,
+    fontWeight: "900",
+    letterSpacing: 1,
+  },
+  bankingButton: {
+    backgroundColor: "#1769AA",
+    borderRadius: 10,
+    paddingHorizontal: 11,
+    paddingVertical: 10,
+  },
   shippingCard: {
     backgroundColor: "#FFFFFF",
     borderColor: "#B9D2F5",
@@ -1326,22 +1807,22 @@ const styles = StyleSheet.create({
   },
   taxiButtonText: { color: "#FFFFFF", fontSize: 9, fontWeight: "900" },
   commandLine: {
-    backgroundColor: "#102438",
+    backgroundColor: "#EAF3FF",
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#24506B",
+    borderColor: "#B9D2F5",
     paddingHorizontal: 14,
     paddingVertical: 11,
     marginBottom: 10,
   },
   commandEyebrow: {
-    color: C.cyan,
+    color: "#1769E0",
     fontSize: 8,
     fontWeight: "900",
     letterSpacing: 1,
   },
   commandValue: {
-    color: C.white,
+    color: C.ink,
     fontSize: 14,
     fontWeight: "900",
     marginTop: 4,
@@ -1349,11 +1830,11 @@ const styles = StyleSheet.create({
   summaryStrip: { flexDirection: "row", gap: 8, marginBottom: 10 },
   summaryMetric: {
     flex: 1,
-    backgroundColor: "#102438",
+    backgroundColor: "#FFFFFF",
     borderRadius: 12,
     padding: 10,
     borderWidth: 1,
-    borderColor: "#24506B",
+    borderColor: "#B9D2F5",
   },
   summaryLabel: {
     color: C.muted,
@@ -1362,7 +1843,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
   },
   summaryValue: {
-    color: C.white,
+    color: C.ink,
     fontSize: 14,
     fontWeight: "900",
     marginTop: 5,
@@ -1396,7 +1877,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
   },
   nextMoveCard: {
-    backgroundColor: "#112D26",
+    backgroundColor: "#E7F5EF",
     borderRadius: 14,
     borderWidth: 1,
     borderColor: C.green,
@@ -1404,7 +1885,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   nextMoveText: {
-    color: C.white,
+    color: C.ink,
     fontSize: 13,
     fontWeight: "800",
     lineHeight: 18,
@@ -1544,9 +2025,10 @@ const styles = StyleSheet.create({
   sectionHead: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-end",
+    alignItems: "flex-start",
     marginBottom: 12,
   },
+  sectionHeadCopy: { flex: 1, minWidth: 0, paddingRight: 10 },
   sectionEyebrow: {
     color: C.muted,
     fontSize: 8,
@@ -1564,6 +2046,9 @@ const styles = StyleSheet.create({
     fontSize: 8,
     fontWeight: "900",
     letterSpacing: 0.8,
+    flexShrink: 1,
+    maxWidth: 92,
+    textAlign: "right",
   },
   grid: {
     flexDirection: "row",
@@ -1590,7 +2075,10 @@ const styles = StyleSheet.create({
     top: -34,
     opacity: 0.08,
   },
-  lockedCard: { opacity: 0.58 },
+  lockedCard: {
+    backgroundColor: "#F1F4F7",
+    borderColor: C.cardBorder,
+  },
   pressed: { transform: [{ scale: 0.98 }], opacity: 0.9 },
   cardHeader: {
     flexDirection: "row",
@@ -1671,7 +2159,7 @@ const styles = StyleSheet.create({
   },
   cardActionText: { fontSize: 9, fontWeight: "900", letterSpacing: 0.5 },
   cardDescription: {
-    color: "#B7C9D8",
+    color: C.muted,
     fontSize: 9,
     lineHeight: 13,
     marginTop: 5,

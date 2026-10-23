@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { CollectionItem } from '../data/collectionTypes';
+import { designSystem } from '../theme/designSystem';
 
-const C = { bg: '#07130F', panel: '#0D241A', panel2: '#123726', green: '#16E98A', cyan: '#61E8FF', gold: '#FFC928', slate: '#236A45', text: '#F7FFF9', muted: '#8FB5A4' };
+const C = { bg: designSystem.colors.background, panel: designSystem.colors.card, panel2: designSystem.colors.highlight, green: designSystem.colors.primary, cyan: designSystem.colors.cyan, gold: designSystem.colors.gold, slate: designSystem.colors.border, text: designSystem.colors.heading, muted: designSystem.colors.secondary };
 const money = (value: number) => `$${value.toLocaleString('en-US')}`;
 
 export type AssetCardProps = {
@@ -59,19 +60,19 @@ const styles = StyleSheet.create({
   imageUnavailable: { alignItems: 'center', justifyContent: 'center', borderBottomWidth: 1, borderBottomColor: C.slate },
   unavailableText: { color: C.muted, fontSize: 11, fontWeight: '900', letterSpacing: 1.2 },
   assetError: { color: C.muted, fontSize: 9, marginTop: 6 },
-  imageShade: { position: 'absolute', left: 0, right: 0, top: 124, minHeight: 30, paddingHorizontal: 12, paddingVertical: 7, backgroundColor: 'rgba(4,16,11,.72)', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  imageShade: { position: 'absolute', left: 0, right: 0, top: 124, minHeight: 30, paddingHorizontal: 12, paddingVertical: 7, backgroundColor: 'rgba(24,49,83,.78)', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   type: { color: C.cyan, fontSize: 9, fontWeight: '900', letterSpacing: 1.2 },
   prestige: { color: C.gold, fontSize: 9, fontWeight: '900' },
   body: { padding: 14 },
   name: { color: C.text, fontSize: 18, fontWeight: '900' },
   price: { color: C.gold, fontSize: 19, fontWeight: '900', marginTop: 5, marginBottom: 10 },
-  metaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 11, marginBottom: 11, borderBottomWidth: 1, borderBottomColor: '#1E5139' },
+  metaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 11, marginBottom: 11, borderBottomWidth: 1, borderBottomColor: C.slate },
   metaLabel: { color: C.muted, fontSize: 10, fontWeight: '800', letterSpacing: 1 },
   metaValue: { color: C.text, fontSize: 11, fontWeight: '800' },
-  ownedPill: { borderRadius: 10, paddingVertical: 11, alignItems: 'center', backgroundColor: '#123D2C', borderWidth: 1, borderColor: C.green },
+  ownedPill: { borderRadius: 10, paddingVertical: 11, alignItems: 'center', backgroundColor: '#E7F5EF', borderWidth: 1, borderColor: C.green },
   ownedText: { color: C.green, fontSize: 10, fontWeight: '900', letterSpacing: .7 },
   acquire: { backgroundColor: C.green, borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
-  locked: { backgroundColor: '#253B32', borderWidth: 1, borderColor: '#3A6250' },
+  locked: { backgroundColor: '#EEF1F4', borderWidth: 1, borderColor: C.slate },
   pressed: { opacity: .78, transform: [{ scale: .985 }] },
   acquireText: { color: C.bg, fontSize: 10, fontWeight: '900' },
 });

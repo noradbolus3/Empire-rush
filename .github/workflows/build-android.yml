@@ -5,8 +5,8 @@ on:
     inputs:
       source_ref:
         description: 'Exact application commit or ref to build'
-        required: true
-        default: 'main'
+        required: false
+        default: ''
   push:
     branches: [main]
 

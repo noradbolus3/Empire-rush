@@ -28,6 +28,20 @@ import {
   DEFAULT_SOFTWARE_COMPANY,
   SoftwareCompanyState,
 } from "../types/software";
+import { SportsClubState } from "../types/sportsClub";
+import { SPORTS_CLUB_SAVE, sanitizeSportsClub } from "../engine/sportsClubEngine";
+import { OIL_GAS_SAVE, sanitizeOilGas } from "../engine/oilGasEngine";
+import { OilGasState } from "../types/oilGas";
+import { AirlineState } from "../types/airline";
+import { AIRLINE_SAVE, sanitizeAirline } from "../engine/airlineEngine";
+import { HotelState } from "../types/hotel";
+import { HOTEL_SAVE, sanitizeHotel } from "../engine/hotelEngine";
+import { BlockchainState } from "../types/blockchain";
+import { BLOCKCHAIN_SAVE, sanitizeBlockchain } from "../engine/blockchainEngine";
+import { SpaceState } from "../types/space";
+import { SPACE_SAVE, sanitizeSpace } from "../engine/spaceEngine";
+import { HoldingState } from "../types/holding";
+import { HOLDING_SAVE, sanitizeHolding } from "../engine/holdingEngine";
 
 export const TAXI_COMPANY_SAVE = "empire-rush-taxi-company-v1";
 export const SHIPPING_COMPANY_SAVE = "empire-rush-shipping-company-v1";
@@ -58,6 +72,20 @@ type GameContextValue = {
   setSoftwareCompany: React.Dispatch<
     React.SetStateAction<SoftwareCompanyState | null>
   >;
+  sportsClub: SportsClubState | null;
+  setSportsClub: React.Dispatch<React.SetStateAction<SportsClubState | null>>;
+  oilGas: OilGasState | null;
+  setOilGas: React.Dispatch<React.SetStateAction<OilGasState | null>>;
+  airline: AirlineState | null;
+  setAirline: React.Dispatch<React.SetStateAction<AirlineState | null>>;
+  hotel: HotelState | null;
+  setHotel: React.Dispatch<React.SetStateAction<HotelState | null>>;
+  blockchain: BlockchainState | null;
+  setBlockchain: React.Dispatch<React.SetStateAction<BlockchainState | null>>;
+  space: SpaceState | null;
+  setSpace: React.Dispatch<React.SetStateAction<SpaceState | null>>;
+  holding: HoldingState | null;
+  setHolding: React.Dispatch<React.SetStateAction<HoldingState | null>>;
   resetBusinesses: () => void;
 };
 const GameContext = createContext<GameContextValue>({
@@ -75,6 +103,20 @@ const GameContext = createContext<GameContextValue>({
   setDealership: () => undefined,
   softwareCompany: null,
   setSoftwareCompany: () => undefined,
+  sportsClub: null,
+  setSportsClub: () => undefined,
+  oilGas: null,
+  setOilGas: () => undefined,
+  airline: null,
+  setAirline: () => undefined,
+  hotel: null,
+  setHotel: () => undefined,
+  blockchain: null,
+  setBlockchain: () => undefined,
+  space: null,
+  setSpace: () => undefined,
+  holding: null,
+  setHolding: () => undefined,
   resetBusinesses: () => undefined,
 });
 
@@ -91,6 +133,13 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [dealership, setDealership] = useState<DealershipState | null>(null);
   const [softwareCompany, setSoftwareCompany] =
     useState<SoftwareCompanyState | null>(null);
+  const [sportsClub, setSportsClub] = useState<SportsClubState | null>(null);
+  const [oilGas, setOilGas] = useState<OilGasState | null>(null);
+  const [airline, setAirline] = useState<AirlineState | null>(null);
+  const [hotel, setHotel] = useState<HotelState | null>(null);
+  const [blockchain, setBlockchain] = useState<BlockchainState | null>(null);
+  const [space, setSpace] = useState<SpaceState | null>(null);
+  const [holding, setHolding] = useState<HoldingState | null>(null);
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => {
     let active = true;
@@ -102,6 +151,13 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       AsyncStorage.getItem(CONSTRUCTION_COMPANY_SAVE),
       AsyncStorage.getItem(DEALERSHIP_SAVE),
       AsyncStorage.getItem(SOFTWARE_COMPANY_SAVE),
+      AsyncStorage.getItem(SPORTS_CLUB_SAVE),
+      AsyncStorage.getItem(OIL_GAS_SAVE),
+      AsyncStorage.getItem(AIRLINE_SAVE),
+      AsyncStorage.getItem(HOTEL_SAVE),
+      AsyncStorage.getItem(BLOCKCHAIN_SAVE),
+      AsyncStorage.getItem(SPACE_SAVE),
+      AsyncStorage.getItem(HOLDING_SAVE),
     ]).then(
       ([
         loadedBusinesses,
@@ -111,6 +167,13 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         rawConstruction,
         rawDealership,
         rawSoftware,
+        rawSportsClub,
+        rawOilGas,
+        rawAirline,
+        rawHotel,
+        rawBlockchain,
+        rawSpace,
+        rawHolding,
       ]) => {
         if (!active) return;
         setBusinesses(loadedBusinesses);
@@ -171,6 +234,55 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             setSoftwareCompany(null);
           }
         }
+        if (rawSportsClub) {
+          try {
+            setSportsClub(sanitizeSportsClub(JSON.parse(rawSportsClub)));
+          } catch {
+            setSportsClub(null);
+          }
+        }
+        if (rawOilGas) {
+          try {
+            setOilGas(sanitizeOilGas(JSON.parse(rawOilGas)));
+          } catch {
+            setOilGas(null);
+          }
+        }
+        if (rawAirline) {
+          try {
+            setAirline(sanitizeAirline(JSON.parse(rawAirline)));
+          } catch {
+            setAirline(null);
+          }
+        }
+        if (rawHotel) {
+          try {
+            setHotel(sanitizeHotel(JSON.parse(rawHotel)));
+          } catch {
+            setHotel(null);
+          }
+        }
+        if (rawBlockchain) {
+          try {
+            setBlockchain(sanitizeBlockchain(JSON.parse(rawBlockchain)));
+          } catch {
+            setBlockchain(null);
+          }
+        }
+        if (rawSpace) {
+          try {
+            setSpace(sanitizeSpace(JSON.parse(rawSpace)));
+          } catch {
+            setSpace(null);
+          }
+        }
+        if (rawHolding) {
+          try {
+            setHolding(sanitizeHolding(JSON.parse(rawHolding)));
+          } catch {
+            setHolding(null);
+          }
+        }
         setHydrated(true);
       },
     );
@@ -211,6 +323,27 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         JSON.stringify(softwareCompany),
       );
     else void AsyncStorage.removeItem(SOFTWARE_COMPANY_SAVE);
+    if (sportsClub)
+      void AsyncStorage.setItem(SPORTS_CLUB_SAVE, JSON.stringify(sportsClub));
+    else void AsyncStorage.removeItem(SPORTS_CLUB_SAVE);
+    if (oilGas)
+      void AsyncStorage.setItem(OIL_GAS_SAVE, JSON.stringify(oilGas));
+    else void AsyncStorage.removeItem(OIL_GAS_SAVE);
+    if (airline)
+      void AsyncStorage.setItem(AIRLINE_SAVE, JSON.stringify(airline));
+    else void AsyncStorage.removeItem(AIRLINE_SAVE);
+    if (hotel)
+      void AsyncStorage.setItem(HOTEL_SAVE, JSON.stringify(hotel));
+    else void AsyncStorage.removeItem(HOTEL_SAVE);
+    if (blockchain)
+      void AsyncStorage.setItem(BLOCKCHAIN_SAVE, JSON.stringify(blockchain));
+    else void AsyncStorage.removeItem(BLOCKCHAIN_SAVE);
+    if (space)
+      void AsyncStorage.setItem(SPACE_SAVE, JSON.stringify(space));
+    else void AsyncStorage.removeItem(SPACE_SAVE);
+    if (holding)
+      void AsyncStorage.setItem(HOLDING_SAVE, JSON.stringify(holding));
+    else void AsyncStorage.removeItem(HOLDING_SAVE);
   }, [
     businesses,
     taxiCompany,
@@ -219,6 +352,13 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     constructionCompany,
     dealership,
     softwareCompany,
+    sportsClub,
+    oilGas,
+    airline,
+    hotel,
+    blockchain,
+    space,
+    holding,
     hydrated,
   ]);
   const resetBusinesses = () => {
@@ -229,6 +369,13 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     setConstructionCompany(null);
     setDealership(null);
     setSoftwareCompany(null);
+    setSportsClub(null);
+    setOilGas(null);
+    setAirline(null);
+    setHotel(null);
+    setBlockchain(null);
+    setSpace(null);
+    setHolding(null);
     void AsyncStorage.setItem(
       BUSINESS_SIMULATION_SAVE,
       JSON.stringify({ schemaVersion: 2, businesses: DEFAULT_BUSINESSES }),
@@ -239,6 +386,13 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     void AsyncStorage.removeItem(CONSTRUCTION_COMPANY_SAVE);
     void AsyncStorage.removeItem(DEALERSHIP_SAVE);
     void AsyncStorage.removeItem(SOFTWARE_COMPANY_SAVE);
+    void AsyncStorage.removeItem(SPORTS_CLUB_SAVE);
+    void AsyncStorage.removeItem(OIL_GAS_SAVE);
+    void AsyncStorage.removeItem(AIRLINE_SAVE);
+    void AsyncStorage.removeItem(HOTEL_SAVE);
+    void AsyncStorage.removeItem(BLOCKCHAIN_SAVE);
+    void AsyncStorage.removeItem(SPACE_SAVE);
+    void AsyncStorage.removeItem(HOLDING_SAVE);
   };
   const value = useMemo(
     () => ({
@@ -256,6 +410,20 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       setDealership,
       softwareCompany,
       setSoftwareCompany,
+      sportsClub,
+      setSportsClub,
+      oilGas,
+      setOilGas,
+      airline,
+      setAirline,
+      hotel,
+      setHotel,
+      blockchain,
+      setBlockchain,
+      space,
+      setSpace,
+      holding,
+      setHolding,
       resetBusinesses,
     }),
     [
@@ -266,6 +434,13 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       constructionCompany,
       dealership,
       softwareCompany,
+      sportsClub,
+      oilGas,
+      airline,
+      hotel,
+      blockchain,
+      space,
+      holding,
     ],
   );
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

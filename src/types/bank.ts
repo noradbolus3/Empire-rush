@@ -1,8 +1,12 @@
 export type BankTab =
   | "home"
+  | "setup"
   | "accounts"
   | "loans"
+  | "operations"
+  | "branches"
   | "investors"
+  | "enterprise"
   | "credit"
   | "deposits"
   | "insurance"
