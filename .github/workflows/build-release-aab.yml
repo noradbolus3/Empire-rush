@@ -2,37 +2,43 @@ name: Android signed Release AAB
 
 on:
   workflow_dispatch:
-    inputs:
-      source_ref:
-        description: Exact commit or branch to build
-        required: true
-        default: round-40-construction-company
 
 jobs:
   release-aab:
     runs-on: ubuntu-latest
+    environment:
+      name: production
+    permissions:
+      contents: read
     timeout-minutes: 60
     steps:
-      - name: Checkout exact source
-        uses: actions/checkout@v4
+      - name: Checkout approved Round 42 source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          ref: ${{ inputs.source_ref }}
-          fetch-depth: 0
+          ref: 33a0a966341074b6629c122dee344aa61135868c
+          fetch-depth: 1
+
+      - name: Verify approved source commit
+        env:
+          EXPECTED_COMMIT: 33a0a966341074b6629c122dee344aa61135868c
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_COMMIT"
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 20
           cache: npm
 
       - name: Setup Java 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
         with:
           distribution: temurin
           java-version: '17'
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
         with:
           packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
 
@@ -44,6 +50,18 @@ jobs:
           CI: '1'
         run: npx expo prebuild --platform android --no-install --clean
 
+      - name: Install and verify bundletool
+        run: |
+          set -euo pipefail
+          BUNDLETOOL="$RUNNER_TEMP/bundletool-all-1.18.3.jar"
+          curl --fail --silent --show-error --location \
+            'https://github.com/google/bundletool/releases/download/1.18.3/bundletool-all-1.18.3.jar' \
+            --output "$BUNDLETOOL"
+          printf '%s  %s\n' \
+            'a099cfa1543f55593bc2ed16a70a7c67fe54b1747bb7301f37fdfd6d91028e29' \
+            "$BUNDLETOOL" | sha256sum --check --status
+          printf 'BUNDLETOOL_JAR=%s\n' "$BUNDLETOOL" >> "$GITHUB_ENV"
+
       - name: Configure release signing
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -51,31 +69,131 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         run: |
-          test -n "$ANDROID_KEYSTORE_BASE64"
-          test -n "$ANDROID_KEYSTORE_PASSWORD"
-          test -n "$ANDROID_KEY_PASSWORD"
-          test -n "$ANDROID_KEY_ALIAS"
-          mkdir -p android/app/signing
-          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/signing/empire-rush-release.jks
-          chmod 600 android/app/signing/empire-rush-release.jks
-          export ANDROID_KEYSTORE_FILE="$GITHUB_WORKSPACE/android/app/signing/empire-rush-release.jks"
+          set -euo pipefail
+          set +x
+          : "${ANDROID_KEYSTORE_BASE64:?Missing ANDROID_KEYSTORE_BASE64}"
+          : "${ANDROID_KEYSTORE_PASSWORD:?Missing ANDROID_KEYSTORE_PASSWORD}"
+          : "${ANDROID_KEY_PASSWORD:?Missing ANDROID_KEY_PASSWORD}"
+          : "${ANDROID_KEY_ALIAS:?Missing ANDROID_KEY_ALIAS}"
+
+          umask 077
+          KEYSTORE="$RUNNER_TEMP/empire-rush-upload.jks"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE"
+          chmod 600 "$KEYSTORE"
+          test -s "$KEYSTORE"
+          export ANDROID_KEYSTORE_FILE="$KEYSTORE"
+
+          cat > "$RUNNER_TEMP/UploadKeyCert.java" <<'JAVA'
+          import java.io.DataInputStream;
+          import java.io.InputStream;
+          import java.nio.file.Files;
+          import java.nio.file.Path;
+          import java.security.Key;
+          import java.security.KeyStore;
+          import java.security.MessageDigest;
+          import java.security.PrivateKey;
+          import java.security.cert.Certificate;
+
+          public class UploadKeyCert {
+            public static void main(String[] args) throws Exception {
+              String path = System.getenv("ANDROID_KEYSTORE_FILE");
+              String alias = System.getenv("ANDROID_KEY_ALIAS");
+              char[] storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD").toCharArray();
+              char[] keyPassword = System.getenv("ANDROID_KEY_PASSWORD").toCharArray();
+
+              try (DataInputStream header = new DataInputStream(Files.newInputStream(Path.of(path)))) {
+                int magic = header.readInt();
+                int version = header.readInt();
+                if (magic != 0xfeedfeed || (version != 1 && version != 2)) {
+                  throw new IllegalArgumentException("Keystore must be a Java JKS-format file");
+                }
+              }
+
+              KeyStore store = KeyStore.getInstance("JKS");
+              try (InputStream in = Files.newInputStream(Path.of(path))) {
+                store.load(in, storePassword);
+              }
+              if (!store.isKeyEntry(alias)) {
+                throw new IllegalArgumentException("Configured alias is not a private-key entry");
+              }
+              Key key = store.getKey(alias, keyPassword);
+              if (!(key instanceof PrivateKey)) {
+                throw new IllegalArgumentException("Configured alias does not unlock a private key");
+              }
+              Certificate certificate = store.getCertificate(alias);
+              if (certificate == null) {
+                throw new IllegalArgumentException("Configured alias has no certificate");
+              }
+              byte[] digest = MessageDigest.getInstance("SHA-256").digest(certificate.getEncoded());
+              StringBuilder hex = new StringBuilder();
+              for (byte value : digest) hex.append(String.format("%02x", value));
+              System.out.println(hex);
+            }
+          }
+          JAVA
+
+          UPLOAD_KEY_CERT_SHA256="$(java "$RUNNER_TEMP/UploadKeyCert.java")"
+          test "${#UPLOAD_KEY_CERT_SHA256}" -eq 64
+          printf 'ANDROID_KEYSTORE_FILE=%s\n' "$KEYSTORE" >> "$GITHUB_ENV"
+          printf 'UPLOAD_KEY_CERT_SHA256=%s\n' "$UPLOAD_KEY_CERT_SHA256" >> "$GITHUB_ENV"
+
           python3 - <<'PY'
+          import re
           from pathlib import Path
+
           p = Path('android/app/build.gradle')
           s = p.read_text()
-          signing = '''\n    signingConfigs {\n        release {\n            storeFile file(System.getenv("ANDROID_KEYSTORE_FILE"))\n            storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")\n            keyAlias System.getenv("ANDROID_KEY_ALIAS")\n            keyPassword System.getenv("ANDROID_KEY_PASSWORD")\n        }\n    }\n'''
-          if 'signingConfigs {' not in s:
-              s = s.replace('    buildTypes {', signing + '    buildTypes {', 1)
-          if 'signingConfig signingConfigs.release' not in s:
-              s = s.replace('    buildTypes {\n        release {', '    buildTypes {\n        release {\n            signingConfig signingConfigs.release', 1)
+          signing_config = (
+              "        release {\n"
+              "            storeFile file(System.getenv(\"ANDROID_KEYSTORE_FILE\"))\n"
+              "            storePassword System.getenv(\"ANDROID_KEYSTORE_PASSWORD\")\n"
+              "            keyAlias System.getenv(\"ANDROID_KEY_ALIAS\")\n"
+              "            keyPassword System.getenv(\"ANDROID_KEY_PASSWORD\")\n"
+              "        }\n"
+          )
+
+          signing_match = re.search(r'(?ms)^    signingConfigs\s*\{(.*?)^    \}', s)
+          if signing_match is None:
+              build_types_pos = s.find('    buildTypes {')
+              if build_types_pos < 0:
+                  raise SystemExit('Could not find Expo Android buildTypes block')
+              new_signing_block = (
+                  "    signingConfigs {\n"
+                  "        release {\n"
+                  "            storeFile file(System.getenv(\"ANDROID_KEYSTORE_FILE\"))\n"
+                  "            storePassword System.getenv(\"ANDROID_KEYSTORE_PASSWORD\")\n"
+                  "            keyAlias System.getenv(\"ANDROID_KEY_ALIAS\")\n"
+                  "            keyPassword System.getenv(\"ANDROID_KEY_PASSWORD\")\n"
+                  "        }\n"
+                  "    }\n"
+              )
+              s = s[:build_types_pos] + new_signing_block + s[build_types_pos:]
+          elif re.search(r'(?m)^\s*release\s*\{', signing_match.group(1)) is None:
+              s = s[:signing_match.end(1)] + signing_config + s[signing_match.end(1):]
+
+          build_types_pos = s.find('    buildTypes {')
+          if build_types_pos < 0:
+              raise SystemExit('Could not find Expo Android buildTypes block')
+          release_match = re.search(r'(?m)^        release\s*\{', s[build_types_pos:])
+          if release_match is None:
+              raise SystemExit('Could not find Expo Android release build type')
+          release_start = build_types_pos + release_match.end()
+          release_end_match = re.search(r'(?m)^        \}', s[release_start:])
+          if release_end_match is None:
+              raise SystemExit('Could not locate end of Expo Android release build type')
+          release_end = release_start + release_end_match.start()
+          release_body = s[release_start:release_end]
+          if 'signingConfig signingConfigs.release' not in release_body:
+              if 'signingConfig signingConfigs.debug' in release_body:
+                  release_body = release_body.replace(
+                      'signingConfig signingConfigs.debug',
+                      'signingConfig signingConfigs.release', 1)
+              else:
+                  release_body = '\n            signingConfig signingConfigs.release' + release_body
+              s = s[:release_start] + release_body + s[release_end:]
+
           p.write_text(s)
           PY
-          cat >> "$GITHUB_ENV" <<EOF
-          ANDROID_KEYSTORE_FILE=$GITHUB_WORKSPACE/android/app/signing/empire-rush-release.jks
-          ANDROID_KEYSTORE_PASSWORD=$ANDROID_KEYSTORE_PASSWORD
-          ANDROID_KEY_PASSWORD=$ANDROID_KEY_PASSWORD
-          ANDROID_KEY_ALIAS=$ANDROID_KEY_ALIAS
-          EOF
 
       - name: Generate offline JavaScript bundle
         run: |
@@ -86,33 +204,60 @@ jobs:
 
       - name: Build signed Release AAB
         working-directory: android
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         run: ./gradlew clean bundleRelease --no-daemon --stacktrace
 
       - name: Verify AAB, package ID, signing certificate, and source commit
         env:
-          EXPECTED_COMMIT: ${{ inputs.source_ref }}
+          EXPECTED_COMMIT: 33a0a966341074b6629c122dee344aa61135868c
+          EXPECTED_PACKAGE_ID: com.empirerush.tycoon
         run: |
+          set -euo pipefail
           AAB=android/app/build/outputs/bundle/release/app-release.aab
           test -f "$AAB"
-          test "$(git rev-parse HEAD)" = "$(git rev-parse "$EXPECTED_COMMIT")"
-          jarsigner -verify -verbose -certs "$AAB" >/tmp/jarsigner.txt
-          grep -q 'jar verified' /tmp/jarsigner.txt
-          keytool -printcert -jarfile "$AAB" | tee /tmp/aab-certificate.txt
-          grep -q 'SHA256:' /tmp/aab-certificate.txt
-          $ANDROID_HOME/build-tools/35.0.0/aapt2 dump packagename "$AAB" | grep -q 'com.empirerush.tycoon'
-          unzip -l "$AAB" | grep -q 'assets/index.android.bundle'
-          sha256sum "$AAB" | tee SHA256SUMS-release-aab.txt
-          stat -c 'AAB_BYTES=%s' "$AAB"
-          printf 'SOURCE_COMMIT=%s\n' "$(git rev-parse HEAD)" | tee RELEASE_BUILD_METADATA.txt
-          printf 'PACKAGE_ID=com.empirerush.tycoon\n' | tee -a RELEASE_BUILD_METADATA.txt
+          test "$(git rev-parse HEAD)" = "$EXPECTED_COMMIT"
 
-      - name: Upload signed Release AAB
-        uses: actions/upload-artifact@v4
+          jarsigner -verify -verbose -certs "$AAB" > "$RUNNER_TEMP/jarsigner-verify.txt"
+          grep -q 'jar verified' "$RUNNER_TEMP/jarsigner-verify.txt"
+
+          AAB_SIGNER_SHA256="$(keytool -printcert -jarfile "$AAB" | \
+            awk -F': ' '/SHA256:/{gsub(/:/, "", $2); gsub(/[[:space:]]/, "", $2); print tolower($2); exit}')"
+          test -n "$AAB_SIGNER_SHA256"
+          test "$AAB_SIGNER_SHA256" = "$UPLOAD_KEY_CERT_SHA256"
+
+          java -jar "$BUNDLETOOL_JAR" validate --bundle="$AAB"
+          AAB_PACKAGE_ID="$(java -jar "$BUNDLETOOL_JAR" dump manifest \
+            --bundle="$AAB" --module=base --xpath='/manifest/@package')"
+          test "$AAB_PACKAGE_ID" = "$EXPECTED_PACKAGE_ID"
+          unzip -Z1 "$AAB" | grep -Fxq 'base/assets/index.android.bundle'
+
+          sha256sum "$AAB" > SHA256SUMS-release-aab.txt
+          printf 'SOURCE_COMMIT=%s\n' "$EXPECTED_COMMIT" > RELEASE_BUILD_METADATA.txt
+          printf 'PACKAGE_ID=%s\n' "$EXPECTED_PACKAGE_ID" >> RELEASE_BUILD_METADATA.txt
+          printf 'UPLOAD_CERT_SHA256=%s\n' "$AAB_SIGNER_SHA256" > UPLOAD_CERT_SHA256.txt
+          stat -c 'AAB_BYTES=%s' "$AAB"
+
+      - name: Upload signed Release AAB and public verification metadata
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: empire-rush-signed-release-aab
           path: |
             android/app/build/outputs/bundle/release/app-release.aab
             SHA256SUMS-release-aab.txt
             RELEASE_BUILD_METADATA.txt
-            /tmp/aab-certificate.txt
+            UPLOAD_CERT_SHA256.txt
           if-no-files-found: error
+          retention-days: 3
+
+      - name: Remove temporary signing material
+        if: always()
+        run: |
+          rm -f -- \
+            "$RUNNER_TEMP/empire-rush-upload.jks" \
+            "$RUNNER_TEMP/UploadKeyCert.java" \
+            "$RUNNER_TEMP/UploadKeyCert.class" \
+            "$RUNNER_TEMP/jarsigner-verify.txt" \
+            "$RUNNER_TEMP/bundletool-all-1.18.3.jar"
