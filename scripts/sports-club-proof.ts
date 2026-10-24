@@ -18,6 +18,6 @@ assert.equal(facility.players, 20);
 assert.equal(facility.matchesPlayed, 1);
 assert.equal(facility.cityCount, 2);
 assert.ok(projectedHourlyRevenue(facility) > 0);
-assert.match(screen, /ScrollView/);
+assert.match(screen, /SpecializedBusinessShell/);
 assert.match(screen, /white|#FFF/);
 console.log(JSON.stringify({ test: "sports-club-proof", pages: 6, uniqueVisualAssets: assets.length, progression: { players: facility.players, matches: facility.matchesPlayed, cities: facility.cityCount, projectedHourlyRevenue: projectedHourlyRevenue(facility) }, persistenceSchema: DEFAULT_SPORTS_CLUB.schemaVersion, status: "PASS" }, null, 2));
