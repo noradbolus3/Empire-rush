@@ -28,6 +28,7 @@ import ConstructionCompanyScreen from "./ConstructionCompanyScreen";
 import { designSystem } from '../../theme/designSystem';
 import { BusinessDashboardPanel } from "../../components/business/BusinessDashboardPanel";
 import { BusinessUpgradePanel } from "../../components/business/BusinessUpgradePanel";
+import { BusinessAnalyticsPanel } from "../../components/business/BusinessAnalyticsPanel";
 
 const C = { bg: designSystem.colors.background, card: designSystem.colors.card, panel: designSystem.colors.highlight, slate: designSystem.colors.border, green: designSystem.colors.primary, cyan: designSystem.colors.cyan, red: designSystem.colors.negative, white: designSystem.colors.heading, muted: designSystem.colors.secondary, gold: designSystem.colors.gold, violet: designSystem.colors.violet };
 type Props = {
@@ -63,7 +64,7 @@ export function BusinessMasterHubScreen({
   const [level2Tab, setLevel2Tab] = React.useState<"units" | "finance">(
     "units",
   );
-  const [hubTab, setHubTab] = React.useState<"dashboard" | "operations" | "upgrades">("dashboard");
+  const [hubTab, setHubTab] = React.useState<"dashboard" | "operations" | "analytics" | "upgrades">("dashboard");
   const spendLock = React.useRef(false);
   const scrollRef = useRef<ScrollView>(null);
   const companyLevel = normalizeBusinessLevel(business).level || 1;
@@ -199,12 +200,16 @@ export function BusinessMasterHubScreen({
             {([
               ["dashboard", "DASHBOARD"],
               ["operations", "OPERATIONS"],
+              ["analytics", "ANALYTICS"],
               ["upgrades", "UPGRADES"],
             ] as const).map(([id, label]) => (
               <Pressable
                 key={id}
                 onPress={() => setHubTab(id)}
-                style={[styles.hubTab, hubTab === id && styles.hubTabActive]}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: hubTab === id }}
+                accessibilityLabel={`${label.toLowerCase()} business view`}
+                style={({ pressed }) => [styles.hubTab, hubTab === id && styles.hubTabActive, pressed && styles.hubTabPressed]}
               >
                 <Text style={[styles.hubTabText, hubTab === id && styles.hubTabTextActive]}>{label}</Text>
               </Pressable>
@@ -221,6 +226,9 @@ export function BusinessMasterHubScreen({
           )}
           {hubTab === "upgrades" && (
             <BusinessUpgradePanel business={business} cash={cash} spend={spend} />
+          )}
+          {hubTab === "analytics" && (
+            <BusinessAnalyticsPanel business={business} finance={finance} />
           )}
           {hubTab === "operations" && showLevel2Tabs && (
             <View style={styles.levelTabs}>
@@ -1034,6 +1042,7 @@ const styles = StyleSheet.create({
   hubTabs: { flexDirection: "row", gap: 8, marginTop: 16, marginBottom: 12 },
   hubTab: { flex: 1, minHeight: 40, borderWidth: 1, borderColor: C.slate, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: C.card },
   hubTabActive: { backgroundColor: C.green, borderColor: C.green },
+  hubTabPressed: { opacity: 0.78, transform: [{ scale: 0.985 }] },
   hubTabText: { color: C.muted, fontSize: 9, fontWeight: "900", letterSpacing: 0.6 },
   hubTabTextActive: { color: "#FFFFFF" },
   levelTabs: { flexDirection: "row", gap: 8, marginTop: 12, marginBottom: 10 },

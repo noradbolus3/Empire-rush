@@ -58,7 +58,7 @@ export function BusinessUpgradePanel({ business, cash, spend }: Props) {
       <Text style={styles.intro}>Every upgrade has a visible operating effect. Spend only when the next constraint is clear.</Text>
       {upgrades.map((upgrade) => {
         const disabled = Boolean(upgrade.locked || upgrade.lockedReason);
-        return <Pressable key={upgrade.id} disabled={disabled} onPress={() => spend(upgrade.cost, upgrade.apply)} style={({ pressed }) => [styles.card, disabled && styles.disabled, pressed && styles.pressed]}>
+        return <Pressable key={upgrade.id} disabled={disabled} onPress={() => spend(upgrade.cost, upgrade.apply)} accessibilityRole="button" accessibilityState={{ disabled }} accessibilityLabel={`${upgrade.title}, ${disabled ? upgrade.lockedReason ?? "unavailable" : `install for ${formatCurrency(upgrade.cost)}`}`} style={({ pressed }) => [styles.card, disabled && styles.disabled, pressed && styles.pressed]}>
           <View style={styles.copy}><Text style={styles.cardTitle}>{upgrade.title}</Text><Text style={styles.cardDescription}>{upgrade.description}</Text><Text style={[styles.cardReason, disabled && styles.lockedReason]}>{disabled ? upgrade.lockedReason : `Ready · ${formatCurrency(upgrade.cost)}`}</Text></View>
           <View style={[styles.cost, disabled && styles.costDisabled]}><Text style={styles.costValue}>{formatCurrency(upgrade.cost)}</Text><Text style={styles.costLabel}>{upgrade.locked ? "ACTIVE" : disabled ? "LOCKED" : "INSTALL"}</Text></View>
         </Pressable>;
