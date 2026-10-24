@@ -62,12 +62,12 @@ const defaulted = seizeDefaultedLoan(
   loan.id,
   now + 1,
 );
-const payoff = payOffLoan(base.bank, loan.id, 10000, now + 2);
+const payoff = payOffLoan(base.bank as any, loan.id, 10000, now + 2);
 const migrated = sanitizeBankState(
   {
     ...bank,
     loans: [{ ...loan, status: "DEFAULTED", principal: 49990.28, balance: 0 }],
-  },
+  } as any,
   now,
 );
 const ltv = underwriteLoan(bank, "SBA_MICROLOAN", 8000, 20000, 300, asset);

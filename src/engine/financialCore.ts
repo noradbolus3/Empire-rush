@@ -20,6 +20,8 @@ import {
 import { constructionAssetValue } from "./constructionCompanyEngine";
 import type { TaxiCompanyState } from "../types/taxi";
 import { taxiHourlyEconomics } from "../types/taxi";
+import { itCompanyAssetValue } from "./itCompanyEngine";
+import { bankingCompanyAssetValue } from "./bankingCompanyEngine";
 
 export type FinancialGameState = {
   cash: number;

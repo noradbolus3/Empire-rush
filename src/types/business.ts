@@ -1,3 +1,6 @@
+import type { ITSoftwareState } from './itCompany';
+import type { BankingCompanyState } from './bankingCompany';
+
 export type OperatingStructure = "Licensed_Legal" | "Shadow_Underground";
 export type LegalStatus = OperatingStructure;
 export type SectorType =
@@ -10,7 +13,9 @@ export type SectorType =
   | "Pharma"
   | "Media"
   | "Sports"
-  | "Airline";
+  | "Airline"
+  | "Banking";
+
 export type BusinessCategory = SectorType;
 
 export interface BaseBusiness {
@@ -72,12 +77,14 @@ export interface MobilityData extends BaseBusiness {
   fleetHealth: number;
   surgeActive: boolean;
 }
-export interface SaaSData extends BaseBusiness {
+export interface ITSoftwareData extends BaseBusiness, ITSoftwareState {
   sector: "Tech_SaaS";
-  activeSubscribers: number;
-  serverCapacity: number;
-  openBugs: number;
 }
+export interface BankingData extends BaseBusiness, BankingCompanyState {
+  sector: "Banking";
+}
+/** Compatibility name retained for existing screens, tests and saved-game code. */
+export type SaaSData = ITSoftwareData;
 export interface ConstructionData extends BaseBusiness {
   sector: "Construction_Mega";
   activeTenderName: string | null;
@@ -120,7 +127,7 @@ export interface ExpansionData extends BaseBusiness {
   activeEvent: string;
 }
 export type BusinessEntity =
-  RetailData | MobilityData | SaaSData | ConstructionData | ExpansionData;
+  RetailData | MobilityData | SaaSData | ConstructionData | BankingData | ExpansionData;
 
 /** Legacy detailed retail model used by the first playable retail hub. */
 export interface RetailBusinessState {

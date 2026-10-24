@@ -29,6 +29,8 @@ import { designSystem } from '../../theme/designSystem';
 import { BusinessDashboardPanel } from "../../components/business/BusinessDashboardPanel";
 import { BusinessUpgradePanel } from "../../components/business/BusinessUpgradePanel";
 import { BusinessAnalyticsPanel } from "../../components/business/BusinessAnalyticsPanel";
+import ITSoftwareCompanyScreen from "./ITSoftwareCompanyScreen";
+import BankingCompanyScreen from "./BankingCompanyScreen";
 
 const C = { bg: designSystem.colors.background, card: designSystem.colors.card, panel: designSystem.colors.highlight, slate: designSystem.colors.border, green: designSystem.colors.primary, cyan: designSystem.colors.cyan, red: designSystem.colors.negative, white: designSystem.colors.heading, muted: designSystem.colors.secondary, gold: designSystem.colors.gold, violet: designSystem.colors.violet };
 type Props = {
@@ -110,6 +112,27 @@ export function BusinessMasterHubScreen({
         onBack={onBack}
         onCashChange={onCashChange}
         onChange={onChange}
+      />
+    );
+  if (business.sector === "Tech_SaaS")
+    return (
+      <ITSoftwareCompanyScreen
+        business={business as SaaSData}
+        cash={cash}
+        netWorth={netWorth}
+        onBack={onBack}
+        onCashChange={onCashChange}
+        onChange={(next: BusinessEntity) => onChange(next)}
+      />
+    );
+  if (business.sector === "Banking")
+    return (
+      <BankingCompanyScreen
+        business={business}
+        cash={cash}
+        onBack={onBack}
+        onCashChange={onCashChange}
+        onChange={(next: BusinessEntity) => onChange(next)}
       />
     );
   return (
@@ -283,14 +306,6 @@ export function BusinessMasterHubScreen({
               )}
               {business.sector === "Mobility" && (
                 <MobilityControls
-                  business={business}
-                  cash={cash}
-                  spend={spend}
-                  onChange={onChange}
-                />
-              )}
-              {business.sector === "Tech_SaaS" && (
-                <SaaSControls
                   business={business}
                   cash={cash}
                   spend={spend}

@@ -57,24 +57,24 @@ const retailLevel1 = normalizeBusinessLevel({
   stockUnits: 1000,
   level: 1,
   lastCelebratedLevel: 1,
-});
+} as any);
 const retailLevel2Input = { ...retailLevel1, stockUnits: 2500 };
-const retailCrossed = normalizeBusinessLevel(retailLevel2Input, true);
+const retailCrossed = normalizeBusinessLevel(retailLevel2Input as any, true);
 const mobilityLevel1 = normalizeBusinessLevel({
   ...mobilitySeed,
   isAcquired: true,
   economySedans: 10,
   level: 1,
   lastCelebratedLevel: 1,
-});
+} as any);
 const mobilityCrossed = normalizeBusinessLevel(
-  { ...mobilityLevel1, economySedans: 20 },
+  { ...mobilityLevel1, economySedans: 20 } as any,
   true,
 );
 const soldAfterPeak = normalizeBusinessLevel({
   ...mobilityCrossed,
   economySedans: 10,
-});
+} as any);
 const reloaded = normalizeBusinessLevel(
   JSON.parse(JSON.stringify(soldAfterPeak)),
   false,
