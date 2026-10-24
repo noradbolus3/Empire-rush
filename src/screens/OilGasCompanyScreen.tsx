@@ -1,8 +1,9 @@
+import { designSystem } from "../theme/designSystem";
 import React, { useState } from "react";
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { DEFAULT_OIL_GAS, OilGasState, OilGasTab } from "../types/oilGas";
 import { expandStorage, exploreField, openStation, offshoreProject, processCrude, projectedHourlyProfit, signInternationalContract } from "../engine/oilGasEngine";
-const C={ink:'#132238',muted:'#607089',blue:'#1769AA',pale:'#F3F8FD',border:'#C9DDED',green:'#16845B',gold:'#A15C00'};
+const C = { ink: designSystem.colors.textPrimary, muted: designSystem.colors.textSecondary, blue: designSystem.colors.primaryBlue, pale: designSystem.colors.surfaceLight, border: designSystem.colors.border, green: designSystem.colors.success, gold: designSystem.colors.warning };
 const pages=[
 {id:'dashboard',label:'Dashboard',image:require('../../assets/oilgas/headquarters.webp'),eyebrow:'ENERGY COMPANY HEADQUARTERS'},
 {id:'exploration',label:'Exploration',image:require('../../assets/oilgas/exploration-fields.webp'),eyebrow:'EXPLORATION & OIL FIELDS'},

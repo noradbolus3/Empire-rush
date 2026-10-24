@@ -1,3 +1,4 @@
+import { designSystem } from "../theme/designSystem";
 import React, { useState } from "react";
 import {
   Alert,
@@ -35,13 +36,13 @@ const sales = require("../../assets/dealership/sales-customers.jpg");
 const finance = require("../../assets/dealership/employees-finance.jpg");
 const expansion = require("../../assets/dealership/expansion-network.jpg");
 const C = {
-  bg: "#F4F7F8",
-  ink: "#15283C",
-  blue: "#1769D3",
-  muted: "#6D8192",
-  border: "#D7E2EB",
-  card: "#FFF",
-  green: "#07835A",
+  bg: designSystem.colors.surfaceLight,
+  ink: designSystem.colors.textPrimary,
+  blue: designSystem.colors.primaryBlue,
+  muted: designSystem.colors.textSecondary,
+  border: designSystem.colors.border,
+  card: '#FFFFFF',
+  green: designSystem.colors.success,
 };
 export default function CarDealershipScreen({
   company,
@@ -508,7 +509,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 9,
     paddingVertical: 8,
   },
-  navSelected: { backgroundColor: "#E6F0FF", borderColor: C.blue },
+  navSelected: { backgroundColor: designSystem.colors.highlight, borderColor: C.blue },
   navText: { color: C.muted, fontSize: 8, fontWeight: "900" },
   navTextSelected: { color: C.blue },
   cover: { width: "100%", height: 150, borderRadius: 18, marginBottom: 12 },
@@ -522,7 +523,7 @@ const s = StyleSheet.create({
   heroTitle: { color: "#FFF", fontSize: 23, fontWeight: "900", marginTop: 6 },
   heroSub: { color: "#C6D7E0", fontSize: 11, marginTop: 4 },
   heroValue: {
-    color: "#5BE3B0",
+    color: designSystem.colors.success,
     fontSize: 28,
     fontWeight: "900",
     marginTop: 15,

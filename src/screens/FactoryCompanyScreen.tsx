@@ -1,3 +1,4 @@
+import { designSystem } from "../theme/designSystem";
 import React, { useState } from "react";
 import {
   Alert,
@@ -34,16 +35,16 @@ type Props = {
   onLedger?: (entry: BankLedgerEntry) => void;
 };
 const C = {
-  bg: "#F3F6F8",
-  card: "#FFF",
-  ink: "#132334",
-  blue: "#1769E0",
-  steel: "#49677C",
-  muted: "#708293",
-  border: "#D8E2E8",
-  amber: "#C77B19",
-  green: "#07835A",
-  red: "#BD4760",
+  bg: designSystem.colors.surfaceLight,
+  card: '#FFFFFF',
+  ink: designSystem.colors.textPrimary,
+  blue: designSystem.colors.primaryBlue,
+  steel: designSystem.colors.textSecondary,
+  muted: designSystem.colors.textSecondary,
+  border: designSystem.colors.border,
+  amber: designSystem.colors.warning,
+  green: designSystem.colors.success,
+  red: designSystem.colors.danger,
 };
 const building = require("../../assets/factory/factory-building.jpg");
 const line = require("../../assets/factory/production-line.jpg");

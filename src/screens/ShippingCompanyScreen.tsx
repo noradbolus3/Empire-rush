@@ -1,3 +1,4 @@
+import { designSystem } from "../theme/designSystem";
 import React, { useMemo, useState } from "react";
 import {
   Alert,
@@ -36,16 +37,16 @@ const cities: ShippingCity[] = [
   "Airport Logistics Zone",
 ];
 const C = {
-  bg: "#F4F8FC",
-  card: "#FFFFFF",
-  ink: "#11243D",
-  blue: "#1769E0",
-  pale: "#EAF2FF",
-  muted: "#66788F",
-  green: "#0A9565",
-  orange: "#C47B16",
-  border: "#D6E2EF",
-  red: "#C2415D",
+  bg: designSystem.colors.surfaceLight,
+  card: '#FFFFFF',
+  ink: designSystem.colors.textPrimary,
+  blue: designSystem.colors.primaryBlue,
+  pale: designSystem.colors.highlight,
+  muted: designSystem.colors.textSecondary,
+  green: designSystem.colors.success,
+  orange: designSystem.colors.warning,
+  border: designSystem.colors.border,
+  red: designSystem.colors.danger,
 };
 
 export default function ShippingCompanyScreen({
