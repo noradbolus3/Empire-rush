@@ -26,6 +26,8 @@ import type { BankLedgerEntry } from "../../types/bank";
 import { normalizeBusinessLevel } from "../../engine/businessLevels";
 import ConstructionCompanyScreen from "./ConstructionCompanyScreen";
 import { designSystem } from '../../theme/designSystem';
+import { BusinessDashboardPanel } from "../../components/business/BusinessDashboardPanel";
+import { BusinessUpgradePanel } from "../../components/business/BusinessUpgradePanel";
 
 const C = { bg: designSystem.colors.background, card: designSystem.colors.card, panel: designSystem.colors.highlight, slate: designSystem.colors.border, green: designSystem.colors.primary, cyan: designSystem.colors.cyan, red: designSystem.colors.negative, white: designSystem.colors.heading, muted: designSystem.colors.secondary, gold: designSystem.colors.gold, violet: designSystem.colors.violet };
 type Props = {
@@ -61,6 +63,7 @@ export function BusinessMasterHubScreen({
   const [level2Tab, setLevel2Tab] = React.useState<"units" | "finance">(
     "units",
   );
+  const [hubTab, setHubTab] = React.useState<"dashboard" | "operations" | "upgrades">("dashboard");
   const spendLock = React.useRef(false);
   const scrollRef = useRef<ScrollView>(null);
   const companyLevel = normalizeBusinessLevel(business).level || 1;
@@ -192,7 +195,34 @@ export function BusinessMasterHubScreen({
               <Text style={styles.ipoLockedLabel}>LOCKED</Text>
             </View>
           )}
-          {showLevel2Tabs && (
+          <View style={styles.hubTabs}>
+            {([
+              ["dashboard", "DASHBOARD"],
+              ["operations", "OPERATIONS"],
+              ["upgrades", "UPGRADES"],
+            ] as const).map(([id, label]) => (
+              <Pressable
+                key={id}
+                onPress={() => setHubTab(id)}
+                style={[styles.hubTab, hubTab === id && styles.hubTabActive]}
+              >
+                <Text style={[styles.hubTabText, hubTab === id && styles.hubTabTextActive]}>{label}</Text>
+              </Pressable>
+            ))}
+          </View>
+          {hubTab === "dashboard" && (
+            <BusinessDashboardPanel
+              business={business}
+              cash={cash}
+              netWorth={netWorth}
+              timestamp={timestamp}
+              finance={finance}
+            />
+          )}
+          {hubTab === "upgrades" && (
+            <BusinessUpgradePanel business={business} cash={cash} spend={spend} />
+          )}
+          {hubTab === "operations" && showLevel2Tabs && (
             <View style={styles.levelTabs}>
               <Pressable
                 onPress={() => setLevel2Tab("units")}
@@ -228,7 +258,7 @@ export function BusinessMasterHubScreen({
               </Pressable>
             </View>
           )}
-          {!showLevel2Tabs || level2Tab === "units" ? (
+          {hubTab === "operations" && (!showLevel2Tabs || level2Tab === "units") ? (
             <>
               {business.sector === "Retail" && (
                 <RetailControls
@@ -270,9 +300,9 @@ export function BusinessMasterHubScreen({
                 />
               )}
             </>
-          ) : (
+          ) : hubTab === "operations" ? (
             <FinancePanel business={business} finance={finance} />
-          )}
+          ) : null}
         </ScrollView>
         <IPOLaunchModal
           visible={ipoOpen}
@@ -1001,6 +1031,11 @@ function Gauge({ value, color }: { value: number; color: string }) {
 }
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
+  hubTabs: { flexDirection: "row", gap: 8, marginTop: 16, marginBottom: 12 },
+  hubTab: { flex: 1, minHeight: 40, borderWidth: 1, borderColor: C.slate, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: C.card },
+  hubTabActive: { backgroundColor: C.green, borderColor: C.green },
+  hubTabText: { color: C.muted, fontSize: 9, fontWeight: "900", letterSpacing: 0.6 },
+  hubTabTextActive: { color: "#FFFFFF" },
   levelTabs: { flexDirection: "row", gap: 8, marginTop: 12, marginBottom: 10 },
   levelTab: { flex: 1, borderWidth: 1, borderColor: C.slate, borderRadius: 10, paddingVertical: 10, alignItems: "center" },
   levelTabActive: { backgroundColor: C.green, borderColor: C.green },
