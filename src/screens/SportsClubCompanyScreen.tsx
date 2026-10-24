@@ -24,6 +24,7 @@ export default function SportsClubCompanyScreen({ company, cash, onCashChange, o
   const hourly = projectedHourlyRevenue(state);
   const commit = (next: SportsClubState, label: string, amount = 0) => {
     onChange(next);
+    if (amount) onCashChange((value) => value + amount);
     if (amount) onLedger?.({ id: `sports-${Date.now()}`, kind: amount > 0 ? "BUSINESS_REVENUE" : "PURCHASE", label, amount, timestamp: Date.now(), detail: "Sports Club gameplay event" });
   };
   const runMatch = () => commit(matchOutcome(state, state.matchesPlayed + 17), "Sports match revenue", 500);
@@ -32,7 +33,6 @@ export default function SportsClubCompanyScreen({ company, cash, onCashChange, o
   const sponsor = () => commit(signSponsor(state), "Sponsorship revenue", 1200);
   const expand = () => {
     if (cash < 15000) return Alert.alert("EXPANSION CAPITAL", `Need $${(15000 - cash).toLocaleString()} more cash.`);
-    onCashChange((value) => value - 15000);
     commit(expandClub(state), "Sports group expansion", -15000);
   };
   return (
