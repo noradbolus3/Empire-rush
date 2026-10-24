@@ -19,6 +19,14 @@ export function sanitizeSportsClub(input: unknown): SportsClubState {
     teams: Math.max(1, Math.floor(Number(raw.teams) || 1)),
     players: Math.max(18, Math.floor(Number(raw.players) || 18)),
     coaches: Math.max(2, Math.floor(Number(raw.coaches) || 2)),
+    payrollPerSettlement: Math.max(0, Number(raw.payrollPerSettlement) || 0),
+    academyLevel: Math.max(0, Math.floor(Number(raw.academyLevel) || 0)),
+    nextMatchAt: Math.max(0, Number(raw.nextMatchAt) || 0),
+    matchesPlayed: Math.max(0, Math.floor(Number(raw.matchesPlayed) || 0)),
+    wins: Math.max(0, Math.floor(Number(raw.wins) || 0)),
+    sponsorshipRevenue: Math.max(0, Number(raw.sponsorshipRevenue) || 0),
+    ticketRevenue: Math.max(0, Number(raw.ticketRevenue) || 0),
+    merchandiseRevenue: Math.max(0, Number(raw.merchandiseRevenue) || 0),
     cityCount: Math.max(1, Math.floor(Number(raw.cityCount) || 1)),
   };
 }

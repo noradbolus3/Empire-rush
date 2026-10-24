@@ -1,14 +1,13 @@
+import { designSystem } from "../theme/designSystem";
 import React, { useState } from "react";
 import {
   Alert,
   Image,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import type { BankLedgerEntry } from "../types/bank";
 import {
   DEFAULT_CONSTRUCTION_COMPANY,
@@ -18,6 +17,7 @@ import {
   constructionTick,
 } from "../types/construction";
 import { formatCurrency } from "../utils/formatCurrency";
+import { SpecializedBusinessShell } from "../components/business/SpecializedBusinessShell";
 type Page =
   "dashboard" | "land" | "machinery" | "projects" | "contracts" | "expansion";
 type Props = {
@@ -31,14 +31,14 @@ type Props = {
   onLedger?: (entry: BankLedgerEntry) => void;
 };
 const C = {
-  bg: "#F4F7F8",
-  ink: "#142534",
-  card: "#FFF",
-  blue: "#2467D4",
-  amber: "#C17B18",
-  green: "#07835A",
-  muted: "#718392",
-  border: "#D5E0E7",
+  bg: designSystem.colors.surfaceLight,
+  ink: designSystem.colors.textPrimary,
+  card: '#FFFFFF',
+  blue: designSystem.colors.primaryBlue,
+  amber: designSystem.colors.warning,
+  green: designSystem.colors.success,
+  muted: designSystem.colors.textSecondary,
+  border: designSystem.colors.border,
 };
 const dashboard = require("../../assets/construction/construction-dashboard.webp");
 const land = require("../../assets/construction/land-project-selection.jpg");
@@ -120,58 +120,23 @@ export default function ConstructionCompanyScreen({
     });
     setPage("dashboard");
   };
-  const title =
-    page === "land"
-      ? "Land & Project Selection"
-      : page === "machinery"
-        ? "Machinery & Equipment"
-        : page === "projects"
-          ? "Project Management"
-          : page === "contracts"
-            ? "Contracts & Earnings"
-            : page === "expansion"
-              ? "Expansion & Upgrades"
-              : "Construction Dashboard";
   return (
-    <View style={s.root}>
-      <SafeAreaView style={s.safe}>
-        <ScrollView contentContainerStyle={s.content}>
-          <Pressable onPress={onBack}>
-            <Text style={s.back}>‹ BUSINESS DASHBOARD</Text>
-          </Pressable>
-          <View style={s.brand}>
-            <View style={s.logo}>
-              <Text style={s.logoText}>C</Text>
-            </View>
-            <View>
-              <Text style={s.eyebrow}>DEVELOPMENT · CONSTRUCTION COMPANY</Text>
-              <Text style={s.title}>{title}</Text>
-            </View>
-          </View>
-          {page !== "land" && (
-            <View style={s.nav}>
-              {(
-                [
-                  "dashboard",
-                  "land",
-                  "machinery",
-                  "projects",
-                  "contracts",
-                  "expansion",
-                ] as Page[]
-              ).map((x) => (
-                <Pressable
-                  key={x}
-                  onPress={() => setPage(x)}
-                  style={[s.navButton, page === x && s.navSelected]}
-                >
-                  <Text style={[s.navText, page === x && s.navTextSelected]}>
-                    {x.toUpperCase()}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          )}
+    <SpecializedBusinessShell
+      eyebrow="DEVELOPMENT · CONSTRUCTION COMPANY"
+      title={company?.status === "operating" ? "Construction Dashboard" : "Construction Company Setup"}
+      monogram="C"
+      onBack={onBack}
+      tabs={company?.status === "operating" ? [
+        { id: "dashboard", label: "DASHBOARD" },
+        { id: "land", label: "LAND" },
+        { id: "machinery", label: "MACHINERY" },
+        { id: "projects", label: "PROJECTS" },
+        { id: "contracts", label: "CONTRACTS" },
+        { id: "expansion", label: "EXPANSION" },
+      ] : []}
+      activeTab={page}
+      onTabChange={(id) => setPage(id as Page)}
+    >
           {page === "land" && !company ? (
             <Setup
               type={projectType}
@@ -197,9 +162,7 @@ export default function ConstructionCompanyScreen({
           ) : (
             <Expansion c={current} cash={cash} spend={spend} />
           )}
-        </ScrollView>
-      </SafeAreaView>
-    </View>
+    </SpecializedBusinessShell>
   );
 }
 function Setup({
@@ -691,7 +654,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 9,
     paddingVertical: 8,
   },
-  navSelected: { backgroundColor: "#E6F0FF", borderColor: C.blue },
+  navSelected: { backgroundColor: designSystem.colors.highlight, borderColor: C.blue },
   navText: { color: C.muted, fontSize: 8, fontWeight: "900" },
   navTextSelected: { color: C.blue },
   cover: { width: "100%", height: 150, borderRadius: 18, marginBottom: 12 },
@@ -705,7 +668,7 @@ const s = StyleSheet.create({
   heroTitle: { color: "#FFF", fontSize: 23, fontWeight: "900", marginTop: 6 },
   heroSub: { color: "#C6D7E0", fontSize: 11, marginTop: 4 },
   heroValue: {
-    color: "#5BE3B0",
+    color: designSystem.colors.success,
     fontSize: 28,
     fontWeight: "900",
     marginTop: 15,
@@ -753,7 +716,7 @@ const s = StyleSheet.create({
     padding: 13,
     marginTop: 7,
   },
-  choiceSelected: { backgroundColor: "#E6F0FF", borderColor: C.blue },
+  choiceSelected: { backgroundColor: designSystem.colors.highlight, borderColor: C.blue },
   choiceTitle: { color: C.ink, fontWeight: "900" },
   check: { color: C.blue, fontSize: 20, fontWeight: "900" },
   radio: { color: C.muted, fontSize: 20 },

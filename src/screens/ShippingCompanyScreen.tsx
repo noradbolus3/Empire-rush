@@ -1,13 +1,13 @@
+import { designSystem } from "../theme/designSystem";
 import React, { useMemo, useState } from "react";
 import {
   Alert,
+  Image,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import {
   DEFAULT_SHIPPING_COMPANY,
   ShippingCity,
@@ -19,6 +19,7 @@ import {
 } from "../types/shipping";
 import type { BankLedgerEntry } from "../types/bank";
 import { formatCurrency } from "../utils/formatCurrency";
+import { SpecializedBusinessShell } from "../components/business/SpecializedBusinessShell";
 
 type Page =
   "overview" | "setup" | "fleet" | "shipments" | "staff" | "expansion";
@@ -36,17 +37,22 @@ const cities: ShippingCity[] = [
   "Airport Logistics Zone",
 ];
 const C = {
-  bg: "#F4F8FC",
-  card: "#FFFFFF",
-  ink: "#11243D",
-  blue: "#1769E0",
-  pale: "#EAF2FF",
-  muted: "#66788F",
-  green: "#0A9565",
-  orange: "#C47B16",
-  border: "#D6E2EF",
-  red: "#C2415D",
+  bg: designSystem.colors.surfaceLight,
+  card: '#FFFFFF',
+  ink: designSystem.colors.textPrimary,
+  blue: designSystem.colors.primaryBlue,
+  pale: designSystem.colors.highlight,
+  muted: designSystem.colors.textSecondary,
+  green: designSystem.colors.success,
+  orange: designSystem.colors.warning,
+  border: designSystem.colors.border,
+  red: designSystem.colors.danger,
 };
+const shippingDashboard = require("../../assets/shipping/shipping-dashboard.webp");
+const shippingFleet = require("../../assets/shipping/shipping-fleet.webp");
+const shippingShipments = require("../../assets/shipping/shipping-shipments.webp");
+const shippingStaff = require("../../assets/shipping/shipping-staff.webp");
+const shippingExpansion = require("../../assets/shipping/shipping-expansion.webp");
 
 export default function ShippingCompanyScreen({
   company,
@@ -114,65 +120,22 @@ export default function ShippingCompanyScreen({
     });
     setPage("overview");
   };
-  const title =
-    page === "setup"
-      ? "Shipping Company Setup"
-      : page === "fleet"
-        ? "Fleet Management"
-        : page === "shipments"
-          ? "Shipment Operations"
-          : page === "staff"
-            ? "Employees & Management"
-            : page === "expansion"
-              ? "Expansion & Upgrades"
-              : "Shipping Dashboard";
   return (
-    <View style={styles.root}>
-      <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
-        <ScrollView contentContainerStyle={styles.content}>
-          <Pressable onPress={onBack}>
-            <Text style={styles.back}>‹ BUSINESS DASHBOARD</Text>
-          </Pressable>
-          <View style={styles.brand}>
-            <View style={styles.logo}>
-              <Text style={styles.logoText}>S</Text>
-            </View>
-            <View>
-              <Text style={styles.eyebrow}>LOGISTICS · SHIPPING COMPANY</Text>
-              <Text style={styles.title}>{title}</Text>
-            </View>
-          </View>
-          {company?.status === "operating" && (
-            <View style={styles.nav}>
-              {(
-                [
-                  "overview",
-                  "fleet",
-                  "shipments",
-                  "staff",
-                  "expansion",
-                ] as Page[]
-              ).map((item) => (
-                <Pressable
-                  key={item}
-                  onPress={() => setPage(item)}
-                  style={[
-                    styles.navButton,
-                    page === item && styles.navSelected,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.navText,
-                      page === item && styles.navTextSelected,
-                    ]}
-                  >
-                    {item === "shipments" ? "SHIPMENTS" : item.toUpperCase()}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          )}
+    <SpecializedBusinessShell
+      eyebrow="LOGISTICS · SHIPPING COMPANY"
+      title={company?.status === "operating" ? "Shipping Dashboard" : "Shipping Company Setup"}
+      monogram="S"
+      onBack={onBack}
+      tabs={company?.status === "operating" ? [
+        { id: "overview", label: "DASHBOARD" },
+        { id: "fleet", label: "FLEET" },
+        { id: "shipments", label: "SHIPMENTS" },
+        { id: "staff", label: "STAFF" },
+        { id: "expansion", label: "EXPANSION" },
+      ] : []}
+      activeTab={page}
+      onTabChange={(id) => setPage(id as Page)}
+    >
           {page === "setup" ? (
             <SetupPage
               city={setupCity}
@@ -202,9 +165,7 @@ export default function ShippingCompanyScreen({
           ) : (
             <ExpansionPage company={current} cash={cash} charge={charge} />
           )}
-        </ScrollView>
-      </SafeAreaView>
-    </View>
+    </SpecializedBusinessShell>
   );
 }
 function SetupPage({
@@ -284,6 +245,7 @@ function OverviewPage({
 }) {
   return (
     <>
+      <Image source={shippingDashboard} style={styles.pageImage} />
       <View style={styles.hero}>
         <Text style={styles.heroEyebrow}>
           SHIPPING DASHBOARD · {company.level.toUpperCase()}
@@ -369,6 +331,7 @@ function FleetPage({
       title="FLEET MANAGEMENT"
       copy="Delivery vans and trucks define cargo capacity, routes and operating cost."
     >
+      <Image source={shippingFleet} style={styles.pageImage} />
       <Metric
         label="Vehicle availability"
         value={`${shippingVehicleCount(company)} vehicles`}
@@ -501,6 +464,7 @@ function ShipmentsPage({
       title="SHIPMENT OPERATIONS"
       copy="Accept delivery orders, stage cargo, assign a vehicle and complete delivery. Every shipment has a visible status."
     >
+      <Image source={shippingShipments} style={styles.pageImage} />
       <Metric
         label="Warehouse cargo"
         value={`${company.cargoStored.toLocaleString()} / ${company.warehouseCapacity.toLocaleString()} units`}
@@ -550,6 +514,7 @@ function StaffPage({
       title="EMPLOYEES & MANAGEMENT"
       copy="Shipping depends on drivers, warehouse staff and dispatch coordination."
     >
+      <Image source={shippingStaff} style={styles.pageImage} />
       <Metric label="Drivers" value={`${company.drivers}`} />
       <Metric label="Warehouse staff" value={`${company.warehouseStaff}`} />
       <Metric label="Dispatchers" value={`${company.dispatchers}`} />
@@ -612,6 +577,7 @@ function ExpansionPage({
       title="EXPANSION & UPGRADES"
       copy="Grow from local deliveries to a regional distribution network."
     >
+      <Image source={shippingExpansion} style={styles.pageImage} />
       <Metric label="Business level" value={company.level} />
       <Metric
         label="Warehouse"
@@ -795,6 +761,13 @@ const styles = StyleSheet.create({
     borderRadius: 17,
     padding: 16,
     marginBottom: 14,
+  },
+  pageImage: {
+    width: "100%",
+    height: 148,
+    borderRadius: 14,
+    marginBottom: 12,
+    resizeMode: "cover",
   },
   sectionTitle: {
     color: C.ink,

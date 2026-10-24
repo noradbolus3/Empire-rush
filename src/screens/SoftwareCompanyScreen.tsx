@@ -1,14 +1,13 @@
+import { designSystem } from "../theme/designSystem";
 import React, { useState } from "react";
 import {
   Alert,
   Image,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import type { BankLedgerEntry } from "../types/bank";
 import {
   DEFAULT_SOFTWARE_COMPANY,
@@ -17,6 +16,7 @@ import {
   softwareStageFor,
 } from "../types/software";
 import { formatCurrency } from "../utils/formatCurrency";
+import { SpecializedBusinessShell } from "../components/business/SpecializedBusinessShell";
 type Page =
   "dashboard" | "setup" | "pipeline" | "teams" | "cloud" | "enterprise";
 type Props = {
@@ -34,13 +34,13 @@ const enterprise = require("../../assets/software/technology-enterprise.jpg");
 const pipeline = require("../../assets/software/development-pipeline.jpg");
 const cloud = require("../../assets/software/cloud-security.jpg");
 const C = {
-  bg: "#F4F7F8",
-  ink: "#14283D",
-  blue: "#1769D3",
-  muted: "#6D8192",
-  border: "#D7E2EB",
-  card: "#FFF",
-  green: "#07835A",
+  bg: designSystem.colors.surfaceLight,
+  ink: designSystem.colors.textPrimary,
+  blue: designSystem.colors.primaryBlue,
+  muted: designSystem.colors.textSecondary,
+  border: designSystem.colors.border,
+  card: '#FFFFFF',
+  green: designSystem.colors.success,
 };
 export default function SoftwareCompanyScreen({
   company,
@@ -108,58 +108,23 @@ export default function SoftwareCompanyScreen({
       detail: `Revenue ${formatCurrency(r.revenue)}`,
     });
   };
-  const title =
-    page === "setup"
-      ? "Startup Setup"
-      : page === "pipeline"
-        ? "Development Pipeline"
-        : page === "teams"
-          ? "Teams & Projects"
-          : page === "cloud"
-            ? "Cloud & Security"
-            : page === "enterprise"
-              ? "Enterprise Strategy"
-              : "Software Dashboard";
   return (
-    <View style={s.root}>
-      <SafeAreaView style={s.safe}>
-        <ScrollView contentContainerStyle={s.content}>
-          <Pressable onPress={onBack}>
-            <Text style={s.back}>‹ BUSINESS DASHBOARD</Text>
-          </Pressable>
-          <View style={s.brand}>
-            <View style={s.logo}>
-              <Text style={s.logoText}>⌘</Text>
-            </View>
-            <View>
-              <Text style={s.eyebrow}>TECHNOLOGY · SOFTWARE COMPANY</Text>
-              <Text style={s.title}>{title}</Text>
-            </View>
-          </View>
-          {company && (
-            <View style={s.nav}>
-              {(
-                [
-                  "dashboard",
-                  "setup",
-                  "pipeline",
-                  "teams",
-                  "cloud",
-                  "enterprise",
-                ] as Page[]
-              ).map((x) => (
-                <Pressable
-                  key={x}
-                  onPress={() => setPage(x)}
-                  style={[s.navBtn, page === x && s.navSelected]}
-                >
-                  <Text style={[s.navText, page === x && s.navTextSelected]}>
-                    {x.toUpperCase()}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          )}
+    <SpecializedBusinessShell
+      eyebrow="TECHNOLOGY · SOFTWARE COMPANY"
+      title={company ? "Software Dashboard" : "Software Company Setup"}
+      monogram="⌘"
+      onBack={onBack}
+      tabs={company ? [
+        { id: "dashboard", label: "DASHBOARD" },
+        { id: "setup", label: "SETUP" },
+        { id: "pipeline", label: "PIPELINE" },
+        { id: "teams", label: "TEAMS" },
+        { id: "cloud", label: "CLOUD" },
+        { id: "enterprise", label: "ENTERPRISE" },
+      ] : []}
+      activeTab={page}
+      onTabChange={(id) => setPage(id as Page)}
+    >
           {!company ? (
             <Setup cash={cash} launch={launch} />
           ) : page === "dashboard" ? (
@@ -175,9 +140,7 @@ export default function SoftwareCompanyScreen({
           ) : (
             <Enterprise c={c} spend={spend} />
           )}
-        </ScrollView>
-      </SafeAreaView>
-    </View>
+    </SpecializedBusinessShell>
   );
 }
 function Setup({ cash, launch }: { cash: number; launch: () => void }) {
@@ -536,7 +499,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 9,
     paddingVertical: 8,
   },
-  navSelected: { backgroundColor: "#E6F0FF", borderColor: C.blue },
+  navSelected: { backgroundColor: designSystem.colors.highlight, borderColor: C.blue },
   navText: { color: C.muted, fontSize: 8, fontWeight: "900" },
   navTextSelected: { color: C.blue },
   cover: { width: "100%", height: 150, borderRadius: 18, marginBottom: 12 },
@@ -550,7 +513,7 @@ const s = StyleSheet.create({
   heroTitle: { color: "#FFF", fontSize: 23, fontWeight: "900", marginTop: 6 },
   heroSub: { color: "#C6D7E0", fontSize: 11, marginTop: 4 },
   heroValue: {
-    color: "#5BE3B0",
+    color: designSystem.colors.success,
     fontSize: 28,
     fontWeight: "900",
     marginTop: 15,

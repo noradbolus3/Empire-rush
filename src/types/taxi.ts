@@ -24,7 +24,7 @@ export type TaxiCompanyState = {
 
 export const DEFAULT_TAXI_COMPANY: TaxiCompanyState = {
   id: "empire-taxi-company",
-  name: "Empire Taxi Co.",
+  name: "BuildBoss Mobility Co.",
   status: "setup",
   area: "Central City",
   depotLevel: 1,

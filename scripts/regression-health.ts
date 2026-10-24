@@ -71,7 +71,7 @@ const settlementFixture = { ...retail, hourlyNetProfit: 500, pendingSettlementAm
 const settlement = settleElapsedBusinessIncome([settlementFixture], 0, 2 * SETTLEMENT_INTERVAL_MS);
 assert.equal(settlement.completedHours, 2, 'settlement: two elapsed hours were not recognized');
 assert.equal(settlement.totalAmount, 1000, 'settlement: hourly amount was not credited exactly');
-assert.equal(DEFAULT_BUSINESSES.length, 10, 'businesses: ten-sector catalog missing');
+assert.equal(DEFAULT_BUSINESSES.length, 11, 'businesses: eleven-sector catalog missing');
 const expansion = DEFAULT_BUSINESSES.find(item => item.sector === 'Energy')!;
 assert.equal(simulateBusinessOperations([{ ...expansion, isAcquired: true }], 2).businesses[0].isAcquired, true, 'businesses: expansion sector tick failed');
 assert.doesNotMatch(businessScreen, /result\.cashDelta|onProfitChange|onIncome/, 'wallet: BusinessScreen still has a per-tick payout path');
@@ -117,7 +117,7 @@ assert.equal(STARTING_CASH, 1_000, 'economy: new founder starting cash drifted')
 assert.equal(RETAIL_ENTRY_COST, 500, 'economy: Retail entry cost drifted');
 assert.equal(IPO_MIN_NET_WORTH, 10_000_000, 'IPO: late-game net-worth gate drifted');
 assert.equal(IPO_MAX_NET_WORTH_PROCEEDS_MULTIPLE, 0.5, 'IPO: proceeds shortcut cap drifted');
-assert(app.includes('\"bank\", \"▣\", \"BANK\"'), 'bank: bottom navigation route missing');
+assert.match(app, /\[\"bank\",\s*\"[^\"]+\",\s*\"BANK\"\]/, 'bank: bottom navigation route missing');
 assert.match(bankScreen, /High-Yield Savings/, 'bank: savings account missing');
 assert.match(bankScreen, /LOAN PRODUCTS/, 'bank: loan products missing');
 assert.match(bankScreen, /CAP TABLE/, 'bank: investor cap table missing');
@@ -131,8 +131,8 @@ assert.match(app, /requestPurchase/, 'purchase: request missing');
 assert.match(app, /Purchase was not confirmed/, 'purchase: confirmation guard missing');
 assert.match(app, /Purchase not completed/, 'purchase: failure path missing');
 assert.match(app, /finishTransaction/, 'purchase: transaction finishing missing');
-assert.ok(app.includes('SafeAreaView edges={["top", "bottom", "left", "right"]}'), 'safe area: root edges missing');
-assert.ok(businessScreen.includes("SafeAreaView edges={['left', 'right']}"), 'safe area: business nested edges missing');
+assert.match(app, /SafeAreaView\s+edges=\{\[\"top\",\s*\"bottom\",\s*\"left\",\s*\"right\"\]\}/, 'safe area: root edges missing');
+assert.match(businessScreen, /SafeAreaView\s+edges=\{\[(?:['"]left['"],\s*['"]right['"])\]\}/, 'safe area: business nested edges missing');
 assert.match(app, /setInterval\(saveNow, 5000\)/, 'timers: save interval missing');
 assert.match(app, /return \(\) => clearInterval\(timer\)/, 'timers: App cleanup missing');
 assert.match(businessScreen, /return \(\) => clearInterval\(timer\)/, 'timers: business cleanup missing');
@@ -260,7 +260,7 @@ assert.match(read('src/components/modals/EarningsBreakdownModal.tsx'), /GAMEPLAY
 assert.doesNotMatch(read('src/components/modals/EarningsBreakdownModal.tsx'), /Tap actions.*INCOME SOURCES/, 'income ledger: tap activity must not appear in source section');
 assert.match(read('src/components/modals/EarningsBreakdownModal.tsx'), /INCOME SOURCES/, 'income ledger: breakdown modal missing');
 assert.match(read('src/engine/businessSimulation.ts'), /hourlyByBusiness/, 'income ledger: per-business attribution missing');
-assert.match(app, /buildIncomeSources\(\{ businesses, assets, holdings, businessProfitPerHour: profit \}\)/, 'income ledger: projected cashflow must use only business/investment inputs');
+assert.match(app, /buildIncomeSources\(\{\s*businesses,\s*assets,\s*holdings,\s*businessProfitPerHour:\s*profit,?\s*\}\)/, 'income ledger: projected cashflow must use only business/investment inputs');
 assert.match(read('scripts/tap-income-isolation-round14.ts'), /zeroTapVsThousandTap/, 'income ledger: tap-isolation proof missing');
 assert.match(read('scripts/real-ledger-proof-round15.ts'), /1328\.92/, 'income ledger: real Copper & Bloom plus Ammu cab proof missing');
 assert.match(read('scripts/economy-pacing-round8.ts'), /const tapCash = tapGain\(tapValue, profile, hour\);/, 'tap: pacing simulator still reduces value by tap count');

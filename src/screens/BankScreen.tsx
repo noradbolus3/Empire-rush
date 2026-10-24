@@ -1123,7 +1123,7 @@ function Accounts({ cash, state, onTransfer, onStateChange }: any) {
     <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}>
       <AccountRow
         title="Checking"
-        detail="Shared Empire Rush cash"
+        detail="Shared BuildBoss cash"
         value={cash}
       />
       <AccountRow

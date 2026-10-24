@@ -1,16 +1,434 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { OperatingStructure } from '../../types/business';
+import { designSystem } from '../../theme/designSystem';
 import { formatCurrency } from '../../utils/formatCurrency';
 
-const C = { bg: '#08111F', card: '#122238', green: '#28E39A', red: '#FF647F', cyan: '#49C8FF', white: '#F8FAFC', muted: '#8EA4BA', slate: '#29425D', gold: '#FFC857' };
-type Props = { visible: boolean; cash: number; suggestedName?: string; onClose: () => void; onIncorporate: (name: string, structure: OperatingStructure, fee: number) => void };
+const { colors, spacing, radius, controls } = designSystem;
+const C = {
+  page: colors.surfaceDark,
+  surface: colors.surfaceDark,
+  surfaceRaised: colors.surfaceDarkRaised,
+  selected: colors.successDarkSoft,
+  warningSurface: colors.dangerDarkSoft,
+  text: colors.textOnDark,
+  secondary: colors.textOnDarkSecondary,
+  tertiary: colors.textOnDarkMuted,
+  border: colors.borderDark,
+  borderStrong: colors.borderDarkStrong,
+  accent: colors.successDark,
+  warning: colors.dangerDark,
+};
 
-export function BusinessRegistrationModal({ visible, cash, suggestedName = 'Copper & Bloom Market', onClose, onIncorporate }: Props) {
-  const [name, setName] = useState(suggestedName); const [structure, setStructure] = useState<OperatingStructure>('Licensed_Legal'); const [certified, setCertified] = useState(false); const incorporationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => { if (visible) { setName(suggestedName); setStructure('Licensed_Legal'); setCertified(false); } return () => { if (incorporationTimer.current) clearTimeout(incorporationTimer.current); }; }, [visible, suggestedName]);
-  const submit = () => { const fee = 0; if (!name.trim()) return Alert.alert('Name your company', 'Choose a registered company name to continue.'); if (cash < fee) return Alert.alert('Insufficient cash', `This charter requires ${formatCurrency(fee)} in filing fees.`); if (incorporationTimer.current) clearTimeout(incorporationTimer.current); setCertified(true); incorporationTimer.current = setTimeout(() => { incorporationTimer.current = null; onIncorporate(name.trim(), structure, fee); }, 450); };
-  return <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}><View style={styles.shade}><View style={styles.modal}><View style={styles.grabber} /><View style={styles.top}><View><Text style={styles.eyebrow}>NEW VENTURE · UNITED STATES</Text><Text style={styles.title}>Choose your company charter</Text></View><Pressable onPress={onClose} style={styles.close}><Text style={styles.closeText}>×</Text></Pressable></View><Text style={styles.sub}>Your first charter sets the risk, tax profile, and upside of this business.</Text><TextInput value={name} onChangeText={setName} returnKeyType="done" placeholder="Company name" placeholderTextColor={C.muted} style={styles.input} /><Pressable onPress={() => setStructure('Licensed_Legal')} style={[styles.option, structure === 'Licensed_Legal' && styles.legalOn]}><View style={styles.optionTop}><View style={[styles.optionIcon, { backgroundColor: '#28E39A22' }]}><Text style={styles.iconText}>✓</Text></View><View style={{ flex: 1 }}><Text style={styles.optionTitle}>MAIN STREET LEGAL</Text><Text style={styles.copy}>$0 filing fee · 15% audited tax</Text></View>{structure === 'Licensed_Legal' && <Text style={styles.selected}>SELECTED</Text>}</View><Text style={styles.benefit}>Bankable, stable, and eligible for government contracts.</Text></Pressable><Pressable onPress={() => setStructure('Shadow_Underground')} style={[styles.option, structure === 'Shadow_Underground' && styles.shadowOn]}><View style={styles.optionTop}><View style={[styles.optionIcon, { backgroundColor: '#FF647F22' }]}><Text style={[styles.iconText, { color: C.red }]}>!</Text></View><View style={{ flex: 1 }}><Text style={[styles.optionTitle, { color: C.red }]}>SHADOW ROUTE</Text><Text style={styles.copy}>$0 filing fee · higher margin · rising heat</Text></View>{structure === 'Shadow_Underground' && <Text style={[styles.selected, { color: C.red }]}>SELECTED</Text>}</View><Text style={styles.benefit}>Move faster with more upside, but police heat can trigger setbacks.</Text></Pressable><View style={styles.cashRow}><Text style={styles.cashLabel}>LIQUID CASH AVAILABLE</Text><Text style={styles.cashValue}>{formatCurrency(cash)}</Text></View>{certified && <View style={styles.seal}><Text style={styles.sealText}>CHARTER VERIFIED · READY TO TRADE</Text></View>}<View style={styles.actions}><Pressable onPress={onClose} style={styles.cancel}><Text style={styles.cancelText}>NOT YET</Text></Pressable><Pressable onPress={submit} style={styles.sign}><Text style={styles.signText}>LAUNCH COMPANY ›</Text></Pressable></View></View></View></Modal>;
+type Props = {
+  visible: boolean;
+  cash: number;
+  suggestedName?: string;
+  onClose: () => void;
+  onIncorporate: (name: string, structure: OperatingStructure, fee: number) => void;
+};
+
+export function BusinessRegistrationModal({
+  visible,
+  cash,
+  suggestedName = 'Copper & Bloom Market',
+  onClose,
+  onIncorporate,
+}: Props) {
+  const [name, setName] = useState(suggestedName);
+  const [structure, setStructure] = useState<OperatingStructure>('Licensed_Legal');
+  const [certified, setCertified] = useState(false);
+  const incorporationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (visible) {
+      setName(suggestedName);
+      setStructure('Licensed_Legal');
+      setCertified(false);
+    }
+
+    return () => {
+      if (incorporationTimer.current) clearTimeout(incorporationTimer.current);
+    };
+  }, [visible, suggestedName]);
+
+  const submit = () => {
+    const fee = 0;
+    if (!name.trim()) {
+      Alert.alert('Name your company', 'Choose a registered company name to continue.');
+      return;
+    }
+    if (cash < fee) {
+      Alert.alert('Insufficient cash', `This charter requires ${formatCurrency(fee)} in filing fees.`);
+      return;
+    }
+    if (incorporationTimer.current) clearTimeout(incorporationTimer.current);
+    setCertified(true);
+    incorporationTimer.current = setTimeout(() => {
+      incorporationTimer.current = null;
+      onIncorporate(name.trim(), structure, fee);
+    }, 450);
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={styles.backdrop}>
+        <KeyboardAvoidingView behavior="padding" style={styles.keyboard}>
+          <SafeAreaView edges={['bottom']} style={styles.sheet}>
+            <View style={styles.grabber} />
+            <ScrollView
+              bounces={false}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.content}
+              keyboardShouldPersistTaps="handled"
+            >
+              <View style={styles.header}>
+                <View style={styles.headerCopy}>
+                  <Text style={styles.kicker}>COMPANY SETUP</Text>
+                  <Text style={styles.title}>Set up your first company</Text>
+                  <Text style={styles.subtitle}>
+                    Choose a structure for this venture. It shapes your tax profile and operating risk.
+                  </Text>
+                </View>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Close company setup"
+                  onPress={onClose}
+                  style={styles.close}
+                >
+                  <Text style={styles.closeText}>×</Text>
+                </Pressable>
+              </View>
+
+              <Text style={styles.fieldLabel}>COMPANY NAME</Text>
+              <TextInput
+                value={name}
+                onChangeText={setName}
+                returnKeyType="done"
+                placeholder="Enter a company name"
+                placeholderTextColor={C.tertiary}
+                style={styles.input}
+              />
+
+              <Text style={styles.fieldLabel}>OPERATING STRUCTURE</Text>
+              <Pressable
+                onPress={() => setStructure('Licensed_Legal')}
+                style={[styles.choice, structure === 'Licensed_Legal' && styles.choiceSelected]}
+              >
+                <View style={styles.choiceHeader}>
+                  <View style={styles.radioOuter}>
+                    {structure === 'Licensed_Legal' && <View style={styles.radioInner} />}
+                  </View>
+                  <View style={styles.choiceCopy}>
+                    <Text style={styles.choiceTitle}>Main Street Legal</Text>
+                    <Text style={styles.choiceMeta}>Conservative structure · 15% audited tax</Text>
+                  </View>
+                </View>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Best for</Text>
+                  <Text style={styles.detailValue}>Stable growth and government contracts</Text>
+                </View>
+              </Pressable>
+
+              <Pressable
+                onPress={() => setStructure('Shadow_Underground')}
+                style={[styles.choice, structure === 'Shadow_Underground' && styles.choiceWarning]}
+              >
+                <View style={styles.choiceHeader}>
+                  <View style={[styles.radioOuter, structure === 'Shadow_Underground' && styles.radioWarning]}>
+                    {structure === 'Shadow_Underground' && <View style={styles.radioInnerWarning} />}
+                  </View>
+                  <View style={styles.choiceCopy}>
+                    <Text style={[styles.choiceTitle, structure === 'Shadow_Underground' && styles.warningText]}>
+                      Shadow Route
+                    </Text>
+                    <Text style={styles.choiceMeta}>Higher margin · greater compliance exposure</Text>
+                  </View>
+                </View>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Best for</Text>
+                  <Text style={styles.detailValue}>Fast expansion with more operating risk</Text>
+                </View>
+              </Pressable>
+
+              <View style={styles.summary}>
+                <Text style={styles.summaryLabel}>AVAILABLE CASH</Text>
+                <Text style={styles.summaryValue}>{formatCurrency(cash)}</Text>
+              </View>
+
+              {certified && (
+                <View style={styles.verified}>
+                  <View style={styles.verifiedDot} />
+                  <Text style={styles.verifiedText}>Structure verified · ready to launch</Text>
+                </View>
+              )}
+
+              <View style={styles.actions}>
+                <Pressable onPress={onClose} style={styles.cancel}>
+                  <Text style={styles.cancelText}>Cancel</Text>
+                </Pressable>
+                <Pressable onPress={submit} style={styles.primary}>
+                  <Text style={styles.primaryText}>LAUNCH COMPANY</Text>
+                </Pressable>
+              </View>
+            </ScrollView>
+          </SafeAreaView>
+        </KeyboardAvoidingView>
+      </View>
+    </Modal>
+  );
 }
-const styles = StyleSheet.create({ shade: { flex: 1, backgroundColor: 'rgba(1,7,15,.84)', justifyContent: 'flex-end' }, modal: { backgroundColor: C.card, padding: 18, paddingBottom: 30, borderTopLeftRadius: 26, borderTopRightRadius: 26, borderWidth: 1, borderColor: '#2C637F' }, grabber: { alignSelf: 'center', width: 42, height: 4, borderRadius: 4, backgroundColor: C.slate, marginBottom: 17 }, top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }, eyebrow: { color: C.cyan, fontSize: 8, fontWeight: '900', letterSpacing: 1.1 }, title: { color: C.white, fontSize: 23, lineHeight: 28, fontWeight: '900', marginTop: 5, maxWidth: 290 }, close: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#1C334B', alignItems: 'center', justifyContent: 'center' }, closeText: { color: C.white, fontSize: 24, lineHeight: 26 }, sub: { color: C.muted, fontSize: 11, lineHeight: 16, marginTop: 8, marginBottom: 13 }, input: { color: C.white, backgroundColor: C.bg, borderWidth: 1, borderColor: C.slate, borderRadius: 12, padding: 13, marginBottom: 3, fontSize: 14 }, option: { borderWidth: 1, borderColor: C.slate, borderRadius: 15, padding: 13, marginTop: 10 }, legalOn: { borderColor: C.green, backgroundColor: '#11372F' }, shadowOn: { borderColor: C.red, backgroundColor: '#3B1C2A' }, optionTop: { flexDirection: 'row', alignItems: 'center' }, optionIcon: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', marginRight: 9 }, iconText: { color: C.green, fontSize: 17, fontWeight: '900' }, optionTitle: { color: C.white, fontSize: 11, fontWeight: '900', letterSpacing: .8 }, copy: { color: C.muted, fontSize: 10, marginTop: 3 }, selected: { color: C.green, fontSize: 7, fontWeight: '900', letterSpacing: .6 }, benefit: { color: '#B1C6D8', fontSize: 10, lineHeight: 15, marginTop: 9, paddingLeft: 39 }, cashRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: C.slate }, cashLabel: { color: C.muted, fontSize: 8, fontWeight: '900', letterSpacing: .7 }, cashValue: { color: C.white, fontSize: 14, fontWeight: '900' }, seal: { borderWidth: 1, borderColor: C.green, backgroundColor: '#11372F', padding: 10, alignItems: 'center', marginTop: 14, borderRadius: 9 }, sealText: { color: C.green, fontSize: 9, fontWeight: '900', letterSpacing: 1 }, actions: { flexDirection: 'row', gap: 9, marginTop: 17 }, cancel: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 14 }, cancelText: { color: C.muted, fontWeight: '900', fontSize: 10 }, sign: { flex: 2, alignItems: 'center', backgroundColor: C.green, padding: 14, borderRadius: 11 }, signText: { color: C.bg, fontWeight: '900', fontSize: 11, letterSpacing: .3 } });
+
+const styles = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(1, 7, 15, 0.42)',
+  },
+  keyboard: {
+    width: '100%',
+    maxHeight: '94%',
+  },
+  sheet: {
+    backgroundColor: C.surface,
+    paddingHorizontal: spacing.xl,
+    paddingTop: 14,
+    borderTopLeftRadius: radius.sheet,
+    borderTopRightRadius: radius.sheet,
+    borderWidth: 1,
+    borderColor: C.borderStrong,
+    overflow: 'hidden',
+  },
+  content: {
+    paddingBottom: 12,
+  },
+  grabber: {
+    alignSelf: 'center',
+    width: 36,
+    height: 3,
+    borderRadius: 3,
+    backgroundColor: C.border,
+    marginBottom: 20,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  headerCopy: {
+    flex: 1,
+    paddingRight: 16,
+  },
+  kicker: {
+    color: C.tertiary,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
+  title: {
+    color: C.text,
+    fontSize: 25,
+    lineHeight: 30,
+    fontWeight: '800',
+    marginTop: 7,
+  },
+  subtitle: {
+    color: C.secondary,
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 9,
+  },
+  close: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: C.surfaceRaised,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  closeText: {
+    color: C.secondary,
+    fontSize: 23,
+    lineHeight: 25,
+  },
+  fieldLabel: {
+    color: C.tertiary,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.9,
+    marginTop: 22,
+    marginBottom: 8,
+  },
+  input: {
+    color: C.text,
+    backgroundColor: C.page,
+    borderWidth: 1,
+    borderColor: C.border,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    fontSize: 15,
+  },
+  choice: {
+    borderWidth: 1,
+    borderColor: C.border,
+    borderRadius: 13,
+    padding: 15,
+    marginTop: 10,
+    backgroundColor: 'transparent',
+  },
+  choiceSelected: {
+    borderColor: C.accent,
+    backgroundColor: C.selected,
+  },
+  choiceWarning: {
+    borderColor: C.warning,
+    backgroundColor: C.warningSurface,
+  },
+  choiceHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  radioOuter: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: C.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 11,
+  },
+  radioWarning: {
+    borderColor: C.warning,
+  },
+  radioInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: C.accent,
+  },
+  radioInnerWarning: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: C.warning,
+  },
+  choiceCopy: {
+    flex: 1,
+  },
+  choiceTitle: {
+    color: C.text,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  warningText: {
+    color: C.warning,
+  },
+  choiceMeta: {
+    color: C.secondary,
+    fontSize: 11,
+    lineHeight: 16,
+    marginTop: 3,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    borderTopWidth: 1,
+    borderTopColor: `${C.border}99`,
+    marginTop: 13,
+    paddingTop: 11,
+  },
+  detailLabel: {
+    width: 58,
+    color: C.tertiary,
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  detailValue: {
+    flex: 1,
+    color: C.secondary,
+    fontSize: 11,
+    lineHeight: 16,
+  },
+  summary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderTopWidth: 1,
+    borderTopColor: C.border,
+    marginTop: 20,
+    paddingTop: 15,
+  },
+  summaryLabel: {
+    color: C.tertiary,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+  },
+  summaryValue: {
+    color: C.text,
+    fontSize: 17,
+    fontWeight: '800',
+  },
+  verified: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 13,
+  },
+  verifiedDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: C.accent,
+    marginRight: 8,
+  },
+  verifiedText: {
+    color: C.accent,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 20,
+  },
+  cancel: {
+    flex: 1,
+    minHeight: controls.primaryHeight,
+    borderWidth: 1,
+    borderColor: C.border,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelText: {
+    color: C.secondary,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  primary: {
+    flex: 1.55,
+    minHeight: controls.primaryHeight,
+    borderRadius: 10,
+    backgroundColor: C.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  primaryText: {
+    color: C.page,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+});
+
 export default BusinessRegistrationModal;

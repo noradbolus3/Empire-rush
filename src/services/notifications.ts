@@ -19,7 +19,7 @@ export async function syncFounderReminder(enabled: boolean): Promise<void> {
     if (!requested.granted && requested.ios?.status !== Notifications.IosAuthorizationStatus.PROVISIONAL) return;
   }
   await Notifications.scheduleNotificationAsync({
-    content: { title: 'Empire Rush is waiting', body: 'Check your businesses, collect cashflow, and make your next smart move.', sound: 'default' },
+    content: { title: 'BuildBoss is waiting', body: 'Check your businesses, collect cashflow, and make your next smart move.', sound: 'default' },
     trigger: { type: Notifications.SchedulableTriggerInputTypes.DAILY, hour: 18, minute: 0 },
   });
 }
