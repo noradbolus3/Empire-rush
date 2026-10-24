@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import {
   Alert,
+  Image,
   Pressable,
   StyleSheet,
   Text,
@@ -48,6 +49,11 @@ const C = {
   border: designSystem.colors.border,
   gold: designSystem.colors.warning,
 };
+const taxiDashboard = require("../../assets/taxi/taxi-dashboard.webp");
+const taxiFleet = require("../../assets/taxi/taxi-fleet.webp");
+const taxiOperations = require("../../assets/taxi/taxi-operations.webp");
+const taxiWorkforce = require("../../assets/taxi/taxi-workforce.webp");
+const taxiExpansion = require("../../assets/taxi/taxi-expansion.webp");
 
 export default function TaxiCompanyScreen({
   company,
@@ -261,6 +267,7 @@ function OverviewPage({
 }) {
   return (
     <>
+      <Image source={taxiDashboard} style={styles.pageImage} />
       <View style={styles.hero}>
         <Text style={styles.heroEyebrow}>LIVE COMPANY OVERVIEW</Text>
         <Text style={styles.heroTitle}>{company.name}</Text>
@@ -341,6 +348,7 @@ function FleetPage({
   };
   return (
     <>
+      <Image source={taxiFleet} style={styles.pageImage} />
       <Section
         title="FLEET MANAGEMENT"
         copy={`${taxiVehicleCount(company)} vehicles active · ${company.fleetCondition.toFixed(0)}% average condition`}
@@ -426,6 +434,7 @@ function OperationsPage({
   };
   return (
     <>
+      <Image source={taxiOperations} style={styles.pageImage} />
       <Section
         title="TAXI OPERATIONS"
         copy="A shift is a real settlement: rides create revenue, drivers and vehicles create expenses, and fleet condition changes."
@@ -474,6 +483,7 @@ function WorkforcePage({
       title="DRIVERS & WORKFORCE"
       copy="Drivers convert fleet capacity into completed rides. Payroll is included in every shift expense."
     >
+      <Image source={taxiWorkforce} style={styles.pageImage} />
       <Metric label="Active drivers" value={`${company.drivers}`} />
       <Metric
         label="Recommended drivers"
@@ -530,6 +540,7 @@ function ExpansionPage({
       title="EXPANSION & AREAS"
       copy="Scale the depot, increase fleet capacity and unlock a larger service area."
     >
+      <Image source={taxiExpansion} style={styles.pageImage} />
       <Metric label="Current area" value={company.area} />
       <Metric
         label="Depot level"
@@ -691,6 +702,13 @@ const styles = StyleSheet.create({
     borderRadius: 17,
     padding: 16,
     marginBottom: 14,
+  },
+  pageImage: {
+    width: "100%",
+    height: 148,
+    borderRadius: 14,
+    marginBottom: 12,
+    resizeMode: "cover",
   },
   sectionTitle: {
     color: C.ink,

@@ -2,6 +2,7 @@ import { designSystem } from "../theme/designSystem";
 import React, { useMemo, useState } from "react";
 import {
   Alert,
+  Image,
   Pressable,
   StyleSheet,
   Text,
@@ -47,6 +48,11 @@ const C = {
   border: designSystem.colors.border,
   red: designSystem.colors.danger,
 };
+const shippingDashboard = require("../../assets/shipping/shipping-dashboard.webp");
+const shippingFleet = require("../../assets/shipping/shipping-fleet.webp");
+const shippingShipments = require("../../assets/shipping/shipping-shipments.webp");
+const shippingStaff = require("../../assets/shipping/shipping-staff.webp");
+const shippingExpansion = require("../../assets/shipping/shipping-expansion.webp");
 
 export default function ShippingCompanyScreen({
   company,
@@ -239,6 +245,7 @@ function OverviewPage({
 }) {
   return (
     <>
+      <Image source={shippingDashboard} style={styles.pageImage} />
       <View style={styles.hero}>
         <Text style={styles.heroEyebrow}>
           SHIPPING DASHBOARD · {company.level.toUpperCase()}
@@ -324,6 +331,7 @@ function FleetPage({
       title="FLEET MANAGEMENT"
       copy="Delivery vans and trucks define cargo capacity, routes and operating cost."
     >
+      <Image source={shippingFleet} style={styles.pageImage} />
       <Metric
         label="Vehicle availability"
         value={`${shippingVehicleCount(company)} vehicles`}
@@ -456,6 +464,7 @@ function ShipmentsPage({
       title="SHIPMENT OPERATIONS"
       copy="Accept delivery orders, stage cargo, assign a vehicle and complete delivery. Every shipment has a visible status."
     >
+      <Image source={shippingShipments} style={styles.pageImage} />
       <Metric
         label="Warehouse cargo"
         value={`${company.cargoStored.toLocaleString()} / ${company.warehouseCapacity.toLocaleString()} units`}
@@ -505,6 +514,7 @@ function StaffPage({
       title="EMPLOYEES & MANAGEMENT"
       copy="Shipping depends on drivers, warehouse staff and dispatch coordination."
     >
+      <Image source={shippingStaff} style={styles.pageImage} />
       <Metric label="Drivers" value={`${company.drivers}`} />
       <Metric label="Warehouse staff" value={`${company.warehouseStaff}`} />
       <Metric label="Dispatchers" value={`${company.dispatchers}`} />
@@ -567,6 +577,7 @@ function ExpansionPage({
       title="EXPANSION & UPGRADES"
       copy="Grow from local deliveries to a regional distribution network."
     >
+      <Image source={shippingExpansion} style={styles.pageImage} />
       <Metric label="Business level" value={company.level} />
       <Metric
         label="Warehouse"
@@ -750,6 +761,13 @@ const styles = StyleSheet.create({
     borderRadius: 17,
     padding: 16,
     marginBottom: 14,
+  },
+  pageImage: {
+    width: "100%",
+    height: 148,
+    borderRadius: 14,
+    marginBottom: 12,
+    resizeMode: "cover",
   },
   sectionTitle: {
     color: C.ink,
