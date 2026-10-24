@@ -18,6 +18,8 @@ import {
   isDebtBearingLoan,
 } from "./bankEngine";
 import { constructionAssetValue } from "./constructionCompanyEngine";
+import type { TaxiCompanyState } from "../types/taxi";
+import { taxiHourlyEconomics } from "../types/taxi";
 
 export type FinancialGameState = {
   cash: number;
@@ -38,6 +40,7 @@ export type FinancialGameState = {
   owned: string[];
   lifestyleAssets: CollectionItem[];
   businesses: BusinessEntity[];
+  taxiCompany?: TaxiCompanyState | null;
   systemTimeMs: number;
   multiplier?: number;
 };
@@ -130,13 +133,16 @@ function entry(
   return { id, kind, label, amount: round(amount), timestamp, detail };
 }
 function businessRevenue(state: FinancialGameState) {
-  return (
+  const base = (
     (state.businesses || []).reduce(
       (sum, item) =>
         sum + (item.isAcquired ? positive(item.hourlyNetProfit) : 0),
       0,
-    ) * (state.multiplier ?? 1)
-  );
+    ) * (state.multiplier ?? 1));
+  const taxi = state.taxiCompany?.status === "operating"
+    ? Math.max(0, taxiHourlyEconomics(state.taxiCompany).net)
+    : 0;
+  return base + taxi;
 }
 function savingsInterest(state: FinancialGameState) {
   const event = state.bank.marketEvents?.[state.bank.marketEvents.length - 1];
@@ -284,7 +290,9 @@ export function settleHour(state: FinancialGameState): SettlementResult {
       "Business revenue",
       revenue,
       timestamp,
-      "Unified hourly settlement",
+      state.taxiCompany?.status === "operating"
+        ? "Unified hourly settlement · includes Taxi Company net operations"
+        : "Unified hourly settlement",
     ),
     entry(
       `settle-interest-${timestamp}`,

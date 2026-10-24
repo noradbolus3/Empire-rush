@@ -5,8 +5,9 @@ import { ConstructionData } from '../../types/business';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { CONSTRUCTION_CONTRACTS, CONSTRUCTION_PROJECTS, CONSTRUCTION_UPGRADES, constructionAssetValue, constructionHourlyProfit, constructionStageFor, canUseStage, initializeConstruction, stageIndex } from '../../engine/constructionCompanyEngine';
 import { constructionVisuals } from '../../data/constructionAssets';
+import { designSystem } from '../../theme/designSystem';
 
-const C = { bg: '#F4F8FC', ink: '#102238', muted: '#60748A', line: '#D8E4EF', blue: '#147BE8', blueSoft: '#E9F3FF', green: '#159A68', greenSoft: '#E7F7EF', gold: '#D89A1B', red: '#D95454', white: '#FFFFFF' };
+const C = { bg: designSystem.colors.surfaceLight, ink: designSystem.colors.textPrimary, muted: designSystem.colors.textSecondary, line: designSystem.colors.border, blue: designSystem.colors.primaryBlue, blueSoft: designSystem.colors.highlight, green: designSystem.colors.success, greenSoft: '#ECFDF5', gold: designSystem.colors.warning, red: designSystem.colors.danger, white: '#FFFFFF' };
 type Tab = 'Overview' | 'Dashboard' | 'Land & Projects' | 'Machinery' | 'Management' | 'Contracts' | 'Expansion';
 type Props = { business: ConstructionData; cash: number; netWorth: number; onBack: () => void; onCashChange: (updater: (value: number) => number) => void; onChange: (business: ConstructionData) => void };
 

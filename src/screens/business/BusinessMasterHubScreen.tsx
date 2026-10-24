@@ -26,6 +26,9 @@ import type { BankLedgerEntry } from "../../types/bank";
 import { normalizeBusinessLevel } from "../../engine/businessLevels";
 import ConstructionCompanyScreen from "./ConstructionCompanyScreen";
 import { designSystem } from '../../theme/designSystem';
+import { BusinessDashboardPanel } from "../../components/business/BusinessDashboardPanel";
+import { BusinessUpgradePanel } from "../../components/business/BusinessUpgradePanel";
+import { BusinessAnalyticsPanel } from "../../components/business/BusinessAnalyticsPanel";
 
 const C = { bg: designSystem.colors.background, card: designSystem.colors.card, panel: designSystem.colors.highlight, slate: designSystem.colors.border, green: designSystem.colors.primary, cyan: designSystem.colors.cyan, red: designSystem.colors.negative, white: designSystem.colors.heading, muted: designSystem.colors.secondary, gold: designSystem.colors.gold, violet: designSystem.colors.violet };
 type Props = {
@@ -61,6 +64,7 @@ export function BusinessMasterHubScreen({
   const [level2Tab, setLevel2Tab] = React.useState<"units" | "finance">(
     "units",
   );
+  const [hubTab, setHubTab] = React.useState<"dashboard" | "operations" | "analytics" | "upgrades">("dashboard");
   const spendLock = React.useRef(false);
   const scrollRef = useRef<ScrollView>(null);
   const companyLevel = normalizeBusinessLevel(business).level || 1;
@@ -110,7 +114,7 @@ export function BusinessMasterHubScreen({
     );
   return (
     <View style={styles.root}>
-      <SafeAreaView edges={["left", "right"]} style={styles.safe}>
+      <SafeAreaView edges={["top", "left", "right"]} style={styles.safe}>
         <ScrollView ref={scrollRef} contentContainerStyle={styles.content}>
           <Pressable onPress={onBack}>
             <Text style={styles.back}>‹ BUSINESS REGISTRY</Text>
@@ -192,7 +196,46 @@ export function BusinessMasterHubScreen({
               <Text style={styles.ipoLockedLabel}>LOCKED</Text>
             </View>
           )}
-          {showLevel2Tabs && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.hubTabs}
+            contentContainerStyle={styles.hubTabsContent}
+          >
+            {([
+              ["dashboard", "DASHBOARD"],
+              ["operations", "OPERATIONS"],
+              ["analytics", "ANALYTICS"],
+              ["upgrades", "UPGRADES"],
+            ] as const).map(([id, label]) => (
+              <Pressable
+                key={id}
+                onPress={() => setHubTab(id)}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: hubTab === id }}
+                accessibilityLabel={`${label.toLowerCase()} business view`}
+                style={({ pressed }) => [styles.hubTab, hubTab === id && styles.hubTabActive, pressed && styles.hubTabPressed]}
+              >
+                <Text style={[styles.hubTabText, hubTab === id && styles.hubTabTextActive]}>{label}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+          {hubTab === "dashboard" && (
+            <BusinessDashboardPanel
+              business={business}
+              cash={cash}
+              netWorth={netWorth}
+              timestamp={timestamp}
+              finance={finance}
+            />
+          )}
+          {hubTab === "upgrades" && (
+            <BusinessUpgradePanel business={business} cash={cash} spend={spend} />
+          )}
+          {hubTab === "analytics" && (
+            <BusinessAnalyticsPanel business={business} finance={finance} />
+          )}
+          {hubTab === "operations" && showLevel2Tabs && (
             <View style={styles.levelTabs}>
               <Pressable
                 onPress={() => setLevel2Tab("units")}
@@ -228,7 +271,7 @@ export function BusinessMasterHubScreen({
               </Pressable>
             </View>
           )}
-          {!showLevel2Tabs || level2Tab === "units" ? (
+          {hubTab === "operations" && (!showLevel2Tabs || level2Tab === "units") ? (
             <>
               {business.sector === "Retail" && (
                 <RetailControls
@@ -270,9 +313,9 @@ export function BusinessMasterHubScreen({
                 />
               )}
             </>
-          ) : (
+          ) : hubTab === "operations" ? (
             <FinancePanel business={business} finance={finance} />
-          )}
+          ) : null}
         </ScrollView>
         <IPOLaunchModal
           visible={ipoOpen}
@@ -1001,6 +1044,13 @@ function Gauge({ value, color }: { value: number; color: string }) {
 }
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
+  hubTabs: { flexGrow: 0, flexShrink: 0, marginTop: 16, marginBottom: 12 },
+  hubTabsContent: { flexDirection: "row", alignItems: "center", gap: 8 },
+  hubTab: { minHeight: 40, paddingHorizontal: 14, borderWidth: 1, borderColor: C.slate, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: C.card },
+  hubTabActive: { backgroundColor: C.green, borderColor: C.green },
+  hubTabPressed: { opacity: 0.78, transform: [{ scale: 0.985 }] },
+  hubTabText: { color: C.muted, fontSize: 9, fontWeight: "900", letterSpacing: 0.6 },
+  hubTabTextActive: { color: "#FFFFFF" },
   levelTabs: { flexDirection: "row", gap: 8, marginTop: 12, marginBottom: 10 },
   levelTab: { flex: 1, borderWidth: 1, borderColor: C.slate, borderRadius: 10, paddingVertical: 10, alignItems: "center" },
   levelTabActive: { backgroundColor: C.green, borderColor: C.green },

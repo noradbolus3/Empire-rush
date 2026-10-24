@@ -9,11 +9,12 @@ import { calculateMarketPulse } from '../engine/marketEngine';
 import { TechnicalChartModal } from './TechnicalChartModal';
 import { PriceAlert, PriceAlertCondition } from '../types/marketIntelligence';
 import { previewTrade, quantityFromCashPercent, quantityFromHoldingPercent, TRADE_QUANTITY_PRESETS, TradePreview } from '../engine/tradeEngine';
+import { designSystem } from '../theme/designSystem';
 
 type Filter = 'dividend' | 'cheap' | 'crypto' | 'watchlist' | 'all';
 type Side = 'BUY' | 'SELL';
 type TradeFilter = 'ALL' | 'BUY' | 'SELL' | 'LIMIT';
-const C = { panel: '#FFFFFF', panel2: '#E7F5EF', green: '#087F5B', red: '#C62828', cyan: '#1769AA', gold: '#A15C00', text: '#183153', muted: '#526477', slate: '#DCE3EB' };
+const C = { panel: designSystem.colors.card, panel2: designSystem.colors.highlight, green: designSystem.colors.primaryBlue, red: designSystem.colors.danger, cyan: designSystem.colors.accentSkyBlue, gold: designSystem.colors.warning, text: designSystem.colors.textPrimary, muted: designSystem.colors.textSecondary, slate: designSystem.colors.border };
 const money = (n: number) => `${n < 0 ? '-' : ''}$${Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const short = (n: number) => { const abs = Math.abs(n); const sign = n < 0 ? '-' : ''; if (abs >= 1e9) return `${sign}$${(abs / 1e9).toFixed(2)}B`; if (abs >= 1e6) return `${sign}$${(abs / 1e6).toFixed(2)}M`; if (abs >= 1e3) return `${sign}$${(abs / 1e3).toFixed(2)}K`; return money(n); };
 const pct = (n: number) => `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`;

@@ -1,13 +1,12 @@
 import React, { useMemo, useState } from "react";
 import {
   Alert,
+  Image,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import {
   DEFAULT_TAXI_COMPANY,
   TaxiArea,
@@ -18,6 +17,8 @@ import {
 } from "../types/taxi";
 import { formatCurrency } from "../utils/formatCurrency";
 import type { BankLedgerEntry } from "../types/bank";
+import { designSystem } from "../theme/designSystem";
+import { SpecializedBusinessShell } from "../components/business/SpecializedBusinessShell";
 
 type Page =
   "overview" | "setup" | "fleet" | "operations" | "workforce" | "expansion";
@@ -35,17 +36,24 @@ const areas: TaxiArea[] = [
   "Airport Corridor",
 ];
 const C = {
-  bg: "#F5F8FC",
-  card: "#FFFFFF",
-  ink: "#10233F",
-  blue: "#1769E0",
-  pale: "#EAF2FF",
-  muted: "#64748B",
-  green: "#0F9D68",
-  red: "#C2415D",
-  border: "#D8E3F0",
-  gold: "#B7791F",
+  bg: designSystem.colors.background,
+  card: designSystem.colors.card,
+  ink: designSystem.colors.heading,
+  navy: designSystem.colors.primaryNavy,
+  blue: designSystem.colors.primaryBlue,
+  sky: designSystem.colors.accentSkyBlue,
+  pale: designSystem.colors.highlight,
+  muted: designSystem.colors.secondary,
+  green: designSystem.colors.success,
+  red: designSystem.colors.danger,
+  border: designSystem.colors.border,
+  gold: designSystem.colors.warning,
 };
+const taxiDashboard = require("../../assets/taxi/taxi-dashboard.webp");
+const taxiFleet = require("../../assets/taxi/taxi-fleet.webp");
+const taxiOperations = require("../../assets/taxi/taxi-operations.webp");
+const taxiWorkforce = require("../../assets/taxi/taxi-workforce.webp");
+const taxiExpansion = require("../../assets/taxi/taxi-expansion.webp");
 
 export default function TaxiCompanyScreen({
   company,
@@ -118,62 +126,22 @@ export default function TaxiCompanyScreen({
     });
     setPage("overview");
   };
-  const pageTitle =
-    page === "setup"
-      ? "Taxi Company Setup"
-      : page === "fleet"
-        ? "Fleet Management"
-        : page === "operations"
-          ? "Taxi Operations"
-          : page === "workforce"
-            ? "Drivers & Workforce"
-            : page === "expansion"
-              ? "Expansion & Areas"
-              : "My Taxi Company";
   return (
-    <View style={styles.root}>
-      <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
-        <ScrollView contentContainerStyle={styles.content}>
-          <Pressable onPress={onBack}>
-            <Text style={styles.back}>‹ BUSINESS DASHBOARD</Text>
-          </Pressable>
-          <View style={styles.brandRow}>
-            <View style={styles.logo}>
-              <Text style={styles.logoText}>T</Text>
-            </View>
-            <View>
-              <Text style={styles.eyebrow}>MOBILITY · TAXI COMPANY</Text>
-              <Text style={styles.title}>{pageTitle}</Text>
-            </View>
-          </View>
-          {company?.status === "operating" && (
-            <View style={styles.navRow}>
-              {(
-                [
-                  "overview",
-                  "fleet",
-                  "operations",
-                  "workforce",
-                  "expansion",
-                ] as Page[]
-              ).map((item) => (
-                <Pressable
-                  key={item}
-                  onPress={() => setPage(item)}
-                  style={[styles.navButton, page === item && styles.navActive]}
-                >
-                  <Text
-                    style={[
-                      styles.navText,
-                      page === item && styles.navTextActive,
-                    ]}
-                  >
-                    {item.toUpperCase()}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          )}
+    <SpecializedBusinessShell
+      eyebrow="MOBILITY · TAXI COMPANY"
+      title={company?.status === "operating" ? "My Taxi Company" : "Taxi Company Setup"}
+      monogram="T"
+      onBack={onBack}
+      tabs={company?.status === "operating" ? [
+        { id: "overview", label: "DASHBOARD" },
+        { id: "fleet", label: "FLEET" },
+        { id: "operations", label: "OPERATIONS" },
+        { id: "workforce", label: "WORKFORCE" },
+        { id: "expansion", label: "EXPANSION" },
+      ] : []}
+      activeTab={page}
+      onTabChange={(id) => setPage(id as Page)}
+    >
           {page === "setup" ? (
             <SetupPage
               area={setupArea}
@@ -209,9 +177,7 @@ export default function TaxiCompanyScreen({
           ) : (
             <ExpansionPage company={current} cash={cash} charge={charge} />
           )}
-        </ScrollView>
-      </SafeAreaView>
-    </View>
+    </SpecializedBusinessShell>
   );
 }
 function SetupPage({
@@ -301,6 +267,7 @@ function OverviewPage({
 }) {
   return (
     <>
+      <Image source={taxiDashboard} style={styles.pageImage} />
       <View style={styles.hero}>
         <Text style={styles.heroEyebrow}>LIVE COMPANY OVERVIEW</Text>
         <Text style={styles.heroTitle}>{company.name}</Text>
@@ -381,6 +348,7 @@ function FleetPage({
   };
   return (
     <>
+      <Image source={taxiFleet} style={styles.pageImage} />
       <Section
         title="FLEET MANAGEMENT"
         copy={`${taxiVehicleCount(company)} vehicles active · ${company.fleetCondition.toFixed(0)}% average condition`}
@@ -466,6 +434,7 @@ function OperationsPage({
   };
   return (
     <>
+      <Image source={taxiOperations} style={styles.pageImage} />
       <Section
         title="TAXI OPERATIONS"
         copy="A shift is a real settlement: rides create revenue, drivers and vehicles create expenses, and fleet condition changes."
@@ -514,6 +483,7 @@ function WorkforcePage({
       title="DRIVERS & WORKFORCE"
       copy="Drivers convert fleet capacity into completed rides. Payroll is included in every shift expense."
     >
+      <Image source={taxiWorkforce} style={styles.pageImage} />
       <Metric label="Active drivers" value={`${company.drivers}`} />
       <Metric
         label="Recommended drivers"
@@ -570,6 +540,7 @@ function ExpansionPage({
       title="EXPANSION & AREAS"
       copy="Scale the depot, increase fleet capacity and unlock a larger service area."
     >
+      <Image source={taxiExpansion} style={styles.pageImage} />
       <Metric label="Current area" value={company.area} />
       <Metric
         label="Depot level"
@@ -670,14 +641,14 @@ function Metric({ label, value }: { label: string; value: string }) {
 }
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
-  safe: { flex: 1 },
-  content: { padding: 18, paddingBottom: 120 },
-  back: { color: C.blue, fontWeight: "900", marginBottom: 20 },
+  safe: { flex: 1, backgroundColor: C.bg },
+  content: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 140 },
+  back: { color: C.blue, fontWeight: "900", marginBottom: 12 },
   brandRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    marginBottom: 18,
+    marginBottom: 12,
   },
   logo: {
     width: 42,
@@ -696,32 +667,34 @@ const styles = StyleSheet.create({
   },
   title: { color: C.ink, fontSize: 25, fontWeight: "900", marginTop: 3 },
   hero: {
-    backgroundColor: C.blue,
-    borderRadius: 20,
-    padding: 20,
+    backgroundColor: C.navy,
+    borderRadius: 16,
+    padding: 18,
     marginBottom: 14,
   },
   heroEyebrow: {
-    color: "#DCEAFF",
+    color: C.sky,
     fontSize: 10,
     fontWeight: "900",
     letterSpacing: 1,
   },
-  heroTitle: { color: "#FFF", fontSize: 26, fontWeight: "900", marginTop: 8 },
-  heroSub: { color: "#DCEAFF", marginTop: 5 },
-  heroProfit: { color: "#FFF", fontSize: 31, fontWeight: "900", marginTop: 22 },
-  navRow: { flexDirection: "row", flexWrap: "wrap", gap: 7, marginBottom: 14 },
+  heroTitle: { color: "#FFFFFF", fontSize: 23, fontWeight: "900", marginTop: 8 },
+  heroSub: { color: "#E2E8F0", marginTop: 5 },
+  heroProfit: { color: "#FFFFFF", fontSize: 29, fontWeight: "900", marginTop: 18 },
+  navScroller: { flexGrow: 0, flexShrink: 0, marginBottom: 12 },
+  navRow: { flexDirection: "row", alignItems: "center", gap: 7, paddingVertical: 2 },
   navButton: {
     backgroundColor: C.card,
     borderColor: C.border,
     borderWidth: 1,
     borderRadius: 9,
-    paddingHorizontal: 9,
-    paddingVertical: 8,
+    minHeight: 40,
+    paddingHorizontal: 11,
+    paddingVertical: 9,
   },
-  navActive: { backgroundColor: C.pale, borderColor: C.blue },
+  navActive: { backgroundColor: C.blue, borderColor: C.blue },
   navText: { color: C.muted, fontSize: 9, fontWeight: "900" },
-  navTextActive: { color: C.blue },
+  navTextActive: { color: "#FFFFFF" },
   section: {
     backgroundColor: C.card,
     borderColor: C.border,
@@ -729,6 +702,13 @@ const styles = StyleSheet.create({
     borderRadius: 17,
     padding: 16,
     marginBottom: 14,
+  },
+  pageImage: {
+    width: "100%",
+    height: 148,
+    borderRadius: 14,
+    marginBottom: 12,
+    resizeMode: "cover",
   },
   sectionTitle: {
     color: C.ink,
@@ -801,7 +781,7 @@ const styles = StyleSheet.create({
     padding: 13,
   },
   metricLabel: { color: C.muted, fontSize: 9, fontWeight: "900" },
-  metricValue: { color: C.ink, fontSize: 17, fontWeight: "900", marginTop: 5 },
+  metricValue: { color: C.ink, fontSize: 16, fontWeight: "900", marginTop: 5, flexShrink: 1 },
   action: {
     borderColor: C.border,
     borderWidth: 1,
@@ -814,6 +794,8 @@ const styles = StyleSheet.create({
   disabled: { opacity: 0.45 },
   demand: {
     backgroundColor: C.pale,
+    borderColor: C.border,
+    borderWidth: 1,
     borderRadius: 12,
     padding: 14,
     marginBottom: 10,

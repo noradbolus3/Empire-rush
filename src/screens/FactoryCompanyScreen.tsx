@@ -1,14 +1,13 @@
+import { designSystem } from "../theme/designSystem";
 import React, { useState } from "react";
 import {
   Alert,
   Image,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import type { BankLedgerEntry } from "../types/bank";
 import {
   DEFAULT_FACTORY_COMPANY,
@@ -22,6 +21,7 @@ import {
   factoryUnitsLabel,
 } from "../types/factory";
 import { formatCurrency } from "../utils/formatCurrency";
+import { SpecializedBusinessShell } from "../components/business/SpecializedBusinessShell";
 
 type Page =
   "dashboard" | "setup" | "machinery" | "employees" | "inventory" | "expansion";
@@ -34,16 +34,16 @@ type Props = {
   onLedger?: (entry: BankLedgerEntry) => void;
 };
 const C = {
-  bg: "#F3F6F8",
-  card: "#FFF",
-  ink: "#132334",
-  blue: "#1769E0",
-  steel: "#49677C",
-  muted: "#708293",
-  border: "#D8E2E8",
-  amber: "#C77B19",
-  green: "#07835A",
-  red: "#BD4760",
+  bg: designSystem.colors.surfaceLight,
+  card: '#FFFFFF',
+  ink: designSystem.colors.textPrimary,
+  blue: designSystem.colors.primaryBlue,
+  steel: designSystem.colors.textSecondary,
+  muted: designSystem.colors.textSecondary,
+  border: designSystem.colors.border,
+  amber: designSystem.colors.warning,
+  green: designSystem.colors.success,
+  red: designSystem.colors.danger,
 };
 const building = require("../../assets/factory/factory-building.jpg");
 const line = require("../../assets/factory/production-line.jpg");
@@ -138,67 +138,22 @@ export default function FactoryCompanyScreen({
     });
     setPage("dashboard");
   };
-  const title =
-    page === "setup"
-      ? "Factory Selection & Setup"
-      : page === "machinery"
-        ? "Machinery & Production Lines"
-        : page === "employees"
-          ? "Employees & Production"
-          : page === "inventory"
-            ? "Inventory & Sales"
-            : page === "expansion"
-              ? "Expansion & Upgrades"
-              : "Factory Dashboard";
   return (
-    <View style={styles.root}>
-      <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
-        <ScrollView contentContainerStyle={styles.content}>
-          <Pressable onPress={onBack}>
-            <Text style={styles.back}>‹ BUSINESS DASHBOARD</Text>
-          </Pressable>
-          <View style={styles.brand}>
-            <View style={styles.logo}>
-              <Text style={styles.logoText}>F</Text>
-            </View>
-            <View>
-              <Text style={styles.eyebrow}>
-                MANUFACTURING · FACTORY COMPANY
-              </Text>
-              <Text style={styles.title}>{title}</Text>
-            </View>
-          </View>
-          {page !== "setup" && (
-            <View style={styles.nav}>
-              {(
-                [
-                  "dashboard",
-                  "machinery",
-                  "employees",
-                  "inventory",
-                  "expansion",
-                ] as Page[]
-              ).map((item) => (
-                <Pressable
-                  key={item}
-                  onPress={() => setPage(item)}
-                  style={[
-                    styles.navButton,
-                    page === item && styles.navSelected,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.navText,
-                      page === item && styles.navTextSelected,
-                    ]}
-                  >
-                    {item.toUpperCase()}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          )}
+    <SpecializedBusinessShell
+      eyebrow="MANUFACTURING · FACTORY COMPANY"
+      title={company?.status === "operating" ? "Factory Dashboard" : "Factory Selection & Setup"}
+      monogram="F"
+      onBack={onBack}
+      tabs={company?.status === "operating" ? [
+        { id: "dashboard", label: "DASHBOARD" },
+        { id: "machinery", label: "MACHINERY" },
+        { id: "employees", label: "STAFF" },
+        { id: "inventory", label: "INVENTORY" },
+        { id: "expansion", label: "EXPANSION" },
+      ] : []}
+      activeTab={page}
+      onTabChange={(id) => setPage(id as Page)}
+    >
           {page === "setup" ? (
             <Setup
               type={setupType}
@@ -229,9 +184,7 @@ export default function FactoryCompanyScreen({
           ) : (
             <Expansion factory={current} cash={cash} spend={spend} />
           )}
-        </ScrollView>
-      </SafeAreaView>
-    </View>
+    </SpecializedBusinessShell>
   );
 }
 function Setup({

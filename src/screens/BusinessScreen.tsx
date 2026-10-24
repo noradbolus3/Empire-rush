@@ -1449,8 +1449,8 @@ const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
     paddingHorizontal: 16,
-    paddingTop: 0,
-    paddingBottom: 120,
+    paddingTop: 4,
+    paddingBottom: 144,
   },
   factoryCard: {
     backgroundColor: "#FFFFFF",

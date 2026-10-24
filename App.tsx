@@ -263,7 +263,7 @@ const normalizeMarketAsset = (asset: Asset): Asset => {
 
 function AppContent() {
   const insets = useSafeAreaInsets();
-  const { resetBusinesses, businesses, setBusinesses } = useGame();
+  const { resetBusinesses, businesses, setBusinesses, taxiCompany } = useGame();
   const { isOnline, clockTampered } = useNetwork();
   const clockTamperedRef = useRef(clockTampered);
   const boostTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -418,6 +418,7 @@ function AppContent() {
       owned,
       lifestyleAssets,
       businesses,
+      taxiCompany,
       systemTimeMs,
       multiplier,
     }),
@@ -428,6 +429,7 @@ function AppContent() {
       holdings,
       owned,
       businesses,
+      taxiCompany,
       systemTimeMs,
       multiplier,
     ],
@@ -447,8 +449,9 @@ function AppContent() {
         assets,
         holdings,
         businessProfitPerHour: profit,
+        taxiCompany,
       }),
-    [assets, businesses, holdings, profit],
+    [assets, businesses, holdings, profit, taxiCompany],
   );
   const projectedHourlyIncome = useMemo(
     () => settleHour(financialState).projectedHourlyNet,
@@ -1381,7 +1384,7 @@ function AppContent() {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.loading}>
-          <Text style={styles.brand}>EMPIRE RUSH</Text>
+          <Text style={styles.brand}>BUILDBOSS</Text>
           <Text style={styles.muted}>SECURE LEDGER LOADING…</Text>
         </View>
       </SafeAreaView>
@@ -1395,7 +1398,7 @@ function AppContent() {
       <View style={styles.app}>
         <View style={styles.header}>
           <View>
-            <Text style={styles.brand}>EMPIRE RUSH</Text>
+            <Text style={styles.brand}>BUILDBOSS</Text>
             <Text style={styles.simClock}>
               {formatSystemDateTime(systemTimeMs)}
             </Text>
@@ -1792,7 +1795,7 @@ function SettingsModal({
         <View style={styles.store}>
           <View style={styles.storeHead}>
             <View>
-              <Text style={styles.eyebrow}>EMPIRE RUSH</Text>
+              <Text style={styles.eyebrow}>BUILDBOSS · BUSINESS TYCOON</Text>
               <Text style={styles.h1}>Settings & trust</Text>
             </View>
             <Pressable onPress={close}>
@@ -1800,7 +1803,7 @@ function SettingsModal({
             </Pressable>
           </View>
           <Text style={styles.settingsIntro}>
-            Control the way Empire Rush feels. Notifications are optional and
+              Control the way BuildBoss feels. Notifications are optional and
             never required for progress.
           </Text>
           <SettingRow
@@ -1827,7 +1830,7 @@ function SettingsModal({
             <Text style={styles.muted}>Source commit {buildCommit}</Text>
             <Text style={styles.packTitle}>PRIVACY & TERMS</Text>
             <Text style={styles.muted}>
-              Empire Rush is a single-player business simulation. We do not
+              BuildBoss is a single-player business simulation. We do not
               require an account to save local progress. Purchases are processed
               by the platform store; no payment details are handled by the game.
             </Text>
@@ -1847,7 +1850,7 @@ function SettingsModal({
             onPress={() =>
               Alert.alert(
                 "Terms of service",
-                "Empire Rush is entertainment software. All in-game currency and business values are simulated and have no cash value.",
+                "BuildBoss is entertainment software. All in-game currency and business values are simulated and have no cash value.",
               )
             }
             style={styles.legalButton}
@@ -2017,9 +2020,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 7,
-    backgroundColor: "#E7F7EF",
+    backgroundColor: C.panel2,
     borderWidth: 1,
-    borderColor: "#3A8C57",
+    borderColor: C.green,
     borderRadius: 12,
     paddingHorizontal: 11,
     paddingVertical: 7,

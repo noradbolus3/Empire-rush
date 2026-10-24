@@ -181,7 +181,14 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
           try {
             const parsed = JSON.parse(rawTaxi);
             if (parsed?.id === DEFAULT_TAXI_COMPANY.id)
-              setTaxiCompany({ ...DEFAULT_TAXI_COMPANY, ...parsed });
+              setTaxiCompany({
+                ...DEFAULT_TAXI_COMPANY,
+                ...parsed,
+                name:
+                  parsed.name === "Empire Taxi Co."
+                    ? DEFAULT_TAXI_COMPANY.name
+                    : parsed.name || DEFAULT_TAXI_COMPANY.name,
+              });
           } catch {
             setTaxiCompany(null);
           }

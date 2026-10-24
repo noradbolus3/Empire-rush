@@ -797,9 +797,9 @@ const factoryInteraction = async (label, company, cash, actions) => {
   ]);
   await interaction(
     "interaction-insufficient-funds-purchase",
-    [{ ...retail, isAcquired: false }],
+    [{ ...retail, isAcquired: false, isUnlocked: true }],
     0,
-    ["Copper & Bloom Market", "LAUNCH COMPANY"],
+    [retail.name, "LAUNCH COMPANY"],
   );
   await taxiInteraction("interaction-taxi-launch", null, 50000, [
     "CONFIRM & LAUNCH TAXI COMPANY",
