@@ -4,12 +4,10 @@ import {
   Alert,
   Image,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import type { BankLedgerEntry } from "../types/bank";
 import {
   DEFAULT_DEALERSHIP,
@@ -18,6 +16,7 @@ import {
   dealershipSellTick,
 } from "../types/dealership";
 import { formatCurrency } from "../utils/formatCurrency";
+import { SpecializedBusinessShell } from "../components/business/SpecializedBusinessShell";
 
 type Page =
   "dashboard" | "showroom" | "inventory" | "sales" | "finance" | "expansion";
@@ -121,58 +120,23 @@ export default function CarDealershipScreen({
       detail: `Revenue ${formatCurrency(r.revenue)}`,
     });
   };
-  const title =
-    page === "showroom"
-      ? "Showroom Setup"
-      : page === "inventory"
-        ? "Vehicle Inventory"
-        : page === "sales"
-          ? "Sales & Customers"
-          : page === "finance"
-            ? "Employees & Finance"
-            : page === "expansion"
-              ? "Expansion & Upgrades"
-              : "Dealership Dashboard";
   return (
-    <View style={s.root}>
-      <SafeAreaView style={s.safe}>
-        <ScrollView contentContainerStyle={s.content}>
-          <Pressable onPress={onBack}>
-            <Text style={s.back}>‹ BUSINESS DASHBOARD</Text>
-          </Pressable>
-          <View style={s.brand}>
-            <View style={s.logo}>
-              <Text style={s.logoText}>M</Text>
-            </View>
-            <View>
-              <Text style={s.eyebrow}>AUTOMOTIVE · CAR DEALERSHIP</Text>
-              <Text style={s.title}>{title}</Text>
-            </View>
-          </View>
-          {company && (
-            <View style={s.nav}>
-              {(
-                [
-                  "dashboard",
-                  "showroom",
-                  "inventory",
-                  "sales",
-                  "finance",
-                  "expansion",
-                ] as Page[]
-              ).map((x) => (
-                <Pressable
-                  key={x}
-                  onPress={() => setPage(x)}
-                  style={[s.navBtn, page === x && s.navSelected]}
-                >
-                  <Text style={[s.navText, page === x && s.navTextSelected]}>
-                    {x.toUpperCase()}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          )}
+    <SpecializedBusinessShell
+      eyebrow="AUTOMOTIVE · CAR DEALERSHIP"
+      title={company ? "Dealership Dashboard" : "Dealership Setup"}
+      monogram="M"
+      onBack={onBack}
+      tabs={company ? [
+        { id: "dashboard", label: "DASHBOARD" },
+        { id: "showroom", label: "SHOWROOM" },
+        { id: "inventory", label: "INVENTORY" },
+        { id: "sales", label: "SALES" },
+        { id: "finance", label: "FINANCE" },
+        { id: "expansion", label: "EXPANSION" },
+      ] : []}
+      activeTab={page}
+      onTabChange={(id) => setPage(id as Page)}
+    >
           {!company ? (
             <Setup cash={cash} launch={launch} />
           ) : page === "dashboard" ? (
@@ -188,9 +152,7 @@ export default function CarDealershipScreen({
           ) : (
             <Expansion c={current} cash={cash} spend={spend} />
           )}
-        </ScrollView>
-      </SafeAreaView>
-    </View>
+    </SpecializedBusinessShell>
   );
 }
 function Setup({ cash, launch }: { cash: number; launch: () => void }) {

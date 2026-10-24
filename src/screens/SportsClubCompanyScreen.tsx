@@ -1,8 +1,9 @@
 import { designSystem } from "../theme/designSystem";
 import React, { useMemo, useState } from "react";
-import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { DEFAULT_SPORTS_CLUB, SportsClubState, SportsClubTab } from "../types/sportsClub";
 import { expandClub, matchOutcome, projectedHourlyRevenue, signSponsor, trainTeam, upgradeFacility } from "../engine/sportsClubEngine";
+import { SpecializedBusinessShell } from "../components/business/SpecializedBusinessShell";
 
 const C = { ink: designSystem.colors.textPrimary, muted: designSystem.colors.textSecondary, blue: designSystem.colors.primaryBlue, pale: designSystem.colors.surfaceLight, border: designSystem.colors.border, green: designSystem.colors.success, gold: designSystem.colors.warning };
 const pages: Array<{ id: SportsClubTab; label: string; image: any; eyebrow: string }> = [
@@ -35,12 +36,15 @@ export default function SportsClubCompanyScreen({ company, cash, onCashChange, o
     commit(expandClub(state), "Sports group expansion", -15000);
   };
   return (
-    <View style={styles.root}>
-      <View style={styles.header}><Pressable onPress={onBack}><Text style={styles.back}>‹ BACK</Text></Pressable><View><Text style={styles.eyebrow}>SPORTS CLUB & MANAGEMENT</Text><Text style={styles.title}>{state.clubName}</Text></View><Text style={styles.stage}>{state.stage}</Text></View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabs} contentContainerStyle={styles.tabContent}>
-        {pages.map((item) => <Pressable key={item.id} onPress={() => setTab(item.id)} style={[styles.tab, tab === item.id && styles.activeTab]}><Text style={[styles.tabText, tab === item.id && styles.activeTabText]}>{item.label}</Text></Pressable>)}
-      </ScrollView>
-      <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}>
+    <SpecializedBusinessShell
+      eyebrow="SPORTS CLUB & MANAGEMENT"
+      title={state.clubName}
+      monogram="S"
+      onBack={onBack}
+      tabs={pages.map((item) => ({ id: item.id, label: item.label.toUpperCase() }))}
+      activeTab={tab}
+      onTabChange={(id) => setTab(id as SportsClubTab)}
+    >
         <Image source={page.image} style={styles.hero} resizeMode="cover" />
         <Text style={styles.pageEyebrow}>{page.eyebrow}</Text>
         {tab === "dashboard" && <Dashboard state={state} hourly={hourly} />}
@@ -50,8 +54,7 @@ export default function SportsClubCompanyScreen({ company, cash, onCashChange, o
         {tab === "revenue" && <Revenue state={state} onSponsor={sponsor} />}
         {tab === "expansion" && <Expansion state={state} cash={cash} onExpand={expand} />}
         <View style={styles.event}><Text style={styles.eventLabel}>LATEST CLUB EVENT</Text><Text style={styles.eventText}>{state.lastEvent}</Text></View>
-      </ScrollView>
-    </View>
+    </SpecializedBusinessShell>
   );
 }
 
