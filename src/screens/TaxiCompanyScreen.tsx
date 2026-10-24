@@ -2,12 +2,10 @@ import React, { useMemo, useState } from "react";
 import {
   Alert,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import {
   DEFAULT_TAXI_COMPANY,
   TaxiArea,
@@ -19,6 +17,7 @@ import {
 import { formatCurrency } from "../utils/formatCurrency";
 import type { BankLedgerEntry } from "../types/bank";
 import { designSystem } from "../theme/designSystem";
+import { SpecializedBusinessShell } from "../components/business/SpecializedBusinessShell";
 
 type Page =
   "overview" | "setup" | "fleet" | "operations" | "workforce" | "expansion";
@@ -121,67 +120,22 @@ export default function TaxiCompanyScreen({
     });
     setPage("overview");
   };
-  const pageTitle =
-    page === "setup"
-      ? "Taxi Company Setup"
-      : page === "fleet"
-        ? "Fleet Management"
-        : page === "operations"
-          ? "Taxi Operations"
-          : page === "workforce"
-            ? "Drivers & Workforce"
-            : page === "expansion"
-              ? "Expansion & Areas"
-              : "My Taxi Company";
   return (
-    <View style={styles.root}>
-      <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
-        <ScrollView contentContainerStyle={styles.content}>
-          <Pressable onPress={onBack}>
-            <Text style={styles.back}>‹ BUSINESS DASHBOARD</Text>
-          </Pressable>
-          <View style={styles.brandRow}>
-            <View style={styles.logo}>
-              <Text style={styles.logoText}>T</Text>
-            </View>
-            <View>
-              <Text style={styles.eyebrow}>MOBILITY · TAXI COMPANY</Text>
-              <Text style={styles.title}>{pageTitle}</Text>
-            </View>
-          </View>
-          {company?.status === "operating" && (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.navScroller}
-              contentContainerStyle={styles.navRow}
-            >
-              {(
-                [
-                  "overview",
-                  "fleet",
-                  "operations",
-                  "workforce",
-                  "expansion",
-                ] as Page[]
-              ).map((item) => (
-                <Pressable
-                  key={item}
-                  onPress={() => setPage(item)}
-                  style={[styles.navButton, page === item && styles.navActive]}
-                >
-                  <Text
-                    style={[
-                      styles.navText,
-                      page === item && styles.navTextActive,
-                    ]}
-                  >
-                    {item.toUpperCase()}
-                  </Text>
-                </Pressable>
-              ))}
-            </ScrollView>
-          )}
+    <SpecializedBusinessShell
+      eyebrow="MOBILITY · TAXI COMPANY"
+      title={company?.status === "operating" ? "My Taxi Company" : "Taxi Company Setup"}
+      monogram="T"
+      onBack={onBack}
+      tabs={company?.status === "operating" ? [
+        { id: "overview", label: "DASHBOARD" },
+        { id: "fleet", label: "FLEET" },
+        { id: "operations", label: "OPERATIONS" },
+        { id: "workforce", label: "WORKFORCE" },
+        { id: "expansion", label: "EXPANSION" },
+      ] : []}
+      activeTab={page}
+      onTabChange={(id) => setPage(id as Page)}
+    >
           {page === "setup" ? (
             <SetupPage
               area={setupArea}
@@ -217,9 +171,7 @@ export default function TaxiCompanyScreen({
           ) : (
             <ExpansionPage company={current} cash={cash} charge={charge} />
           )}
-        </ScrollView>
-      </SafeAreaView>
-    </View>
+    </SpecializedBusinessShell>
   );
 }
 function SetupPage({

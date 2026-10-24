@@ -3,12 +3,10 @@ import React, { useMemo, useState } from "react";
 import {
   Alert,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import {
   DEFAULT_SHIPPING_COMPANY,
   ShippingCity,
@@ -20,6 +18,7 @@ import {
 } from "../types/shipping";
 import type { BankLedgerEntry } from "../types/bank";
 import { formatCurrency } from "../utils/formatCurrency";
+import { SpecializedBusinessShell } from "../components/business/SpecializedBusinessShell";
 
 type Page =
   "overview" | "setup" | "fleet" | "shipments" | "staff" | "expansion";
@@ -115,65 +114,22 @@ export default function ShippingCompanyScreen({
     });
     setPage("overview");
   };
-  const title =
-    page === "setup"
-      ? "Shipping Company Setup"
-      : page === "fleet"
-        ? "Fleet Management"
-        : page === "shipments"
-          ? "Shipment Operations"
-          : page === "staff"
-            ? "Employees & Management"
-            : page === "expansion"
-              ? "Expansion & Upgrades"
-              : "Shipping Dashboard";
   return (
-    <View style={styles.root}>
-      <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
-        <ScrollView contentContainerStyle={styles.content}>
-          <Pressable onPress={onBack}>
-            <Text style={styles.back}>‹ BUSINESS DASHBOARD</Text>
-          </Pressable>
-          <View style={styles.brand}>
-            <View style={styles.logo}>
-              <Text style={styles.logoText}>S</Text>
-            </View>
-            <View>
-              <Text style={styles.eyebrow}>LOGISTICS · SHIPPING COMPANY</Text>
-              <Text style={styles.title}>{title}</Text>
-            </View>
-          </View>
-          {company?.status === "operating" && (
-            <View style={styles.nav}>
-              {(
-                [
-                  "overview",
-                  "fleet",
-                  "shipments",
-                  "staff",
-                  "expansion",
-                ] as Page[]
-              ).map((item) => (
-                <Pressable
-                  key={item}
-                  onPress={() => setPage(item)}
-                  style={[
-                    styles.navButton,
-                    page === item && styles.navSelected,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.navText,
-                      page === item && styles.navTextSelected,
-                    ]}
-                  >
-                    {item === "shipments" ? "SHIPMENTS" : item.toUpperCase()}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          )}
+    <SpecializedBusinessShell
+      eyebrow="LOGISTICS · SHIPPING COMPANY"
+      title={company?.status === "operating" ? "Shipping Dashboard" : "Shipping Company Setup"}
+      monogram="S"
+      onBack={onBack}
+      tabs={company?.status === "operating" ? [
+        { id: "overview", label: "DASHBOARD" },
+        { id: "fleet", label: "FLEET" },
+        { id: "shipments", label: "SHIPMENTS" },
+        { id: "staff", label: "STAFF" },
+        { id: "expansion", label: "EXPANSION" },
+      ] : []}
+      activeTab={page}
+      onTabChange={(id) => setPage(id as Page)}
+    >
           {page === "setup" ? (
             <SetupPage
               city={setupCity}
@@ -203,9 +159,7 @@ export default function ShippingCompanyScreen({
           ) : (
             <ExpansionPage company={current} cash={cash} charge={charge} />
           )}
-        </ScrollView>
-      </SafeAreaView>
-    </View>
+    </SpecializedBusinessShell>
   );
 }
 function SetupPage({
