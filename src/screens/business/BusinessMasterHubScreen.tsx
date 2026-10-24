@@ -114,7 +114,7 @@ export function BusinessMasterHubScreen({
     );
   return (
     <View style={styles.root}>
-      <SafeAreaView edges={["left", "right"]} style={styles.safe}>
+      <SafeAreaView edges={["top", "left", "right"]} style={styles.safe}>
         <ScrollView ref={scrollRef} contentContainerStyle={styles.content}>
           <Pressable onPress={onBack}>
             <Text style={styles.back}>‹ BUSINESS REGISTRY</Text>
@@ -196,7 +196,12 @@ export function BusinessMasterHubScreen({
               <Text style={styles.ipoLockedLabel}>LOCKED</Text>
             </View>
           )}
-          <View style={styles.hubTabs}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.hubTabs}
+            contentContainerStyle={styles.hubTabsContent}
+          >
             {([
               ["dashboard", "DASHBOARD"],
               ["operations", "OPERATIONS"],
@@ -214,7 +219,7 @@ export function BusinessMasterHubScreen({
                 <Text style={[styles.hubTabText, hubTab === id && styles.hubTabTextActive]}>{label}</Text>
               </Pressable>
             ))}
-          </View>
+          </ScrollView>
           {hubTab === "dashboard" && (
             <BusinessDashboardPanel
               business={business}
@@ -1039,8 +1044,9 @@ function Gauge({ value, color }: { value: number; color: string }) {
 }
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
-  hubTabs: { flexDirection: "row", gap: 8, marginTop: 16, marginBottom: 12 },
-  hubTab: { flex: 1, minHeight: 40, borderWidth: 1, borderColor: C.slate, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: C.card },
+  hubTabs: { flexGrow: 0, flexShrink: 0, marginTop: 16, marginBottom: 12 },
+  hubTabsContent: { flexDirection: "row", alignItems: "center", gap: 8 },
+  hubTab: { minHeight: 40, paddingHorizontal: 14, borderWidth: 1, borderColor: C.slate, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: C.card },
   hubTabActive: { backgroundColor: C.green, borderColor: C.green },
   hubTabPressed: { opacity: 0.78, transform: [{ scale: 0.985 }] },
   hubTabText: { color: C.muted, fontSize: 9, fontWeight: "900", letterSpacing: 0.6 },
