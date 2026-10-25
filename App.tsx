@@ -116,6 +116,9 @@ import { RETAIL_ENTRY_COST, STARTING_CASH } from "./src/engine/economyPlan";
 import { IncomeEvent, IncomeEventInput } from "./src/types/income";
 import { Asset, Holding } from "./src/types/marketAsset";
 import { processQuarterlyDividends } from "./src/engine/dividendEngine";
+import FirstLaunchOnboarding, {
+  FounderProfile,
+} from "./src/screens/FirstLaunchOnboarding";
 import {
   applyScheduledEvent,
   bankEventFromScheduled,
@@ -223,6 +226,23 @@ const headlines = [
   "EV tax credits extended: Mobility stocks jump",
   "Main Street spending rises: Retail margins improve",
 ];
+const ONBOARDING_LOGOS: Record<string, number> = {
+  "logo-01": require("./assets/onboarding/logo-01.png"),
+  "logo-02": require("./assets/onboarding/logo-02.png"),
+  "logo-03": require("./assets/onboarding/logo-03.png"),
+  "logo-04": require("./assets/onboarding/logo-04.png"),
+  "logo-05": require("./assets/onboarding/logo-05.png"),
+  "logo-06": require("./assets/onboarding/logo-06.png"),
+  "logo-07": require("./assets/onboarding/logo-07.png"),
+  "logo-08": require("./assets/onboarding/logo-08.png"),
+  "logo-09": require("./assets/onboarding/logo-09.png"),
+  "logo-10": require("./assets/onboarding/logo-10.png"),
+  "logo-11": require("./assets/onboarding/logo-11.png"),
+  "logo-12": require("./assets/onboarding/logo-12.png"),
+  "logo-13": require("./assets/onboarding/logo-13.png"),
+  "logo-14": require("./assets/onboarding/logo-14.png"),
+  "logo-15": require("./assets/onboarding/logo-15.png"),
+};
 const SAVE = "empire-rush-richman-v3";
 const sensibleCryptoPrices: Record<string, number> = {
   btc: 67500,
@@ -321,6 +341,8 @@ function AppContent() {
   const [headline, setHeadline] = useState(headlines[0]);
   const [filter, setFilter] = useState<Filter>("all");
   const [loaded, setLoaded] = useState(false);
+  const [onboardingComplete, setOnboardingComplete] = useState(false);
+  const [founderProfile, setFounderProfile] = useState<FounderProfile | null>(null);
   const [lastSaved, setLastSaved] = useState(Date.now());
   const [lastSettlementAtMs, setLastSettlementAtMs] = useState(() =>
     Date.now(),
@@ -535,10 +557,19 @@ function AppContent() {
       .then((raw) => {
         try {
           const saved = migrateGameSave(raw ? JSON.parse(raw) : null);
+          const isLegacyProgressSave = Boolean(
+            raw &&
+              typeof saved?.onboardingComplete !== "boolean" &&
+              (Number.isFinite(saved?.saved) ||
+                saved?.retail?.owned ||
+                (Array.isArray(saved?.owned) && saved.owned.length > 0) ||
+                (Array.isArray(saved?.businesses) && saved.businesses.length > 0)),
+          );
           const validCash =
             saved && Number.isFinite(saved.cash)
               ? Math.max(0, saved.cash)
               : STARTING_CASH;
+          setCash(validCash);
           const savedAt =
             saved && Number.isFinite(saved.settlementAt)
               ? saved.settlementAt
@@ -616,6 +647,14 @@ function AppContent() {
           setHapticsEnabled(saved?.hapticsEnabled !== false);
           setSoundEnabled(saved?.soundEnabled !== false);
           setNotificationsEnabled(saved?.notificationsEnabled !== false);
+          setFounderProfile(
+            saved?.founderProfile && typeof saved.founderProfile === "object"
+              ? saved.founderProfile
+              : null,
+          );
+          setOnboardingComplete(
+            saved?.onboardingComplete === true || isLegacyProgressSave,
+          );
           setMultiplier(
             saved?.multiplier === 1.5
               ? 1.5
@@ -636,6 +675,8 @@ function AppContent() {
           setOwned([]);
           setIpoListing(null);
           setBankState(defaultBankState());
+          setFounderProfile(null);
+          setOnboardingComplete(false);
         } finally {
           setLoaded(true);
         }
@@ -689,6 +730,8 @@ function AppContent() {
       soundEnabled,
       notificationsEnabled,
       profit,
+      onboardingComplete,
+      founderProfile,
     };
   }, [
     cash,
@@ -713,6 +756,8 @@ function AppContent() {
     notificationsEnabled,
     bankState,
     profit,
+    onboardingComplete,
+    founderProfile,
   ]);
   useEffect(() => {
     if (!loaded) return;
@@ -1389,6 +1434,16 @@ function AppContent() {
         </View>
       </SafeAreaView>
     );
+  if (!onboardingComplete)
+    return (
+      <FirstLaunchOnboarding
+        initialProfile={founderProfile}
+        onComplete={(profile) => {
+          setFounderProfile(profile);
+          setOnboardingComplete(true);
+        }}
+      />
+    );
   return (
     <SafeAreaView
       edges={["top", "bottom", "left", "right"]}
@@ -1397,12 +1452,29 @@ function AppContent() {
       <StatusBar style="dark" />
       <View style={styles.app}>
         <View style={styles.header}>
-          <View>
-            <Text style={styles.brand}>BUILDBOSS</Text>
+          <View style={styles.headerIdentity}>
+            {founderProfile && (
+              <Image
+                source={
+                  founderProfile.logoKey === "custom" && founderProfile.customLogoUri
+                    ? { uri: founderProfile.customLogoUri }
+                    : ONBOARDING_LOGOS[founderProfile.logoKey] ?? ONBOARDING_LOGOS["logo-01"]
+                }
+                style={styles.headerLogo}
+              />
+            )}
+            <View>
+              <Text style={styles.brand}>BUILDBOSS</Text>
+              {founderProfile?.companyName && (
+                <Text style={styles.companyIdentity} numberOfLines={1}>
+                  {founderProfile.companyName}
+                </Text>
+              )}
             <Text style={styles.simClock}>
               {formatSystemDateTime(systemTimeMs)}
             </Text>
             <Text style={styles.micro}>REAL-TIME TYCOON · LIVE</Text>
+            </View>
           </View>
           <View style={{ alignItems: "flex-end" }}>
             <Text style={styles.headerCash}>{money(cash)}</Text>
@@ -1982,7 +2054,10 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
+  headerIdentity: { flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 1 },
+  headerLogo: { width: 28, height: 28, borderRadius: 8, borderWidth: 1, borderColor: C.slate },
   brand: { color: C.green, fontSize: 20, fontWeight: "900", letterSpacing: 2 },
+  companyIdentity: { color: C.text, fontSize: 9, fontWeight: "800", maxWidth: 170, marginTop: 1 },
   simClock: {
     color: "#64748B",
     fontSize: 11,

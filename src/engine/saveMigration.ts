@@ -1,5 +1,5 @@
 import { defaultBankState } from '../types/bank';
-export const GAME_SAVE_VERSION = 14;
+export const GAME_SAVE_VERSION = 15;
 
 export type GameSaveRecord = Record<string, any> & { schemaVersion: number };
 
@@ -65,6 +65,10 @@ export function migrateGameSave(input: unknown): GameSaveRecord {
     migrated.bankState = source.bankState;
   }
   migrated.lastDividendQuarter = typeof source.lastDividendQuarter === 'string' ? source.lastDividendQuarter : '';
+  migrated.onboardingComplete = source.onboardingComplete === true;
+  migrated.founderProfile = source.founderProfile && typeof source.founderProfile === 'object'
+    ? source.founderProfile
+    : null;
   migrated.marketEventHistory = Array.isArray(source.marketEventHistory)
     ? source.marketEventHistory.filter((event: any) => event && typeof event.id === 'string' && typeof event.headline === 'string' && Number.isFinite(event.tick)).slice(-24)
     : [];
