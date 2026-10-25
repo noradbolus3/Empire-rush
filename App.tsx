@@ -2051,7 +2051,7 @@ function hapticGlobal(success = false) {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: C.bg },
   app: { flex: 1, backgroundColor: C.bg },
-  screenBody: { flex: 1, minHeight: 0, overflow: "hidden" },
+  screenBody: { flex: 1, minHeight: 0, overflow: "hidden", backgroundColor: C.bg },
   loading: { flex: 1, justifyContent: "center", alignItems: "center", gap: 14 },
   header: {
     paddingHorizontal: 18,
@@ -2060,6 +2060,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    backgroundColor: C.bg,
+    zIndex: 2,
   },
   headerIdentity: { flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 1 },
   headerLogo: { width: 28, height: 28, borderRadius: 8, borderWidth: 1, borderColor: C.slate },
