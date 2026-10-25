@@ -1463,8 +1463,8 @@ function AppContent() {
                 style={styles.headerLogo}
               />
             )}
-            <View>
-              <Text style={styles.brand}>BUILDBOSS</Text>
+            <View style={styles.headerIdentityCopy}>
+              <Text style={styles.brand} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.82}>BUILDBOSS</Text>
               {founderProfile?.companyName && (
                 <Text style={styles.companyIdentity} numberOfLines={1}>
                   {founderProfile.companyName}
@@ -1476,8 +1476,8 @@ function AppContent() {
             <Text style={styles.micro}>REAL-TIME TYCOON · LIVE</Text>
             </View>
           </View>
-          <View style={{ alignItems: "flex-end" }}>
-            <Text style={styles.headerCash}>{money(cash)}</Text>
+          <View style={styles.headerStats}>
+            <Text style={styles.headerCash} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.78}>{money(cash)}</Text>
             <Pressable onPress={() => setEarningsModal(true)}>
               <Animated.View
                 style={[
@@ -1498,16 +1498,16 @@ function AppContent() {
                   },
                 ]}
               >
-                <Text style={styles.epsText}>
+                <Text style={styles.epsText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.72}>
                   +{money(projectedHourlyIncome)} / hr projected
                 </Text>
               </Animated.View>
             </Pressable>
-            <Text style={styles.settlementHint}>
+            <Text style={styles.settlementHint} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.72}>
               NEXT SETTLEMENT · {nextSettlementCountdown}
             </Text>
             <View style={styles.headerActions}>
-              <Text style={styles.muted}>
+              <Text style={styles.muted} numberOfLines={1}>
                 {isOnline && !clockTampered
                   ? "ONLINE · LIVE TICKS"
                   : "OFFLINE · LOCAL TICKS"}
@@ -2063,7 +2063,9 @@ const styles = StyleSheet.create({
     backgroundColor: C.bg,
     zIndex: 2,
   },
-  headerIdentity: { flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 1 },
+  headerIdentity: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 1, paddingRight: 8 },
+  headerIdentityCopy: { flex: 1, minWidth: 0 },
+  headerStats: { width: "46%", maxWidth: 190, minWidth: 145, alignItems: "flex-end", flexShrink: 0 },
   headerLogo: { width: 28, height: 28, borderRadius: 8, borderWidth: 1, borderColor: C.slate },
   brand: { color: C.green, fontSize: 20, fontWeight: "900", letterSpacing: 2 },
   companyIdentity: { color: C.text, fontSize: 9, fontWeight: "800", maxWidth: 170, marginTop: 1 },
@@ -2075,12 +2077,12 @@ const styles = StyleSheet.create({
     letterSpacing: 0.4,
   },
   micro: { color: C.muted, fontSize: 8, letterSpacing: 1, marginTop: 3 },
-  headerCash: { color: C.text, fontWeight: "900", fontSize: 17 },
+  headerCash: { color: C.text, fontWeight: "900", fontSize: 17, maxWidth: "100%" },
   headerActions: { flexDirection: "row", alignItems: "center", gap: 8 },
   settingsGlyph: { color: C.cyan, fontSize: 17 },
   epsBadge: { alignSelf: "flex-end", marginTop: 2 },
   epsText: { color: C.green, fontSize: 12, fontWeight: "800" },
-  settlementHint: {
+  settlementHint: { maxWidth: "100%",
     color: C.muted,
     fontSize: 9,
     fontWeight: "800",
