@@ -1555,6 +1555,9 @@ function AppContent() {
               cash={cash}
               netWorth={netWorth}
               projectedHourlyIncome={projectedHourlyIncome}
+              businesses={businesses}
+              founderProfile={founderProfile}
+              portfolioHistory={portfolioHistory}
               settlementCountdown={nextSettlementCountdown}
               clickValue={clickValue}
               tapUpgradeLevel={tapUpgradeLevel}
@@ -1583,6 +1586,10 @@ function AppContent() {
               onUpgrade={upgradeClick}
               onClaimMission={claimMission}
               onOpenBusiness={() => setTab("business")}
+              onOpenMarkets={() => setTab("markets")}
+              onOpenLifestyle={() => setTab("lifestyle")}
+              onOpenBank={() => setTab("bank")}
+              onOpenSettings={() => setSettingsOpen(true)}
               onOpenNextGoal={() => {
                 setFocusRetail(true);
                 setTab("business");
