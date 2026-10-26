@@ -58,7 +58,8 @@ import {
   hydrateDailyProgress,
   ProgressionState,
 } from "./src/types/progression";
-import { capIPOProceeds, listingToAsset } from "./src/engine/ipoEngine";
+import { capIPOProceeds, founderOwnershipFraction, listingToAsset } from "./src/engine/ipoEngine";
+import { simulateBusinessOperations } from "./src/engine/businessSimulation";
 import {
   formatSettlementCountdown,
   settlementCountdownMs,
@@ -336,6 +337,7 @@ function AppContent() {
   >([]);
   const [rivalInvestors] = useState<RivalInvestor[]>(DEFAULT_RIVAL_INVESTORS);
   const marketTick = useRef(0);
+  const constructionSimulationSeconds = useRef(0);
   const lastDividendQuarter = useRef("");
   const [owned, setOwned] = useState<string[]>([]);
   const [headline, setHeadline] = useState(headlines[0]);
@@ -536,6 +538,28 @@ function AppContent() {
     const timer = setInterval(syncSystemTime, 1000);
     return () => clearInterval(timer);
   }, []);
+  useEffect(() => {
+    if (!loaded || clockTampered) return;
+    const timer = setInterval(() => {
+      constructionSimulationSeconds.current += 2;
+      const constructionSeconds = constructionSimulationSeconds.current >= 3 ? 3 : 0;
+      if (constructionSeconds) constructionSimulationSeconds.current -= 3;
+      const ownershipFractions = ipoListing
+        ? { [ipoListing.companyId]: founderOwnershipFraction(ipoListing) }
+        : {};
+      setBusinesses((current) =>
+        simulateBusinessOperations(
+          current,
+          2,
+          constructionSeconds,
+          cash,
+          ownershipFractions,
+          netWorth,
+        ).businesses,
+      );
+    }, 2000);
+    return () => clearInterval(timer);
+  }, [cash, clockTampered, ipoListing, loaded, netWorth, setBusinesses]);
   useEffect(() => {
     clockTamperedRef.current = clockTampered;
   }, [clockTampered]);

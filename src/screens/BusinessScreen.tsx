@@ -19,8 +19,6 @@ import Svg, {
 } from "react-native-svg";
 import BusinessRegistrationModal from "../components/modals/BusinessRegistrationModal";
 import { useGame } from "../context/GameContext";
-import { simulateBusinessOperations } from "../engine/businessSimulation";
-import { founderOwnershipFraction } from "../engine/ipoEngine";
 import {
   BusinessEntity,
   OperatingStructure,
@@ -273,27 +271,6 @@ function BusinessScreenContent({
   const [registrationId, setRegistrationId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"start" | "companies">("start");
   const celebratedRef = useRef("");
-  const constructionElapsed = useRef(0);
-  useEffect(() => {
-    const timer = setInterval(() => {
-      constructionElapsed.current += 2;
-      const constructionSeconds = constructionElapsed.current >= 3 ? 3 : 0;
-      if (constructionSeconds) constructionElapsed.current -= 3;
-      const ownershipFractions = ipoListing
-        ? { [ipoListing.companyId]: founderOwnershipFraction(ipoListing) }
-        : {};
-      const result = simulateBusinessOperations(
-        businesses,
-        2,
-        constructionSeconds,
-        cash,
-        ownershipFractions,
-        netWorth,
-      );
-      if (result.businesses !== businesses) setBusinesses(result.businesses);
-    }, 2000);
-    return () => clearInterval(timer);
-  }, [businesses, cash, ipoListing, netWorth, setBusinesses]);
   const selected = useMemo(
     () =>
       businesses.find((item) => item.id === selectedId && item.isAcquired) ||
