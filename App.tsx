@@ -849,6 +849,7 @@ function AppContent() {
       };
     }
     setLastSettlementAtMs((value) => value + elapsedHours * 3600000);
+    setBusinesses(cursor.businesses);
     guardedSetCash((value) =>
       Math.max(0, Math.min(Number.MAX_SAFE_INTEGER, value + totalDelta)),
     );

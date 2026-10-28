@@ -17,6 +17,7 @@ import {
 } from "../types/dealership";
 import { formatCurrency } from "../utils/formatCurrency";
 import { SpecializedBusinessShell } from "../components/business/SpecializedBusinessShell";
+import { tryAcquireSpendLock } from "../engine/walletGuard";
 
 type Page =
   "dashboard" | "showroom" | "inventory" | "sales" | "finance" | "expansion";
@@ -58,6 +59,7 @@ export default function CarDealershipScreen({
   const update = (next: DealershipState) =>
     onChange({ ...next, level: dealershipLevelFor(next) });
   const spend = (cost: number, label: string, next: DealershipState) => {
+    if (!tryAcquireSpendLock(`dealership:${label}`)) return;
     if (cash < cost)
       return Alert.alert(
         "INSUFFICIENT CAPITAL",
@@ -76,6 +78,7 @@ export default function CarDealershipScreen({
   };
   const launch = () => {
     const cost = 75000;
+    if (!tryAcquireSpendLock("dealership:launch")) return;
     if (cash < cost)
       return Alert.alert(
         "SHOWROOM CAPITAL SHORTFALL",
@@ -103,6 +106,7 @@ export default function CarDealershipScreen({
       },
     );
   const sellVehicle = () => {
+    if (!tryAcquireSpendLock("dealership:sale")) return;
     const r = dealershipSellTick(current);
     if (!r.sold)
       return Alert.alert(

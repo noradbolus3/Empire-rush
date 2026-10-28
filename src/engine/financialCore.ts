@@ -137,8 +137,14 @@ function entry(
 function businessRevenue(state: FinancialGameState) {
   const base = (
     (state.businesses || []).reduce(
-      (sum, item) =>
-        sum + (item.isAcquired ? positive(item.hourlyNetProfit) : 0),
+      (sum, item) => {
+        if (!item.isAcquired) return sum;
+        // The simulator accrues realized net sales in pendingSettlementAmount.
+        // Consume that amount first; the hourly rate is only the projection
+        // fallback for a business that has not produced a foreground tick.
+        const realized = positive(item.pendingSettlementAmount);
+        return sum + (realized > 0 ? realized : positive(item.hourlyNetProfit));
+      },
       0,
     ) * (state.multiplier ?? 1));
   const taxi = state.taxiCompany?.status === "operating"
@@ -380,6 +386,11 @@ export function settleHour(state: FinancialGameState): SettlementResult {
   return {
     state: {
       ...state,
+      businesses: (state.businesses || []).map((business) =>
+        business.pendingSettlementAmount
+          ? { ...business, pendingSettlementAmount: 0 }
+          : business,
+      ),
       bank: {
         ...state.bank,
         loans: loanUpdates,

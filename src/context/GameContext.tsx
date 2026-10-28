@@ -190,7 +190,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
                     : parsed.name || DEFAULT_TAXI_COMPANY.name,
               });
           } catch {
-            setTaxiCompany(null);
+            setTaxiCompany(DEFAULT_TAXI_COMPANY);
           }
         }
         if (rawShipping) {
@@ -199,7 +199,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             if (parsed?.id === DEFAULT_SHIPPING_COMPANY.id)
               setShippingCompany({ ...DEFAULT_SHIPPING_COMPANY, ...parsed });
           } catch {
-            setShippingCompany(null);
+            setShippingCompany(DEFAULT_SHIPPING_COMPANY);
           }
         }
         if (rawFactory) {
@@ -208,7 +208,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             if (parsed?.id === DEFAULT_FACTORY_COMPANY.id)
               setFactoryCompany({ ...DEFAULT_FACTORY_COMPANY, ...parsed });
           } catch {
-            setFactoryCompany(null);
+            setFactoryCompany(DEFAULT_FACTORY_COMPANY);
           }
         }
         if (rawConstruction) {
@@ -220,7 +220,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
                 ...parsed,
               });
           } catch {
-            setConstructionCompany(null);
+            setConstructionCompany(DEFAULT_CONSTRUCTION_COMPANY);
           }
         }
         if (rawDealership) {
@@ -229,7 +229,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             if (parsed?.id === DEFAULT_DEALERSHIP.id)
               setDealership({ ...DEFAULT_DEALERSHIP, ...parsed });
           } catch {
-            setDealership(null);
+            setDealership(DEFAULT_DEALERSHIP);
           }
         }
         if (rawSoftware) {
@@ -238,56 +238,56 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             if (parsed?.id === DEFAULT_SOFTWARE_COMPANY.id)
               setSoftwareCompany({ ...DEFAULT_SOFTWARE_COMPANY, ...parsed });
           } catch {
-            setSoftwareCompany(null);
+            setSoftwareCompany(DEFAULT_SOFTWARE_COMPANY);
           }
         }
         if (rawSportsClub) {
           try {
             setSportsClub(sanitizeSportsClub(JSON.parse(rawSportsClub)));
           } catch {
-            setSportsClub(null);
+            setSportsClub(sanitizeSportsClub({}));
           }
         }
         if (rawOilGas) {
           try {
             setOilGas(sanitizeOilGas(JSON.parse(rawOilGas)));
           } catch {
-            setOilGas(null);
+            setOilGas(sanitizeOilGas({}));
           }
         }
         if (rawAirline) {
           try {
             setAirline(sanitizeAirline(JSON.parse(rawAirline)));
           } catch {
-            setAirline(null);
+            setAirline(sanitizeAirline({}));
           }
         }
         if (rawHotel) {
           try {
             setHotel(sanitizeHotel(JSON.parse(rawHotel)));
           } catch {
-            setHotel(null);
+            setHotel(sanitizeHotel({}));
           }
         }
         if (rawBlockchain) {
           try {
             setBlockchain(sanitizeBlockchain(JSON.parse(rawBlockchain)));
           } catch {
-            setBlockchain(null);
+            setBlockchain(sanitizeBlockchain({}));
           }
         }
         if (rawSpace) {
           try {
             setSpace(sanitizeSpace(JSON.parse(rawSpace)));
           } catch {
-            setSpace(null);
+            setSpace(sanitizeSpace({}));
           }
         }
         if (rawHolding) {
           try {
             setHolding(sanitizeHolding(JSON.parse(rawHolding)));
           } catch {
-            setHolding(null);
+            setHolding(sanitizeHolding({}));
           }
         }
         setHydrated(true);
