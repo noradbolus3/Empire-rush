@@ -373,6 +373,11 @@ export function settleHour(state: FinancialGameState): SettlementResult {
   return {
     state: {
       ...state,
+      businessRegistry: getBusinessRegistry(state).map((business) =>
+        business.pendingSettlementAmount
+          ? { ...business, pendingSettlementAmount: 0 }
+          : business,
+      ),
       businesses: (state.businesses || []).map((business) =>
         business.pendingSettlementAmount
           ? { ...business, pendingSettlementAmount: 0 }
