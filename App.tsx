@@ -129,6 +129,8 @@ import { defaultBankState } from "./src/types/bank";
 import type { BankLedgerEntry } from "./src/types/bank";
 import { sanitizeBankState } from "./src/engine/bankEngine";
 import { calculateNetWorth, settleHour } from "./src/engine/financialCore";
+import { buildCanonicalBusinessRegistry, canonicalActiveCount, canonicalProjectedHourlyNet } from "./src/engine/canonicalBusinessRegistry";
+import { acceptIPOOnce } from "./src/engine/ipoIdempotency";
 import { designSystem } from "./src/theme/designSystem";
 type Tab = "empire" | "business" | "markets" | "lifestyle" | "bank";
 type Filter = "dividend" | "cheap" | "crypto" | "watchlist" | "all";
@@ -284,7 +286,24 @@ const normalizeMarketAsset = (asset: Asset): Asset => {
 
 function AppContent() {
   const insets = useSafeAreaInsets();
-  const { resetBusinesses, businesses, setBusinesses, taxiCompany } = useGame();
+  const {
+    resetBusinesses,
+    businesses,
+    setBusinesses,
+    taxiCompany,
+    shippingCompany,
+    factoryCompany,
+    constructionCompany,
+    dealership,
+    softwareCompany,
+    sportsClub,
+    oilGas,
+    airline,
+    hotel,
+    blockchain,
+    space,
+    holding,
+  } = useGame();
   const { isOnline, clockTampered } = useNetwork();
   const clockTamperedRef = useRef(clockTampered);
   const boostTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -311,6 +330,7 @@ function AppContent() {
     hydrateDailyProgress(DEFAULT_PROGRESSION),
   );
   const [ipoListing, setIpoListing] = useState<IPOListing | null>(null);
+  const [ipoListings, setIpoListings] = useState<Record<string, IPOListing>>({});
   const [ipoCelebration, setIpoCelebration] = useState<IPOListing | null>(null);
   const [clickValue, setClickValue] = useState(1);
   const [tapUpgradeLevel, setTapUpgradeLevel] = useState(0);
@@ -375,14 +395,44 @@ function AppContent() {
         { ...entry, amount: Number(entry.amount.toFixed(2)) },
       ].slice(-500),
     );
-  const businessProfit = useMemo(
+  const businessRegistry = useMemo(
     () =>
-      businesses.reduce(
-        (sum, item) =>
-          sum + (item.isAcquired ? Math.max(0, item.hourlyNetProfit) : 0),
-        0,
-      ),
-    [businesses],
+      buildCanonicalBusinessRegistry({
+        businesses,
+        taxiCompany,
+        shippingCompany,
+        factoryCompany,
+        constructionCompany,
+        dealership,
+        softwareCompany,
+        sportsClub,
+        oilGas,
+        airline,
+        hotel,
+        blockchain,
+        space,
+        holding,
+      }),
+    [
+      businesses,
+      taxiCompany,
+      shippingCompany,
+      factoryCompany,
+      constructionCompany,
+      dealership,
+      softwareCompany,
+      sportsClub,
+      oilGas,
+      airline,
+      hotel,
+      blockchain,
+      space,
+      holding,
+    ],
+  );
+  const businessProfit = useMemo(
+    () => canonicalProjectedHourlyNet(businessRegistry),
+    [businessRegistry],
   );
   const profit = useMemo(
     () => businessProfit * multiplier,
@@ -443,6 +493,7 @@ function AppContent() {
       lifestyleAssets,
       businesses,
       taxiCompany,
+      businessRegistry,
       systemTimeMs,
       multiplier,
     }),
@@ -454,6 +505,7 @@ function AppContent() {
       owned,
       businesses,
       taxiCompany,
+      businessRegistry,
       systemTimeMs,
       multiplier,
     ],
@@ -665,7 +717,15 @@ function AppContent() {
               lastAccountingAt: Date.now(),
             },
           );
-          setIpoListing(saved?.ipoListing || null);
+          const legacyListing = saved?.ipoListing || null;
+          const savedListings =
+            saved?.ipoListings && typeof saved.ipoListings === "object"
+              ? (saved.ipoListings as Record<string, IPOListing>)
+              : legacyListing
+                ? { [legacyListing.companyId]: legacyListing }
+                : {};
+          setIpoListings(savedListings);
+          setIpoListing(legacyListing || Object.values(savedListings)[0] || null);
           setProgression(hydrateDailyProgress(saved?.progression));
           setAdFree(Boolean(saved?.adFree));
           setHapticsEnabled(saved?.hapticsEnabled !== false);
@@ -747,6 +807,7 @@ function AppContent() {
       clickLevel: tapUpgradeLevel,
       retail,
       ipoListing,
+      ipoListings,
       progression,
       adFree,
       multiplier,
@@ -772,6 +833,7 @@ function AppContent() {
     tapUpgradeLevel,
     retail,
     ipoListing,
+    ipoListings,
     progression,
     adFree,
     multiplier,
@@ -1210,13 +1272,14 @@ function AppContent() {
     );
   };
   const completeIPO = (listing: IPOListing) => {
-    if (
-      ipoListing?.companyId === listing.companyId &&
-      ipoListing.stage === "public"
-    )
-      return;
+    const existing = ipoListings[listing.companyId] ||
+      (ipoListing?.companyId === listing.companyId ? ipoListing : null);
+    if (existing?.stage === "public") return;
     const safeListing = capIPOProceeds(listing, netWorth);
+    const accepted = acceptIPOOnce(ipoListings, safeListing);
+    if (!accepted.accepted) return;
     haptic(true);
+    setIpoListings(accepted.listings);
     setIpoListing(safeListing);
     setIpoCelebration(safeListing);
     setProgression((current) => ({
@@ -1581,6 +1644,7 @@ function AppContent() {
               netWorth={netWorth}
               projectedHourlyIncome={projectedHourlyIncome}
               businesses={businesses}
+              activeBusinessCount={canonicalActiveCount(businessRegistry)}
               founderProfile={founderProfile}
               portfolioHistory={portfolioHistory}
               settlementCountdown={nextSettlementCountdown}
@@ -1674,6 +1738,7 @@ function AppContent() {
                   ledger={ledger}
                   state={bankState}
                   businesses={businesses}
+                  businessRegistry={businessRegistry}
                   collateralAssets={
                     owned
                       .map((id) => {

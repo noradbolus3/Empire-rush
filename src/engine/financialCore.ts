@@ -22,6 +22,13 @@ import type { TaxiCompanyState } from "../types/taxi";
 import { taxiHourlyEconomics } from "../types/taxi";
 import { itCompanyAssetValue } from "./itCompanyEngine";
 import { bankingCompanyAssetValue } from "./bankingCompanyEngine";
+import {
+  canonicalAssetValue,
+  canonicalSettlementRevenue,
+  buildCanonicalBusinessRegistry,
+  type CanonicalBusiness,
+  type CanonicalBusinessInput,
+} from "./canonicalBusinessRegistry";
 
 export type FinancialGameState = {
   cash: number;
@@ -43,6 +50,8 @@ export type FinancialGameState = {
   lifestyleAssets: CollectionItem[];
   businesses: BusinessEntity[];
   taxiCompany?: TaxiCompanyState | null;
+  businessRegistry?: CanonicalBusiness[];
+  businessSources?: Omit<CanonicalBusinessInput, "businesses">;
   systemTimeMs: number;
   multiplier?: number;
 };
@@ -83,25 +92,7 @@ export function calculateNetWorth(state: FinancialGameState): number {
       positive(state.lifestyleAssets.find((item) => item.id === id)?.price),
     0,
   );
-  const businessAssets = (state.businesses || []).reduce((sum, business) => {
-    if (!business.isAcquired) return sum;
-    const inventory =
-      business.sector === "Retail"
-        ? positive(business.stockUnits) *
-          positive(business.unitWholesaleCost ?? 0)
-        : 0;
-    const constructionAssets =
-      business.sector === "Construction_Mega"
-        ? constructionAssetValue(business) - positive(business.acquisitionCost)
-        : 0;
-    return (
-      sum +
-      positive(business.acquisitionCost) +
-      inventory +
-      constructionAssets +
-      positive(business.pendingSettlementAmount)
-    );
-  }, 0);
+  const businessAssets = canonicalAssetValue(getBusinessRegistry(state));
   const deposits = (state.bank.deposits || []).reduce(
     (sum, deposit) =>
       sum + (deposit.status === "ACTIVE" ? positive(deposit.principal) : 0),
@@ -124,6 +115,16 @@ export function calculateNetWorth(state: FinancialGameState): number {
   );
 }
 
+function getBusinessRegistry(state: FinancialGameState): CanonicalBusiness[] {
+  return state.businessRegistry?.length
+    ? state.businessRegistry
+    : buildCanonicalBusinessRegistry({
+        businesses: state.businesses || [],
+        ...(state.businessSources || {}),
+        taxiCompany: state.taxiCompany,
+      });
+}
+
 function entry(
   id: string,
   kind: BankLedgerEntry["kind"],
@@ -135,23 +136,9 @@ function entry(
   return { id, kind, label, amount: round(amount), timestamp, detail };
 }
 function businessRevenue(state: FinancialGameState) {
-  const base = (
-    (state.businesses || []).reduce(
-      (sum, item) => {
-        if (!item.isAcquired) return sum;
-        // The simulator accrues realized net sales in pendingSettlementAmount.
-        // Consume that amount first; the hourly rate is only the projection
-        // fallback for a business that has not produced a foreground tick.
-        const realized = positive(item.pendingSettlementAmount);
-        return sum + (realized > 0 ? realized : positive(item.hourlyNetProfit));
-      },
-      0,
-    ) * (state.multiplier ?? 1));
-  const taxi = state.taxiCompany?.status === "operating"
-    ? Math.max(0, taxiHourlyEconomics(state.taxiCompany).net)
-    : 0;
-  return base + taxi;
+  return canonicalSettlementRevenue(getBusinessRegistry(state)) * (state.multiplier ?? 1);
 }
+
 function savingsInterest(state: FinancialGameState) {
   const event = state.bank.marketEvents?.[state.bank.marketEvents.length - 1];
   const eventBump =
@@ -234,9 +221,9 @@ export function settleHour(state: FinancialGameState): SettlementResult {
     taxableIncome * 24 * 365,
     loan.interest * 24 * 365 + assetUpkeep * 24 * 365 + premium * 24 * 365,
     priorGains,
-    (state.businesses || [])
-      .filter((item) => item.isAcquired && Number(item.staffCount || 0) > 0)
-      .reduce((sum, item) => sum + positive(item.hourlyNetProfit) * 0.2, 0),
+    getBusinessRegistry(state)
+      .filter((item) => item.owned && item.operating)
+      .reduce((sum, item) => sum + item.hourlyNet * 0.2, 0),
   );
   const taxAccrual =
     tax.federal / 8760 +

@@ -55,6 +55,7 @@ import {
   normalizeBusinessLevel,
 } from "../engine/businessLevels";
 import { designSystem } from "../theme/designSystem";
+import { buildCanonicalBusinessRegistry, canonicalActiveCount } from "../engine/canonicalBusinessRegistry";
 
 const C = {
   bg: designSystem.colors.background,
@@ -286,7 +287,42 @@ function BusinessScreenContent({
     else if (retail) setRegistrationId(retail.id);
     onRetailFocusHandled?.();
   }, [businesses, focusRetail, onRetailFocusHandled]);
-  const activeCount = businesses.filter((item) => item.isAcquired).length;
+  const canonicalRegistry = useMemo(
+    () =>
+      buildCanonicalBusinessRegistry({
+        businesses,
+        taxiCompany,
+        shippingCompany,
+        factoryCompany,
+        constructionCompany,
+        dealership,
+        softwareCompany,
+        sportsClub,
+        oilGas,
+        airline,
+        hotel,
+        blockchain,
+        space,
+        holding,
+      }),
+    [
+      businesses,
+      taxiCompany,
+      shippingCompany,
+      factoryCompany,
+      constructionCompany,
+      dealership,
+      softwareCompany,
+      sportsClub,
+      oilGas,
+      airline,
+      hotel,
+      blockchain,
+      space,
+      holding,
+    ],
+  );
+  const activeCount = canonicalActiveCount(canonicalRegistry);
   const levelNotice = businesses.find((item) => item.levelUpNotice);
   useEffect(() => {
     if (!levelNotice?.levelUpNotice) return;

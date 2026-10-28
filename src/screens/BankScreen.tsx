@@ -54,6 +54,7 @@ import {
 } from "../types/bank";
 import type { BankLedgerEntry } from "../types/bank";
 import { calculateNetWorth } from "../engine/financialCore";
+import type { CanonicalBusiness } from "../engine/canonicalBusinessRegistry";
 import { designSystem } from "../theme/designSystem";
 
 const C = {
@@ -154,6 +155,7 @@ type Props = {
   ledger: BankLedgerEntry[];
   state: BankState;
   businesses?: any[];
+  businessRegistry?: CanonicalBusiness[];
   collateralAssets?: { id: string; name: string; value: number }[];
   onStateChange: (next: BankState) => void;
   onCashChange: (next: React.SetStateAction<number>) => void;
@@ -176,6 +178,7 @@ export default function BankScreen({
   hourlyIncome,
   state,
   businesses = [],
+  businessRegistry,
   collateralAssets = [],
   onStateChange,
   onCashChange,
@@ -183,7 +186,9 @@ export default function BankScreen({
   onHaptic,
 }: Props) {
   const netWorth = calculateNetWorth(financialState);
-  const companyValue = calculateCompanyValuation(businesses);
+  const companyValue = businessRegistry?.length
+    ? businessRegistry.filter((item) => item.owned).reduce((sum, item) => sum + item.assetValue, 0)
+    : calculateCompanyValuation(businesses);
   const [tab, setTab] = useState<BankTab>("home");
   const [search, setSearch] = useState("");
   const current = tabs.find((item) => item.id === tab)?.label || "Bank Home";
