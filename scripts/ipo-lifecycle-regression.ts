@@ -1,9 +1,15 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { acceptIPOOnce } from '../src/engine/ipoIdempotency';
+import { completeIPOTransaction } from '../src/engine/ipoCompletion';
 import type { IPOListing } from '../src/types/ipo';
+import type { Asset } from '../src/types/marketAsset';
 
-type Asset = { id: string; isPlayerCompany?: boolean; companyId?: string };
+type AppFlowState = {
+  cash: number;
+  listings: Record<string, IPOListing>;
+  assets: Asset[];
+  ledger: Array<{ id: string; kind: string; amount: number }>;
+};
 
 const makeListing = (companyId: string, capitalRaised: number): IPOListing => ({
   companyId,
@@ -19,89 +25,115 @@ const makeListing = (companyId: string, capitalRaised: number): IPOListing => ({
   founderOwnershipFraction: 0.8,
   valuationAtIPO: 10_000_000,
   stage: 'public',
-  listedAtTimestamp: 1_700_000_000_000,
+  listedAtTimestamp: companyId === 'retail-1' ? 1_700_000_000_000 : 1_700_000_000_001,
   history: [10],
 });
 
-const source = readFileSync('App.tsx', 'utf8');
+const appSource = readFileSync('App.tsx', 'utf8');
+const businessScreenSource = readFileSync('src/screens/BusinessScreen.tsx', 'utf8');
 const sourceChecks = {
-  refBackedCompletion: /const accepted = acceptIPOOnce\(ipoListingsRef\.current, safeListing\)/.test(source),
-  perCompanyCompletionLock: /ipoCompletionLocks\.current\.has\(listing\.companyId\)/.test(source),
-  allListingsAssetReconciliation: /Object\.values\(accepted\.listings\)\.map/.test(source),
-  allListingsOwnership: /Object\.values\(ipoListings\)\.map/.test(source),
-  investorLedgerEntry: /kind: "INVESTOR"/.test(source),
+  appImportsProductionFunction: /import \{ completeIPOTransaction \} from "\.\/src\/engine\/ipoCompletion"/.test(appSource),
+  appInvokesProductionFunction: /const transaction = completeIPOTransaction\(\{/.test(appSource),
+  appCommitsReturnedAssets: /setAssets\(transaction\.assets\)/.test(appSource),
+  appCommitsReturnedLedger: /postLedger\(transaction\.ledgerEntry\)/.test(appSource),
+  appPassesIPOCollection: /ipoListings=\{ipoListings\}/.test(appSource),
+  businessUISelectsCurrentListing: /ipoListings\?\.\[selected\.id\]/.test(businessScreenSource),
 };
-for (const [name, ok] of Object.entries(sourceChecks)) assert.equal(ok, true, `source check failed: ${name}`);
+for (const [name, ok] of Object.entries(sourceChecks)) assert.equal(ok, true, `App integration check failed: ${name}`);
+
+function createAppFlow(initial: AppFlowState) {
+  const state = initial;
+  const locks = new Set<string>();
+  const completeIPO = (listing: IPOListing) => {
+    if (locks.has(listing.companyId)) return false;
+    locks.add(listing.companyId);
+    const transaction = completeIPOTransaction({
+      listing,
+      listings: state.listings,
+      assets: state.assets,
+      cash: state.cash,
+      netWorth: 50_000_000,
+    });
+    if (!transaction.accepted) return false;
+    state.listings = transaction.listings;
+    state.assets = transaction.assets;
+    state.cash = transaction.cash;
+    state.ledger.push(transaction.ledgerEntry);
+    return true;
+  };
+  return { state, completeIPO, locks };
+}
 
 const first = makeListing('retail-1', 120_000);
 const second = makeListing('construction-1', 80_000);
-let listings: Record<string, IPOListing> = {};
-let cash = 0;
-let ledgerCount = 0;
-const locks = new Set<string>();
-const completeIPO = (listing: IPOListing) => {
-  if (locks.has(listing.companyId)) return;
-  locks.add(listing.companyId);
-  const accepted = acceptIPOOnce(listings, listing);
-  if (!accepted.accepted) return;
-  listings = accepted.listings;
-  cash += listing.capitalRaised;
-  ledgerCount += 1;
-};
+const flow = createAppFlow({ cash: 500_000, listings: {}, assets: [], ledger: [] });
 
-// Two synchronous submissions for the same company represent a rapid double tap.
-completeIPO(first);
-completeIPO(first);
-assert.equal(cash, first.capitalRaised);
-assert.equal(ledgerCount, 1);
-assert.equal(Object.keys(listings).length, 1);
-const duplicateCheckpointListings = Object.keys(listings).length;
+// Actual App-style handler: two same-company submissions before a React render commit.
+assert.equal(flow.completeIPO(first), true);
+assert.equal(flow.completeIPO(first), false);
+assert.equal(flow.state.cash, 620_000);
+assert.equal(flow.state.ledger.length, 1);
+assert.deepEqual(Object.keys(flow.state.listings), ['retail-1']);
 
-// A different company must be independently accepted.
-locks.delete(second.companyId);
-completeIPO(second);
-assert.equal(cash, first.capitalRaised + second.capitalRaised);
-assert.equal(ledgerCount, 2);
-assert.deepEqual(Object.keys(listings).sort(), ['construction-1', 'retail-1']);
+// A distinct company remains independently eligible.
+flow.locks.delete(second.companyId);
+assert.equal(flow.completeIPO(second), true);
+assert.equal(flow.state.cash, 700_000);
+assert.equal(flow.state.ledger.length, 2);
+assert.deepEqual(Object.keys(flow.state.listings).sort(), ['construction-1', 'retail-1']);
+assert.deepEqual(flow.state.assets.map((asset) => asset.id).sort(), ['ipo-construction-1', 'ipo-retail-1']);
 
-const firstAsset: Asset = { id: 'ipo-retail-1', isPlayerCompany: true, companyId: 'retail-1' };
-const secondAsset: Asset = { id: 'ipo-construction-1', isPlayerCompany: true, companyId: 'construction-1' };
-const reconciledAssets = Object.values(listings).map((item) => ({
-  id: `ipo-${item.companyId}`,
-  isPlayerCompany: true,
-  companyId: item.companyId,
-}));
-assert.ok(reconciledAssets.some((asset) => asset.companyId === firstAsset.companyId));
-assert.ok(reconciledAssets.some((asset) => asset.companyId === secondAsset.companyId));
+// Retry/failure path: already-public rejection must not mutate any financial slice.
+const beforeRetry = JSON.stringify(flow.state);
+flow.locks.delete(first.companyId);
+assert.equal(flow.completeIPO(first), false);
+assert.equal(JSON.stringify(flow.state), beforeRetry);
 
-const reloadedListings = JSON.parse(JSON.stringify(listings)) as Record<string, IPOListing>;
-assert.deepEqual(Object.keys(reloadedListings).sort(), ['construction-1', 'retail-1']);
-assert.equal(reloadedListings['retail-1'].capitalRaised, first.capitalRaised);
-assert.equal(reloadedListings['construction-1'].capitalRaised, second.capitalRaised);
+// Save/reload uses the same persisted collection shape.
+const reloaded = JSON.parse(JSON.stringify(flow.state)) as AppFlowState;
+assert.deepEqual(Object.keys(reloaded.listings).sort(), ['construction-1', 'retail-1']);
+assert.equal(reloaded.cash, 700_000);
+assert.equal(reloaded.ledger.length, 2);
+assert.deepEqual(reloaded.assets.map((asset) => asset.id).sort(), ['ipo-construction-1', 'ipo-retail-1']);
+
+// Direct production-function failure result is also non-mutating for the caller.
+const rejected = completeIPOTransaction({
+  listing: first,
+  listings: reloaded.listings,
+  assets: reloaded.assets,
+  cash: reloaded.cash,
+  netWorth: 50_000_000,
+});
+assert.equal(rejected.accepted, false);
+assert.equal(rejected.cash, reloaded.cash);
+assert.deepEqual(Object.keys(rejected.listings).sort(), ['construction-1', 'retail-1']);
 
 console.log(JSON.stringify({
-  test: 'ipo-lifecycle-regression-after-fix',
+  test: 'ipo-lifecycle-regression-production-function',
   sourceChecks,
+  productionFunction: 'src/engine/ipoCompletion.ts::completeIPOTransaction',
   duplicateSubmission: {
     calls: 2,
-    cashRaised: first.capitalRaised,
-    expectedCashRaised: first.capitalRaised,
-    listings: duplicateCheckpointListings,
+    firstAccepted: true,
+    secondAccepted: false,
+    cashAfter: 620_000,
+    ledgerEntries: 1,
   },
   independentBusinesses: {
-    companies: Object.keys(listings).sort(),
-    cashRaised: cash,
-    expectedCashRaised: first.capitalRaised + second.capitalRaised,
-    investorLedgerEntries: ledgerCount,
+    listings: Object.keys(flow.state.listings).sort(),
+    cashAfter: flow.state.cash,
+    ledgerEntries: flow.state.ledger.length,
+    assets: flow.state.assets.map((asset) => asset.id).sort(),
   },
-  assetReconciliation: {
-    assets: reconciledAssets.map((asset) => asset.id).sort(),
-    preservedFirstIPO: true,
-    preservedSecondIPO: true,
+  retryFailure: {
+    accepted: false,
+    stateUnchanged: true,
   },
   saveReload: {
-    listings: Object.keys(reloadedListings).sort(),
-    preservedCapitalRaised: true,
+    listings: Object.keys(reloaded.listings).sort(),
+    cash: reloaded.cash,
+    ledgerEntries: reloaded.ledger.length,
+    assets: reloaded.assets.map((asset) => asset.id).sort(),
   },
   result: 'PASS',
 }, null, 2));

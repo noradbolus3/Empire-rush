@@ -78,6 +78,7 @@ type Props = {
   netIncomePerHour: number;
   timestamp: number;
   ipoListing?: IPOListing | null;
+  ipoListings?: Record<string, IPOListing>;
   onIPOComplete: (listing: IPOListing) => void;
   onStateChange?: React.Dispatch<React.SetStateAction<RetailShopState>>;
   onCashChange: React.Dispatch<React.SetStateAction<number>>;
@@ -218,6 +219,7 @@ function BusinessScreenContent({
   netIncomePerHour,
   timestamp,
   ipoListing,
+  ipoListings,
   onIPOComplete,
   onCashChange,
   onOpenBank,
@@ -614,7 +616,7 @@ function BusinessScreenContent({
         cash={cash}
         netWorth={netWorth}
         timestamp={timestamp}
-        ipoListing={ipoListing}
+        ipoListing={ipoListings?.[selected.id] ?? (ipoListing?.companyId === selected.id ? ipoListing : null)}
         focusRetail={focusRetail}
         onBack={() => setSelectedId(null)}
         onCashChange={onCashChange}

@@ -130,7 +130,7 @@ import type { BankLedgerEntry } from "./src/types/bank";
 import { sanitizeBankState } from "./src/engine/bankEngine";
 import { calculateNetWorth, settleHour } from "./src/engine/financialCore";
 import { buildCanonicalBusinessRegistry, canonicalActiveCount, canonicalProjectedHourlyNet } from "./src/engine/canonicalBusinessRegistry";
-import { acceptIPOOnce } from "./src/engine/ipoIdempotency";
+import { completeIPOTransaction } from "./src/engine/ipoCompletion";
 import { designSystem } from "./src/theme/designSystem";
 type Tab = "empire" | "business" | "markets" | "lifestyle" | "bank";
 type Filter = "dividend" | "cheap" | "crypto" | "watchlist" | "all";
@@ -1299,15 +1299,21 @@ function AppContent() {
       ipoCompletionLocks.current.delete(listing.companyId);
       return;
     }
-    const safeListing = capIPOProceeds(listing, netWorth);
-    const accepted = acceptIPOOnce(ipoListingsRef.current, safeListing);
-    if (!accepted.accepted) {
+    const transaction = completeIPOTransaction({
+      listing,
+      listings: ipoListingsRef.current,
+      assets,
+      cash,
+      netWorth,
+    });
+    if (!transaction.accepted) {
       ipoCompletionLocks.current.delete(listing.companyId);
       return;
     }
-    ipoListingsRef.current = accepted.listings;
+    const safeListing = transaction.listing;
+    ipoListingsRef.current = transaction.listings;
     haptic(true);
-    setIpoListings(accepted.listings);
+    setIpoListings(transaction.listings);
     setIpoListing(safeListing);
     setIpoCelebration(safeListing);
     setProgression((current) => ({
@@ -1316,23 +1322,11 @@ function AppContent() {
         ? current.achievements
         : [...current.achievements, "first-ipo"],
     }));
-    setAssets((list) => [
-      ...list.filter((asset) => !asset.isPlayerCompany),
-      ...Object.values(accepted.listings).map(
-        (item) => listingToAsset(item) as Asset,
-      ),
-    ]);
+    setAssets(transaction.assets);
     guardedSetCash((value) =>
       Math.min(Number.MAX_SAFE_INTEGER, value + safeListing.capitalRaised),
     );
-    postLedger({
-      id: `ledger-ipo-${safeListing.companyId}-${safeListing.listedAtTimestamp}`,
-      kind: "INVESTOR",
-      label: `${safeListing.companyName} IPO proceeds`,
-      amount: safeListing.capitalRaised,
-      timestamp: safeListing.listedAtTimestamp,
-      detail: "Minority public offering proceeds",
-    });
+    postLedger(transaction.ledgerEntry);
     pushIncomeEvent({
       source: `${safeListing.companyName} IPO`,
       amount: safeListing.capitalRaised,
@@ -1669,6 +1663,7 @@ function AppContent() {
               netIncomePerHour={projectedHourlyIncome}
               timestamp={systemTimeMs}
               ipoListing={ipoListing}
+              ipoListings={ipoListings}
               onIPOComplete={completeIPO}
               focusRetail={focusRetail}
               onRetailFocusHandled={() => setFocusRetail(false)}
