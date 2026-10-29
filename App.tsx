@@ -128,7 +128,11 @@ import {
 import { defaultBankState } from "./src/types/bank";
 import type { BankLedgerEntry } from "./src/types/bank";
 import { sanitizeBankState } from "./src/engine/bankEngine";
-import { calculateNetWorth, settleHour } from "./src/engine/financialCore";
+import {
+  calculateNetWorth,
+  settleHour,
+  type FinancialGameState,
+} from "./src/engine/financialCore";
 import { buildCanonicalBusinessRegistry, canonicalActiveCount, canonicalProjectedHourlyNet } from "./src/engine/canonicalBusinessRegistry";
 import { completeIPOTransaction } from "./src/engine/ipoCompletion";
 import { designSystem } from "./src/theme/designSystem";
@@ -291,18 +295,31 @@ function AppContent() {
     businesses,
     setBusinesses,
     taxiCompany,
+    setTaxiCompany,
     shippingCompany,
+    setShippingCompany,
     factoryCompany,
+    setFactoryCompany,
     constructionCompany,
+    setConstructionCompany,
     dealership,
+    setDealership,
     softwareCompany,
+    setSoftwareCompany,
     sportsClub,
+    setSportsClub,
     oilGas,
+    setOilGas,
     airline,
+    setAirline,
     hotel,
+    setHotel,
     blockchain,
+    setBlockchain,
     space,
+    setSpace,
     holding,
+    setHolding,
   } = useGame();
   const { isOnline, clockTampered } = useNetwork();
   const clockTamperedRef = useRef(clockTampered);
@@ -485,7 +502,7 @@ function AppContent() {
     () => portfolioAllocation(assets, holdings, cash),
     [assets, holdings, cash],
   );
-  const financialState = useMemo(
+  const financialState = useMemo<FinancialGameState>(
     () => ({
       cash,
       bank: bankState,
@@ -495,6 +512,21 @@ function AppContent() {
       lifestyleAssets,
       businesses,
       taxiCompany,
+      businessSources: {
+        taxiCompany,
+        shippingCompany,
+        factoryCompany,
+        constructionCompany,
+        dealership,
+        softwareCompany,
+        sportsClub,
+        oilGas,
+        airline,
+        hotel,
+        blockchain,
+        space,
+        holding,
+      },
       businessRegistry,
       systemTimeMs,
       multiplier,
@@ -507,6 +539,18 @@ function AppContent() {
       owned,
       businesses,
       taxiCompany,
+      shippingCompany,
+      factoryCompany,
+      constructionCompany,
+      dealership,
+      softwareCompany,
+      sportsClub,
+      oilGas,
+      airline,
+      hotel,
+      blockchain,
+      space,
+      holding,
       businessRegistry,
       systemTimeMs,
       multiplier,
@@ -932,6 +976,22 @@ function AppContent() {
     }
     setLastSettlementAtMs((value) => value + elapsedHours * 3600000);
     setBusinesses(cursor.businesses);
+    const sources = cursor.businessSources;
+    if (sources) {
+      setTaxiCompany(sources.taxiCompany ?? null);
+      setShippingCompany(sources.shippingCompany ?? null);
+      setFactoryCompany(sources.factoryCompany ?? null);
+      setConstructionCompany(sources.constructionCompany ?? null);
+      setDealership(sources.dealership ?? null);
+      setSoftwareCompany(sources.softwareCompany ?? null);
+      setSportsClub(sources.sportsClub ?? null);
+      setOilGas(sources.oilGas ?? null);
+      setAirline(sources.airline ?? null);
+      setHotel(sources.hotel ?? null);
+      setBlockchain(sources.blockchain ?? null);
+      setSpace(sources.space ?? null);
+      setHolding(sources.holding ?? null);
+    }
     guardedSetCash((value) =>
       Math.max(0, Math.min(Number.MAX_SAFE_INTEGER, value + totalDelta)),
     );

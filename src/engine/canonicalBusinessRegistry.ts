@@ -4,7 +4,7 @@ import { taxiHourlyEconomics, taxiVehicleCount } from "../types/taxi";
 import type { ShippingCompanyState } from "../types/shipping";
 import { shippingEconomics, shippingVehicleCount } from "../types/shipping";
 import type { FactoryCompanyState } from "../types/factory";
-import { factoryEconomics } from "../types/factory";
+import { factoryEconomics, factorySettlementTick } from "../types/factory";
 import type { ConstructionCompanyState } from "../types/construction";
 import { constructionTick } from "../types/construction";
 import type { DealershipState } from "../types/dealership";
@@ -84,6 +84,29 @@ export type CanonicalBusinessInput = {
   space?: SpaceState | null;
   holding?: HoldingState | null;
 };
+
+export type SpecializedBusinessSources = Omit<CanonicalBusinessInput, "businesses">;
+
+/** Advance only specialized states with existing deterministic hourly transitions. */
+export function advanceSpecializedBusinessSources(
+  sources: SpecializedBusinessSources,
+): SpecializedBusinessSources {
+  return {
+    ...sources,
+    factoryCompany: sources.factoryCompany
+      ? factorySettlementTick(sources.factoryCompany).factory
+      : sources.factoryCompany,
+    constructionCompany: sources.constructionCompany
+      ? constructionTick(sources.constructionCompany).company
+      : sources.constructionCompany,
+    dealership: sources.dealership
+      ? dealershipSellTick(sources.dealership).dealership
+      : sources.dealership,
+    softwareCompany: sources.softwareCompany
+      ? softwareSettlementTick(sources.softwareCompany).company
+      : sources.softwareCompany,
+  };
+}
 
 const finite = (value: unknown) =>
   Number.isFinite(Number(value)) ? Number(value) : 0;

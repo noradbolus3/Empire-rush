@@ -26,8 +26,9 @@ import {
   canonicalAssetValue,
   canonicalSettlementRevenue,
   buildCanonicalBusinessRegistry,
+  advanceSpecializedBusinessSources,
   type CanonicalBusiness,
-  type CanonicalBusinessInput,
+  type SpecializedBusinessSources,
 } from "./canonicalBusinessRegistry";
 
 export type FinancialGameState = {
@@ -51,7 +52,7 @@ export type FinancialGameState = {
   businesses: BusinessEntity[];
   taxiCompany?: TaxiCompanyState | null;
   businessRegistry?: CanonicalBusiness[];
-  businessSources?: Omit<CanonicalBusinessInput, "businesses">;
+  businessSources?: SpecializedBusinessSources;
   systemTimeMs: number;
   multiplier?: number;
 };
@@ -370,19 +371,30 @@ export function settleHour(state: FinancialGameState): SettlementResult {
     assetUpkeep -
     share;
   const projectedHourlyNet = cashDelta;
+  const nextBusinesses = (state.businesses || []).map((business) =>
+    business.pendingSettlementAmount
+      ? { ...business, pendingSettlementAmount: 0 }
+      : business,
+  );
+  const nextBusinessSources = state.businessSources
+    ? advanceSpecializedBusinessSources(state.businessSources)
+    : undefined;
+  const nextRegistry = nextBusinessSources
+    ? buildCanonicalBusinessRegistry({
+        businesses: nextBusinesses,
+        ...nextBusinessSources,
+      })
+    : getBusinessRegistry(state).map((business) =>
+        business.pendingSettlementAmount
+          ? { ...business, pendingSettlementAmount: 0 }
+          : business,
+      );
   return {
     state: {
       ...state,
-      businessRegistry: getBusinessRegistry(state).map((business) =>
-        business.pendingSettlementAmount
-          ? { ...business, pendingSettlementAmount: 0 }
-          : business,
-      ),
-      businesses: (state.businesses || []).map((business) =>
-        business.pendingSettlementAmount
-          ? { ...business, pendingSettlementAmount: 0 }
-          : business,
-      ),
+      businessRegistry: nextRegistry,
+      businesses: nextBusinesses,
+      businessSources: nextBusinessSources,
       bank: {
         ...state.bank,
         loans: loanUpdates,
