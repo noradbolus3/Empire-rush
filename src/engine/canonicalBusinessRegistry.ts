@@ -91,21 +91,16 @@ export type SpecializedBusinessSources = Omit<CanonicalBusinessInput, "businesse
 export function advanceSpecializedBusinessSources(
   sources: SpecializedBusinessSources,
 ): SpecializedBusinessSources {
-  return {
-    ...sources,
-    factoryCompany: sources.factoryCompany
-      ? factorySettlementTick(sources.factoryCompany).factory
-      : sources.factoryCompany,
-    constructionCompany: sources.constructionCompany
-      ? constructionTick(sources.constructionCompany).company
-      : sources.constructionCompany,
-    dealership: sources.dealership
-      ? dealershipSellTick(sources.dealership).dealership
-      : sources.dealership,
-    softwareCompany: sources.softwareCompany
-      ? softwareSettlementTick(sources.softwareCompany).company
-      : sources.softwareCompany,
-  };
+  const next = { ...sources };
+  if (sources.factoryCompany)
+    next.factoryCompany = factorySettlementTick(sources.factoryCompany).factory;
+  if (sources.constructionCompany)
+    next.constructionCompany = constructionTick(sources.constructionCompany).company;
+  if (sources.dealership)
+    next.dealership = dealershipSellTick(sources.dealership).dealership;
+  if (sources.softwareCompany)
+    next.softwareCompany = softwareSettlementTick(sources.softwareCompany).company;
+  return next;
 }
 
 const finite = (value: unknown) =>
