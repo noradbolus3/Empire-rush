@@ -176,25 +176,34 @@ function investorShare(state: FinancialGameState, revenue: number) {
     0,
   );
 }
-function loanParts(state: FinancialGameState) {
-  return (state.bank.loans || []).filter(isActiveLoan).reduce(
+const HOURS_PER_MONTH = 24 * 30;
+
+function loanPaymentFor(loan: BankLoan, timestamp: number) {
+  if (!isActiveLoan(loan)) return { emi: 0, interest: 0, principal: 0 };
+  const elapsed = Number(loan.settlementsElapsed || 0);
+  const grace = Math.max(0, Number(loan.graceSettlements || 0));
+  const dueAt = Number.isFinite(loan.nextDueAt) ? loan.nextDueAt : timestamp;
+  if (timestamp < dueAt || elapsed < grace)
+    return { emi: 0, interest: 0, principal: 0 };
+  const interest = (positive(loan.balance) * positive(loan.apr)) / 100 / 12;
+  const payment = Math.min(
+    positive(loan.monthlyPayment),
+    positive(loan.balance) + interest,
+  );
+  return {
+    emi: payment,
+    interest: Math.min(payment, interest),
+    principal: Math.max(0, payment - interest),
+  };
+}
+
+function loanParts(state: FinancialGameState, timestamp: number) {
+  return (state.bank.loans || []).reduce(
     (result, loan) => {
-      const elapsed = Number(loan.settlementsElapsed || 0);
-      const grace = Math.max(0, Number(loan.graceSettlements || 0));
-      const interest =
-        elapsed < grace
-          ? 0
-          : (positive(loan.balance) * positive(loan.apr)) / 100 / 12;
-      const payment =
-        elapsed < grace
-          ? 0
-          : Math.min(
-              positive(loan.monthlyPayment),
-              positive(loan.balance) + interest,
-            );
-      result.emi += payment;
-      result.interest += Math.min(payment, interest);
-      result.principal += Math.max(0, payment - interest);
+      const parts = loanPaymentFor(loan, timestamp);
+      result.emi += parts.emi;
+      result.interest += parts.interest;
+      result.principal += parts.principal;
       return result;
     },
     { emi: 0, interest: 0, principal: 0 },
@@ -205,7 +214,7 @@ export function settleHour(state: FinancialGameState): SettlementResult {
   const timestamp = state.systemTimeMs;
   const revenue = businessRevenue(state);
   const interest = savingsInterest(state);
-  const loan = loanParts(state);
+  const loan = loanParts(state, timestamp);
   const premium = (state.bank.insurance || [])
     .filter((item) => item.active)
     .reduce((sum, item) => sum + positive(item.premium) / 30 / 24, 0);
@@ -263,14 +272,19 @@ export function settleHour(state: FinancialGameState): SettlementResult {
       : 0;
   const loanUpdates = (state.bank.loans || []).map((item) => {
     if (!isActiveLoan(item)) return item;
-    const nextBalance = Math.max(0, item.balance - loanParts(state).principal);
+    const parts = loanPaymentFor(item, timestamp);
+    const nextBalance = Math.max(0, item.balance - parts.principal);
     const nextElapsed = Number(item.settlementsElapsed || 0) + 1;
     return {
       ...item,
       balance: round(nextBalance),
       settlementsElapsed: nextElapsed,
       status: nextBalance <= 0.01 ? ("paid_off" as const) : item.status,
-      nextDueAt: item.nextDueAt + 3600000,
+      nextDueAt:
+        parts.emi > 0
+          ? (Number.isFinite(item.nextDueAt) ? item.nextDueAt : timestamp) +
+            HOURS_PER_MONTH * 3600000
+          : item.nextDueAt,
     };
   });
   const taxRecords: TaxRecord[] = [
