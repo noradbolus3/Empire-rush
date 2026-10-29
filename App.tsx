@@ -331,6 +331,8 @@ function AppContent() {
   );
   const [ipoListing, setIpoListing] = useState<IPOListing | null>(null);
   const [ipoListings, setIpoListings] = useState<Record<string, IPOListing>>({});
+  const ipoListingsRef = useRef<Record<string, IPOListing>>({});
+  const ipoCompletionLocks = useRef(new Set<string>());
   const [ipoCelebration, setIpoCelebration] = useState<IPOListing | null>(null);
   const [clickValue, setClickValue] = useState(1);
   const [tapUpgradeLevel, setTapUpgradeLevel] = useState(0);
@@ -596,9 +598,12 @@ function AppContent() {
       constructionSimulationSeconds.current += 2;
       const constructionSeconds = constructionSimulationSeconds.current >= 3 ? 3 : 0;
       if (constructionSeconds) constructionSimulationSeconds.current -= 3;
-      const ownershipFractions = ipoListing
-        ? { [ipoListing.companyId]: founderOwnershipFraction(ipoListing) }
-        : {};
+      const ownershipFractions = Object.fromEntries(
+        Object.values(ipoListings).map((listing) => [
+          listing.companyId,
+          founderOwnershipFraction(listing),
+        ]),
+      );
       setBusinesses((current) =>
         simulateBusinessOperations(
           current,
@@ -611,7 +616,7 @@ function AppContent() {
       );
     }, 2000);
     return () => clearInterval(timer);
-  }, [cash, clockTampered, ipoListing, loaded, netWorth, setBusinesses]);
+  }, [cash, clockTampered, ipoListings, loaded, netWorth, setBusinesses]);
   useEffect(() => {
     clockTamperedRef.current = clockTampered;
   }, [clockTampered]);
@@ -724,6 +729,7 @@ function AppContent() {
               : legacyListing
                 ? { [legacyListing.companyId]: legacyListing }
                 : {};
+          ipoListingsRef.current = savedListings;
           setIpoListings(savedListings);
           setIpoListing(legacyListing || Object.values(savedListings)[0] || null);
           setProgression(hydrateDailyProgress(saved?.progression));
@@ -768,22 +774,36 @@ function AppContent() {
       .catch(() => setLoaded(true));
   }, []);
   useEffect(() => {
-    if (!ipoListing) return;
-    const safeListing = capIPOProceeds(ipoListing, netWorth);
-    if (
-      safeListing.valuationAtIPO !== ipoListing.valuationAtIPO ||
-      safeListing.capitalRaised !== ipoListing.capitalRaised ||
-      safeListing.currentPrice !== ipoListing.currentPrice
-    ) {
-      setIpoListing(safeListing);
-      return;
-    }
-    setAssets((list) =>
-      list.some((asset) => asset.id === `ipo-${safeListing.companyId}`)
-        ? list
-        : [...list, listingToAsset(safeListing) as Asset],
+    ipoListingsRef.current = ipoListings;
+  }, [ipoListings]);
+  useEffect(() => {
+    const listings = Object.values(ipoListings);
+    if (!listings.length) return;
+    const safeListings = listings.map((listing) =>
+      capIPOProceeds(listing, netWorth),
     );
-  }, [ipoListing, netWorth]);
+    const safeMap = Object.fromEntries(
+      safeListings.map((listing) => [listing.companyId, listing]),
+    );
+    const changed = safeListings.some((listing) => {
+      const previous = ipoListings[listing.companyId];
+      return (
+        previous?.valuationAtIPO !== listing.valuationAtIPO ||
+        previous?.capitalRaised !== listing.capitalRaised ||
+        previous?.currentPrice !== listing.currentPrice
+      );
+    });
+    if (changed) {
+      ipoListingsRef.current = safeMap;
+      setIpoListings(safeMap);
+      if (ipoListing && safeMap[ipoListing.companyId])
+        setIpoListing(safeMap[ipoListing.companyId]);
+    }
+    setAssets((list) => [
+      ...list.filter((asset) => !asset.isPlayerCompany),
+      ...safeListings.map((listing) => listingToAsset(listing) as Asset),
+    ]);
+  }, [ipoListing, ipoListings, netWorth]);
   useEffect(() => {
     latestState.current = {
       schemaVersion: GAME_SAVE_VERSION,
@@ -1272,12 +1292,20 @@ function AppContent() {
     );
   };
   const completeIPO = (listing: IPOListing) => {
-    const existing = ipoListings[listing.companyId] ||
-      (ipoListing?.companyId === listing.companyId ? ipoListing : null);
-    if (existing?.stage === "public") return;
+    if (ipoCompletionLocks.current.has(listing.companyId)) return;
+    ipoCompletionLocks.current.add(listing.companyId);
+    const existing = ipoListingsRef.current[listing.companyId];
+    if (existing?.stage === "public") {
+      ipoCompletionLocks.current.delete(listing.companyId);
+      return;
+    }
     const safeListing = capIPOProceeds(listing, netWorth);
-    const accepted = acceptIPOOnce(ipoListings, safeListing);
-    if (!accepted.accepted) return;
+    const accepted = acceptIPOOnce(ipoListingsRef.current, safeListing);
+    if (!accepted.accepted) {
+      ipoCompletionLocks.current.delete(listing.companyId);
+      return;
+    }
+    ipoListingsRef.current = accepted.listings;
     haptic(true);
     setIpoListings(accepted.listings);
     setIpoListing(safeListing);
@@ -1290,11 +1318,21 @@ function AppContent() {
     }));
     setAssets((list) => [
       ...list.filter((asset) => !asset.isPlayerCompany),
-      listingToAsset(safeListing) as Asset,
+      ...Object.values(accepted.listings).map(
+        (item) => listingToAsset(item) as Asset,
+      ),
     ]);
     guardedSetCash((value) =>
       Math.min(Number.MAX_SAFE_INTEGER, value + safeListing.capitalRaised),
     );
+    postLedger({
+      id: `ledger-ipo-${safeListing.companyId}-${safeListing.listedAtTimestamp}`,
+      kind: "INVESTOR",
+      label: `${safeListing.companyName} IPO proceeds`,
+      amount: safeListing.capitalRaised,
+      timestamp: safeListing.listedAtTimestamp,
+      detail: "Minority public offering proceeds",
+    });
     pushIncomeEvent({
       source: `${safeListing.companyName} IPO`,
       amount: safeListing.capitalRaised,
@@ -1304,6 +1342,7 @@ function AppContent() {
       "OPENING BELL",
       `${safeListing.ticker} is now public. ${money(safeListing.capitalRaised)} growth capital has been raised. Founder ownership: 80%. Public Company Founder rank unlocked.`,
     );
+    setTimeout(() => ipoCompletionLocks.current.delete(listing.companyId), 0);
   };
   const placeLimitOrder = (
     asset: Asset,
