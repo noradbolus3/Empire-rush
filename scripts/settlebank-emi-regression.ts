@@ -25,7 +25,9 @@ for (let hour = 1; hour <= 24 * 30; hour += 1) {
 
 assert.equal(payments, 1, `expected one monthly payment, got ${payments}`);
 assert.equal(Number(cashDelta.toFixed(2)), Number((-loan.monthlyPayment).toFixed(2)));
-assert.equal(state.loans[0].balance, Number((loan.balance - loan.monthlyPayment).toFixed(2)));
+const expectedInterest = Number(((loan.balance * loan.apr) / 100 / 12).toFixed(2));
+const expectedPrincipal = Number((loan.monthlyPayment - expectedInterest).toFixed(2));
+assert.equal(state.loans[0].balance, Number((loan.balance - expectedPrincipal).toFixed(2)));
 assert.equal(
   state.loans[0].nextDueAt,
   loan.nextDueAt + 30 * 24 * HOUR,
@@ -38,6 +40,8 @@ console.log(
       test: "legacy-settleBank-monthly-emi",
       hourlyCalls: 24 * 30,
       monthlyPayment: loan.monthlyPayment,
+      interest: expectedInterest,
+      principal: expectedPrincipal,
       payments,
       balanceAfter: state.loans[0].balance,
       result: "PASS",

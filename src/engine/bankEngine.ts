@@ -381,7 +381,7 @@ export function underwriteLoan(
       reason: `Requested amount exceeds the 70% LTV cap of ${money(Number(collateral.value) * 0.7)} for ${collateral.name}.`,
     };
   if (
-    !starterGrace &&
+    !starterProduct &&
     !isSecuredProduct(product) &&
     monthlyDebtService(state) + monthlyPayment(amount, apr, spec.termMonths) >
       Math.max(0, hourlyIncome) * MAX_UNSECURED_EMI_RATIO
@@ -1095,19 +1095,26 @@ export function settleBank(
     const paymentDue =
       safeNow >= dueAt &&
       elapsedSettlements + completedHours >= graceSettlements;
+    const interest = paymentDue
+      ? safeMoney((Math.max(0, loan.balance) * Math.max(0, loan.apr)) / 100 / 12)
+      : 0;
     const paid = safeMoney(
-      paymentDue ? Math.min(loan.balance, loan.monthlyPayment) : 0,
+      paymentDue
+        ? Math.min(loan.balance + interest, loan.monthlyPayment)
+        : 0,
     );
+    const principalPaid = safeMoney(Math.max(0, paid - interest));
     if (paid > 0) {
       cashDelta -= paid;
       paymentsMade += 1;
     }
     return {
       ...loan,
-      balance: safeMoney(loan.balance - paid),
+      balance: safeMoney(loan.balance - principalPaid),
       nextDueAt: paid > 0 ? dueAt + MONTH_MS : loan.nextDueAt,
       settlementsElapsed: elapsedSettlements + completedHours,
-      status: loan.balance - paid <= 0 ? ("paid_off" as const) : loan.status,
+      status:
+        loan.balance - principalPaid <= 0 ? ("paid_off" as const) : loan.status,
     };
   });
   let maturityCash = 0;
