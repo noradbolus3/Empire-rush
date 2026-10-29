@@ -1086,19 +1086,17 @@ export function settleBank(
   );
   let cashDelta = interestEarned;
   let paymentsMade = 0;
+  const MONTH_MS = 30 * 24 * BANK_SETTLEMENT_MS;
   const loans = state.loans.map((loan) => {
     if (!isActiveLoan(loan)) return loan;
-    const paymentCount = Math.min(
-      completedHours,
-      Math.max(
-        0,
-        Math.floor(
-          (safeNow - loan.nextDueAt + BANK_SETTLEMENT_MS) / BANK_SETTLEMENT_MS,
-        ),
-      ),
-    );
+    const elapsedSettlements = Number(loan.settlementsElapsed || 0);
+    const graceSettlements = Math.max(0, Number(loan.graceSettlements || 0));
+    const dueAt = Number.isFinite(loan.nextDueAt) ? loan.nextDueAt : safeNow;
+    const paymentDue =
+      safeNow >= dueAt &&
+      elapsedSettlements + completedHours >= graceSettlements;
     const paid = safeMoney(
-      Math.min(loan.balance, loan.monthlyPayment * paymentCount),
+      paymentDue ? Math.min(loan.balance, loan.monthlyPayment) : 0,
     );
     if (paid > 0) {
       cashDelta -= paid;
@@ -1107,7 +1105,8 @@ export function settleBank(
     return {
       ...loan,
       balance: safeMoney(loan.balance - paid),
-      nextDueAt: loan.nextDueAt + paymentCount * BANK_SETTLEMENT_MS,
+      nextDueAt: paid > 0 ? dueAt + MONTH_MS : loan.nextDueAt,
+      settlementsElapsed: elapsedSettlements + completedHours,
       status: loan.balance - paid <= 0 ? ("paid_off" as const) : loan.status,
     };
   });
