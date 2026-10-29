@@ -6,12 +6,13 @@ import { formatCurrency } from '../../utils/formatCurrency';
 import { CONSTRUCTION_CONTRACTS, CONSTRUCTION_PROJECTS, CONSTRUCTION_UPGRADES, constructionAssetValue, constructionHourlyProfit, constructionStageFor, canUseStage, initializeConstruction, stageIndex } from '../../engine/constructionCompanyEngine';
 import { constructionVisuals } from '../../data/constructionAssets';
 import { designSystem } from '../../theme/designSystem';
+import type { BankLedgerEntry } from '../../types/bank';
 
 const C = { bg: designSystem.colors.surfaceLight, ink: designSystem.colors.textPrimary, muted: designSystem.colors.textSecondary, line: designSystem.colors.border, blue: designSystem.colors.primaryBlue, blueSoft: designSystem.colors.highlight, green: designSystem.colors.success, greenSoft: '#ECFDF5', gold: designSystem.colors.warning, red: designSystem.colors.danger, white: '#FFFFFF' };
 type Tab = 'Overview' | 'Dashboard' | 'Land & Projects' | 'Machinery' | 'Management' | 'Contracts' | 'Expansion';
-type Props = { business: ConstructionData; cash: number; netWorth: number; onBack: () => void; onCashChange: (updater: (value: number) => number) => void; onChange: (business: ConstructionData) => void };
+type Props = { business: ConstructionData; cash: number; netWorth: number; onBack: () => void; onCashChange: (updater: (value: number) => number) => void; onLedger?: (entry: BankLedgerEntry) => void; onChange: (business: ConstructionData) => void };
 
-export default function ConstructionCompanyScreen({ business: rawBusiness, cash, netWorth, onBack, onCashChange, onChange }: Props) {
+export default function ConstructionCompanyScreen({ business: rawBusiness, cash, netWorth, onBack, onCashChange, onLedger, onChange }: Props) {
   const business = useMemo(() => initializeConstruction(rawBusiness, netWorth), [rawBusiness, netWorth]);
   const [tab, setTab] = useState<Tab>('Overview');
   const spendLock = useRef(false);
@@ -22,6 +23,17 @@ export default function ConstructionCompanyScreen({ business: rawBusiness, cash,
     if (cash < cost) { Alert.alert('CAPITAL REQUIRED', `You need ${formatCurrency(cost - cash)} more liquid cash.`); return; }
     spendLock.current = true;
     onCashChange(value => Math.max(0, value - cost));
+    if (cost > 0) {
+      const timestamp = Date.now();
+      onLedger?.({
+        id: `ledger-construction-${business.id}-${timestamp}`,
+        kind: 'PURCHASE',
+        label: `Construction investment · ${label}`,
+        amount: -cost,
+        timestamp,
+        detail: `${business.name} operating investment`,
+      });
+    }
     onChange({ ...business, ...patch });
     Alert.alert('OPERATION CONFIRMED', `${label} · ${formatCurrency(cost)} invested.`);
     setTimeout(() => { spendLock.current = false; }, 300);

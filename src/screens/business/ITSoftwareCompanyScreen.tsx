@@ -10,11 +10,12 @@ import { ITProjectsContractsScreen } from './it/ITProjectsContractsScreen';
 import { ITProductsSecurityScreen } from './it/ITProductsSecurityScreen';
 import { ITEnterpriseScreen } from './it/ITEnterpriseScreen';
 import { ITC, Metric, Section } from './it/ITPagePrimitives';
+import type { BankLedgerEntry } from '../../types/bank';
 
 type ITTab = 'Formation & Office' | 'Workforce' | 'Projects & Contracts' | 'Products & Security' | 'Enterprise';
-type Props = { business: ITSoftwareData; cash: number; netWorth: number; onBack: () => void; onCashChange: (updater: (value: number) => number) => void; onChange: (business: ITSoftwareData) => void };
+type Props = { business: ITSoftwareData; cash: number; netWorth: number; onBack: () => void; onCashChange: (updater: (value: number) => number) => void; onLedger?: (entry: BankLedgerEntry) => void; onChange: (business: ITSoftwareData) => void };
 
-export default function ITSoftwareCompanyScreen({ business: rawBusiness, cash, netWorth, onBack, onCashChange, onChange }: Props) {
+export default function ITSoftwareCompanyScreen({ business: rawBusiness, cash, netWorth, onBack, onCashChange, onLedger, onChange }: Props) {
   const business = useMemo(() => initializeITCompany(rawBusiness, netWorth), [rawBusiness, netWorth]);
   const [tab, setTab] = useState<ITTab>('Formation & Office');
   const actionLock = useRef(false);
@@ -24,6 +25,17 @@ export default function ITSoftwareCompanyScreen({ business: rawBusiness, cash, n
     if (cash < cost) { Alert.alert('CAPITAL REQUIRED', `You need ${(cost - cash).toLocaleString('en-US', { style: 'currency', currency: 'USD' })} more liquid cash.`); return; }
     actionLock.current = true;
     onCashChange((value) => Math.max(0, value - cost));
+    if (cost > 0) {
+      const timestamp = Date.now();
+      onLedger?.({
+        id: `ledger-it-software-${business.id}-${timestamp}`,
+        kind: 'PURCHASE',
+        label: `IT & Software investment · ${label}`,
+        amount: -cost,
+        timestamp,
+        detail: `${business.name} operating investment`,
+      });
+    }
     onChange(update(business));
     Alert.alert('IT COMPANY UPDATED', label);
     setTimeout(() => { actionLock.current = false; }, 250);

@@ -111,6 +111,7 @@ export function BusinessMasterHubScreen({
         netWorth={netWorth}
         onBack={onBack}
         onCashChange={onCashChange}
+        onLedger={onLedger}
         onChange={onChange}
       />
     );
@@ -122,6 +123,7 @@ export function BusinessMasterHubScreen({
         netWorth={netWorth}
         onBack={onBack}
         onCashChange={onCashChange}
+        onLedger={onLedger}
         onChange={(next: BusinessEntity) => onChange(next)}
       />
     );
