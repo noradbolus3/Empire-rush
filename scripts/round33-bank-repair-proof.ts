@@ -16,7 +16,29 @@ const afterLoan: any = { ...base, cash: base.cash + loan.principal - loan.origin
 print('a loan origination', { before: { cash: base.cash, debt: 0, netWorth: beforeNW, headerIncome: settleHour(base).projectedHourlyNet }, after: { cash: afterLoan.cash, debt: totalDebt(afterLoan.bank), netWorth: calculateNetWorth(afterLoan), headerIncome: settleHour(afterLoan).projectedHourlyNet, ledger: afterLoan.bank.ledger } });
 assert.equal(totalDebt(afterLoan.bank), 5000);
 assert.equal(calculateNetWorth(afterLoan), beforeNW - loan.originationFee);
-assert(settleHour(afterLoan).projectedHourlyNet < settleHour(base).projectedHourlyNet);
+const graceSettlement = settleHour(afterLoan);
+assert.equal(graceSettlement.breakdown.emi, 0);
+assert.equal(
+  graceSettlement.projectedHourlyNet,
+  settleHour(base).projectedHourlyNet,
+  'starter microloan grace settlements do not debit EMI',
+);
+let firstEligibleSettlement = graceSettlement;
+let postGraceState: any = afterLoan;
+for (let hour = 1; hour <= 4; hour += 1) {
+    firstEligibleSettlement = settleHour(postGraceState);
+    postGraceState = {
+      ...firstEligibleSettlement.state,
+      cash: postGraceState.cash + firstEligibleSettlement.cashDelta,
+      systemTimeMs: postGraceState.systemTimeMs + 3600000,
+    };
+}
+assert.equal(firstEligibleSettlement.breakdown.emi, loan.monthlyPayment);
+assert(
+  firstEligibleSettlement.projectedHourlyNet <
+    settleHour(base).projectedHourlyNet,
+  'first post-grace settlement must include the monthly EMI debit',
+);
 
 const cappedBank: any = { ...baseBank, loans: [{ ...loan, balance: 50000, principal: 50000 }] };
 const capDecision = underwriteLoan(cappedBank, 'SBA_MICROLOAN', 1, 100000, 100);
@@ -34,8 +56,12 @@ assert.equal(blocked.ok, false);
 
 const seized = seizeDefaultedLoan(afterLoan.bank, loan.id, now + 3);
 print('d default seizure', { status: seized.state.loans[0].status, debtAfter: totalDebt(seized.state), ficoAfter: seized.state.ficoScore, collateralUnlocked: seized.collateralAssetId, ledger: seized.ledgerEntry });
-assert.equal(seized.state.loans[0].status, 'foreclosed');
-assert.equal(totalDebt(seized.state), 0);
+assert.equal(seized.state.loans[0].status, 'defaulted');
+assert.equal(
+  totalDebt(seized.state),
+  5000,
+  'an unsecured loan remains as collections debt when no collateral can be liquidated',
+);
 assert(seized.state.ficoScore < afterLoan.bank.ficoScore);
 
 const expired: any = { id: 'expired', kind: 'LOAN', title: 'Expired loan', detail: 'expired', expiresAt: now - 1 };
@@ -43,7 +69,7 @@ const offerGate = canAcceptOffer(expired, now);
 print('e expired offer', offerGate);
 assert.equal(offerGate.ok, false);
 
-const settlement = settleHour(afterLoan);
+const settlement = firstEligibleSettlement;
 print('f itemized settlement tick', { cashDelta: settlement.cashDelta, projectedHourlyNet: settlement.projectedHourlyNet, breakdown: settlement.breakdown, ledger: settlement.ledger });
 assert(settlement.ledger.some(item => item.kind === 'BUSINESS_REVENUE'));
 assert(settlement.ledger.some(item => item.kind === 'EMI'));
