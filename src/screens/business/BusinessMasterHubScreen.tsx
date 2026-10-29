@@ -135,6 +135,7 @@ export function BusinessMasterHubScreen({
         onBack={onBack}
         onCashChange={onCashChange}
         onChange={(next: BusinessEntity) => onChange(next)}
+        onLedger={onLedger || (() => undefined)}
       />
     );
   return (

@@ -12,9 +12,9 @@ import BankingEnterpriseScreen from "./banking/BankingEnterpriseScreen";
 import { BANKING_COLORS } from "./banking/BankingPagePrimitives";
 import type { BankingPageProps } from "./banking/bankingTypes";
 
-export default function BankingCompanyScreen({ business, cash, onCashChange, onChange, onBack }: BankingPageProps & { onBack: () => void }) {
+export default function BankingCompanyScreen({ business, cash, onCashChange, onChange, onLedger, onBack }: BankingPageProps & { onBack: () => void }) {
   const [page, setPage] = React.useState<"setup" | "deposits" | "loans" | "treasury" | "operations" | "digital" | "enterprise">("setup");
-  const shared = { business, cash, onCashChange, onChange };
+  const shared = { business, cash, onCashChange, onChange, onLedger };
   return <SafeAreaView edges={["top", "left", "right"]} style={styles.root}>
     <View style={styles.header}><Pressable onPress={onBack}><Text style={styles.back}>‹ BUSINESS REGISTRY</Text></Pressable><Text style={styles.eyebrow}>BANKING COMPANY · LIVE OPERATIONS</Text><Text style={styles.title}>{business.name}</Text><Text style={styles.profit}>${business.hourlyNetProfit.toLocaleString()}/hr net banking profit</Text></View>
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.rail} contentContainerStyle={styles.railContent}>{([
