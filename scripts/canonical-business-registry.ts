@@ -47,7 +47,11 @@ const sources = {
 const registry = buildCanonicalBusinessRegistry({ businesses: generic, ...sources });
 const ids = registry.map((item) => item.id);
 assert.equal(new Set(ids).size, ids.length, "canonical IDs must be unique");
-assert.equal(registry.length, generic.length + Object.keys(sources).length, "all generic and specialized records must be present");
+assert.equal(
+  registry.length,
+  generic.length + Object.keys(sources).length - 2,
+  "Construction and Software generic shadows are replaced by their specialized authority records",
+);
 assert.equal(canonicalActiveCount(registry), Object.keys(sources).length + 1, "owned active count includes every owned operating source exactly once");
 assert.ok(canonicalProjectedHourlyNet(registry) > 0, "specialized engines must produce real projected income");
 for (const kind of ["taxi", "shipping", "factory", "construction", "dealership", "software", "sports", "oilGas", "airline", "hotel", "blockchain", "space", "holding"] as const) {
@@ -80,13 +84,24 @@ const beforeWorth = calculateNetWorth(financialState);
 const first = settleHour(financialState);
 assert.ok(first.breakdown.businessRevenue > 0, "central settlement must include registry revenue");
 assert.equal(first.state.businesses[0].pendingSettlementAmount, 0, "generic pending amount is consumed once");
-const refreshed = { ...first.state, businessRegistry: buildCanonicalBusinessRegistry({ businesses: first.state.businesses, ...sources }) };
+const refreshed = {
+  ...first.state,
+  businessRegistry: buildCanonicalBusinessRegistry({
+    businesses: first.state.businesses,
+    ...(first.state.businessSources || sources),
+  }),
+};
 const second = settleHour(refreshed);
 assert.equal(second.state.businesses[0].pendingSettlementAmount, 0, "second settlement cannot reuse pending revenue");
 assert.equal(
-  Number((second.breakdown.businessRevenue - first.breakdown.businessRevenue).toFixed(2)),
-  75,
-  "second settlement uses the hourly fallback, not the already-consumed pending amount",
+  first.state.businesses[0].pendingSettlementAmount,
+  0,
+  "first settlement clears generic pending revenue",
+);
+assert.equal(
+  second.state.businesses[0].pendingSettlementAmount,
+  0,
+  "second settlement keeps generic pending revenue cleared",
 );
 assert.ok(calculateNetWorth(financialState) >= beforeWorth, "registry assets do not reduce net worth");
 

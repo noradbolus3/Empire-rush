@@ -140,7 +140,12 @@ function genericRecord(business: BusinessEntity): CanonicalBusiness {
   return record({
     id: business.id,
     name: business.name,
-    kind: "generic",
+    kind:
+      business.sector === "Construction_Mega"
+        ? "construction"
+        : business.sector === "Tech_SaaS"
+          ? "software"
+          : "generic",
     owned: Boolean(business.isAcquired),
     operating: Boolean(business.isAcquired),
     hourlyRevenue: nonNegative(business.hourlyNetProfit),
@@ -427,8 +432,17 @@ export function buildCanonicalBusinessRegistry(input: CanonicalBusinessInput): C
     input.space && spaceRecord(input.space),
     input.holding && holdingRecord(input.holding),
   ].filter((item): item is CanonicalBusiness => Boolean(item));
-  const seen = new Set(records.map((item) => item.id));
-  return [...records, ...specialized.filter((item) => !seen.has(item.id))];
+  const specializedKinds = new Set(
+    specialized.filter((item) => item.owned).map((item) => item.kind),
+  );
+  const genericRecords = records.filter(
+    (item) => !specializedKinds.has(item.kind),
+  );
+  const seen = new Set(genericRecords.map((item) => item.id));
+  return [
+    ...genericRecords,
+    ...specialized.filter((item) => !seen.has(item.id)),
+  ];
 }
 
 export function canonicalActiveCount(registry: CanonicalBusiness[]): number {

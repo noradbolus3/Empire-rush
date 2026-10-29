@@ -609,6 +609,28 @@ function BusinessScreenContent({
         onLedger={onLedger}
       />
     );
+  if (selected?.sector === "Construction_Mega")
+    return (
+      <ConstructionCompanyScreen
+        company={constructionCompany}
+        cash={cash}
+        onCashChange={onCashChange}
+        onChange={setConstructionCompany || (() => undefined)}
+        onBack={() => setSelectedId(null)}
+        onLedger={onLedger}
+      />
+    );
+  if (selected?.sector === "Tech_SaaS")
+    return (
+      <SoftwareCompanyScreen
+        company={softwareCompany}
+        cash={cash}
+        onCashChange={onCashChange}
+        onChange={setSoftwareCompany || (() => undefined)}
+        onBack={() => setSelectedId(null)}
+        onLedger={onLedger}
+      />
+    );
   if (selected)
     return (
       <BusinessMasterHubScreen
