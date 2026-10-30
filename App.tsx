@@ -52,6 +52,7 @@ import {
   weekKeyFromSystemTime,
 } from "./src/engine/realTimeEngine";
 import { IPOListing } from "./src/types/ipo";
+import { BUSINESS_PORTFOLIO_ROUTE_ID } from "./src/screens/business/businessRouteCatalog";
 import {
   DEFAULT_PROGRESSION,
   dayKey,
@@ -1717,6 +1718,7 @@ function AppContent() {
         <View style={styles.screenBody}>
           {tab === "business" ? (
             <RetailBusinessScreen
+              routeId={BUSINESS_PORTFOLIO_ROUTE_ID}
               state={retail}
               cash={cash}
               netWorth={netWorth}

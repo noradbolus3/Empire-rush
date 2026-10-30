@@ -56,6 +56,11 @@ import {
 } from "../engine/businessLevels";
 import { designSystem } from "../theme/designSystem";
 import { buildCanonicalBusinessRegistry, canonicalActiveCount } from "../engine/canonicalBusinessRegistry";
+import {
+  BUSINESS_PORTFOLIO_ROUTE_ID,
+  getBusinessRouteForEntity,
+  getBusinessRouteForScreen,
+} from "./business/businessRouteCatalog";
 
 const C = {
   bg: designSystem.colors.background,
@@ -72,6 +77,7 @@ const C = {
   ink: designSystem.colors.heading,
 };
 type Props = {
+  routeId: typeof BUSINESS_PORTFOLIO_ROUTE_ID;
   state?: RetailShopState;
   cash: number;
   netWorth: number;
@@ -214,6 +220,7 @@ export function BusinessScreen(props: Props) {
 }
 
 function BusinessScreenContent({
+  routeId,
   cash,
   netWorth,
   netIncomePerHour,
@@ -227,6 +234,12 @@ function BusinessScreenContent({
   onRetailFocusHandled,
   onLedger,
 }: Props) {
+  // App mounts this component only as the canonical Business Portfolio route.
+  // Keep the assertion close to the route boundary so a second business mount
+  // cannot silently become an alternate navigation authority.
+  if (routeId !== BUSINESS_PORTFOLIO_ROUTE_ID) {
+    throw new Error(`Unsupported business route: ${String(routeId)}`);
+  }
   const {
     businesses,
     setBusinesses,
@@ -456,6 +469,56 @@ function BusinessScreenContent({
     onLedger?.({ id: `holding-charter-${Date.now()}`, kind: "PURCHASE", label: "Holding Company charter", amount: -setupCost, timestamp: Date.now(), detail: "Corporate headquarters and group treasury reserve" });
     setHoldingOpen(true);
   };
+  const openSpecializedRoute = (
+    screen: Exclude<
+      ReturnType<typeof getBusinessRouteForScreen>,
+      null
+    >["screen"],
+  ) => {
+    switch (screen) {
+      case "taxi":
+        setTaxiOpen(true);
+        return;
+      case "shipping":
+        setShippingOpen(true);
+        return;
+      case "factory":
+        setFactoryOpen(true);
+        return;
+      case "construction":
+        setConstructionOpen(true);
+        return;
+      case "dealership":
+        setDealershipOpen(true);
+        return;
+      case "software":
+        setSoftwareOpen(true);
+        return;
+      case "sports":
+        openSportsClub();
+        return;
+      case "oilGas":
+        openOilGas();
+        return;
+      case "airline":
+        openAirline();
+        return;
+      case "hotel":
+        openHotel();
+        return;
+      case "blockchain":
+        openBlockchain();
+        return;
+      case "space":
+        openSpace();
+        return;
+      case "holding":
+        openHolding();
+        return;
+      default:
+        return;
+    }
+  };
   const nextMove = bestAffordable
     ? `Start ${bestAffordable.item.name} · ~${Math.max(1, Math.ceil(bestAffordable.cost / bestAffordable.hourly))} settlements to pay back at +${formatCurrency(bestAffordable.hourly)}/hr`
     : (() => {
@@ -609,7 +672,10 @@ function BusinessScreenContent({
         onLedger={onLedger}
       />
     );
-  if (selected?.sector === "Construction_Mega")
+  const selectedRoute = selected
+    ? getBusinessRouteForEntity(selected)
+    : null;
+  if (selectedRoute?.screen === "construction")
     return (
       <ConstructionCompanyScreen
         company={constructionCompany}
@@ -620,7 +686,7 @@ function BusinessScreenContent({
         onLedger={onLedger}
       />
     );
-  if (selected?.sector === "Tech_SaaS")
+  if (selectedRoute?.screen === "software")
     return (
       <SoftwareCompanyScreen
         company={softwareCompany}
@@ -766,7 +832,7 @@ function BusinessScreenContent({
             </View>
             <Pressable
               style={styles.taxiButton}
-              onPress={() => setTaxiOpen(true)}
+              onPress={() => openSpecializedRoute("taxi")}
             >
               <Text style={styles.taxiButtonText}>
                 {taxiCompany ? "MANAGE TAXI" : "START TAXI"}
@@ -789,7 +855,7 @@ function BusinessScreenContent({
             </View>
             <Pressable
               style={styles.shippingButton}
-              onPress={() => setShippingOpen(true)}
+              onPress={() => openSpecializedRoute("shipping")}
             >
               <Text style={styles.shippingButtonText}>
                 {shippingCompany ? "MANAGE SHIPPING" : "START SHIPPING"}
@@ -812,7 +878,7 @@ function BusinessScreenContent({
             </View>
             <Pressable
               style={styles.factoryButton}
-              onPress={() => setFactoryOpen(true)}
+              onPress={() => openSpecializedRoute("factory")}
             >
               <Text style={styles.factoryButtonText}>
                 {factoryCompany ? "MANAGE FACTORY" : "START FACTORY"}
@@ -837,7 +903,7 @@ function BusinessScreenContent({
             </View>
             <Pressable
               style={styles.constructionButton}
-              onPress={() => setConstructionOpen(true)}
+              onPress={() => openSpecializedRoute("construction")}
             >
               <Text style={styles.factoryButtonText}>
                 {constructionCompany
@@ -860,7 +926,7 @@ function BusinessScreenContent({
             </View>
             <Pressable
               style={styles.dealershipButton}
-              onPress={() => setDealershipOpen(true)}
+              onPress={() => openSpecializedRoute("dealership")}
             >
               <Text style={styles.factoryButtonText}>
                 {dealership ? "MANAGE DEALERSHIP" : "START DEALERSHIP"}
@@ -883,7 +949,7 @@ function BusinessScreenContent({
             </View>
             <Pressable
               style={styles.softwareButton}
-              onPress={() => setSoftwareOpen(true)}
+              onPress={() => openSpecializedRoute("software")}
             >
               <Text style={styles.factoryButtonText}>
                 {softwareCompany ? "MANAGE SOFTWARE" : "START SOFTWARE"}
@@ -900,7 +966,7 @@ function BusinessScreenContent({
                   : "Build teams, stadiums, tournaments, sponsorships and a multi-city sports group."}
               </Text>
             </View>
-            <Pressable style={styles.sportsButton} onPress={openSportsClub}>
+            <Pressable style={styles.sportsButton} onPress={() => openSpecializedRoute("sports")}>
               <Text style={styles.factoryButtonText}>{sportsClub ? "MANAGE SPORTS" : "START SPORTS"}</Text>
             </Pressable>
           </View>
@@ -912,7 +978,7 @@ function BusinessScreenContent({
                 {oilGas ? `${oilGas.stage} · ${oilGas.fields} fields · ${oilGas.fuelStations} stations` : "Build fields, refineries, terminals, fuel stations and global energy operations."}
               </Text>
             </View>
-            <Pressable style={styles.oilGasButton} onPress={openOilGas}>
+            <Pressable style={styles.oilGasButton} onPress={() => openSpecializedRoute("oilGas")}>
               <Text style={styles.factoryButtonText}>{oilGas ? "MANAGE ENERGY" : "START ENERGY"}</Text>
             </Pressable>
           </View>
@@ -936,7 +1002,7 @@ function BusinessScreenContent({
                 {airline ? `${airline.stage} · ${airline.aircraft} aircraft · ${airline.routes} routes` : "Build a regional carrier, schedule routes, fill seats and expand into a global airline group."}
               </Text>
             </View>
-            <Pressable style={styles.airlineButton} onPress={openAirline}>
+            <Pressable style={styles.airlineButton} onPress={() => openSpecializedRoute("airline")}>
               <Text style={styles.factoryButtonText}>{airline ? "MANAGE AIRLINE" : "START AIRLINE"}</Text>
             </Pressable>
           </View>
@@ -948,7 +1014,7 @@ function BusinessScreenContent({
                 {hotel ? `${hotel.stage} · ${hotel.properties} properties · ${hotel.rooms} rooms` : "Acquire properties, fill rooms, build guest services and grow an international hospitality group."}
               </Text>
             </View>
-            <Pressable style={styles.hotelButton} onPress={openHotel}>
+            <Pressable style={styles.hotelButton} onPress={() => openSpecializedRoute("hotel")}>
               <Text style={styles.factoryButtonText}>{hotel ? "MANAGE HOTEL" : "START HOTEL"}</Text>
             </Pressable>
           </View>
@@ -960,7 +1026,7 @@ function BusinessScreenContent({
                 {blockchain ? `${blockchain.stage} · ${blockchain.servers} servers · ${blockchain.clients} clients` : "Build infrastructure, research products, launch a reliable platform and win enterprise technology clients."}
               </Text>
             </View>
-            <Pressable style={styles.blockchainButton} onPress={openBlockchain}>
+            <Pressable style={styles.blockchainButton} onPress={() => openSpecializedRoute("blockchain")}>
               <Text style={styles.factoryButtonText}>{blockchain ? "MANAGE TECHNOLOGY" : "START TECHNOLOGY"}</Text>
             </Pressable>
           </View>
@@ -972,7 +1038,7 @@ function BusinessScreenContent({
                 {space ? `${space.stage} · ${space.launches} launches · ${space.satellites} satellites` : "Fund research, build rockets, schedule missions and grow an advanced space enterprise."}
               </Text>
             </View>
-            <Pressable style={styles.spaceButton} onPress={openSpace}>
+            <Pressable style={styles.spaceButton} onPress={() => openSpecializedRoute("space")}>
               <Text style={styles.factoryButtonText}>{space ? "MANAGE AEROSPACE" : "START AEROSPACE"}</Text>
             </Pressable>
           </View>
@@ -984,7 +1050,7 @@ function BusinessScreenContent({
                 {holding ? `${holding.stage} · ${holding.subsidiaries.length} subsidiaries · ${Math.round(holding.synergyRate * 100)}% synergy` : "Consolidate profitable businesses, acquire targets and manage group-wide treasury above the operating companies."}
               </Text>
             </View>
-            <Pressable style={styles.holdingButton} onPress={openHolding}>
+            <Pressable style={styles.holdingButton} onPress={() => openSpecializedRoute("holding")}>
               <Text style={styles.factoryButtonText}>{holding ? "MANAGE GROUP" : "FORM HOLDING"}</Text>
             </Pressable>
           </View>
