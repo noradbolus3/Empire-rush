@@ -36,6 +36,19 @@ console.log(JSON.stringify({
   ledgerEntries: 0,
 }));
 
+const alreadyApproved = completeBankingLicense({
+  business: accepted.business,
+  cash: accepted.cash,
+  timestamp,
+});
+assert.deepEqual(alreadyApproved, { accepted: false, reason: "already-approved" });
+console.log(JSON.stringify({
+  scenario: "already-approved",
+  cashBefore: accepted.cash,
+  stateChanged: false,
+  ledgerEntries: 0,
+}));
+
 const lockKey = `banking:license:phase1-rapid-${Date.now()}`;
 let cash = 600_000;
 let business = base;
