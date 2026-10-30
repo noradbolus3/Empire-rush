@@ -20,6 +20,11 @@ import Svg, {
 import BusinessRegistrationModal from "../components/modals/BusinessRegistrationModal";
 import { useGame } from "../context/GameContext";
 import { simulateBusinessOperations } from "../engine/businessSimulation";
+import {
+  buildCanonicalBusinessRegistry,
+  canonicalActiveCount,
+  canonicalProjectedHourlyNet,
+} from "../engine/canonicalBusinessRegistry";
 import { founderOwnershipFraction } from "../engine/ipoEngine";
 import {
   BusinessEntity,
@@ -79,6 +84,7 @@ type Props = {
   netIncomePerHour: number;
   timestamp: number;
   ipoListing?: IPOListing | null;
+  ipoListings?: Record<string, IPOListing>;
   onIPOComplete: (listing: IPOListing) => void;
   onStateChange?: React.Dispatch<React.SetStateAction<RetailShopState>>;
   onCashChange: React.Dispatch<React.SetStateAction<number>>;
@@ -219,6 +225,7 @@ function BusinessScreenContent({
   netIncomePerHour,
   timestamp,
   ipoListing,
+  ipoListings = {},
   onIPOComplete,
   onCashChange,
   onOpenBank,
@@ -274,6 +281,41 @@ function BusinessScreenContent({
   const [viewMode, setViewMode] = useState<"start" | "companies">("start");
   const celebratedRef = useRef("");
   const constructionElapsed = useRef(0);
+  const canonicalRegistry = useMemo(
+    () =>
+      buildCanonicalBusinessRegistry({
+        businesses,
+        taxiCompany,
+        shippingCompany,
+        factoryCompany,
+        constructionCompany,
+        dealership,
+        softwareCompany,
+        sportsClub,
+        oilGas,
+        airline,
+        hotel,
+        blockchain,
+        space,
+        holding,
+      }),
+    [
+      businesses,
+      taxiCompany,
+      shippingCompany,
+      factoryCompany,
+      constructionCompany,
+      dealership,
+      softwareCompany,
+      sportsClub,
+      oilGas,
+      airline,
+      hotel,
+      blockchain,
+      space,
+      holding,
+    ],
+  );
   useEffect(() => {
     const timer = setInterval(() => {
       constructionElapsed.current += 2;
@@ -309,7 +351,7 @@ function BusinessScreenContent({
     else if (retail) setRegistrationId(retail.id);
     onRetailFocusHandled?.();
   }, [businesses, focusRetail, onRetailFocusHandled]);
-  const activeCount = businesses.filter((item) => item.isAcquired).length;
+  const activeCount = canonicalActiveCount(canonicalRegistry);
   const levelNotice = businesses.find((item) => item.levelUpNotice);
   useEffect(() => {
     if (!levelNotice?.levelUpNotice) return;
@@ -441,12 +483,13 @@ function BusinessScreenContent({
     onLedger?.({ id: `holding-charter-${Date.now()}`, kind: "PURCHASE", label: "Holding Company charter", amount: -setupCost, timestamp: Date.now(), detail: "Corporate headquarters and group treasury reserve" });
     setHoldingOpen(true);
   };
+  const canonicalHourly = canonicalProjectedHourlyNet(canonicalRegistry);
   const nextMove = bestAffordable
     ? `Start ${bestAffordable.item.name} · ~${Math.max(1, Math.ceil(bestAffordable.cost / bestAffordable.hourly))} settlements to pay back at +${formatCurrency(bestAffordable.hourly)}/hr`
     : (() => {
         const next = opportunities[0];
         const shortfall = next ? Math.max(0, next.cost - cash) : 0;
-        const rate = Math.max(0, netIncomePerHour);
+        const rate = Math.max(0, canonicalHourly || netIncomePerHour);
         const settlements =
           rate > 0 ? Math.max(1, Math.ceil(shortfall / rate)) : "—";
         return `affordable in ~${settlements} settlements at +${formatCurrency(rate)}/hr`;
@@ -601,7 +644,7 @@ function BusinessScreenContent({
         cash={cash}
         netWorth={netWorth}
         timestamp={timestamp}
-        ipoListing={ipoListing}
+        ipoListing={ipoListings[selected.id] ?? (ipoListing?.companyId === selected.id ? ipoListing : null)}
         focusRetail={focusRetail}
         onBack={() => setSelectedId(null)}
         onCashChange={onCashChange}

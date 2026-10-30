@@ -22,6 +22,14 @@ import type { TaxiCompanyState } from "../types/taxi";
 import { taxiHourlyEconomics } from "../types/taxi";
 import { itCompanyAssetValue } from "./itCompanyEngine";
 import { bankingCompanyAssetValue } from "./bankingCompanyEngine";
+import {
+  canonicalAssetValue,
+  canonicalSettlementRevenue,
+  buildCanonicalBusinessRegistry,
+  advanceSpecializedBusinessSources,
+  type CanonicalBusiness,
+  type SpecializedBusinessSources,
+} from "./canonicalBusinessRegistry";
 
 export type FinancialGameState = {
   cash: number;
@@ -43,6 +51,8 @@ export type FinancialGameState = {
   lifestyleAssets: CollectionItem[];
   businesses: BusinessEntity[];
   taxiCompany?: TaxiCompanyState | null;
+  businessRegistry?: CanonicalBusiness[];
+  businessSources?: SpecializedBusinessSources;
   systemTimeMs: number;
   multiplier?: number;
 };
@@ -83,25 +93,7 @@ export function calculateNetWorth(state: FinancialGameState): number {
       positive(state.lifestyleAssets.find((item) => item.id === id)?.price),
     0,
   );
-  const businessAssets = (state.businesses || []).reduce((sum, business) => {
-    if (!business.isAcquired) return sum;
-    const inventory =
-      business.sector === "Retail"
-        ? positive(business.stockUnits) *
-          positive(business.unitWholesaleCost ?? 0)
-        : 0;
-    const constructionAssets =
-      business.sector === "Construction_Mega"
-        ? constructionAssetValue(business) - positive(business.acquisitionCost)
-        : 0;
-    return (
-      sum +
-      positive(business.acquisitionCost) +
-      inventory +
-      constructionAssets +
-      positive(business.pendingSettlementAmount)
-    );
-  }, 0);
+  const businessAssets = canonicalAssetValue(getBusinessRegistry(state));
   const deposits = (state.bank.deposits || []).reduce(
     (sum, deposit) =>
       sum + (deposit.status === "ACTIVE" ? positive(deposit.principal) : 0),
@@ -124,6 +116,16 @@ export function calculateNetWorth(state: FinancialGameState): number {
   );
 }
 
+function getBusinessRegistry(state: FinancialGameState): CanonicalBusiness[] {
+  return state.businessRegistry?.length
+    ? state.businessRegistry
+    : buildCanonicalBusinessRegistry({
+        businesses: state.businesses || [],
+        ...(state.businessSources || {}),
+        taxiCompany: state.taxiCompany,
+      });
+}
+
 function entry(
   id: string,
   kind: BankLedgerEntry["kind"],
@@ -135,17 +137,9 @@ function entry(
   return { id, kind, label, amount: round(amount), timestamp, detail };
 }
 function businessRevenue(state: FinancialGameState) {
-  const base = (
-    (state.businesses || []).reduce(
-      (sum, item) =>
-        sum + (item.isAcquired ? positive(item.hourlyNetProfit) : 0),
-      0,
-    ) * (state.multiplier ?? 1));
-  const taxi = state.taxiCompany?.status === "operating"
-    ? Math.max(0, taxiHourlyEconomics(state.taxiCompany).net)
-    : 0;
-  return base + taxi;
+  return canonicalSettlementRevenue(getBusinessRegistry(state)) * (state.multiplier ?? 1);
 }
+
 function savingsInterest(state: FinancialGameState) {
   const event = state.bank.marketEvents?.[state.bank.marketEvents.length - 1];
   const eventBump =
@@ -182,25 +176,34 @@ function investorShare(state: FinancialGameState, revenue: number) {
     0,
   );
 }
-function loanParts(state: FinancialGameState) {
-  return (state.bank.loans || []).filter(isActiveLoan).reduce(
+const HOURS_PER_MONTH = 24 * 30;
+
+function loanPaymentFor(loan: BankLoan, timestamp: number) {
+  if (!isActiveLoan(loan)) return { emi: 0, interest: 0, principal: 0 };
+  const elapsed = Number(loan.settlementsElapsed || 0);
+  const grace = Math.max(0, Number(loan.graceSettlements || 0));
+  const dueAt = Number.isFinite(loan.nextDueAt) ? loan.nextDueAt : timestamp;
+  if (timestamp < dueAt || elapsed < grace)
+    return { emi: 0, interest: 0, principal: 0 };
+  const interest = (positive(loan.balance) * positive(loan.apr)) / 100 / 12;
+  const payment = Math.min(
+    positive(loan.monthlyPayment),
+    positive(loan.balance) + interest,
+  );
+  return {
+    emi: payment,
+    interest: Math.min(payment, interest),
+    principal: Math.max(0, payment - interest),
+  };
+}
+
+function loanParts(state: FinancialGameState, timestamp: number) {
+  return (state.bank.loans || []).reduce(
     (result, loan) => {
-      const elapsed = Number(loan.settlementsElapsed || 0);
-      const grace = Math.max(0, Number(loan.graceSettlements || 0));
-      const interest =
-        elapsed < grace
-          ? 0
-          : (positive(loan.balance) * positive(loan.apr)) / 100 / 12;
-      const payment =
-        elapsed < grace
-          ? 0
-          : Math.min(
-              positive(loan.monthlyPayment),
-              positive(loan.balance) + interest,
-            );
-      result.emi += payment;
-      result.interest += Math.min(payment, interest);
-      result.principal += Math.max(0, payment - interest);
+      const parts = loanPaymentFor(loan, timestamp);
+      result.emi += parts.emi;
+      result.interest += parts.interest;
+      result.principal += parts.principal;
       return result;
     },
     { emi: 0, interest: 0, principal: 0 },
@@ -211,7 +214,7 @@ export function settleHour(state: FinancialGameState): SettlementResult {
   const timestamp = state.systemTimeMs;
   const revenue = businessRevenue(state);
   const interest = savingsInterest(state);
-  const loan = loanParts(state);
+  const loan = loanParts(state, timestamp);
   const premium = (state.bank.insurance || [])
     .filter((item) => item.active)
     .reduce((sum, item) => sum + positive(item.premium) / 30 / 24, 0);
@@ -228,9 +231,9 @@ export function settleHour(state: FinancialGameState): SettlementResult {
     taxableIncome * 24 * 365,
     loan.interest * 24 * 365 + assetUpkeep * 24 * 365 + premium * 24 * 365,
     priorGains,
-    (state.businesses || [])
-      .filter((item) => item.isAcquired && Number(item.staffCount || 0) > 0)
-      .reduce((sum, item) => sum + positive(item.hourlyNetProfit) * 0.2, 0),
+    getBusinessRegistry(state)
+      .filter((item) => item.owned && item.operating)
+      .reduce((sum, item) => sum + item.hourlyNet * 0.2, 0),
   );
   const taxAccrual =
     tax.federal / 8760 +
@@ -269,14 +272,19 @@ export function settleHour(state: FinancialGameState): SettlementResult {
       : 0;
   const loanUpdates = (state.bank.loans || []).map((item) => {
     if (!isActiveLoan(item)) return item;
-    const nextBalance = Math.max(0, item.balance - loanParts(state).principal);
+    const parts = loanPaymentFor(item, timestamp);
+    const nextBalance = Math.max(0, item.balance - parts.principal);
     const nextElapsed = Number(item.settlementsElapsed || 0) + 1;
     return {
       ...item,
       balance: round(nextBalance),
       settlementsElapsed: nextElapsed,
       status: nextBalance <= 0.01 ? ("paid_off" as const) : item.status,
-      nextDueAt: item.nextDueAt + 3600000,
+      nextDueAt:
+        parts.emi > 0
+          ? (Number.isFinite(item.nextDueAt) ? item.nextDueAt : timestamp) +
+            HOURS_PER_MONTH * 3600000
+          : item.nextDueAt,
     };
   });
   const taxRecords: TaxRecord[] = [
@@ -377,9 +385,30 @@ export function settleHour(state: FinancialGameState): SettlementResult {
     assetUpkeep -
     share;
   const projectedHourlyNet = cashDelta;
+  const nextBusinesses = (state.businesses || []).map((business) =>
+    business.pendingSettlementAmount
+      ? { ...business, pendingSettlementAmount: 0 }
+      : business,
+  );
+  const nextBusinessSources = state.businessSources
+    ? advanceSpecializedBusinessSources(state.businessSources)
+    : undefined;
+  const nextRegistry = nextBusinessSources
+    ? buildCanonicalBusinessRegistry({
+        businesses: nextBusinesses,
+        ...nextBusinessSources,
+      })
+    : getBusinessRegistry(state).map((business) =>
+        business.pendingSettlementAmount
+          ? { ...business, pendingSettlementAmount: 0 }
+          : business,
+      );
   return {
     state: {
       ...state,
+      businessRegistry: nextRegistry,
+      businesses: nextBusinesses,
+      businessSources: nextBusinessSources,
       bank: {
         ...state.bank,
         loans: loanUpdates,

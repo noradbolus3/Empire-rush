@@ -127,7 +127,11 @@ import {
 import { defaultBankState } from "./src/types/bank";
 import type { BankLedgerEntry } from "./src/types/bank";
 import { sanitizeBankState } from "./src/engine/bankEngine";
-import { calculateNetWorth, settleHour } from "./src/engine/financialCore";
+import {
+  calculateNetWorth,
+  settleHour,
+  type FinancialGameState,
+} from "./src/engine/financialCore";
 import { designSystem } from "./src/theme/designSystem";
 type Tab = "empire" | "business" | "markets" | "lifestyle" | "bank";
 type Filter = "dividend" | "cheap" | "crypto" | "watchlist" | "all";
@@ -283,7 +287,37 @@ const normalizeMarketAsset = (asset: Asset): Asset => {
 
 function AppContent() {
   const insets = useSafeAreaInsets();
-  const { resetBusinesses, businesses, setBusinesses, taxiCompany } = useGame();
+  const {
+    resetBusinesses,
+    businesses,
+    setBusinesses,
+    taxiCompany,
+    setTaxiCompany,
+    shippingCompany,
+    setShippingCompany,
+    factoryCompany,
+    setFactoryCompany,
+    constructionCompany,
+    setConstructionCompany,
+    dealership,
+    setDealership,
+    softwareCompany,
+    setSoftwareCompany,
+    sportsClub,
+    setSportsClub,
+    oilGas,
+    setOilGas,
+    airline,
+    setAirline,
+    hotel,
+    setHotel,
+    blockchain,
+    setBlockchain,
+    space,
+    setSpace,
+    holding,
+    setHolding,
+  } = useGame();
   const { isOnline, clockTampered } = useNetwork();
   const clockTamperedRef = useRef(clockTampered);
   const boostTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -310,6 +344,7 @@ function AppContent() {
     hydrateDailyProgress(DEFAULT_PROGRESSION),
   );
   const [ipoListing, setIpoListing] = useState<IPOListing | null>(null);
+  const [ipoListings, setIpoListings] = useState<Record<string, IPOListing>>({});
   const [ipoCelebration, setIpoCelebration] = useState<IPOListing | null>(null);
   const [clickValue, setClickValue] = useState(1);
   const [tapUpgradeLevel, setTapUpgradeLevel] = useState(0);
@@ -354,6 +389,7 @@ function AppContent() {
     | undefined
   >(undefined);
   const missionClaimLock = useRef(false);
+  const ipoCompletionLock = useRef(new Set<string>());
   const [storeOpen, setStoreOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [hapticsEnabled, setHapticsEnabled] = useState(true);
@@ -441,6 +477,20 @@ function AppContent() {
       lifestyleAssets,
       businesses,
       taxiCompany,
+      businessSources: {
+        shippingCompany: shippingCompany ?? null,
+        factoryCompany: factoryCompany ?? null,
+        constructionCompany: constructionCompany ?? null,
+        dealership: dealership ?? null,
+        softwareCompany: softwareCompany ?? null,
+        sportsClub: sportsClub ?? null,
+        oilGas: oilGas ?? null,
+        airline: airline ?? null,
+        hotel: hotel ?? null,
+        blockchain: blockchain ?? null,
+        space: space ?? null,
+        holding: holding ?? null,
+      },
       systemTimeMs,
       multiplier,
     }),
@@ -452,6 +502,18 @@ function AppContent() {
       owned,
       businesses,
       taxiCompany,
+      shippingCompany,
+      factoryCompany,
+      constructionCompany,
+      dealership,
+      softwareCompany,
+      sportsClub,
+      oilGas,
+      airline,
+      hotel,
+      blockchain,
+      space,
+      holding,
       systemTimeMs,
       multiplier,
     ],
@@ -642,6 +704,16 @@ function AppContent() {
             },
           );
           setIpoListing(saved?.ipoListing || null);
+          const savedListings =
+            saved?.ipoListings && typeof saved.ipoListings === "object"
+              ? (saved.ipoListings as Record<string, IPOListing>)
+              : saved?.ipoListing?.companyId
+                ? { [saved.ipoListing.companyId]: saved.ipoListing }
+                : {};
+          setIpoListings(savedListings);
+          Object.keys(savedListings).forEach((companyId) =>
+            ipoCompletionLock.current.add(companyId),
+          );
           setProgression(hydrateDailyProgress(saved?.progression));
           setAdFree(Boolean(saved?.adFree));
           setHapticsEnabled(saved?.hapticsEnabled !== false);
@@ -674,6 +746,7 @@ function AppContent() {
           setHoldings({});
           setOwned([]);
           setIpoListing(null);
+          setIpoListings({});
           setBankState(defaultBankState());
           setFounderProfile(null);
           setOnboardingComplete(false);
@@ -701,6 +774,24 @@ function AppContent() {
     );
   }, [ipoListing, netWorth]);
   useEffect(() => {
+    const listings = Object.values(ipoListings);
+    if (!listings.length) return;
+    const safeListings = listings.map((listing) => capIPOProceeds(listing, netWorth));
+    const changed = safeListings.some((listing) => {
+      const current = ipoListings[listing.companyId];
+      return current?.capitalRaised !== listing.capitalRaised || current?.currentPrice !== listing.currentPrice;
+    });
+    if (changed) {
+      setIpoListings(Object.fromEntries(safeListings.map((listing) => [listing.companyId, listing])));
+      return;
+    }
+    const missing = safeListings.filter((listing) =>
+      !assets.some((asset) => asset.id === `ipo-${listing.companyId}`),
+    );
+    if (missing.length)
+      setAssets((list) => [...list, ...missing.map((listing) => listingToAsset(listing) as Asset)]);
+  }, [assets, ipoListings, netWorth]);
+  useEffect(() => {
     latestState.current = {
       schemaVersion: GAME_SAVE_VERSION,
       timeModel: "system-clock-v1",
@@ -723,6 +814,7 @@ function AppContent() {
       clickLevel: tapUpgradeLevel,
       retail,
       ipoListing,
+      ipoListings,
       progression,
       adFree,
       multiplier,
@@ -748,6 +840,7 @@ function AppContent() {
     tapUpgradeLevel,
     retail,
     ipoListing,
+    ipoListings,
     progression,
     adFree,
     multiplier,
@@ -809,7 +902,7 @@ function AppContent() {
       Math.floor(Math.max(0, systemTimeMs - lastSettlementAtMs) / 3600000),
     );
     if (elapsedHours <= 0) return;
-    let cursor = financialState;
+    let cursor: FinancialGameState = financialState;
     let totalDelta = 0;
     let allEntries: BankLedgerEntry[] = [];
     for (let hour = 0; hour < elapsedHours; hour += 1) {
@@ -847,6 +940,21 @@ function AppContent() {
         ),
       ledger: [...previous.ledger, ...allEntries].slice(-500),
     }));
+    const sources = cursor.businessSources;
+    if (sources) {
+      setShippingCompany(sources.shippingCompany ?? null);
+      setFactoryCompany(sources.factoryCompany ?? null);
+      setConstructionCompany(sources.constructionCompany ?? null);
+      setDealership(sources.dealership ?? null);
+      setSoftwareCompany(sources.softwareCompany ?? null);
+      setSportsClub(sources.sportsClub ?? null);
+      setOilGas(sources.oilGas ?? null);
+      setAirline(sources.airline ?? null);
+      setHotel(sources.hotel ?? null);
+      setBlockchain(sources.blockchain ?? null);
+      setSpace(sources.space ?? null);
+      setHolding(sources.holding ?? null);
+    }
     if (totalDelta > 0)
       pushIncomeEvent({
         source: "Unified settlement",
@@ -1186,13 +1294,19 @@ function AppContent() {
   };
   const completeIPO = (listing: IPOListing) => {
     if (
-      ipoListing?.companyId === listing.companyId &&
-      ipoListing.stage === "public"
+      ipoCompletionLock.current.has(listing.companyId) ||
+      ipoListings[listing.companyId]?.stage === "public" ||
+      (ipoListing?.companyId === listing.companyId && ipoListing.stage === "public")
     )
       return;
+    ipoCompletionLock.current.add(listing.companyId);
     const safeListing = capIPOProceeds(listing, netWorth);
     haptic(true);
     setIpoListing(safeListing);
+    setIpoListings((current) => ({
+      ...current,
+      [safeListing.companyId]: safeListing,
+    }));
     setIpoCelebration(safeListing);
     setProgression((current) => ({
       ...current,
@@ -1207,6 +1321,14 @@ function AppContent() {
     guardedSetCash((value) =>
       Math.min(Number.MAX_SAFE_INTEGER, value + safeListing.capitalRaised),
     );
+    postLedger({
+      id: `ledger-ipo-${safeListing.companyId}`,
+      kind: "INVESTOR",
+      label: `${safeListing.companyName} IPO proceeds`,
+      amount: safeListing.capitalRaised,
+      timestamp: safeListing.listedAtTimestamp,
+      detail: `${safeListing.ticker} public offering · founder ownership ${Math.round((safeListing.founderOwnershipFraction ?? 0.8) * 100)}%`,
+    });
     pushIncomeEvent({
       source: `${safeListing.companyName} IPO`,
       amount: safeListing.capitalRaised,
@@ -1542,6 +1664,7 @@ function AppContent() {
               netIncomePerHour={projectedHourlyIncome}
               timestamp={systemTimeMs}
               ipoListing={ipoListing}
+              ipoListings={ipoListings}
               onIPOComplete={completeIPO}
               focusRetail={focusRetail}
               onRetailFocusHandled={() => setFocusRetail(false)}
