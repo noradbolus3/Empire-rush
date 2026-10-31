@@ -51,8 +51,13 @@ import type { CanonicalBusiness } from "../engine/canonicalBusinessRegistry";
 import { getBusinessDisplayMeta } from "../data/businessDisplayCatalog";
 import { BusinessPortfolioCard } from "../components/business/BusinessPortfolioCard";
 import {
+  buildUnifiedBusinessPortfolio,
+  portfolioStatus,
+  portfolioUnlockShortfall,
+  sourceBusinessForPortfolioRecord,
+} from "../engine/businessPortfolio";
+import {
   BUSINESS_PORTFOLIO_ROUTE_ID,
-  BUSINESS_ROUTE_CATALOG,
   getBusinessRouteByKind,
 } from "./business/businessRouteCatalog";
 import type { BusinessRouteScreen } from "./business/businessRouteCatalog";
@@ -72,7 +77,7 @@ const C = {
   ink: designSystem.colors.heading,
 };
 type Props = {
-  routeId: typeof BUSINESS_PORTFOLIO_ROUTE_ID;
+  routeId?: typeof BUSINESS_PORTFOLIO_ROUTE_ID;
   state?: RetailShopState;
   cash: number;
   netWorth: number;
@@ -163,7 +168,7 @@ export function BusinessScreen(props: Props) {
 }
 
 function BusinessScreenContent({
-  routeId,
+  routeId = BUSINESS_PORTFOLIO_ROUTE_ID,
   cash,
   netWorth,
   netIncomePerHour,
@@ -326,29 +331,10 @@ function BusinessScreenContent({
     .filter((entry) => entry.hourly > 0)
     .sort((a, b) => a.cost / a.hourly - b.cost / b.hourly);
   const bestAffordable = opportunities.find((entry) => entry.cost <= cash);
-  const portfolioRows = useMemo(() => {
-    const rows: CanonicalBusiness[] = [...canonicalRegistry];
-    for (const route of BUSINESS_ROUTE_CATALOG) {
-      if (route.kind === "generic") continue;
-      if (!rows.some((record) => record.kind === route.kind)) {
-        rows.push({
-          id: route.routeId,
-          name: getBusinessDisplayMeta(route.kind).shortLabel,
-          kind: route.kind,
-          owned: false,
-          operating: false,
-          hourlyRevenue: 0,
-          hourlyExpenses: 0,
-          hourlyNet: 0,
-          pendingSettlementAmount: 0,
-          assetValue: 0,
-          consolidatesOtherBusinesses: route.kind === "holding",
-          source: "specialized-state",
-        });
-      }
-    }
-    return rows;
-  }, [canonicalRegistry]);
+  const portfolioRows = useMemo(
+    () => buildUnifiedBusinessPortfolio(canonicalRegistry, businesses),
+    [businesses, canonicalRegistry],
+  );
   const openSportsClub = () => {
     if (sportsClub) return setSportsOpen(true);
     const setupCost = 250000;
@@ -480,30 +466,23 @@ function BusinessScreenContent({
         return;
     }
   };
-  const sourceBusinessFor = (record: CanonicalBusiness) =>
-    businesses.find((item) => item.id === record.id) ?? null;
-  const portfolioStatus = (record: CanonicalBusiness) => {
-    if (record.owned) return "owned" as const;
-    const source = sourceBusinessFor(record);
-    if (source && !(source.isUnlocked || netWorth >= source.unlockNetWorthRequired)) {
-      return "locked" as const;
-    }
-    return "available" as const;
-  };
   const openPortfolioRecord = (record: CanonicalBusiness) => {
-    if (portfolioStatus(record) === "locked") return;
+    if (portfolioStatus(record, businesses, netWorth) === "locked") return;
     if (record.owned) {
       if (record.kind === "generic") setSelectedId(record.id);
       else openSpecializedRoute(getBusinessRouteByKind(record.kind).screen as Exclude<BusinessRouteScreen, "portfolio" | "business-master-hub">);
       return;
     }
-    const source = sourceBusinessFor(record);
+    if (record.kind !== "generic") {
+      openSpecializedRoute(getBusinessRouteByKind(record.kind).screen as Exclude<BusinessRouteScreen, "portfolio" | "business-master-hub">);
+      return;
+    }
+    const source = sourceBusinessForPortfolioRecord(record, businesses);
     if (source) setRegistrationId(source.id);
-    else openSpecializedRoute(getBusinessRouteByKind(record.kind).screen as Exclude<BusinessRouteScreen, "portfolio" | "business-master-hub">);
   };
-  const ownedRows = portfolioRows.filter((record) => portfolioStatus(record) === "owned");
-  const availableRows = portfolioRows.filter((record) => portfolioStatus(record) === "available");
-  const lockedRows = portfolioRows.filter((record) => portfolioStatus(record) === "locked");
+  const ownedRows = portfolioRows.filter((record) => portfolioStatus(record, businesses, netWorth) === "owned");
+  const availableRows = portfolioRows.filter((record) => portfolioStatus(record, businesses, netWorth) === "available");
+  const lockedRows = portfolioRows.filter((record) => portfolioStatus(record, businesses, netWorth) === "locked");
   const nextMove = bestAffordable
     ? `Start ${bestAffordable.item.name} · ~${Math.max(1, Math.ceil(bestAffordable.cost / bestAffordable.hourly))} settlements to pay back at +${formatCurrency(bestAffordable.hourly)}/hr`
     : (() => {
@@ -803,7 +782,7 @@ function BusinessScreenContent({
             />
             <SummaryMetric
               label="COMPANIES"
-              value={`${activeCount} / ${businesses.length}`}
+              value={`${activeCount} / ${canonicalRegistry.length}`}
             />
           </View>
           <View style={styles.sectionHead}>
@@ -830,7 +809,6 @@ function BusinessScreenContent({
           <View style={styles.portfolioGroup}>
             <Text style={styles.portfolioGroupTitle}>AVAILABLE · {availableRows.length}</Text>
             {availableRows.map((record) => {
-              const source = sourceBusinessFor(record);
               return (
                 <BusinessPortfolioCard
                   key={`available-${record.id}`}
@@ -839,7 +817,7 @@ function BusinessScreenContent({
                   status="available"
                   actionLabel={record.source === "generic-state" ? "INCORPORATE" : "START"}
                   onPress={() => openPortfolioRecord(record)}
-                  unlockShortfall={source ? Math.max(0, source.unlockNetWorthRequired - netWorth) : 0}
+                  unlockShortfall={portfolioUnlockShortfall(record, businesses, netWorth)}
                 />
               );
             })}
@@ -848,14 +826,13 @@ function BusinessScreenContent({
             <View style={styles.portfolioGroup}>
               <Text style={styles.portfolioGroupTitle}>LOCKED · {lockedRows.length}</Text>
               {lockedRows.map((record) => {
-                const source = sourceBusinessFor(record);
                 return (
                   <BusinessPortfolioCard
                     key={`locked-${record.id}`}
                     record={record}
                     display={getBusinessDisplayMeta(record.kind)}
                     status="locked"
-                    unlockShortfall={source ? Math.max(0, source.unlockNetWorthRequired - netWorth) : 0}
+                    unlockShortfall={portfolioUnlockShortfall(record, businesses, netWorth)}
                   />
                 );
               })}
