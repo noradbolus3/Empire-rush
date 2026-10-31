@@ -13,6 +13,7 @@ import {
   View,
 } from "react-native";
 import { ChipRow } from "../components/ChipRow";
+import { FOUNDER_BANK_LABEL } from "../navigation/navigationContract";
 import {
   achievementIds,
   addLedger,
@@ -604,7 +605,7 @@ export default function BankScreen({
     <View style={styles.root}>
       <View style={styles.moduleHead}>
         <View>
-          <Text style={styles.eyebrow}>SIMULATED, FICTIONAL BANKING</Text>
+          <Text style={styles.eyebrow}>{FOUNDER_BANK_LABEL} · PERSONAL TREASURY</Text>
           <Text style={styles.title}>{current}</Text>
         </View>
         <Text style={styles.bankMark}>▥</Text>

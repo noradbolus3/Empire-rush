@@ -2,6 +2,8 @@ import React from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { designSystem } from "../../theme/designSystem";
+import { ScreenBackButton, ScreenScrollView } from "../ScreenPrimitives";
+import { SCREEN_BOTTOM_PADDING } from "../../navigation/navigationContract";
 
 type ShellTab = { id: string; label: string };
 
@@ -22,14 +24,8 @@ export function SpecializedBusinessShell({ eyebrow, title, monogram, tabs = [], 
   return (
     <View style={styles.root}>
       <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
-        >
-          <Pressable onPress={onBack} accessibilityRole="button" accessibilityLabel="Back to business registry" style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
-            <Text style={styles.back}>‹ BUSINESS REGISTRY</Text>
-          </Pressable>
+        <ScreenScrollView contentContainerStyle={styles.content}>
+          <ScreenBackButton onPress={onBack} label="‹ BUSINESS PORTFOLIO" style={styles.backButton} textStyle={styles.back} />
           <View style={styles.brandRow}>
             <View style={styles.logo}><Text style={styles.logoText}>{monogram}</Text></View>
             <View style={styles.brandCopy}>
@@ -61,7 +57,7 @@ export function SpecializedBusinessShell({ eyebrow, title, monogram, tabs = [], 
             </ScrollView>
           )}
           {children}
-        </ScrollView>
+        </ScreenScrollView>
       </SafeAreaView>
     </View>
   );
@@ -70,7 +66,7 @@ export function SpecializedBusinessShell({ eyebrow, title, monogram, tabs = [], 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   safe: { flex: 1 },
-  content: { padding: designSystem.spacing.screen, paddingBottom: 124 },
+  content: { padding: designSystem.spacing.screen, paddingBottom: SCREEN_BOTTOM_PADDING },
   backButton: { minHeight: 32, justifyContent: "center", alignSelf: "flex-start", marginBottom: 10 },
   back: { color: colors.primary, fontSize: 11, fontWeight: "900", letterSpacing: 0.8 },
   brandRow: { flexDirection: "row", alignItems: "center", marginBottom: 14 },

@@ -28,6 +28,7 @@ const businessHub = read('src/screens/business/BusinessMasterHubScreen.tsx');
 const ipoModal = read('src/components/modals/IPOLaunchModal.tsx');
 const lifestyleScreen = read('src/screens/LifestyleScreen.tsx');
 const bankScreen = read('src/screens/BankScreen.tsx');
+const navigationContract = read('src/navigation/navigationContract.ts');
 const realTimeEngine = read('src/engine/realTimeEngine.ts');
 const screenBarrel = read('src/screens/index.ts');
 const engineBarrel = read('src/engine/index.ts');
@@ -117,7 +118,8 @@ assert.equal(STARTING_CASH, 1_000, 'economy: new founder starting cash drifted')
 assert.equal(RETAIL_ENTRY_COST, 500, 'economy: Retail entry cost drifted');
 assert.equal(IPO_MIN_NET_WORTH, 10_000_000, 'IPO: late-game net-worth gate drifted');
 assert.equal(IPO_MAX_NET_WORTH_PROCEEDS_MULTIPLE, 0.5, 'IPO: proceeds shortcut cap drifted');
-assert.match(app, /\[\"bank\",\s*\"[^\"]+\",\s*\"BANK\"\]/, 'bank: bottom navigation route missing');
+assert.match(app, /APP_TABS\.map/, 'bank: shared bottom navigation contract is not mounted');
+assert.match(navigationContract, /id: \"bank\"[\s\S]*label: \"BANK\"/, 'bank: bottom navigation route missing');
 assert.match(bankScreen, /High-Yield Savings/, 'bank: savings account missing');
 assert.match(bankScreen, /LOAN PRODUCTS/, 'bank: loan products missing');
 assert.match(bankScreen, /CAP TABLE/, 'bank: investor cap table missing');

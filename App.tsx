@@ -138,7 +138,8 @@ import {
 import { buildCanonicalBusinessRegistry, canonicalActiveCount, canonicalProjectedHourlyNet } from "./src/engine/canonicalBusinessRegistry";
 import { completeIPOTransaction } from "./src/engine/ipoCompletion";
 import { designSystem } from "./src/theme/designSystem";
-type Tab = "empire" | "business" | "markets" | "lifestyle" | "bank";
+import { APP_TABS, type AppTab } from "./src/navigation/navigationContract";
+type Tab = AppTab;
 type Filter = "dividend" | "cheap" | "crypto" | "watchlist" | "all";
 const C = {
   bg: designSystem.colors.background,
@@ -2160,18 +2161,13 @@ function SettingRow({
 function Nav({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
   return (
     <View style={styles.nav}>
-      {(
-        [
-          ["empire", "⌂", "EMPIRE"],
-          ["business", "◈", "BUSINESS"],
-          ["markets", "↗", "MARKETS"],
-          ["lifestyle", "◇", "LIFESTYLE"],
-          ["bank", "▥", "BANK"],
-        ] as const
-      ).map(([key, icon, label]) => (
+      {APP_TABS.map(({ id: key, icon, label, accessibilityLabel }) => (
         <Pressable
           key={key}
           onPress={() => setTab(key)}
+          accessibilityRole="tab"
+          accessibilityLabel={accessibilityLabel}
+          accessibilityState={{ selected: tab === key }}
           style={({ pressed }) => [
             styles.navItem,
             tab === key && styles.navOn,
