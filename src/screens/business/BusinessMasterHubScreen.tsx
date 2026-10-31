@@ -31,6 +31,7 @@ import { BusinessUpgradePanel } from "../../components/business/BusinessUpgradeP
 import { BusinessAnalyticsPanel } from "../../components/business/BusinessAnalyticsPanel";
 import ITSoftwareCompanyScreen from "./ITSoftwareCompanyScreen";
 import BankingCompanyScreen from "./BankingCompanyScreen";
+import { getBusinessDisplayMeta } from "../../data/businessDisplayCatalog";
 
 const C = { bg: designSystem.colors.background, card: designSystem.colors.card, panel: designSystem.colors.highlight, slate: designSystem.colors.border, green: designSystem.colors.primary, cyan: designSystem.colors.cyan, red: designSystem.colors.negative, white: designSystem.colors.heading, muted: designSystem.colors.secondary, gold: designSystem.colors.gold, violet: designSystem.colors.violet };
 type Props = {
@@ -62,6 +63,15 @@ export function BusinessMasterHubScreen({
 }: Props) {
   const companyListing =
     ipoListing?.companyId === business.id ? ipoListing : null;
+  const display = getBusinessDisplayMeta(
+    business.sector === "Construction_Mega"
+      ? "construction"
+      : business.sector === "Tech_SaaS"
+        ? "software"
+        : business.sector === "Banking"
+          ? "generic"
+          : "generic",
+  );
   const [ipoOpen, setIpoOpen] = React.useState(false);
   const [level2Tab, setLevel2Tab] = React.useState<"units" | "finance">(
     "units",
@@ -146,7 +156,7 @@ export function BusinessMasterHubScreen({
             <Text style={styles.back}>‹ BUSINESS REGISTRY</Text>
           </Pressable>
           <Text style={styles.eyebrow}>
-            {business.sector.toUpperCase()} · LIVE OPERATIONS
+            {display.categoryLabel} · LIVE OPERATIONS
           </Text>
           <View style={styles.titleRow}>
             <View style={{ flex: 1 }}>

@@ -48,6 +48,14 @@ assert(
   (app.match(/BusinessScreen as RetailBusinessScreen/g) ?? []).length === 1,
   "App must alias the BusinessScreen component only once",
 );
+assert(
+  businessScreen.includes("<BusinessPortfolioCard"),
+  "BusinessScreen must render the shared canonical portfolio card",
+);
+assert(
+  !businessScreen.includes("<BusinessCard"),
+  "Legacy BusinessCard renderer must not remain active",
+);
 
 const specializedScreens = BUSINESS_ROUTE_CATALOG.filter(
   (entry) => entry.supportsDirectLaunch,
@@ -58,8 +66,12 @@ for (const entry of specializedScreens) {
     `${entry.kind} route is missing from the canonical launch dispatcher`,
   );
   assert(
-    businessScreen.includes(`onPress={() => openSpecializedRoute("${entry.screen}")}`),
-    `${entry.kind} portfolio action is not routed through the catalog dispatcher`,
+    businessScreen.includes("onPress={() => openPortfolioRecord(record)}"),
+    `${entry.kind} portfolio card is not routed through the canonical portfolio dispatcher`,
+  );
+  assert(
+    businessScreen.includes("getBusinessRouteByKind(record.kind)"),
+    `${entry.kind} portfolio dispatcher does not resolve through the route catalog`,
   );
   assert(
     businessScreen.includes(BUSINESS_ROUTE_BACK_HANDLERS[entry.screen]),

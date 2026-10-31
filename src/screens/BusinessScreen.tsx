@@ -9,14 +9,6 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import Svg, {
-  Circle,
-  Defs,
-  LinearGradient,
-  Path,
-  Rect,
-  Stop,
-} from "react-native-svg";
 import BusinessRegistrationModal from "../components/modals/BusinessRegistrationModal";
 import { useGame } from "../context/GameContext";
 import {
@@ -51,16 +43,19 @@ import SpaceCompanyScreen from "./SpaceCompanyScreen";
 import HoldingCompanyScreen from "./HoldingCompanyScreen";
 import {
   clearLevelUpNotice,
-  levelConfig,
   normalizeBusinessLevel,
 } from "../engine/businessLevels";
 import { designSystem } from "../theme/designSystem";
 import { buildCanonicalBusinessRegistry, canonicalActiveCount } from "../engine/canonicalBusinessRegistry";
+import type { CanonicalBusiness } from "../engine/canonicalBusinessRegistry";
+import { getBusinessDisplayMeta } from "../data/businessDisplayCatalog";
+import { BusinessPortfolioCard } from "../components/business/BusinessPortfolioCard";
 import {
   BUSINESS_PORTFOLIO_ROUTE_ID,
-  getBusinessRouteForEntity,
-  getBusinessRouteForScreen,
+  BUSINESS_ROUTE_CATALOG,
+  getBusinessRouteByKind,
 } from "./business/businessRouteCatalog";
+import type { BusinessRouteScreen } from "./business/businessRouteCatalog";
 
 const C = {
   bg: designSystem.colors.background,
@@ -105,58 +100,6 @@ const accent: Record<BusinessEntity["sector"], string> = {
   Sports: "#FB923C",
   Airline: "#60A5FA",
   Banking: "#1769AA",
-};
-const iconAccent: Record<BusinessEntity["sector"], string> = {
-  Retail: "#63B49C",
-  Mobility: "#C39A5B",
-  Tech_SaaS: "#9B8BC3",
-  Construction_Mega: "#6FA8C7",
-  Real_Estate: "#6EAAC7",
-  Energy: "#C9A85A",
-  Pharma: "#C9828A",
-  Media: "#A68BC5",
-  Sports: "#C7936E",
-  Airline: "#7EA5C5",
-  Banking: "#6F9BC4",
-};
-const sectorLabel: Record<BusinessEntity["sector"], string> = {
-  Retail: "RETAIL",
-  Mobility: "MOBILITY",
-  Tech_SaaS: "TECH",
-  Construction_Mega: "INFRASTRUCTURE",
-  Real_Estate: "REAL ESTATE",
-  Energy: "ENERGY",
-  Pharma: "PHARMA",
-  Media: "MEDIA",
-  Sports: "SPORTS",
-  Airline: "AIRLINE",
-  Banking: "BANKING",
-};
-const tierLabel: Record<BusinessEntity["sector"], string> = {
-  Retail: "STARTER",
-  Mobility: "GROWTH",
-  Tech_SaaS: "SCALE",
-  Construction_Mega: "TITAN",
-  Real_Estate: "ASSET",
-  Energy: "UTILITY",
-  Pharma: "SCIENCE",
-  Media: "CULTURE",
-  Sports: "MOMENTUM",
-  Airline: "GLOBAL",
-  Banking: "FINANCE",
-};
-const sectorDescription: Record<BusinessEntity["sector"], string> = {
-  Retail: "Stock shelves, price smart, and compound daily footfall.",
-  Mobility: "Build a city fleet where surge pricing meets reliability.",
-  Tech_SaaS: "Turn subscribers and uptime into recurring software cashflow.",
-  Construction_Mega: "Win tenders, manage phases, and release escrow payouts.",
-  Real_Estate: "Own property branches and capture dependable rental demand.",
-  Energy: "Sell grid capacity as American infrastructure modernizes.",
-  Pharma: "Fund trials, protect trust, and commercialize breakthroughs.",
-  Media: "Convert attention, contracts, and viral reach into revenue.",
-  Sports: "Monetize fans, events, and championship momentum.",
-  Airline: "Operate a national route network with premium demand.",
-  Banking: "Grow deposits, manage credit risk, and compound trusted capital.",
 };
 const unlockMilestones = [
   {
@@ -285,7 +228,6 @@ function BusinessScreenContent({
   const [spaceOpen, setSpaceOpen] = useState(false);
   const [holdingOpen, setHoldingOpen] = useState(false);
   const [registrationId, setRegistrationId] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<"start" | "companies">("start");
   const celebratedRef = useRef("");
   const selected = useMemo(
     () =>
@@ -354,7 +296,6 @@ function BusinessScreenContent({
   const nextGoal =
     nextUnlock?.unlockNetWorthRequired || Math.max(netWorth * 1.5, 100000);
   const progress = Math.min(1, netWorth / Math.max(nextGoal, 1));
-  const ownedBusinesses = businesses.filter((item) => item.isAcquired);
   const businessCost = (item: BusinessEntity) =>
     Math.max(0, item.acquisitionCost);
   const estimatedHourly = (item: BusinessEntity) => {
@@ -385,6 +326,29 @@ function BusinessScreenContent({
     .filter((entry) => entry.hourly > 0)
     .sort((a, b) => a.cost / a.hourly - b.cost / b.hourly);
   const bestAffordable = opportunities.find((entry) => entry.cost <= cash);
+  const portfolioRows = useMemo(() => {
+    const rows: CanonicalBusiness[] = [...canonicalRegistry];
+    for (const route of BUSINESS_ROUTE_CATALOG) {
+      if (route.kind === "generic") continue;
+      if (!rows.some((record) => record.kind === route.kind)) {
+        rows.push({
+          id: route.routeId,
+          name: getBusinessDisplayMeta(route.kind).shortLabel,
+          kind: route.kind,
+          owned: false,
+          operating: false,
+          hourlyRevenue: 0,
+          hourlyExpenses: 0,
+          hourlyNet: 0,
+          pendingSettlementAmount: 0,
+          assetValue: 0,
+          consolidatesOtherBusinesses: route.kind === "holding",
+          source: "specialized-state",
+        });
+      }
+    }
+    return rows;
+  }, [canonicalRegistry]);
   const openSportsClub = () => {
     if (sportsClub) return setSportsOpen(true);
     const setupCost = 250000;
@@ -470,10 +434,7 @@ function BusinessScreenContent({
     setHoldingOpen(true);
   };
   const openSpecializedRoute = (
-    screen: Exclude<
-      ReturnType<typeof getBusinessRouteForScreen>,
-      null
-    >["screen"],
+    screen: Exclude<BusinessRouteScreen, "portfolio" | "business-master-hub">,
   ) => {
     switch (screen) {
       case "taxi":
@@ -519,6 +480,30 @@ function BusinessScreenContent({
         return;
     }
   };
+  const sourceBusinessFor = (record: CanonicalBusiness) =>
+    businesses.find((item) => item.id === record.id) ?? null;
+  const portfolioStatus = (record: CanonicalBusiness) => {
+    if (record.owned) return "owned" as const;
+    const source = sourceBusinessFor(record);
+    if (source && !(source.isUnlocked || netWorth >= source.unlockNetWorthRequired)) {
+      return "locked" as const;
+    }
+    return "available" as const;
+  };
+  const openPortfolioRecord = (record: CanonicalBusiness) => {
+    if (portfolioStatus(record) === "locked") return;
+    if (record.owned) {
+      if (record.kind === "generic") setSelectedId(record.id);
+      else openSpecializedRoute(getBusinessRouteByKind(record.kind).screen as Exclude<BusinessRouteScreen, "portfolio" | "business-master-hub">);
+      return;
+    }
+    const source = sourceBusinessFor(record);
+    if (source) setRegistrationId(source.id);
+    else openSpecializedRoute(getBusinessRouteByKind(record.kind).screen as Exclude<BusinessRouteScreen, "portfolio" | "business-master-hub">);
+  };
+  const ownedRows = portfolioRows.filter((record) => portfolioStatus(record) === "owned");
+  const availableRows = portfolioRows.filter((record) => portfolioStatus(record) === "available");
+  const lockedRows = portfolioRows.filter((record) => portfolioStatus(record) === "locked");
   const nextMove = bestAffordable
     ? `Start ${bestAffordable.item.name} · ~${Math.max(1, Math.ceil(bestAffordable.cost / bestAffordable.hourly))} settlements to pay back at +${formatCurrency(bestAffordable.hourly)}/hr`
     : (() => {
@@ -672,8 +657,11 @@ function BusinessScreenContent({
         onLedger={onLedger}
       />
     );
-  const selectedRoute = selected
-    ? getBusinessRouteForEntity(selected)
+  const selectedCanonical = selected
+    ? canonicalRegistry.find((record) => record.id === selected.id)
+    : null;
+  const selectedRoute = selectedCanonical?.source === "specialized-state"
+    ? getBusinessRouteByKind(selectedCanonical.kind)
     : null;
   if (selectedRoute?.screen === "construction")
     return (
@@ -818,256 +806,61 @@ function BusinessScreenContent({
               value={`${activeCount} / ${businesses.length}`}
             />
           </View>
-          <View style={styles.taxiCard}>
-            <View style={styles.taxiCardCopy}>
-              <Text style={styles.taxiEyebrow}>FIRST SPECIALIZED BUSINESS</Text>
-              <Text style={styles.taxiTitle}>
-                {taxiCompany ? "My Taxi Company" : "Start a Taxi Company"}
-              </Text>
-              <Text style={styles.taxiCopy}>
-                {taxiCompany
-                  ? `${taxiCompany.area} · ${taxiCompany.status === "operating" ? "Operating" : "Setup in progress"} · ${taxiCompany.economyTaxis + taxiCompany.electricTaxis + taxiCompany.luxuryTaxis} vehicles`
-                  : "Choose a service area, fund a first vehicle and launch a real operating company."}
-              </Text>
+          <View style={styles.sectionHead}>
+            <View style={styles.sectionHeadCopy}>
+              <Text style={styles.sectionEyebrow}>BUSINESS PORTFOLIO</Text>
+              <Text style={styles.sectionTitle}>One empire, one source of truth</Text>
             </View>
-            <Pressable
-              style={styles.taxiButton}
-              onPress={() => openSpecializedRoute("taxi")}
-            >
-              <Text style={styles.taxiButtonText}>
-                {taxiCompany ? "MANAGE TAXI" : "START TAXI"}
-              </Text>
-            </Pressable>
+            <Text style={styles.sectionCount}>{portfolioRows.length} ROUTES</Text>
           </View>
-          <View style={styles.shippingCard}>
-            <View style={styles.shippingCardCopy}>
-              <Text style={styles.shippingEyebrow}>LOGISTICS COMPANY</Text>
-              <Text style={styles.shippingTitle}>
-                {shippingCompany
-                  ? "My Shipping Company"
-                  : "Start a Shipping Company"}
-              </Text>
-              <Text style={styles.shippingCopy}>
-                {shippingCompany
-                  ? `${shippingCompany.city} · ${shippingCompany.level} · ${shippingCompany.shipments.filter((item) => item.status !== "delivered").length} active shipments · ${shippingCompany.warehouseCapacity.toLocaleString()} cargo units`
-                  : "Build warehouses, manage cargo, assign vehicles and complete delivery orders."}
-              </Text>
+          <Text style={styles.portfolioIntro}>Owned, available and locked companies are sourced from the canonical registry. Specialized companies keep their own engines and open through the same portfolio route.</Text>
+          <View style={styles.portfolioGroup}>
+            <Text style={styles.portfolioGroupTitle}>OWNED · {ownedRows.length}</Text>
+            {ownedRows.map((record) => (
+              <BusinessPortfolioCard
+                key={`owned-${record.id}`}
+                record={record}
+                display={getBusinessDisplayMeta(record.kind)}
+                status="owned"
+                onPress={() => openPortfolioRecord(record)}
+              />
+            ))}
+            {ownedRows.length === 0 && <Text style={styles.emptyCompanies}>No owned companies yet. Start with an available opportunity below.</Text>}
+          </View>
+          <View style={styles.portfolioGroup}>
+            <Text style={styles.portfolioGroupTitle}>AVAILABLE · {availableRows.length}</Text>
+            {availableRows.map((record) => {
+              const source = sourceBusinessFor(record);
+              return (
+                <BusinessPortfolioCard
+                  key={`available-${record.id}`}
+                  record={record}
+                  display={getBusinessDisplayMeta(record.kind)}
+                  status="available"
+                  actionLabel={record.source === "generic-state" ? "INCORPORATE" : "START"}
+                  onPress={() => openPortfolioRecord(record)}
+                  unlockShortfall={source ? Math.max(0, source.unlockNetWorthRequired - netWorth) : 0}
+                />
+              );
+            })}
+          </View>
+          {lockedRows.length > 0 && (
+            <View style={styles.portfolioGroup}>
+              <Text style={styles.portfolioGroupTitle}>LOCKED · {lockedRows.length}</Text>
+              {lockedRows.map((record) => {
+                const source = sourceBusinessFor(record);
+                return (
+                  <BusinessPortfolioCard
+                    key={`locked-${record.id}`}
+                    record={record}
+                    display={getBusinessDisplayMeta(record.kind)}
+                    status="locked"
+                    unlockShortfall={source ? Math.max(0, source.unlockNetWorthRequired - netWorth) : 0}
+                  />
+                );
+              })}
             </View>
-            <Pressable
-              style={styles.shippingButton}
-              onPress={() => openSpecializedRoute("shipping")}
-            >
-              <Text style={styles.shippingButtonText}>
-                {shippingCompany ? "MANAGE SHIPPING" : "START SHIPPING"}
-              </Text>
-            </Pressable>
-          </View>
-          <View style={styles.factoryCard}>
-            <View style={styles.factoryCardCopy}>
-              <Text style={styles.factoryEyebrow}>MANUFACTURING COMPANY</Text>
-              <Text style={styles.factoryTitle}>
-                {factoryCompany
-                  ? "My Factory Company"
-                  : "Start a Factory Company"}
-              </Text>
-              <Text style={styles.factoryCopy}>
-                {factoryCompany
-                  ? `${factoryCompany.factoryType} · ${factoryCompany.level} · ${factoryCompany.machineLines} production lines · ${factoryCompany.finishedGoods.toLocaleString()} finished goods`
-                  : "Turn raw materials into products with machines, workers, inventory and sales."}
-              </Text>
-            </View>
-            <Pressable
-              style={styles.factoryButton}
-              onPress={() => openSpecializedRoute("factory")}
-            >
-              <Text style={styles.factoryButtonText}>
-                {factoryCompany ? "MANAGE FACTORY" : "START FACTORY"}
-              </Text>
-            </Pressable>
-          </View>
-          <View style={styles.constructionCard}>
-            <View style={styles.factoryCardCopy}>
-              <Text style={styles.constructionEyebrow}>
-                DEVELOPMENT COMPANY
-              </Text>
-              <Text style={styles.factoryTitle}>
-                {constructionCompany
-                  ? "My Construction Company"
-                  : "Start a Construction Company"}
-              </Text>
-              <Text style={styles.factoryCopy}>
-                {constructionCompany
-                  ? `${constructionCompany.level} · ${constructionCompany.activeProjects} active projects · ${constructionCompany.landParcels} parcels`
-                  : "Buy land, manage machinery, build projects and win construction contracts."}
-              </Text>
-            </View>
-            <Pressable
-              style={styles.constructionButton}
-              onPress={() => openSpecializedRoute("construction")}
-            >
-              <Text style={styles.factoryButtonText}>
-                {constructionCompany
-                  ? "MANAGE CONSTRUCTION"
-                  : "START CONSTRUCTION"}
-              </Text>
-            </Pressable>
-          </View>
-          <View style={styles.dealershipCard}>
-            <View style={styles.factoryCardCopy}>
-              <Text style={styles.dealershipEyebrow}>AUTOMOTIVE COMPANY</Text>
-              <Text style={styles.factoryTitle}>
-                {dealership ? "My Car Dealership" : "Start a Car Dealership"}
-              </Text>
-              <Text style={styles.factoryCopy}>
-                {dealership
-                  ? `${dealership.level} · ${dealership.inventory} cars in stock · ${dealership.totalSales} sales · ${dealership.branches} branches`
-                  : "Buy vehicles, build a showroom, serve customers and expand into an automobile group."}
-              </Text>
-            </View>
-            <Pressable
-              style={styles.dealershipButton}
-              onPress={() => openSpecializedRoute("dealership")}
-            >
-              <Text style={styles.factoryButtonText}>
-                {dealership ? "MANAGE DEALERSHIP" : "START DEALERSHIP"}
-              </Text>
-            </Pressable>
-          </View>
-          <View style={styles.softwareCard}>
-            <View style={styles.factoryCardCopy}>
-              <Text style={styles.softwareEyebrow}>TECHNOLOGY COMPANY</Text>
-              <Text style={styles.factoryTitle}>
-                {softwareCompany
-                  ? "My Software Company"
-                  : "Start an IT & Software Company"}
-              </Text>
-              <Text style={styles.factoryCopy}>
-                {softwareCompany
-                  ? `${softwareCompany.stage} · ${softwareCompany.developers} developers · ${softwareCompany.activeProjects} active projects · ${softwareCompany.saasProducts} SaaS products`
-                  : "Hire developers, win client contracts, deliver software and grow into a technology enterprise."}
-              </Text>
-            </View>
-            <Pressable
-              style={styles.softwareButton}
-              onPress={() => openSpecializedRoute("software")}
-            >
-              <Text style={styles.factoryButtonText}>
-                {softwareCompany ? "MANAGE SOFTWARE" : "START SOFTWARE"}
-              </Text>
-            </Pressable>
-          </View>
-          <View style={styles.sportsCard}>
-            <View style={styles.factoryCardCopy}>
-              <Text style={styles.sportsEyebrow}>SPORTS & ENTERTAINMENT</Text>
-              <Text style={styles.factoryTitle}>{sportsClub ? sportsClub.clubName : "Sports Club Company"}</Text>
-              <Text style={styles.factoryCopy}>
-                {sportsClub
-                  ? `${sportsClub.stage} · ${sportsClub.teams} teams · ${sportsClub.stadiumCapacity.toLocaleString()} seats`
-                  : "Build teams, stadiums, tournaments, sponsorships and a multi-city sports group."}
-              </Text>
-            </View>
-            <Pressable style={styles.sportsButton} onPress={() => openSpecializedRoute("sports")}>
-              <Text style={styles.factoryButtonText}>{sportsClub ? "MANAGE SPORTS" : "START SPORTS"}</Text>
-            </Pressable>
-          </View>
-          <View style={styles.oilGasCard}>
-            <View style={styles.factoryCardCopy}>
-              <Text style={styles.oilGasEyebrow}>ENERGY & INFRASTRUCTURE</Text>
-              <Text style={styles.factoryTitle}>{oilGas ? oilGas.companyName : "Oil & Gas Company"}</Text>
-              <Text style={styles.factoryCopy}>
-                {oilGas ? `${oilGas.stage} · ${oilGas.fields} fields · ${oilGas.fuelStations} stations` : "Build fields, refineries, terminals, fuel stations and global energy operations."}
-              </Text>
-            </View>
-            <Pressable style={styles.oilGasButton} onPress={() => openSpecializedRoute("oilGas")}>
-              <Text style={styles.factoryButtonText}>{oilGas ? "MANAGE ENERGY" : "START ENERGY"}</Text>
-            </Pressable>
-          </View>
-          <View style={styles.bankingCard}>
-            <View style={styles.factoryCardCopy}>
-              <Text style={styles.bankingEyebrow}>FINANCIAL SERVICES</Text>
-              <Text style={styles.factoryTitle}>Banking Company</Text>
-              <Text style={styles.factoryCopy}>
-                Manage credit, deposits, insurance, tax, treasury risk and investor capital in the dedicated Bank module.
-              </Text>
-            </View>
-            <Pressable style={styles.bankingButton} onPress={onOpenBank}>
-              <Text style={styles.factoryButtonText}>OPEN BANKING</Text>
-            </Pressable>
-          </View>
-          <View style={styles.airlineCard}>
-            <View style={styles.factoryCardCopy}>
-              <Text style={styles.airlineEyebrow}>AVIATION & TRAVEL</Text>
-              <Text style={styles.factoryTitle}>{airline ? airline.companyName : "Airline Company"}</Text>
-              <Text style={styles.factoryCopy}>
-                {airline ? `${airline.stage} · ${airline.aircraft} aircraft · ${airline.routes} routes` : "Build a regional carrier, schedule routes, fill seats and expand into a global airline group."}
-              </Text>
-            </View>
-            <Pressable style={styles.airlineButton} onPress={() => openSpecializedRoute("airline")}>
-              <Text style={styles.factoryButtonText}>{airline ? "MANAGE AIRLINE" : "START AIRLINE"}</Text>
-            </Pressable>
-          </View>
-          <View style={styles.hotelCard}>
-            <View style={styles.factoryCardCopy}>
-              <Text style={styles.hotelEyebrow}>HOSPITALITY & TRAVEL</Text>
-              <Text style={styles.factoryTitle}>{hotel ? hotel.companyName : "Hotel & Hospitality Company"}</Text>
-              <Text style={styles.factoryCopy}>
-                {hotel ? `${hotel.stage} · ${hotel.properties} properties · ${hotel.rooms} rooms` : "Acquire properties, fill rooms, build guest services and grow an international hospitality group."}
-              </Text>
-            </View>
-            <Pressable style={styles.hotelButton} onPress={() => openSpecializedRoute("hotel")}>
-              <Text style={styles.factoryButtonText}>{hotel ? "MANAGE HOTEL" : "START HOTEL"}</Text>
-            </Pressable>
-          </View>
-          <View style={styles.blockchainCard}>
-            <View style={styles.factoryCardCopy}>
-              <Text style={styles.blockchainEyebrow}>DIGITAL INFRASTRUCTURE</Text>
-              <Text style={styles.factoryTitle}>{blockchain ? blockchain.companyName : "Blockchain & Digital Technology"}</Text>
-              <Text style={styles.factoryCopy}>
-                {blockchain ? `${blockchain.stage} · ${blockchain.servers} servers · ${blockchain.clients} clients` : "Build infrastructure, research products, launch a reliable platform and win enterprise technology clients."}
-              </Text>
-            </View>
-            <Pressable style={styles.blockchainButton} onPress={() => openSpecializedRoute("blockchain")}>
-              <Text style={styles.factoryButtonText}>{blockchain ? "MANAGE TECHNOLOGY" : "START TECHNOLOGY"}</Text>
-            </Pressable>
-          </View>
-          <View style={styles.spaceCard}>
-            <View style={styles.factoryCardCopy}>
-              <Text style={styles.spaceEyebrow}>AEROSPACE & EXPLORATION</Text>
-              <Text style={styles.factoryTitle}>{space ? space.companyName : "Space & Aerospace Company"}</Text>
-              <Text style={styles.factoryCopy}>
-                {space ? `${space.stage} · ${space.launches} launches · ${space.satellites} satellites` : "Fund research, build rockets, schedule missions and grow an advanced space enterprise."}
-              </Text>
-            </View>
-            <Pressable style={styles.spaceButton} onPress={() => openSpecializedRoute("space")}>
-              <Text style={styles.factoryButtonText}>{space ? "MANAGE AEROSPACE" : "START AEROSPACE"}</Text>
-            </Pressable>
-          </View>
-          <View style={styles.holdingCard}>
-            <View style={styles.factoryCardCopy}>
-              <Text style={styles.holdingEyebrow}>GROUP MANAGEMENT LAYER</Text>
-              <Text style={styles.factoryTitle}>{holding ? holding.companyName : "Holding Company & Mergers"}</Text>
-              <Text style={styles.factoryCopy}>
-                {holding ? `${holding.stage} · ${holding.subsidiaries.length} subsidiaries · ${Math.round(holding.synergyRate * 100)}% synergy` : "Consolidate profitable businesses, acquire targets and manage group-wide treasury above the operating companies."}
-              </Text>
-            </View>
-            <Pressable style={styles.holdingButton} onPress={() => openSpecializedRoute("holding")}>
-              <Text style={styles.factoryButtonText}>{holding ? "MANAGE GROUP" : "FORM HOLDING"}</Text>
-            </Pressable>
-          </View>
-          <View style={styles.primaryActions}>
-            <Pressable
-              style={styles.primaryButton}
-              onPress={() => setViewMode("start")}
-            >
-              <Text style={styles.primaryButtonText}>START A BUSINESS</Text>
-            </Pressable>
-            <Pressable
-              style={styles.secondaryButton}
-              onPress={() => setViewMode("companies")}
-            >
-              <Text style={styles.secondaryButtonText}>MY COMPANIES</Text>
-            </Pressable>
-          </View>
+          )}
           {levelNotice?.levelUpNotice && (
             <View style={styles.levelUpCard}>
               <Text style={styles.levelUpEyebrow}>NEW CONTROLS UNLOCKED</Text>
@@ -1092,33 +885,6 @@ function BusinessScreenContent({
               </Pressable>
             </View>
           )}
-          <View style={styles.sectionHead}>
-            <View style={styles.sectionHeadCopy}>
-              <Text style={styles.sectionEyebrow}>YOUR COMPANIES</Text>
-              <Text style={styles.sectionTitle}>Owned and operating</Text>
-            </View>
-            <Text style={styles.sectionCount}>
-              {ownedBusinesses.length} ACTIVE
-            </Text>
-          </View>
-          <View style={styles.grid}>
-            {ownedBusinesses.map((item) => (
-              <BusinessCard
-                key={`owned-${item.id}`}
-                business={item}
-                netWorth={netWorth}
-                onAcquire={() => setRegistrationId(item.id)}
-                onManage={() => setSelectedId(item.id)}
-                onQuickAction={() => quickAction(item)}
-              />
-            ))}
-            {ownedBusinesses.length === 0 && (
-              <Text style={styles.emptyCompanies}>
-                No companies yet. Start with the most affordable
-                positive-cashflow opportunity below.
-              </Text>
-            )}
-          </View>
           <View style={styles.nextMoveCard}>
             <Text style={styles.goalEyebrow}>NEXT BEST MOVE</Text>
             <Text style={styles.nextMoveText}>{nextMove}</Text>
@@ -1151,30 +917,6 @@ function BusinessScreenContent({
               </Text>
             </View>
           </View>
-          <View style={styles.sectionHead}>
-            <View style={styles.sectionHeadCopy}>
-              <Text style={styles.sectionEyebrow}>START A NEW BUSINESS</Text>
-              <Text style={styles.sectionTitle}>Choose your next company</Text>
-            </View>
-            <Text style={styles.sectionCount}>
-              {businesses.filter((item) => !item.isAcquired).length}{" "}
-              OPPORTUNITIES
-            </Text>
-          </View>
-          <View style={styles.grid}>
-            {businesses
-              .filter((item) => !item.isAcquired)
-              .map((item) => (
-                <BusinessCard
-                  key={`start-${item.id}`}
-                  business={item}
-                  netWorth={netWorth}
-                  onAcquire={() => setRegistrationId(item.id)}
-                  onManage={() => setSelectedId(item.id)}
-                  onQuickAction={() => quickAction(item)}
-                />
-              ))}
-          </View>
           <View style={styles.tip}>
             <Text style={styles.tipIcon}>✦</Text>
             <View style={{ flex: 1 }}>
@@ -1203,332 +945,6 @@ function SummaryMetric({ label, value }: { label: string; value: string }) {
       <Text style={styles.summaryLabel}>{label}</Text>
       <Text style={styles.summaryValue}>{value}</Text>
     </View>
-  );
-}
-function BusinessCard({
-  business,
-  netWorth,
-  onAcquire,
-  onManage,
-  onQuickAction,
-}: {
-  business: BusinessEntity;
-  netWorth: number;
-  onAcquire: () => void;
-  onManage: () => void;
-  onQuickAction: () => void;
-}) {
-  const unlocked =
-    business.isUnlocked || netWorth >= business.unlockNetWorthRequired;
-  const color = iconAccent[business.sector];
-  const level = normalizeBusinessLevel(business).level || 1;
-  const progressive =
-    business.sector === "Retail" || business.sector === "Mobility";
-  const metric =
-    business.sector === "Retail"
-      ? `${business.stockUnits.toLocaleString()} units in stock`
-      : business.sector === "Mobility"
-        ? `${business.economySedans + business.electricEVs + business.luxuryLimos} vehicles in fleet`
-        : business.sector === "Tech_SaaS"
-          ? `${business.activeSubscribers.toLocaleString()} active subscribers`
-          : business.sector === "Construction_Mega"
-            ? business.projectPhase === 0
-              ? "$1.2M tender opportunity"
-              : `Phase ${business.projectPhase} · ${business.phaseProgressPercent}% complete`
-            : `${business.branchCount ?? 0} branch${business.branchCount === 1 ? "" : "es"} · ${(business.reputation ?? 0).toFixed(0)} reputation`;
-  return (
-    <Pressable
-      disabled={!business.isAcquired && !unlocked}
-      onPress={
-        business.isAcquired &&
-        level === 1 &&
-        (business.sector === "Retail" || business.sector === "Mobility")
-          ? onQuickAction
-          : business.isAcquired
-            ? onManage
-            : onAcquire
-      }
-      style={({ pressed }) => [
-        styles.businessCard,
-        { borderColor: `${color}55` },
-        !unlocked && styles.lockedCard,
-        pressed && styles.pressed,
-      ]}
-    >
-      <View style={[styles.cardGlow, { backgroundColor: color }]} />
-      <View style={styles.cardHeader}>
-        <View
-          style={[
-            styles.iconBubble,
-            { backgroundColor: `${color}22`, borderColor: `${color}66` },
-          ]}
-        >
-          <BusinessIcon sector={business.sector} color={color} />
-        </View>
-        <View style={styles.cardPills}>
-          <Text style={[styles.tierPill, { color, borderColor: `${color}66` }]}>
-            {tierLabel[business.sector]}
-          </Text>
-          {!unlocked && <Text style={styles.lockPill}>LOCKED</Text>}
-          {business.isAcquired && <Text style={styles.livePill}>LIVE</Text>}
-        </View>
-      </View>
-      <Text style={styles.cardSector}>{sectorLabel[business.sector]}</Text>
-      <Text numberOfLines={2} style={styles.cardTitle}>
-        {business.name}
-      </Text>
-      <Text style={styles.cardMetric}>{metric}</Text>
-      {business.isAcquired &&
-        (business.sector === "Retail" || business.sector === "Mobility") &&
-        level === 1 && (
-          <Text style={styles.levelTeaser}>
-            {levelConfig(business).milestones[2].teaser}
-          </Text>
-        )}
-      <Text style={styles.cardDescription}>
-        {sectorDescription[business.sector]}
-      </Text>
-      <View style={styles.cardFooter}>
-        {business.isAcquired ? (
-          progressive ? (
-            <View style={{ flex: 1 }}>
-              <View style={styles.cardStatsRow}>
-                <View>
-                  <Text style={styles.earnLabel}>STATUS</Text>
-                  <Text style={styles.cardStatValue}>
-                    {level === 1 ? "OPERATING" : `LEVEL ${level}`}
-                  </Text>
-                </View>
-                <View>
-                  <Text style={styles.earnLabel}>REVENUE / HR</Text>
-                  <Text style={styles.cardStatValue}>
-                    {formatCurrency(Math.max(0, business.hourlyNetProfit))}
-                  </Text>
-                </View>
-                <View>
-                  <Text style={styles.earnLabel}>NET / HR</Text>
-                  <Text style={[styles.cardStatValue, { color }]}>
-                    {formatCurrency(Math.max(0, business.hourlyNetProfit))}
-                  </Text>
-                </View>
-              </View>
-              {level === 1 &&
-              (business.sector === "Retail" ||
-                business.sector === "Mobility") ? (
-                <Pressable
-                  style={[styles.cardAction, { borderColor: `${color}66` }]}
-                  onPress={onQuickAction}
-                >
-                  <Text style={[styles.cardActionText, { color }]}>
-                    {business.sector === "Retail"
-                      ? "RESTOCK 1,000"
-                      : "BUY VEHICLE"}
-                  </Text>
-                </Pressable>
-              ) : (
-                <Text style={[styles.arrow, { color, alignSelf: "flex-end" }]}>
-                  ›
-                </Text>
-              )}
-            </View>
-          ) : (
-            <>
-              <View>
-                <Text style={styles.earnLabel}>NET CASHFLOW</Text>
-                <Text style={[styles.earnValue, { color }]}>
-                  {formatCurrency(business.hourlyNetProfit)}
-                  <Text style={styles.perHour}> / HR</Text>
-                </Text>
-              </View>
-              <Text style={[styles.arrow, { color }]}>›</Text>
-            </>
-          )
-        ) : unlocked ? (
-          <>
-            <View>
-              <Text style={styles.earnLabel}>ENTRY CAPITAL</Text>
-              <Text style={styles.entryValue}>
-                {formatCurrency(business.acquisitionCost)}
-              </Text>
-            </View>
-            <Text style={[styles.startText, { color }]}>START ›</Text>
-          </>
-        ) : (
-          <>
-            <View>
-              <Text style={styles.earnLabel}>UNLOCK AT</Text>
-              <Text style={styles.entryValue}>
-                Need{" "}
-                {formatCurrency(
-                  Math.max(0, business.unlockNetWorthRequired - netWorth),
-                )}{" "}
-                more
-              </Text>
-            </View>
-            <Text style={styles.lockIcon}>⌁</Text>
-          </>
-        )}
-      </View>
-    </Pressable>
-  );
-}
-function BusinessIcon({
-  sector,
-  color,
-}: {
-  sector: BusinessEntity["sector"];
-  color: string;
-}) {
-  return (
-    <Svg width={37} height={37} viewBox="0 0 40 40">
-      <Circle
-        cx="20"
-        cy="20"
-        r="18"
-        fill="none"
-        stroke={color}
-        strokeWidth="1.8"
-        opacity=".9"
-      />
-      {sector === "Retail" && (
-        <>
-          <Path d="M10 17h20l-2-6H12l-2 6Z" fill={color} opacity=".9" />
-          <Path
-            d="M12 18v11h16V18M17 22h6v7h-6"
-            fill="none"
-            stroke={color}
-            strokeWidth="2"
-          />
-        </>
-      )}
-      {sector === "Mobility" && (
-        <>
-          <Path
-            d="M11 24l2-8c.3-1.2 1.2-2 2.4-2h9.2c1.2 0 2.1.8 2.4 2l2 8"
-            fill="none"
-            stroke={color}
-            strokeWidth="2"
-          />
-          <Path
-            d="M10 24h20v4H10zM14 28v2M26 28v2M14 18h12"
-            fill="none"
-            stroke={color}
-            strokeWidth="2"
-          />
-          <Circle cx="15" cy="25" r="1.5" fill={color} />
-          <Circle cx="25" cy="25" r="1.5" fill={color} />
-        </>
-      )}
-      {sector === "Tech_SaaS" && (
-        <>
-          <Rect
-            x="11"
-            y="12"
-            width="18"
-            height="16"
-            rx="2"
-            fill="none"
-            stroke={color}
-            strokeWidth="2"
-          />
-          <Path
-            d="M15 17h10M15 21h6M16 12v-3M24 12v-3"
-            stroke={color}
-            strokeWidth="2"
-            strokeLinecap="round"
-          />
-        </>
-      )}
-      {sector === "Construction_Mega" && (
-        <>
-          <Path
-            d="M12 29V17l8-7 8 7v12"
-            fill="none"
-            stroke={color}
-            strokeWidth="2"
-          />
-          <Path d="M9 29h22M16 29v-7h8v7" stroke={color} strokeWidth="2" />
-          <Path
-            d="M20 10V7h8"
-            stroke={color}
-            strokeWidth="2"
-            strokeLinecap="round"
-          />
-        </>
-      )}
-      {sector === "Real_Estate" && (
-        <>
-          <Path
-            d="M11 29V14l9-6 9 6v15M16 29V20h8v9M8 29h24"
-            fill="none"
-            stroke={color}
-            strokeWidth="2"
-            strokeLinejoin="round"
-          />
-        </>
-      )}
-      {sector === "Energy" && (
-        <>
-          <Path
-            d="M23 7 12 22h8l-3 11 11-16h-8l3-10Z"
-            fill="none"
-            stroke={color}
-            strokeWidth="2"
-            strokeLinejoin="round"
-          />
-        </>
-      )}
-      {sector === "Pharma" && (
-        <>
-          <Path
-            d="M14 10a5 5 0 0 1 7.1 0l4.9 4.9a5 5 0 0 1-7.1 7.1L14 17.1A5 5 0 0 1 14 10Z"
-            fill="none"
-            stroke={color}
-            strokeWidth="2"
-          />
-          <Path d="M16 12l8 8" stroke={color} strokeWidth="2" />
-        </>
-      )}
-      {sector === "Media" && (
-        <>
-          <Path
-            d="M12 12h16v16H12z"
-            fill="none"
-            stroke={color}
-            strokeWidth="2"
-          />
-          <Path d="M16 16l8 4-8 4v-8Z" fill={color} />
-        </>
-      )}
-      {sector === "Sports" && (
-        <>
-          <Circle
-            cx="20"
-            cy="20"
-            r="9"
-            fill="none"
-            stroke={color}
-            strokeWidth="2"
-          />
-          <Path
-            d="M14 14l12 12M26 14 14 26M11 20h18"
-            stroke={color}
-            strokeWidth="1.5"
-          />
-        </>
-      )}
-      {sector === "Airline" && (
-        <>
-          <Path
-            d="M8 22 32 18 21 15l-3-7-3 1 1 7-8 3Z"
-            fill="none"
-            stroke={color}
-            strokeWidth="2"
-            strokeLinejoin="round"
-          />
-        </>
-      )}
-    </Svg>
   );
 }
 const styles = StyleSheet.create({
@@ -2149,6 +1565,9 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     marginTop: 4,
   },
+  portfolioIntro: { color: C.muted, fontSize: 12, lineHeight: 18, marginBottom: 14 },
+  portfolioGroup: { marginBottom: 12 },
+  portfolioGroupTitle: { color: C.muted, fontSize: 10, fontWeight: "900", letterSpacing: 1.1, marginBottom: 8 },
   sectionCount: {
     color: C.cyan,
     fontSize: 8,
