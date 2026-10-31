@@ -20,6 +20,30 @@ import {
 import { constructionAssetValue } from "./constructionCompanyEngine";
 import type { TaxiCompanyState } from "../types/taxi";
 import { taxiHourlyEconomics } from "../types/taxi";
+
+import type { ShippingCompanyState } from "../types/shipping";
+import { shippingEconomics } from "../types/shipping";
+import type { FactoryCompanyState } from "../types/factory";
+import { factoryEconomics } from "../types/factory";
+import type { ConstructionCompanyState } from "../types/construction";
+
+import type { DealershipState } from "../types/dealership";
+import type { SoftwareCompanyState } from "../types/software";
+import { softwareSettlementTick } from "../types/software";
+import type { HoldingState } from "../types/holding";
+import type { SportsClubState } from '../types/sportsClub';
+import { projectedHourlyRevenue as sportsClubHourlyRevenue } from '../engine/sportsClubEngine';
+import type { AirlineState } from '../types/airline';
+import { projectedHourlyProfit as airlineHourlyProfit } from '../engine/airlineEngine';
+import type { HotelState } from '../types/hotel';
+import { projectedHourlyProfit as hotelHourlyProfit } from '../engine/hotelEngine';
+import type { BlockchainState } from '../types/blockchain';
+import { projectedHourlyProfit as blockchainHourlyProfit } from '../engine/blockchainEngine';
+import type { SpaceState } from '../types/space';
+import { projectedHourlyProfit as spaceHourlyProfit } from '../engine/spaceEngine';
+import type { OilGasState } from '../types/oilGas';
+import { projectedHourlyProfit as oilGasHourlyProfit } from '../engine/oilGasEngine';
+
 import { itCompanyAssetValue } from "./itCompanyEngine";
 import { bankingCompanyAssetValue } from "./bankingCompanyEngine";
 
@@ -43,6 +67,11 @@ export type FinancialGameState = {
   lifestyleAssets: CollectionItem[];
   businesses: BusinessEntity[];
   taxiCompany?: TaxiCompanyState | null;
+  shippingCompany?: ShippingCompanyState | null;
+  factoryCompany?: FactoryCompanyState | null;
+  constructionCompany?: ConstructionCompanyState | null;
+  dealership?: DealershipState | null;
+  softwareCompany?: SoftwareCompanyState | null;
   systemTimeMs: number;
   multiplier?: number;
 };
@@ -144,7 +173,19 @@ function businessRevenue(state: FinancialGameState) {
   const taxi = state.taxiCompany?.status === "operating"
     ? Math.max(0, taxiHourlyEconomics(state.taxiCompany).net)
     : 0;
-  return base + taxi;
+  const shipping = state.shippingCompany?.status === "operating"
+    ? Math.max(0, shippingEconomics(state.shippingCompany).net)
+    : 0;
+  const factory = state.factoryCompany?.status === "operating"
+    ? Math.max(0, factoryEconomics(state.factoryCompany).net)
+    : 0;
+  const construction = state.constructionCompany?.status === "operating"
+    ? Math.max(0, (state.constructionCompany.activeProjects > 0 ? state.constructionCompany.contractValue : 0) - (state.constructionCompany.workers * 55 + state.constructionCompany.excavators * 90 + state.constructionCompany.cranes * 120 + state.constructionCompany.mixers * 45 + (state.constructionCompany.activeProjects ? 150 : 0)))
+    : 0;
+  const software = state.softwareCompany?.status === "operating"
+    ? Math.max(0, softwareSettlementTick(state.softwareCompany).profit)
+    : 0;
+  return base + taxi + shipping + factory + construction + software;
 }
 function savingsInterest(state: FinancialGameState) {
   const event = state.bank.marketEvents?.[state.bank.marketEvents.length - 1];
