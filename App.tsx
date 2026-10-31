@@ -230,12 +230,6 @@ const lifestyleAssets = [
   ...JETS_DATA,
   ...PROPERTIES_DATA,
 ];
-const headlines = [
-  "Fed signals a softer landing: Growth stocks rally",
-  "Wall Street opens higher as clean energy leads",
-  "EV tax credits extended: Mobility stocks jump",
-  "Main Street spending rises: Retail margins improve",
-];
 const ONBOARDING_LOGOS: Record<string, number> = {
   "logo-01": require("./assets/onboarding/logo-01.png"),
   "logo-02": require("./assets/onboarding/logo-02.png"),
@@ -382,7 +376,7 @@ function AppContent() {
   const constructionSimulationSeconds = useRef(0);
   const lastDividendQuarter = useRef("");
   const [owned, setOwned] = useState<string[]>([]);
-  const [headline, setHeadline] = useState(headlines[0]);
+  const [headline, setHeadline] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
   const [loaded, setLoaded] = useState(false);
   const [onboardingComplete, setOnboardingComplete] = useState(false);
@@ -1659,7 +1653,6 @@ function AppContent() {
             <Text style={styles.simClock}>
               {formatSystemDateTime(systemTimeMs)}
             </Text>
-            <Text style={styles.micro}>REAL-TIME TYCOON · LIVE</Text>
             </View>
           </View>
           <View style={styles.headerStats}>
@@ -1707,12 +1700,14 @@ function AppContent() {
             </View>
           </View>
         </View>
-        <View style={styles.news}>
-          <Text style={styles.newsTag}>BREAKING</Text>
-          <Text style={styles.newsText} numberOfLines={1} ellipsizeMode="tail">
-            {headline}
-          </Text>
-        </View>
+        {headline && (
+          <View style={styles.news}>
+            <Text style={styles.newsTag}>BREAKING</Text>
+            <Text style={styles.newsText} numberOfLines={1} ellipsizeMode="tail">
+              {headline}
+            </Text>
+          </View>
+        )}
         {incomeEvents.map((event) => (
           <View key={event.id} style={styles.incomeToast}>
             <Text style={styles.incomeToastSource}>{event.source}</Text>
@@ -2241,8 +2236,8 @@ const styles = StyleSheet.create({
   loading: { flex: 1, justifyContent: "center", alignItems: "center", gap: 14 },
   header: {
     paddingHorizontal: 18,
-    paddingTop: 9,
-    paddingBottom: 5,
+    paddingTop: 5,
+    paddingBottom: 3,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
@@ -2252,15 +2247,15 @@ const styles = StyleSheet.create({
   headerIdentity: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 1, paddingRight: 8 },
   headerIdentityCopy: { flex: 1, minWidth: 0 },
   headerStats: { width: "46%", maxWidth: 190, minWidth: 145, alignItems: "flex-end", flexShrink: 0 },
-  headerLogo: { width: 28, height: 28, borderRadius: 8, borderWidth: 1, borderColor: C.slate },
-  brand: { color: C.green, fontSize: 20, fontWeight: "900", letterSpacing: 2 },
-  companyIdentity: { color: C.text, fontSize: 9, fontWeight: "800", maxWidth: 170, marginTop: 1 },
+  headerLogo: { width: 24, height: 24, borderRadius: 7, borderWidth: 1, borderColor: C.slate },
+  brand: { color: C.green, fontSize: 18, fontWeight: "900", letterSpacing: 1.8 },
+  companyIdentity: { color: C.text, fontSize: 8, fontWeight: "800", maxWidth: 170, marginTop: 0 },
   simClock: {
     color: "#64748B",
-    fontSize: 11,
+    fontSize: 9,
     fontFamily: "monospace",
-    marginTop: 3,
-    letterSpacing: 0.4,
+    marginTop: 1,
+    letterSpacing: 0.2,
   },
   micro: { color: C.muted, fontSize: 8, letterSpacing: 1, marginTop: 3 },
   headerCash: { color: C.text, fontWeight: "900", fontSize: 17, maxWidth: "100%" },
