@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ITSoftwareData } from '../../types/business';
@@ -11,6 +11,7 @@ import { ITProductsSecurityScreen } from './it/ITProductsSecurityScreen';
 import { ITEnterpriseScreen } from './it/ITEnterpriseScreen';
 import { ITC, Metric, Section } from './it/ITPagePrimitives';
 import type { BankLedgerEntry } from '../../types/bank';
+import { commitCashTransaction } from '../../engine/transactionGateway';
 
 type ITTab = 'Formation & Office' | 'Workforce' | 'Projects & Contracts' | 'Products & Security' | 'Enterprise';
 type Props = { business: ITSoftwareData; cash: number; netWorth: number; onBack: () => void; onCashChange: (updater: (value: number) => number) => void; onLedger?: (entry: BankLedgerEntry) => void; onChange: (business: ITSoftwareData) => void };
@@ -18,27 +19,33 @@ type Props = { business: ITSoftwareData; cash: number; netWorth: number; onBack:
 export default function ITSoftwareCompanyScreen({ business: rawBusiness, cash, netWorth, onBack, onCashChange, onLedger, onChange }: Props) {
   const business = useMemo(() => initializeITCompany(rawBusiness, netWorth), [rawBusiness, netWorth]);
   const [tab, setTab] = useState<ITTab>('Formation & Office');
-  const actionLock = useRef(false);
   const stage = itStageFor(netWorth);
   const spend = (cost: number, update: (item: ITSoftwareData) => ITSoftwareData, label: string) => {
-    if (actionLock.current) return;
-    if (cash < cost) { Alert.alert('CAPITAL REQUIRED', `You need ${(cost - cash).toLocaleString('en-US', { style: 'currency', currency: 'USD' })} more liquid cash.`); return; }
-    actionLock.current = true;
-    onCashChange((value) => Math.max(0, value - cost));
-    if (cost > 0) {
-      const timestamp = Date.now();
-      onLedger?.({
+    const timestamp = Date.now();
+    const result = commitCashTransaction({
+      key: `it-software:${business.id}:${label}`,
+      cash,
+      amount: cost,
+      onCashChange,
+      onLedger,
+      ledgerEntry: cost > 0 ? {
         id: `ledger-it-software-${business.id}-${timestamp}`,
         kind: 'PURCHASE',
         label: `IT & Software investment · ${label}`,
         amount: -cost,
         timestamp,
         detail: `${business.name} operating investment`,
-      });
+      } : undefined,
+      onCommit: () => {
+        onChange(update(business));
+        Alert.alert('IT COMPANY UPDATED', label);
+      },
+      now: timestamp,
+      lockDurationMs: 250,
+    });
+    if (!result.accepted && result.reason === 'insufficient-funds') {
+      Alert.alert('CAPITAL REQUIRED', `You need ${(cost - cash).toLocaleString('en-US', { style: 'currency', currency: 'USD' })} more liquid cash.`);
     }
-    onChange(update(business));
-    Alert.alert('IT COMPANY UPDATED', label);
-    setTimeout(() => { actionLock.current = false; }, 250);
   };
   const pageProps = { business, cash, netWorth, stage, onCashChange, onChange, spend };
   return <View style={styles.root}><SafeAreaView edges={['top', 'left', 'right']} style={styles.safe}><ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>

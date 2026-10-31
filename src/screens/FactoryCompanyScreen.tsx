@@ -1,4 +1,5 @@
 import { designSystem } from "../theme/designSystem";
+import { commitCashTransaction } from "../engine/transactionGateway";
 import React, { useState } from "react";
 import {
   Alert,
@@ -87,21 +88,19 @@ export default function FactoryCompanyScreen({
   const update = (next: FactoryCompanyState) =>
     onChange({ ...next, level: factoryLevelFor(next) });
   const spend = (cost: number, label: string, next: FactoryCompanyState) => {
-    if (cash < cost)
-      return Alert.alert(
-        "INSUFFICIENT CAPITAL",
-        `${label} requires ${formatCurrency(cost)}.`,
-      );
-    onCashChange((value) => value - cost);
-    update(next);
-    onLedger?.({
-      id: `factory-${Date.now()}`,
-      kind: "UPKEEP",
-      label: `Factory · ${label}`,
-      amount: -cost,
-      timestamp: Date.now(),
-      detail: current.name,
+    const timestamp = Date.now();
+    const result = commitCashTransaction({
+      key: `factory:${current.id}:${label}`,
+      cash,
+      amount: cost,
+      onCashChange,
+      onLedger,
+      ledgerEntry: { id: `factory-${timestamp}`, kind: "UPKEEP", label: `Factory · ${label}`, amount: -cost, timestamp, detail: current.name },
+      onCommit: () => update(next),
+      now: timestamp,
     });
+    if (!result.accepted && result.reason === "insufficient-funds")
+      Alert.alert("INSUFFICIENT CAPITAL", `${label} requires ${formatCurrency(cost)}.`);
   };
   const launchCost =
     setupType === "Electronics"
@@ -110,11 +109,6 @@ export default function FactoryCompanyScreen({
         ? 70000
         : 45000;
   const launch = () => {
-    if (cash < launchCost)
-      return Alert.alert(
-        "SETUP CAPITAL SHORTFALL",
-        `Need ${formatCurrency(launchCost - cash)} more for the building, first line and compliance reserve.`,
-      );
     const next = {
       ...DEFAULT_FACTORY_COMPANY,
       status: "operating" as const,
@@ -126,17 +120,19 @@ export default function FactoryCompanyScreen({
       cashInvested: launchCost,
       lastProductionAt: Date.now(),
     };
-    onCashChange((value) => value - launchCost);
-    update(next);
-    onLedger?.({
-      id: `factory-launch-${Date.now()}`,
-      kind: "PURCHASE",
-      label: "Factory company launch capital",
-      amount: -launchCost,
-      timestamp: Date.now(),
-      detail: `${setupType} · ${setupLocation}`,
+    const timestamp = Date.now();
+    const result = commitCashTransaction({
+      key: `factory:launch:${setupType}:${setupLocation}`,
+      cash,
+      amount: launchCost,
+      onCashChange,
+      onLedger,
+      ledgerEntry: { id: `factory-launch-${timestamp}`, kind: "PURCHASE", label: "Factory company launch capital", amount: -launchCost, timestamp, detail: `${setupType} · ${setupLocation}` },
+      onCommit: () => { update(next); setPage("dashboard"); },
+      now: timestamp,
     });
-    setPage("dashboard");
+    if (!result.accepted && result.reason === "insufficient-funds")
+      Alert.alert("SETUP CAPITAL SHORTFALL", `Need ${formatCurrency(launchCost - cash)} more for the building, first line and compliance reserve.`);
   };
   return (
     <SpecializedBusinessShell

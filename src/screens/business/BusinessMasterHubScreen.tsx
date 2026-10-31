@@ -32,6 +32,7 @@ import { BusinessAnalyticsPanel } from "../../components/business/BusinessAnalyt
 import ITSoftwareCompanyScreen from "./ITSoftwareCompanyScreen";
 import BankingCompanyScreen from "./BankingCompanyScreen";
 import { getBusinessDisplayMeta } from "../../data/businessDisplayCatalog";
+import { commitCashTransaction } from "../../engine/transactionGateway";
 
 const C = { bg: designSystem.colors.background, card: designSystem.colors.card, panel: designSystem.colors.highlight, slate: designSystem.colors.border, green: designSystem.colors.primary, cyan: designSystem.colors.cyan, red: designSystem.colors.negative, white: designSystem.colors.heading, muted: designSystem.colors.secondary, gold: designSystem.colors.gold, violet: designSystem.colors.violet };
 type Props = {
@@ -77,7 +78,6 @@ export function BusinessMasterHubScreen({
     "units",
   );
   const [hubTab, setHubTab] = React.useState<"dashboard" | "operations" | "analytics" | "upgrades">("dashboard");
-  const spendLock = React.useRef(false);
   const scrollRef = useRef<ScrollView>(null);
   const companyLevel = normalizeBusinessLevel(business).level || 1;
   const showLevel2Tabs =
@@ -89,29 +89,31 @@ export function BusinessMasterHubScreen({
       scrollRef.current?.scrollTo({ y: 260, animated: true });
   }, [business.sector, focusRetail]);
   const spend = (cost: number, update: () => BusinessEntity) => {
-    if (spendLock.current) return;
-    spendLock.current = true;
-    if (cash < cost) {
-      spendLock.current = false;
+    const timestamp = Date.now();
+    const result = commitCashTransaction({
+      key: `business-upgrade:${business.id}:${cost}`,
+      cash,
+      amount: cost,
+      onCashChange,
+      onLedger,
+      ledgerEntry: {
+        id: `ledger-business-upgrade-${business.id}-${timestamp}`,
+        kind: "UPKEEP",
+        label: `Business upgrade · ${business.name}`,
+        amount: -cost,
+        timestamp,
+        detail: "Business management spend",
+      },
+      onCommit: () => onChange(update()),
+      now: timestamp,
+      lockDurationMs: 160,
+    });
+    if (!result.accepted && result.reason === "insufficient-funds") {
       Alert.alert(
         "INSUFFICIENT CASH",
         `This operation requires ${formatCurrency(cost)}.`,
       );
-      return;
     }
-    onCashChange((value) => Math.max(0, value - cost));
-    onLedger?.({
-      id: `ledger-business-upgrade-${business.id}-${Date.now()}`,
-      kind: "UPKEEP",
-      label: `Business upgrade · ${business.name}`,
-      amount: -cost,
-      timestamp: Date.now(),
-      detail: "Business management spend",
-    });
-    onChange(update());
-    setTimeout(() => {
-      spendLock.current = false;
-    }, 160);
   };
   if (business.sector === "Construction_Mega")
     return (

@@ -5,17 +5,24 @@ import { completeBankingLicense, BANKING_LICENSE_COST } from "../../../engine/ba
 import { BANKING_COMPANY_ASSETS } from "../../../data/bankingCompanyAssets";
 import { BankingAction, BankingCard, BankingHero, BankingMetric, BankingPage, bankingStyles } from "./BankingPagePrimitives";
 import type { BankingPageProps } from "./bankingTypes";
-import { tryAcquireSpendLock } from "../../../engine/walletGuard";
+import { commitCashTransaction } from "../../../engine/transactionGateway";
 
 export default function BankingSetupScreen({ business, cash, onCashChange, onChange, onLedger }: BankingPageProps) {
   const licenseCost = BANKING_LICENSE_COST;
   const payLicense = () => {
-    if (!tryAcquireSpendLock(`banking:license:${business.id}`)) return;
-    const transaction = completeBankingLicense({ business, cash, timestamp: Date.now() });
+    const timestamp = Date.now();
+    const transaction = completeBankingLicense({ business, cash, timestamp });
     if (!transaction.accepted) return;
-    onCashChange(() => transaction.cash);
-    onChange(transaction.business);
-    onLedger(transaction.ledgerEntry);
+    commitCashTransaction({
+      key: `banking:license:${business.id}`,
+      cash,
+      amount: licenseCost,
+      onCashChange,
+      onLedger,
+      ledgerEntry: transaction.ledgerEntry,
+      onCommit: () => onChange(transaction.business),
+      now: timestamp,
+    });
   };
   return <BankingPage>
     <BankingHero source={BANKING_COMPANY_ASSETS.headquarters} eyebrow="01 · FORMATION" title="Bank Setup & Licensing" copy="Choose a headquarters, fund the license, and turn a balance sheet into a trusted institution." />

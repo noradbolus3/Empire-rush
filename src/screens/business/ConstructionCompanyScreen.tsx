@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ConstructionData } from '../../types/business';
@@ -7,6 +7,7 @@ import { CONSTRUCTION_CONTRACTS, CONSTRUCTION_PROJECTS, CONSTRUCTION_UPGRADES, c
 import { constructionVisuals } from '../../data/constructionAssets';
 import { designSystem } from '../../theme/designSystem';
 import type { BankLedgerEntry } from '../../types/bank';
+import { commitCashTransaction } from '../../engine/transactionGateway';
 
 const C = { bg: designSystem.colors.surfaceLight, ink: designSystem.colors.textPrimary, muted: designSystem.colors.textSecondary, line: designSystem.colors.border, blue: designSystem.colors.primaryBlue, blueSoft: designSystem.colors.highlight, green: designSystem.colors.success, greenSoft: '#ECFDF5', gold: designSystem.colors.warning, red: designSystem.colors.danger, white: '#FFFFFF' };
 type Tab = 'Overview' | 'Dashboard' | 'Land & Projects' | 'Machinery' | 'Management' | 'Contracts' | 'Expansion';
@@ -15,28 +16,34 @@ type Props = { business: ConstructionData; cash: number; netWorth: number; onBac
 export default function ConstructionCompanyScreen({ business: rawBusiness, cash, netWorth, onBack, onCashChange, onLedger, onChange }: Props) {
   const business = useMemo(() => initializeConstruction(rawBusiness, netWorth), [rawBusiness, netWorth]);
   const [tab, setTab] = useState<Tab>('Overview');
-  const spendLock = useRef(false);
   const stage = constructionStageFor(netWorth);
   const update = (patch: Partial<ConstructionData>) => onChange({ ...business, ...patch });
   const spend = (cost: number, patch: Partial<ConstructionData>, label: string) => {
-    if (spendLock.current) return;
-    if (cash < cost) { Alert.alert('CAPITAL REQUIRED', `You need ${formatCurrency(cost - cash)} more liquid cash.`); return; }
-    spendLock.current = true;
-    onCashChange(value => Math.max(0, value - cost));
-    if (cost > 0) {
-      const timestamp = Date.now();
-      onLedger?.({
+    const timestamp = Date.now();
+    const result = commitCashTransaction({
+      key: `construction:${business.id}:${label}`,
+      cash,
+      amount: cost,
+      onCashChange,
+      onLedger,
+      ledgerEntry: cost > 0 ? {
         id: `ledger-construction-${business.id}-${timestamp}`,
         kind: 'PURCHASE',
         label: `Construction investment · ${label}`,
         amount: -cost,
         timestamp,
         detail: `${business.name} operating investment`,
-      });
+      } : undefined,
+      onCommit: () => {
+        onChange({ ...business, ...patch });
+        Alert.alert('OPERATION CONFIRMED', `${label} · ${formatCurrency(cost)} invested.`);
+      },
+      now: timestamp,
+      lockDurationMs: 300,
+    });
+    if (!result.accepted && result.reason === 'insufficient-funds') {
+      Alert.alert('CAPITAL REQUIRED', `You need ${formatCurrency(cost - cash)} more liquid cash.`);
     }
-    onChange({ ...business, ...patch });
-    Alert.alert('OPERATION CONFIRMED', `${label} · ${formatCurrency(cost)} invested.`);
-    setTimeout(() => { spendLock.current = false; }, 300);
   };
   const machinery = business.machinery ?? { excavators: 0, cranes: 0, mixers: 0, dumpTrucks: 0 };
   const activeProject = CONSTRUCTION_PROJECTS.find(project => project.id === business.activeProjectId);

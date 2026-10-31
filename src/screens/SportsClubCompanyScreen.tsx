@@ -4,6 +4,7 @@ import { Alert, Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { DEFAULT_SPORTS_CLUB, SportsClubState, SportsClubTab } from "../types/sportsClub";
 import { expandClub, matchOutcome, projectedHourlyRevenue, signSponsor, trainTeam, upgradeFacility } from "../engine/sportsClubEngine";
 import { SpecializedBusinessShell } from "../components/business/SpecializedBusinessShell";
+import { commitCashTransaction } from "../engine/transactionGateway";
 
 const C = { ink: designSystem.colors.textPrimary, muted: designSystem.colors.textSecondary, blue: designSystem.colors.primaryBlue, pale: designSystem.colors.surfaceLight, border: designSystem.colors.border, green: designSystem.colors.success, gold: designSystem.colors.warning };
 const pages: Array<{ id: SportsClubTab; label: string; image: any; eyebrow: string }> = [
@@ -23,9 +24,25 @@ export default function SportsClubCompanyScreen({ company, cash, onCashChange, o
   const page = pages.find((item) => item.id === tab) || pages[0];
   const hourly = projectedHourlyRevenue(state);
   const commit = (next: SportsClubState, label: string, amount = 0) => {
+    if (amount < 0) {
+      const timestamp = Date.now();
+      const result = commitCashTransaction({
+        key: `sports:${state.clubName}:${label}`,
+        cash,
+        amount: -amount,
+        onCashChange,
+        onLedger,
+        ledgerEntry: { id: `sports-${timestamp}`, kind: "PURCHASE", label, amount, timestamp, detail: "Sports Club gameplay event" },
+        onCommit: () => onChange(next),
+        now: timestamp,
+      });
+      if (!result.accepted && result.reason === "insufficient-funds")
+        Alert.alert("EXPANSION CAPITAL", `Need ${(Math.abs(amount) - cash).toLocaleString()} more cash.`);
+      return;
+    }
     onChange(next);
-    if (amount) onCashChange((value) => value + amount);
-    if (amount) onLedger?.({ id: `sports-${Date.now()}`, kind: amount > 0 ? "BUSINESS_REVENUE" : "PURCHASE", label, amount, timestamp: Date.now(), detail: "Sports Club gameplay event" });
+    if (amount > 0) onCashChange((value) => value + amount);
+    if (amount > 0) onLedger?.({ id: `sports-${Date.now()}`, kind: "BUSINESS_REVENUE", label, amount, timestamp: Date.now(), detail: "Sports Club gameplay event" });
   };
   const runMatch = () => commit(matchOutcome(state, state.matchesPlayed + 17), "Sports match revenue", 500);
   const train = () => commit(trainTeam(state), "Team training upgrade", -900);

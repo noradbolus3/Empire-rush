@@ -9,6 +9,7 @@ import { PropertiesTab } from './PropertiesTab';
 import type { CollectionItem } from '../data/collectionTypes';
 import type { BankLedgerEntry } from '../types/bank';
 import { designSystem } from '../theme/designSystem';
+import { commitCashTransaction } from '../engine/transactionGateway';
 
 const C = { bg: designSystem.colors.background, panel: designSystem.colors.card, panel2: designSystem.colors.highlight, green: designSystem.colors.primary, cyan: designSystem.colors.cyan, gold: designSystem.colors.gold, slate: designSystem.colors.border, text: designSystem.colors.heading, muted: designSystem.colors.secondary };
 type LifestyleTab = 'CARS' | 'YACHTS' | 'JETS' | 'PROPERTIES';
@@ -25,11 +26,23 @@ export function LifestyleScreen({ owned, cash, setCash, setOwned, onLedger }: Pr
   const active = useMemo(() => TABS.find(tab => tab.id === activeTab) || TABS[0], [activeTab]);
   const acquire = (item: CollectionItem) => {
     if (owned.includes(item.id)) return;
-    if (cash < item.price) { Alert.alert('Prestige locked', `Need $${(item.price - cash).toLocaleString('en-US')} more liquid cash.`); return; }
-    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setCash(value => Math.max(0, value - item.price));
-    setOwned(value => value.includes(item.id) ? value : [...value, item.id]);
-    onLedger?.({ id: `ledger-purchase-${item.id}-${Date.now()}`, kind: 'PURCHASE', label: `Lifestyle purchase · ${item.name}`, amount: -item.price, timestamp: Date.now(), detail: `${item.category} asset acquired` });
+    const timestamp = Date.now();
+    const result = commitCashTransaction({
+      key: `lifestyle:${item.id}`,
+      cash,
+      amount: item.price,
+      onCashChange: setCash,
+      onLedger,
+      ledgerEntry: { id: `ledger-purchase-${item.id}-${timestamp}`, kind: 'PURCHASE', label: `Lifestyle purchase · ${item.name}`, amount: -item.price, timestamp, detail: `${item.category} asset acquired` },
+      onCommit: () => {
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        setOwned(value => value.includes(item.id) ? value : [...value, item.id]);
+      },
+      now: timestamp,
+    });
+    if (!result.accepted && result.reason === 'insufficient-funds') {
+      Alert.alert('Prestige locked', `Need $${(item.price - cash).toLocaleString('en-US')} more liquid cash.`);
+    }
   };
   const tabProps = { owned, cash, onAcquire: acquire };
   return <ScrollView style={styles.root} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">

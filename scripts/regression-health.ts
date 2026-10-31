@@ -82,7 +82,7 @@ assert.match(financialCore, /export function settleHour/, 'financial core: share
 assert.match(app, /calculateNetWorth\(financialState\)/, 'financial core: App net-worth adapter missing');
 assert.match(app, /ledger-trade-/, 'financial ledger: trade hook missing');
 assert.match(read('src/screens/BusinessScreen.tsx'), /onLedger\?\.\(/, 'financial ledger: business purchase hook missing');
-assert.match(read('src/screens/LifestyleScreen.tsx'), /onLedger\?\.\(/, 'financial ledger: lifestyle purchase hook missing');
+assert.match(read('src/screens/LifestyleScreen.tsx'), /commitCashTransaction[\s\S]*onLedger/, 'financial ledger: lifestyle purchase gateway missing');
 assert.doesNotMatch(app, /setCash\([^\n]*profitRef|value \+ result\.cashDelta/, 'settlement: App still credits passive income per tick');
 assert.match(read('src/engine/tradeEngine.ts'), /Math\.max\(0, Number\(\(cash - preview\.total\)/, 'wallet: trade spend clamp missing');
 const firstLogin = hydrateDailyProgress(DEFAULT_PROGRESSION, Date.UTC(2026, 0, 1));

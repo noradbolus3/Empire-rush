@@ -18,10 +18,11 @@ const check = (label: string, ok: boolean, details: Record<string, unknown>) => 
 for (const [file, label] of modules) {
   const source = readFileSync(`src/screens/${file}`, "utf8");
   const ledgerCalls = (source.match(/onLedger\?\./g) || []).length;
+  const gatewayCalls = (source.match(/commitCashTransaction/g) || []).length;
   const requiredFields = ["id", "kind", "label", "amount", "timestamp"];
   const fieldsPresent = requiredFields.every((field) => source.includes(`${field}:`) || source.includes(`${field},`) || source.includes(`${field} }`));
   const hasSignedAmount = source.includes("amount: -") || source.includes("amount, ") || source.includes("amount}") || /amount\s*[><=]/.test(source) || source.includes("-cost") || source.includes("-15000");
-  check(`${label} ledger callback`, ledgerCalls > 0 && fieldsPresent && hasSignedAmount, { file, ledgerCalls, fieldsPresent, hasSignedAmount });
+  check(`${label} ledger callback`, (ledgerCalls > 0 || gatewayCalls > 0) && fieldsPresent && hasSignedAmount, { file, ledgerCalls, gatewayCalls, fieldsPresent, hasSignedAmount });
 }
 
 const retail = DEFAULT_BUSINESSES.find((item) => item.sector === "Retail");
