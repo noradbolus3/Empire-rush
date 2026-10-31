@@ -1744,6 +1744,7 @@ function AppContent() {
               netWorth={netWorth}
               projectedHourlyIncome={projectedHourlyIncome}
               businesses={businesses}
+              portfolioBusinesses={businessRegistry}
               activeBusinessCount={canonicalActiveCount(businessRegistry)}
               founderProfile={founderProfile}
               portfolioHistory={portfolioHistory}
