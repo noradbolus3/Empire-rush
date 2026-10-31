@@ -10,8 +10,8 @@ import {
   BUSINESS_SIMULATION_SAVE,
   DEFAULT_BUSINESSES,
   loadBusinessSimulation,
-  persistBusinessSimulation,
 } from "../engine/businessSimulation";
+import { coordinatedWrite, recoverPendingSave } from "../engine/saveCoordinator";
 import { BusinessEntity } from "../types/business";
 import { DEFAULT_TAXI_COMPANY, TaxiCompanyState } from "../types/taxi";
 import {
@@ -143,22 +143,25 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => {
     let active = true;
-    void Promise.all([
-      loadBusinessSimulation(),
-      AsyncStorage.getItem(TAXI_COMPANY_SAVE),
-      AsyncStorage.getItem(SHIPPING_COMPANY_SAVE),
-      AsyncStorage.getItem(FACTORY_COMPANY_SAVE),
-      AsyncStorage.getItem(CONSTRUCTION_COMPANY_SAVE),
-      AsyncStorage.getItem(DEALERSHIP_SAVE),
-      AsyncStorage.getItem(SOFTWARE_COMPANY_SAVE),
-      AsyncStorage.getItem(SPORTS_CLUB_SAVE),
-      AsyncStorage.getItem(OIL_GAS_SAVE),
-      AsyncStorage.getItem(AIRLINE_SAVE),
-      AsyncStorage.getItem(HOTEL_SAVE),
-      AsyncStorage.getItem(BLOCKCHAIN_SAVE),
-      AsyncStorage.getItem(SPACE_SAVE),
-      AsyncStorage.getItem(HOLDING_SAVE),
-    ]).then(
+    void recoverPendingSave()
+      .catch(() => false)
+      .then(() => Promise.all([
+        loadBusinessSimulation(),
+        AsyncStorage.getItem(TAXI_COMPANY_SAVE),
+        AsyncStorage.getItem(SHIPPING_COMPANY_SAVE),
+        AsyncStorage.getItem(FACTORY_COMPANY_SAVE),
+        AsyncStorage.getItem(CONSTRUCTION_COMPANY_SAVE),
+        AsyncStorage.getItem(DEALERSHIP_SAVE),
+        AsyncStorage.getItem(SOFTWARE_COMPANY_SAVE),
+        AsyncStorage.getItem(SPORTS_CLUB_SAVE),
+        AsyncStorage.getItem(OIL_GAS_SAVE),
+        AsyncStorage.getItem(AIRLINE_SAVE),
+        AsyncStorage.getItem(HOTEL_SAVE),
+        AsyncStorage.getItem(BLOCKCHAIN_SAVE),
+        AsyncStorage.getItem(SPACE_SAVE),
+        AsyncStorage.getItem(HOLDING_SAVE),
+      ]))
+      .then(
       ([
         loadedBusinesses,
         rawTaxi,
@@ -299,58 +302,29 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   }, []);
   useEffect(() => {
     if (!hydrated) return;
-    void persistBusinessSimulation(businesses).catch(() => undefined);
-    if (taxiCompany)
-      void AsyncStorage.setItem(TAXI_COMPANY_SAVE, JSON.stringify(taxiCompany));
-    else void AsyncStorage.removeItem(TAXI_COMPANY_SAVE);
-    if (shippingCompany)
-      void AsyncStorage.setItem(
-        SHIPPING_COMPANY_SAVE,
-        JSON.stringify(shippingCompany),
-      );
-    else void AsyncStorage.removeItem(SHIPPING_COMPANY_SAVE);
-    if (factoryCompany)
-      void AsyncStorage.setItem(
-        FACTORY_COMPANY_SAVE,
-        JSON.stringify(factoryCompany),
-      );
-    else void AsyncStorage.removeItem(FACTORY_COMPANY_SAVE);
-    if (constructionCompany)
-      void AsyncStorage.setItem(
-        CONSTRUCTION_COMPANY_SAVE,
-        JSON.stringify(constructionCompany),
-      );
-    else void AsyncStorage.removeItem(CONSTRUCTION_COMPANY_SAVE);
-    if (dealership)
-      void AsyncStorage.setItem(DEALERSHIP_SAVE, JSON.stringify(dealership));
-    else void AsyncStorage.removeItem(DEALERSHIP_SAVE);
-    if (softwareCompany)
-      void AsyncStorage.setItem(
-        SOFTWARE_COMPANY_SAVE,
-        JSON.stringify(softwareCompany),
-      );
-    else void AsyncStorage.removeItem(SOFTWARE_COMPANY_SAVE);
-    if (sportsClub)
-      void AsyncStorage.setItem(SPORTS_CLUB_SAVE, JSON.stringify(sportsClub));
-    else void AsyncStorage.removeItem(SPORTS_CLUB_SAVE);
-    if (oilGas)
-      void AsyncStorage.setItem(OIL_GAS_SAVE, JSON.stringify(oilGas));
-    else void AsyncStorage.removeItem(OIL_GAS_SAVE);
-    if (airline)
-      void AsyncStorage.setItem(AIRLINE_SAVE, JSON.stringify(airline));
-    else void AsyncStorage.removeItem(AIRLINE_SAVE);
-    if (hotel)
-      void AsyncStorage.setItem(HOTEL_SAVE, JSON.stringify(hotel));
-    else void AsyncStorage.removeItem(HOTEL_SAVE);
-    if (blockchain)
-      void AsyncStorage.setItem(BLOCKCHAIN_SAVE, JSON.stringify(blockchain));
-    else void AsyncStorage.removeItem(BLOCKCHAIN_SAVE);
-    if (space)
-      void AsyncStorage.setItem(SPACE_SAVE, JSON.stringify(space));
-    else void AsyncStorage.removeItem(SPACE_SAVE);
-    if (holding)
-      void AsyncStorage.setItem(HOLDING_SAVE, JSON.stringify(holding));
-    else void AsyncStorage.removeItem(HOLDING_SAVE);
+    const specializedEntry = (key: string, value: unknown) => ({
+      key,
+      value: value == null ? null : JSON.stringify(value),
+    });
+    void coordinatedWrite([
+      {
+        key: BUSINESS_SIMULATION_SAVE,
+        value: JSON.stringify({ schemaVersion: 4, businesses }),
+      },
+      specializedEntry(TAXI_COMPANY_SAVE, taxiCompany),
+      specializedEntry(SHIPPING_COMPANY_SAVE, shippingCompany),
+      specializedEntry(FACTORY_COMPANY_SAVE, factoryCompany),
+      specializedEntry(CONSTRUCTION_COMPANY_SAVE, constructionCompany),
+      specializedEntry(DEALERSHIP_SAVE, dealership),
+      specializedEntry(SOFTWARE_COMPANY_SAVE, softwareCompany),
+      specializedEntry(SPORTS_CLUB_SAVE, sportsClub),
+      specializedEntry(OIL_GAS_SAVE, oilGas),
+      specializedEntry(AIRLINE_SAVE, airline),
+      specializedEntry(HOTEL_SAVE, hotel),
+      specializedEntry(BLOCKCHAIN_SAVE, blockchain),
+      specializedEntry(SPACE_SAVE, space),
+      specializedEntry(HOLDING_SAVE, holding),
+    ]).catch(() => undefined);
   }, [
     businesses,
     taxiCompany,
@@ -383,23 +357,24 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     setBlockchain(null);
     setSpace(null);
     setHolding(null);
-    void AsyncStorage.setItem(
-      BUSINESS_SIMULATION_SAVE,
-      JSON.stringify({ schemaVersion: 2, businesses: DEFAULT_BUSINESSES }),
-    );
-    void AsyncStorage.removeItem(TAXI_COMPANY_SAVE);
-    void AsyncStorage.removeItem(SHIPPING_COMPANY_SAVE);
-    void AsyncStorage.removeItem(FACTORY_COMPANY_SAVE);
-    void AsyncStorage.removeItem(CONSTRUCTION_COMPANY_SAVE);
-    void AsyncStorage.removeItem(DEALERSHIP_SAVE);
-    void AsyncStorage.removeItem(SOFTWARE_COMPANY_SAVE);
-    void AsyncStorage.removeItem(SPORTS_CLUB_SAVE);
-    void AsyncStorage.removeItem(OIL_GAS_SAVE);
-    void AsyncStorage.removeItem(AIRLINE_SAVE);
-    void AsyncStorage.removeItem(HOTEL_SAVE);
-    void AsyncStorage.removeItem(BLOCKCHAIN_SAVE);
-    void AsyncStorage.removeItem(SPACE_SAVE);
-    void AsyncStorage.removeItem(HOLDING_SAVE);
+    void coordinatedWrite([
+      { key: BUSINESS_SIMULATION_SAVE, value: JSON.stringify({ schemaVersion: 4, businesses: DEFAULT_BUSINESSES }) },
+      ...[
+      TAXI_COMPANY_SAVE,
+      SHIPPING_COMPANY_SAVE,
+      FACTORY_COMPANY_SAVE,
+      CONSTRUCTION_COMPANY_SAVE,
+      DEALERSHIP_SAVE,
+      SOFTWARE_COMPANY_SAVE,
+      SPORTS_CLUB_SAVE,
+      OIL_GAS_SAVE,
+      AIRLINE_SAVE,
+      HOTEL_SAVE,
+      BLOCKCHAIN_SAVE,
+      SPACE_SAVE,
+      HOLDING_SAVE,
+      ].map((key) => ({ key, value: null })),
+    ]).catch(() => undefined);
   };
   const value = useMemo(
     () => ({

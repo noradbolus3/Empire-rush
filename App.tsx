@@ -72,6 +72,7 @@ import {
 } from "./src/services/notifications";
 import { BUILD_COMMIT, BUILD_VERSION } from "./src/config/buildInfo";
 import { GAME_SAVE_VERSION, migrateGameSave } from "./src/engine/saveMigration";
+import { coordinatedWrite, recoverPendingSave } from "./src/engine/saveCoordinator";
 import { resolveCashUpdate, sanitizeCash } from "./src/engine/walletGuard";
 import {
   advanceMarketTick,
@@ -679,7 +680,9 @@ function AppContent() {
     );
   }, [loaded, weeklyEventKey]);
   useEffect(() => {
-    AsyncStorage.getItem(SAVE)
+    recoverPendingSave()
+      .catch(() => false)
+      .then(() => AsyncStorage.getItem(SAVE))
       .then((raw) => {
         try {
           const saved = migrateGameSave(raw ? JSON.parse(raw) : null);
@@ -1176,7 +1179,7 @@ function AppContent() {
         schemaVersion: GAME_SAVE_VERSION,
         saved: Date.now(),
       };
-      void AsyncStorage.setItem(SAVE, JSON.stringify(snapshot))
+      void coordinatedWrite([{ key: SAVE, value: JSON.stringify(snapshot) }])
         .then(() => setLastSaved(Date.now()))
         .catch(() => undefined);
     };

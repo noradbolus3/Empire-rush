@@ -2,7 +2,7 @@ declare const require: any;
 const assert = require('assert').strict;
 import { calculateMarketPulse, recentAssetTrend } from '../src/engine/marketEngine';
 import { applyTrade } from '../src/engine/tradeEngine';
-import { migrateGameSave } from '../src/engine/saveMigration';
+import { GAME_SAVE_VERSION, migrateGameSave } from '../src/engine/saveMigration';
 import type { Asset } from '../src/types/marketAsset';
 import type { TradeRecord } from '../src/types/market';
 
@@ -38,7 +38,7 @@ assert.equal(sell.holding.shares, 6);
 
 const watchlist = [asset.id];
 const reloaded = migrateGameSave(JSON.parse(JSON.stringify({ schemaVersion: 7, assets: [asset], holdings: { [asset.id]: holding }, tradeHistory: [buyRecord, sellRecord], watchlist })));
-assert.equal(reloaded.schemaVersion, 8);
+assert.equal(reloaded.schemaVersion, GAME_SAVE_VERSION);
 assert.deepEqual(reloaded.watchlist, [asset.id]);
 assert.equal(reloaded.tradeHistory.length, 2);
 assert.equal(reloaded.tradeHistory[1].side, 'SELL');
