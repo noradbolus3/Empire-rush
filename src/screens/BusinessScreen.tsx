@@ -50,6 +50,7 @@ import { buildCanonicalBusinessRegistry, canonicalActiveCount } from "../engine/
 import type { CanonicalBusiness } from "../engine/canonicalBusinessRegistry";
 import { getBusinessDisplayMeta } from "../data/businessDisplayCatalog";
 import { BusinessPortfolioCard } from "../components/business/BusinessPortfolioCard";
+import { commitBusinessAcquisition } from "../engine/businessAcquisition";
 import {
   buildUnifiedBusinessPortfolio,
   portfolioStatus,
@@ -342,10 +343,22 @@ function BusinessScreenContent({
       Alert.alert("SPORTS CLUB LOCKED", `Need ${formatCurrency(setupCost - cash)} more for the club charter and first season budget.`);
       return;
     }
-    onCashChange((value) => value - setupCost);
-    setSportsClub({ ...DEFAULT_SPORTS_CLUB, cashReserve: setupCost });
-    onLedger?.({ id: `sports-charter-${Date.now()}`, kind: "PURCHASE", label: "Sports Club charter", amount: -setupCost, timestamp: Date.now(), detail: "Club headquarters and first-season operating reserve" });
-    setSportsOpen(true);
+    const result = commitBusinessAcquisition({
+      key: "sports-charter",
+      businessId: DEFAULT_SPORTS_CLUB.id,
+      businessName: DEFAULT_SPORTS_CLUB.clubName,
+      amount: setupCost,
+      detail: "Club headquarters and first-season operating reserve",
+      cash,
+      onCashChange,
+      onLedger,
+      onCommit: () => {
+        setSportsClub({ ...DEFAULT_SPORTS_CLUB, cashReserve: setupCost });
+        setSportsOpen(true);
+      },
+    });
+    if (!result.accepted && result.reason === "insufficient-funds")
+      Alert.alert("SPORTS CLUB LOCKED", `Need ${formatCurrency(setupCost - cash)} more for the club charter and first season budget.`);
   };
   const openOilGas = () => {
     if (oilGas) return setOilGasOpen(true);
@@ -354,10 +367,22 @@ function BusinessScreenContent({
       Alert.alert("OIL & GAS LOCKED", `Need ${formatCurrency(setupCost - cash)} more for the energy charter and first field budget.`);
       return;
     }
-    onCashChange((value) => value - setupCost);
-    setOilGas({ ...DEFAULT_OIL_GAS, cashReserve: setupCost });
-    onLedger?.({ id: `oilgas-charter-${Date.now()}`, kind: "PURCHASE", label: "Oil & Gas charter", amount: -setupCost, timestamp: Date.now(), detail: "Energy headquarters and first-field operating reserve" });
-    setOilGasOpen(true);
+    const result = commitBusinessAcquisition({
+      key: "oilgas-charter",
+      businessId: DEFAULT_OIL_GAS.id,
+      businessName: DEFAULT_OIL_GAS.companyName,
+      amount: setupCost,
+      detail: "Energy headquarters and first-field operating reserve",
+      cash,
+      onCashChange,
+      onLedger,
+      onCommit: () => {
+        setOilGas({ ...DEFAULT_OIL_GAS, cashReserve: setupCost });
+        setOilGasOpen(true);
+      },
+    });
+    if (!result.accepted && result.reason === "insufficient-funds")
+      Alert.alert("OIL & GAS LOCKED", `Need ${formatCurrency(setupCost - cash)} more for the energy charter and first field budget.`);
   };
   const openAirline = () => {
     if (airline) return setAirlineOpen(true);
@@ -366,10 +391,22 @@ function BusinessScreenContent({
       Alert.alert("AIRLINE LOCKED", `Need ${formatCurrency(setupCost - cash)} more for the air operator certificate and launch fleet.`);
       return;
     }
-    onCashChange((value) => value - setupCost);
-    setAirline({ ...DEFAULT_AIRLINE, cashReserve: setupCost });
-    onLedger?.({ id: `airline-charter-${Date.now()}`, kind: "PURCHASE", label: "Airline charter", amount: -setupCost, timestamp: Date.now(), detail: "Air operator certificate and launch fleet reserve" });
-    setAirlineOpen(true);
+    const result = commitBusinessAcquisition({
+      key: "airline-charter",
+      businessId: DEFAULT_AIRLINE.id,
+      businessName: DEFAULT_AIRLINE.companyName,
+      amount: setupCost,
+      detail: "Air operator certificate and launch fleet reserve",
+      cash,
+      onCashChange,
+      onLedger,
+      onCommit: () => {
+        setAirline({ ...DEFAULT_AIRLINE, cashReserve: setupCost });
+        setAirlineOpen(true);
+      },
+    });
+    if (!result.accepted && result.reason === "insufficient-funds")
+      Alert.alert("AIRLINE LOCKED", `Need ${formatCurrency(setupCost - cash)} more for the air operator certificate and launch fleet.`);
   };
   const openHotel = () => {
     if (hotel) return setHotelOpen(true);
@@ -378,10 +415,22 @@ function BusinessScreenContent({
       Alert.alert("HOTEL LOCKED", `Need ${formatCurrency(setupCost - cash)} more for the property acquisition and opening team.`);
       return;
     }
-    onCashChange((value) => value - setupCost);
-    setHotel({ ...DEFAULT_HOTEL, cashReserve: setupCost });
-    onLedger?.({ id: `hotel-charter-${Date.now()}`, kind: "PURCHASE", label: "Hotel property charter", amount: -setupCost, timestamp: Date.now(), detail: "Property acquisition and opening team reserve" });
-    setHotelOpen(true);
+    const result = commitBusinessAcquisition({
+      key: "hotel-charter",
+      businessId: DEFAULT_HOTEL.id,
+      businessName: DEFAULT_HOTEL.companyName,
+      amount: setupCost,
+      detail: "Property acquisition and opening team reserve",
+      cash,
+      onCashChange,
+      onLedger,
+      onCommit: () => {
+        setHotel({ ...DEFAULT_HOTEL, cashReserve: setupCost });
+        setHotelOpen(true);
+      },
+    });
+    if (!result.accepted && result.reason === "insufficient-funds")
+      Alert.alert("HOTEL LOCKED", `Need ${formatCurrency(setupCost - cash)} more for the property acquisition and opening team.`);
   };
   const openBlockchain = () => {
     if (blockchain) return setBlockchainOpen(true);
@@ -390,10 +439,22 @@ function BusinessScreenContent({
       Alert.alert("TECHNOLOGY LOCKED", `Need ${formatCurrency(setupCost - cash)} more for the infrastructure and research launch.`);
       return;
     }
-    onCashChange((value) => value - setupCost);
-    setBlockchain({ ...DEFAULT_BLOCKCHAIN, cashReserve: setupCost });
-    onLedger?.({ id: `blockchain-charter-${Date.now()}`, kind: "PURCHASE", label: "Technology company charter", amount: -setupCost, timestamp: Date.now(), detail: "Infrastructure and research launch reserve" });
-    setBlockchainOpen(true);
+    const result = commitBusinessAcquisition({
+      key: "blockchain-charter",
+      businessId: DEFAULT_BLOCKCHAIN.id,
+      businessName: DEFAULT_BLOCKCHAIN.companyName,
+      amount: setupCost,
+      detail: "Infrastructure and research launch reserve",
+      cash,
+      onCashChange,
+      onLedger,
+      onCommit: () => {
+        setBlockchain({ ...DEFAULT_BLOCKCHAIN, cashReserve: setupCost });
+        setBlockchainOpen(true);
+      },
+    });
+    if (!result.accepted && result.reason === "insufficient-funds")
+      Alert.alert("TECHNOLOGY LOCKED", `Need ${formatCurrency(setupCost - cash)} more for the infrastructure and research launch.`);
   };
   const openSpace = () => {
     if (space) return setSpaceOpen(true);
@@ -402,10 +463,22 @@ function BusinessScreenContent({
       Alert.alert("AEROSPACE LOCKED", `Need ${formatCurrency(setupCost - cash)} more for the launch program and engineering team.`);
       return;
     }
-    onCashChange((value) => value - setupCost);
-    setSpace({ ...DEFAULT_SPACE, cashReserve: setupCost });
-    onLedger?.({ id: `space-charter-${Date.now()}`, kind: "PURCHASE", label: "Aerospace company charter", amount: -setupCost, timestamp: Date.now(), detail: "Launch program and engineering team reserve" });
-    setSpaceOpen(true);
+    const result = commitBusinessAcquisition({
+      key: "space-charter",
+      businessId: DEFAULT_SPACE.id,
+      businessName: DEFAULT_SPACE.companyName,
+      amount: setupCost,
+      detail: "Launch program and engineering team reserve",
+      cash,
+      onCashChange,
+      onLedger,
+      onCommit: () => {
+        setSpace({ ...DEFAULT_SPACE, cashReserve: setupCost });
+        setSpaceOpen(true);
+      },
+    });
+    if (!result.accepted && result.reason === "insufficient-funds")
+      Alert.alert("AEROSPACE LOCKED", `Need ${formatCurrency(setupCost - cash)} more for the launch program and engineering team.`);
   };
   const openHolding = () => {
     if (holding) return setHoldingOpen(true);
@@ -414,10 +487,22 @@ function BusinessScreenContent({
       Alert.alert("HOLDING COMPANY LOCKED", `Need ${formatCurrency(setupCost - cash)} more for the corporate headquarters and group treasury.`);
       return;
     }
-    onCashChange((value) => value - setupCost);
-    setHolding({ ...DEFAULT_HOLDING, cashReserve: setupCost });
-    onLedger?.({ id: `holding-charter-${Date.now()}`, kind: "PURCHASE", label: "Holding Company charter", amount: -setupCost, timestamp: Date.now(), detail: "Corporate headquarters and group treasury reserve" });
-    setHoldingOpen(true);
+    const result = commitBusinessAcquisition({
+      key: "holding-charter",
+      businessId: DEFAULT_HOLDING.id,
+      businessName: DEFAULT_HOLDING.companyName,
+      amount: setupCost,
+      detail: "Corporate headquarters and group treasury reserve",
+      cash,
+      onCashChange,
+      onLedger,
+      onCommit: () => {
+        setHolding({ ...DEFAULT_HOLDING, cashReserve: setupCost });
+        setHoldingOpen(true);
+      },
+    });
+    if (!result.accepted && result.reason === "insufficient-funds")
+      Alert.alert("HOLDING COMPANY LOCKED", `Need ${formatCurrency(setupCost - cash)} more for the corporate headquarters and group treasury.`);
   };
   const openSpecializedRoute = (
     screen: Exclude<BusinessRouteScreen, "portfolio" | "business-master-hub">,
@@ -689,42 +774,52 @@ function BusinessScreenContent({
     structure: OperatingStructure,
     fee: number,
   ) => {
-    if (
-      !registrationTarget ||
-      cash < fee + registrationTarget.acquisitionCost
-    ) {
+    if (!registrationTarget) {
+      return;
+    }
+    const target = registrationTarget;
+    const total = fee + target.acquisitionCost;
+    if (cash < total) {
       Alert.alert(
         "INSUFFICIENT CAPITAL",
-        `This deal requires ${formatCurrency((registrationTarget?.acquisitionCost || 0) + fee)} liquid cash.`,
+        `This deal requires ${formatCurrency(total)} liquid cash.`,
       );
       return;
     }
-    const total = fee + registrationTarget.acquisitionCost;
-    onCashChange((value) => value - total);
-    onLedger?.({
-      id: `ledger-business-${registrationTarget.id}-${Date.now()}`,
-      kind: "PURCHASE",
-      label: `Business purchase · ${name}`,
-      amount: -total,
-      timestamp: Date.now(),
+    const result = commitBusinessAcquisition({
+      key: `generic:${target.id}`,
+      businessId: target.id,
+      businessName: name,
+      amount: total,
       detail: `${structure} acquisition`,
+      cash,
+      onCashChange,
+      onLedger,
+      onCommit: () => {
+        setBusinesses((items) =>
+          items.map((item) =>
+            item.id === target.id
+              ? {
+                  ...item,
+                  name,
+                  isAcquired: true,
+                  operatingRampSeconds: 0,
+                  legalStatus: structure,
+                  policeHeat: structure === "Shadow_Underground" ? 2 : 0,
+                  stability: structure === "Shadow_Underground" ? 70 : 95,
+                }
+              : item,
+          ),
+        );
+        setRegistrationId(null);
+      },
     });
-    setBusinesses((items) =>
-      items.map((item) =>
-        item.id === registrationTarget.id
-          ? {
-              ...item,
-              name,
-              isAcquired: true,
-              operatingRampSeconds: 0,
-              legalStatus: structure,
-              policeHeat: structure === "Shadow_Underground" ? 2 : 0,
-              stability: structure === "Shadow_Underground" ? 70 : 95,
-            }
-          : item,
-      ),
-    );
-    setRegistrationId(null);
+    if (!result.accepted && result.reason === "insufficient-funds") {
+      Alert.alert(
+        "INSUFFICIENT CAPITAL",
+        `This deal requires ${formatCurrency(total)} liquid cash.`,
+      );
+    }
   };
   const quickAction = (item: BusinessEntity) => {
     if (!item.isAcquired) return setRegistrationId(item.id);

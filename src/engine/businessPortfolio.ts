@@ -47,21 +47,25 @@ export function buildUnifiedBusinessPortfolio(
   for (const route of BUSINESS_ROUTE_CATALOG) {
     if (route.kind === "generic") continue;
     if (rows.some((record) => record.kind === route.kind)) continue;
+    const shadow = registry.find(
+      (record) =>
+        record.source === "generic-state" && route.stableIds.includes(record.id),
+    );
     const source = route.stableIds
       .map((id) => businesses.find((item) => item.id === id) ?? null)
       .find((item): item is BusinessEntity => Boolean(item));
     const display = getBusinessDisplayMeta(route.kind);
     rows.push({
-      id: source?.id ?? route.routeId,
-      name: source?.name ?? display.shortLabel,
+      id: shadow?.id ?? source?.id ?? route.routeId,
+      name: shadow?.name ?? source?.name ?? display.shortLabel,
       kind: route.kind,
-      owned: false,
-      operating: false,
-      hourlyRevenue: 0,
-      hourlyExpenses: 0,
-      hourlyNet: 0,
-      pendingSettlementAmount: 0,
-      assetValue: Math.max(0, source?.acquisitionCost ?? display.charterCost),
+      owned: shadow?.owned ?? false,
+      operating: shadow?.operating ?? false,
+      hourlyRevenue: shadow?.hourlyRevenue ?? 0,
+      hourlyExpenses: shadow?.hourlyExpenses ?? 0,
+      hourlyNet: shadow?.hourlyNet ?? 0,
+      pendingSettlementAmount: shadow?.pendingSettlementAmount ?? 0,
+      assetValue: Math.max(0, shadow?.assetValue ?? source?.acquisitionCost ?? display.charterCost),
       consolidatesOtherBusinesses: route.kind === "holding",
       source: "specialized-state",
     });
