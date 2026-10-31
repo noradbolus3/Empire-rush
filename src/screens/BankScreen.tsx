@@ -53,6 +53,7 @@ import {
   LoanProduct,
   PHASE2_ACHIEVEMENTS,
 } from "../types/bank";
+import { commitCashTransaction } from "../engine/transactionGateway";
 import type { BankLedgerEntry } from "../types/bank";
 import { calculateNetWorth } from "../engine/financialCore";
 import type { CanonicalBusiness } from "../engine/canonicalBusinessRegistry";
@@ -147,6 +148,7 @@ const fmtDate = (value: number) =>
     month: "short",
     day: "numeric",
   });
+const TAX_QUARTER_MS = 90 * 24 * 60 * 60 * 1000;
 
 type Props = {
   cash: number;
@@ -333,7 +335,7 @@ export default function BankScreen({
               termMonths,
               collateral,
             );
-            const next = addLedger(
+            const withLoanProceeds = addLedger(
               {
                 ...state,
                 loans: [...state.loans, loan],
@@ -345,6 +347,14 @@ export default function BankScreen({
               decision.amount,
               Date.now(),
               "Underwriting accepted",
+            );
+            const next = addLedger(
+              withLoanProceeds,
+              "FEE",
+              `${spec.name} origination fee`,
+              -loan.originationFee,
+              Date.now(),
+              "Loan origination fee withheld from funded proceeds",
             );
             update(next);
             onCashChange((value) =>
@@ -495,7 +505,7 @@ export default function BankScreen({
         { ...state, deposits: [...state.deposits, deposit] },
         "DEPOSIT",
         deposit.name,
-        amount,
+        -amount,
         Date.now(),
         `${deposit.rate}% APY · matures ${fmtDate(deposit.maturesAt)}`,
       ),
@@ -696,6 +706,7 @@ export default function BankScreen({
         <TaxPanel
           tax={tax}
           state={state}
+          cash={cash}
           onStateChange={update}
           onCashChange={onCashChange}
           onBreaking={onBreaking}
@@ -1507,11 +1518,16 @@ function Insurance({ state, onInsure }: any) {
 function TaxPanel({
   tax,
   state,
+  cash,
   onStateChange,
   onCashChange,
   onBreaking,
 }: any) {
   const total = tax.federal + tax.state + tax.payroll + tax.capitalGains;
+  const taxObligationId = `tax-quarter-${Math.floor(Date.now() / TAX_QUARTER_MS)}`;
+  const alreadyPaid = (state.taxRecords || []).some(
+    (record: any) => record.id === taxObligationId && record.status === "PAID",
+  );
   const shortTerm = (state.taxRecords || []).reduce(
     (sum: number, item: any) => sum + Number(item.shortTermGain || 0),
     0,
@@ -1537,26 +1553,49 @@ function TaxPanel({
         depreciation, and expenses.
       </Text>
       <Action
-        label="PAY QUARTERLY ESTIMATE"
+        label={alreadyPaid ? "TAX ESTIMATE PAID" : "PAY QUARTERLY ESTIMATE"}
         onPress={() => {
-          onCashChange((value: number) => Math.max(0, value - total));
-          onStateChange(
-            addLedger(
-              {
-                ...state,
-                taxRecords: [
-                  ...state.taxRecords,
-                  { ...tax, paid: total, status: "PAID" },
-                ],
-              },
-              "TAX",
-              "Quarterly estimated payment",
-              -total,
-              Date.now(),
-              "Federal, state, payroll, and capital gains estimate",
-            ),
-          );
-          onBreaking(`Tax estimate paid · ${money(total)}.`);
+          if (alreadyPaid)
+            return Alert.alert("TAX ALREADY PAID", "This tax obligation has already been paid.");
+          if (cash < total)
+            return Alert.alert("TAX PAYMENT DECLINED", "Not enough cash to pay this tax.");
+          const timestamp = Date.now();
+          const result = commitCashTransaction({
+            key: taxObligationId,
+            cash,
+            amount: total,
+            onCashChange,
+            onLedger: () => undefined,
+            ledgerEntry: {
+              id: `ledger-${taxObligationId}`,
+              kind: "TAX",
+              label: "Quarterly estimated payment",
+              amount: -total,
+              timestamp,
+              detail: "Federal, state, payroll, and capital gains estimate",
+            },
+            onCommit: () =>
+              onStateChange(
+                addLedger(
+                  {
+                    ...state,
+                    taxRecords: [
+                      ...state.taxRecords,
+                      { ...tax, id: taxObligationId, paid: total, status: "PAID" },
+                    ],
+                  },
+                  "TAX",
+                  "Quarterly estimated payment",
+                  -total,
+                  timestamp,
+                  "Federal, state, payroll, and capital gains estimate",
+                ),
+              ),
+            now: timestamp,
+          });
+          if (!result.accepted && result.reason === "duplicate")
+            return Alert.alert("TAX ALREADY PAID", "This tax payment is already being processed.");
+          if (result.accepted) onBreaking(`Tax estimate paid · ${money(total)}.`);
         }}
       />
     </ScrollView>
