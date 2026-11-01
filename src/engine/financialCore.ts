@@ -174,16 +174,16 @@ function businessRevenue(state: FinancialGameState) {
     ? Math.max(0, taxiHourlyEconomics(state.taxiCompany).net)
     : 0;
   const shipping = state.shippingCompany?.status === "operating"
-    ? Math.max(0, shippingEconomics(state.shippingCompany).net)
+    ? shippingEconomics(state.shippingCompany).net
     : 0;
   const factory = state.factoryCompany?.status === "operating"
-    ? Math.max(0, factoryEconomics(state.factoryCompany).net)
+    ? factoryEconomics(state.factoryCompany).net
     : 0;
   const construction = state.constructionCompany?.status === "operating"
-    ? Math.max(0, (state.constructionCompany.activeProjects > 0 ? state.constructionCompany.contractValue : 0) - (state.constructionCompany.workers * 55 + state.constructionCompany.excavators * 90 + state.constructionCompany.cranes * 120 + state.constructionCompany.mixers * 45 + (state.constructionCompany.activeProjects ? 150 : 0)))
+    ? ((state.constructionCompany.activeProjects > 0 ? state.constructionCompany.contractValue : 0) - (state.constructionCompany.workers * 55 + state.constructionCompany.excavators * 90 + state.constructionCompany.cranes * 120 + state.constructionCompany.mixers * 45 + (state.constructionCompany.activeProjects ? 150 : 0)))
     : 0;
   const software = state.softwareCompany?.status === "operating"
-    ? Math.max(0, softwareSettlementTick(state.softwareCompany).profit)
+    ? softwareSettlementTick(state.softwareCompany).profit
     : 0;
   return base + taxi + shipping + factory + construction + software;
 }
@@ -265,13 +265,18 @@ export function settleHour(state: FinancialGameState): SettlementResult {
   const priorGains = (state.bank.taxRecords || [])
     .filter((item) => item.status !== "PAID")
     .reduce((sum, item) => sum + positive(item.capitalGains), 0);
+  let specializedPayroll = 0;
+  if (state.taxiCompany?.status === "operating") specializedPayroll += (state.taxiCompany.economyTaxis + state.taxiCompany.electricTaxis + state.taxiCompany.luxuryTaxis) * 60;
+
+  const basePayroll = (state.businesses || [])
+      .filter((item) => item.isAcquired && Number(item.staffCount || 0) > 0)
+      .reduce((sum, item) => sum + positive(item.hourlyNetProfit) * 0.2, 0);
+
   const tax = calculateTax(
     taxableIncome * 24 * 365,
     loan.interest * 24 * 365 + assetUpkeep * 24 * 365 + premium * 24 * 365,
     priorGains,
-    (state.businesses || [])
-      .filter((item) => item.isAcquired && Number(item.staffCount || 0) > 0)
-      .reduce((sum, item) => sum + positive(item.hourlyNetProfit) * 0.2, 0),
+    basePayroll + specializedPayroll,
   );
   const taxAccrual =
     tax.federal / 8760 +

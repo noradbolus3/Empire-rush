@@ -73,44 +73,44 @@ export function buildIncomeSources({ businesses, assets, holdings, businessProfi
   }
 
   if (shippingCompany?.status === 'operating') {
-    const net = Math.max(0, shippingEconomics(shippingCompany).net);
-    if (net > 0) businessRows.push({ label: shippingCompany.name || 'Shipping Company', hourlyProjected: Number(net.toFixed(2)), color: INCOME_SOURCE_COLORS.business, note: 'Logistics · credited at the next hourly settlement' });
+    const net = shippingEconomics(shippingCompany).net;
+    if (net !== 0) businessRows.push({ label: shippingCompany.name || 'Shipping Company', hourlyProjected: Number(net.toFixed(2)), color: INCOME_SOURCE_COLORS.business, note: 'Logistics · credited at the next hourly settlement' });
   }
   if (factoryCompany?.status === 'operating') {
-    const net = Math.max(0, factoryEconomics(factoryCompany).net);
-    if (net > 0) businessRows.push({ label: factoryCompany.name || 'Manufacturing Co', hourlyProjected: Number(net.toFixed(2)), color: INCOME_SOURCE_COLORS.business, note: 'Manufacturing · credited at the next hourly settlement' });
+    const net = factoryEconomics(factoryCompany).net;
+    if (net !== 0) businessRows.push({ label: factoryCompany.name || 'Manufacturing Co', hourlyProjected: Number(net.toFixed(2)), color: INCOME_SOURCE_COLORS.business, note: 'Manufacturing · credited at the next hourly settlement' });
   }
   if (constructionCompany?.status === 'operating') {
-    const net = Math.max(0, (constructionCompany.activeProjects > 0 ? constructionCompany.contractValue : 0) - (constructionCompany.workers * 55 + constructionCompany.excavators * 90 + constructionCompany.cranes * 120 + constructionCompany.mixers * 45 + (constructionCompany.activeProjects ? 150 : 0)));
-    if (net > 0) businessRows.push({ label: constructionCompany.name || 'Construction Co', hourlyProjected: Number(net.toFixed(2)), color: INCOME_SOURCE_COLORS.business, note: 'Construction · credited at the next hourly settlement' });
+    const net = (constructionCompany.activeProjects > 0 ? constructionCompany.contractValue : 0) - (constructionCompany.workers * 55 + constructionCompany.excavators * 90 + constructionCompany.cranes * 120 + constructionCompany.mixers * 45 + (constructionCompany.activeProjects ? 150 : 0));
+    if (net !== 0) businessRows.push({ label: constructionCompany.name || 'Construction Co', hourlyProjected: Number(net.toFixed(2)), color: INCOME_SOURCE_COLORS.business, note: 'Construction · credited at the next hourly settlement' });
   }
   if (softwareCompany?.status === 'operating') {
-    const net = Math.max(0, softwareSettlementTick(softwareCompany).profit);
-    if (net > 0) businessRows.push({ label: softwareCompany.name || 'Software Co', hourlyProjected: Number(net.toFixed(2)), color: INCOME_SOURCE_COLORS.business, note: 'Software · credited at the next hourly settlement' });
+    const net = softwareSettlementTick(softwareCompany).profit;
+    if (net !== 0) businessRows.push({ label: softwareCompany.name || 'Software Co', hourlyProjected: Number(net.toFixed(2)), color: INCOME_SOURCE_COLORS.business, note: 'Software · credited at the next hourly settlement' });
   }
   if (sportsClub && sportsClub.stage !== 'Local Club') {
-    const net = Math.max(0, sportsClubHourlyRevenue(sportsClub));
-    if (net > 0) businessRows.push({ label: sportsClub.clubName || 'Sports Club', hourlyProjected: Number(net.toFixed(2)), color: INCOME_SOURCE_COLORS.business, note: 'Sports · credited at the next hourly settlement' });
+    const net = sportsClubHourlyRevenue(sportsClub);
+    if (net !== 0) businessRows.push({ label: sportsClub.clubName || 'Sports Club', hourlyProjected: Number(net.toFixed(2)), color: INCOME_SOURCE_COLORS.business, note: 'Sports · credited at the next hourly settlement' });
   }
   if (oilGas && oilGas.stage !== 'Small Operator') {
-    const net = Math.max(0, oilGasHourlyProfit(oilGas));
-    if (net > 0) businessRows.push({ label: oilGas.companyName || 'Oil & Gas', hourlyProjected: Number(net.toFixed(2)), color: INCOME_SOURCE_COLORS.business, note: 'Energy · credited at the next hourly settlement' });
+    const net = oilGasHourlyProfit(oilGas);
+    if (net !== 0) businessRows.push({ label: oilGas.companyName || 'Oil & Gas', hourlyProjected: Number(net.toFixed(2)), color: INCOME_SOURCE_COLORS.business, note: 'Energy · credited at the next hourly settlement' });
   }
   if (airline && airline.stage !== 'Regional Airline') {
-    const net = Math.max(0, airlineHourlyProfit(airline));
-    if (net > 0) businessRows.push({ label: airline.companyName || 'Airline', hourlyProjected: Number(net.toFixed(2)), color: INCOME_SOURCE_COLORS.business, note: 'Airline · credited at the next hourly settlement' });
+    const net = airlineHourlyProfit(airline);
+    if (net !== 0) businessRows.push({ label: airline.companyName || 'Airline', hourlyProjected: Number(net.toFixed(2)), color: INCOME_SOURCE_COLORS.business, note: 'Airline · credited at the next hourly settlement' });
   }
   if (hotel && hotel.stage !== 'Boutique Hotel') {
-    const net = Math.max(0, hotelHourlyProfit(hotel));
-    if (net > 0) businessRows.push({ label: hotel.companyName || 'Hotel', hourlyProjected: Number(net.toFixed(2)), color: INCOME_SOURCE_COLORS.business, note: 'Hospitality · credited at the next hourly settlement' });
+    const net = hotelHourlyProfit(hotel);
+    if (net !== 0) businessRows.push({ label: hotel.companyName || 'Hotel', hourlyProjected: Number(net.toFixed(2)), color: INCOME_SOURCE_COLORS.business, note: 'Hospitality · credited at the next hourly settlement' });
   }
   if (blockchain && blockchain.stage !== 'Technology Startup') {
-    const net = Math.max(0, blockchainHourlyProfit(blockchain));
-    if (net > 0) businessRows.push({ label: blockchain.companyName || 'Blockchain', hourlyProjected: Number(net.toFixed(2)), color: INCOME_SOURCE_COLORS.business, note: 'Technology · credited at the next hourly settlement' });
+    const net = blockchainHourlyProfit(blockchain);
+    if (net !== 0) businessRows.push({ label: blockchain.companyName || 'Blockchain', hourlyProjected: Number(net.toFixed(2)), color: INCOME_SOURCE_COLORS.business, note: 'Technology · credited at the next hourly settlement' });
   }
   if (space && space.stage !== 'Aerospace Startup') {
-    const net = Math.max(0, spaceHourlyProfit(space));
-    if (net > 0) businessRows.push({ label: space.companyName || 'Space', hourlyProjected: Number(net.toFixed(2)), color: INCOME_SOURCE_COLORS.business, note: 'Aerospace · credited at the next hourly settlement' });
+    const net = spaceHourlyProfit(space);
+    if (net !== 0) businessRows.push({ label: space.companyName || 'Space', hourlyProjected: Number(net.toFixed(2)), color: INCOME_SOURCE_COLORS.business, note: 'Aerospace · credited at the next hourly settlement' });
   }
 
   const dividendQuarterlyPotential = Number(calculateQuarterlyDividends(assets, holdings).toFixed(2));
