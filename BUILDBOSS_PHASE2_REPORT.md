@@ -1,7 +1,7 @@
 # Phase 2 Financial Core Integration Report
 
 - **Branch:** `phase2-financial-integration`
-- **Commit SHA:** de10b41
+- **Commit SHA:** 61baeec
 - **Files changed and why:**
   - `src/engine/financialCore.ts`: Appended logic into `businessRevenue()` to grab each specialized company state (`shippingCompany`, `factoryCompany`, `constructionCompany`, `softwareCompany`, `sportsClub`, `oilGas`, `airline`, `hotel`, `blockchain`, `space`) and add their distinct positive economics / profits if their respective `status` or `stage` dictates they are actively running (i.e. 'operating' or beyond setup). This creates one cohesive core pipeline without duplicated entries. Dealership was explicitly excluded since its sales are transactional (`dealershipSellTick`) rather than passive hourly. Holding was excluded to prevent double counting subsidiaries.
   - `src/engine/incomeLedger.ts`: Updated `buildIncomeSources()` identically, utilizing destructured properties instead of `arguments[0]`. Appended individual `IncomeSource` structures for each active specialized company, exposing the correct math inside the UI rendering ledger. Fixed `companyName` to `clubName` for `sportsClub`.
