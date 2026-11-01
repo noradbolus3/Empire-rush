@@ -72,6 +72,13 @@ export type FinancialGameState = {
   constructionCompany?: ConstructionCompanyState | null;
   dealership?: DealershipState | null;
   softwareCompany?: SoftwareCompanyState | null;
+  sportsClub?: SportsClubState | null;
+  oilGas?: OilGasState | null;
+  airline?: AirlineState | null;
+  hotel?: HotelState | null;
+  blockchain?: BlockchainState | null;
+  space?: SpaceState | null;
+  holding?: HoldingState | null;
   systemTimeMs: number;
   multiplier?: number;
 };
@@ -173,6 +180,7 @@ function businessRevenue(state: FinancialGameState) {
   const taxi = state.taxiCompany?.status === "operating"
     ? Math.max(0, taxiHourlyEconomics(state.taxiCompany).net)
     : 0;
+
   const shipping = state.shippingCompany?.status === "operating"
     ? shippingEconomics(state.shippingCompany).net
     : 0;
@@ -185,7 +193,26 @@ function businessRevenue(state: FinancialGameState) {
   const software = state.softwareCompany?.status === "operating"
     ? softwareSettlementTick(state.softwareCompany).profit
     : 0;
-  return base + taxi + shipping + factory + construction + software;
+  const sports = state.sportsClub && state.sportsClub.stage !== 'Local Club'
+    ? sportsClubHourlyRevenue(state.sportsClub)
+    : 0;
+  const oil = state.oilGas && state.oilGas.stage !== 'Small Operator'
+    ? oilGasHourlyProfit(state.oilGas)
+    : 0;
+  const airline = state.airline && state.airline.stage !== 'Regional Airline'
+    ? airlineHourlyProfit(state.airline)
+    : 0;
+  const hotel = state.hotel && state.hotel.stage !== 'Boutique Hotel'
+    ? hotelHourlyProfit(state.hotel)
+    : 0;
+  const blockchain = state.blockchain && state.blockchain.stage !== 'Technology Startup'
+    ? blockchainHourlyProfit(state.blockchain)
+    : 0;
+  const space = state.space && state.space.stage !== 'Aerospace Startup'
+    ? spaceHourlyProfit(state.space)
+    : 0;
+  return base + taxi + shipping + factory + construction + software + sports + oil + airline + hotel + blockchain + space;
+
 }
 function savingsInterest(state: FinancialGameState) {
   const event = state.bank.marketEvents?.[state.bank.marketEvents.length - 1];
@@ -267,6 +294,16 @@ export function settleHour(state: FinancialGameState): SettlementResult {
     .reduce((sum, item) => sum + positive(item.capitalGains), 0);
   let specializedPayroll = 0;
   if (state.taxiCompany?.status === "operating") specializedPayroll += (state.taxiCompany.economyTaxis + state.taxiCompany.electricTaxis + state.taxiCompany.luxuryTaxis) * 60;
+  if (state.shippingCompany?.status === "operating") specializedPayroll += (state.shippingCompany.drivers || 0) * 60;
+  if (state.factoryCompany?.status === "operating") specializedPayroll += (state.factoryCompany.machineLines || 0) * 22;
+  if (state.constructionCompany?.status === "operating") specializedPayroll += state.constructionCompany.workers * 55;
+  if (state.softwareCompany?.status === "operating") specializedPayroll += (state.softwareCompany.developers) * 45;
+  if (state.sportsClub && state.sportsClub.stage !== 'Local Club') specializedPayroll += state.sportsClub.players * 120 + (state.sportsClub.coaches || 0) * 220;
+  if (state.oilGas && state.oilGas.stage !== 'Small Operator') specializedPayroll += state.oilGas.stationEmployees * 18 + (state.oilGas.offshorePlatforms * 15 || 0); // approx
+  if (state.airline && state.airline.stage !== 'Regional Airline') specializedPayroll += state.airline.crew * 9;
+  if (state.hotel && state.hotel.stage !== 'Boutique Hotel') specializedPayroll += state.hotel.staff * 4 + state.hotel.managers * 15;
+  if (state.blockchain && state.blockchain.stage !== 'Technology Startup') specializedPayroll += state.blockchain.developers * 22;
+  if (state.space && state.space.stage !== 'Aerospace Startup') specializedPayroll += state.space.engineers * 24;
 
   const basePayroll = (state.businesses || [])
       .filter((item) => item.isAcquired && Number(item.staffCount || 0) > 0)
