@@ -13,12 +13,12 @@ import { defaultBankState } from "../src/types/bank";
 const businessScreen = readFileSync("src/screens/BusinessScreen.tsx", "utf8");
 assert.match(
   businessScreen,
-  /selected\?\.sector === "Construction_Mega"[\s\S]*company=\{constructionCompany\}[\s\S]*onChange=\{setConstructionCompany/,
+  /selectedCanonical\?\.source === "specialized-state"[\s\S]*getBusinessRouteByKind\(selectedCanonical\.kind\)[\s\S]*screen === "construction"[\s\S]*company=\{constructionCompany\}[\s\S]*onChange=\{setConstructionCompany/,
   "selected Construction route must use specialized state and setter",
 );
 assert.match(
   businessScreen,
-  /selected\?\.sector === "Tech_SaaS"[\s\S]*company=\{softwareCompany\}[\s\S]*onChange=\{setSoftwareCompany/,
+  /selectedCanonical\?\.source === "specialized-state"[\s\S]*getBusinessRouteByKind\(selectedCanonical\.kind\)[\s\S]*screen === "software"[\s\S]*company=\{softwareCompany\}[\s\S]*onChange=\{setSoftwareCompany/,
   "selected Software route must use specialized state and setter",
 );
 
