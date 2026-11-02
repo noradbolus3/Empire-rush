@@ -31,6 +31,9 @@ import { BusinessUpgradePanel } from "../../components/business/BusinessUpgradeP
 import { BusinessAnalyticsPanel } from "../../components/business/BusinessAnalyticsPanel";
 import ITSoftwareCompanyScreen from "./ITSoftwareCompanyScreen";
 import BankingCompanyScreen from "./BankingCompanyScreen";
+import { getBusinessDisplayMeta } from "../../data/businessDisplayCatalog";
+import { commitCashTransaction } from "../../engine/transactionGateway";
+import { BUSINESS_BACK_LABEL } from "../../navigation/navigationContract";
 
 const C = { bg: designSystem.colors.background, card: designSystem.colors.card, panel: designSystem.colors.highlight, slate: designSystem.colors.border, green: designSystem.colors.primary, cyan: designSystem.colors.cyan, red: designSystem.colors.negative, white: designSystem.colors.heading, muted: designSystem.colors.secondary, gold: designSystem.colors.gold, violet: designSystem.colors.violet };
 type Props = {
@@ -62,12 +65,20 @@ export function BusinessMasterHubScreen({
 }: Props) {
   const companyListing =
     ipoListing?.companyId === business.id ? ipoListing : null;
+  const display = getBusinessDisplayMeta(
+    business.sector === "Construction_Mega"
+      ? "construction"
+      : business.sector === "Tech_SaaS"
+        ? "software"
+        : business.sector === "Banking"
+          ? "generic"
+          : "generic",
+  );
   const [ipoOpen, setIpoOpen] = React.useState(false);
   const [level2Tab, setLevel2Tab] = React.useState<"units" | "finance">(
     "units",
   );
   const [hubTab, setHubTab] = React.useState<"dashboard" | "operations" | "analytics" | "upgrades">("dashboard");
-  const spendLock = React.useRef(false);
   const scrollRef = useRef<ScrollView>(null);
   const companyLevel = normalizeBusinessLevel(business).level || 1;
   const showLevel2Tabs =
@@ -79,29 +90,31 @@ export function BusinessMasterHubScreen({
       scrollRef.current?.scrollTo({ y: 260, animated: true });
   }, [business.sector, focusRetail]);
   const spend = (cost: number, update: () => BusinessEntity) => {
-    if (spendLock.current) return;
-    spendLock.current = true;
-    if (cash < cost) {
-      spendLock.current = false;
+    const timestamp = Date.now();
+    const result = commitCashTransaction({
+      key: `business-upgrade:${business.id}:${cost}`,
+      cash,
+      amount: cost,
+      onCashChange,
+      onLedger,
+      ledgerEntry: {
+        id: `ledger-business-upgrade-${business.id}-${timestamp}`,
+        kind: "UPKEEP",
+        label: `Business upgrade · ${business.name}`,
+        amount: -cost,
+        timestamp,
+        detail: "Business management spend",
+      },
+      onCommit: () => onChange(update()),
+      now: timestamp,
+      lockDurationMs: 160,
+    });
+    if (!result.accepted && result.reason === "insufficient-funds") {
       Alert.alert(
         "INSUFFICIENT CASH",
         `This operation requires ${formatCurrency(cost)}.`,
       );
-      return;
     }
-    onCashChange((value) => Math.max(0, value - cost));
-    onLedger?.({
-      id: `ledger-business-upgrade-${business.id}-${Date.now()}`,
-      kind: "UPKEEP",
-      label: `Business upgrade · ${business.name}`,
-      amount: -cost,
-      timestamp: Date.now(),
-      detail: "Business management spend",
-    });
-    onChange(update());
-    setTimeout(() => {
-      spendLock.current = false;
-    }, 160);
   };
   if (business.sector === "Construction_Mega")
     return (
@@ -111,6 +124,7 @@ export function BusinessMasterHubScreen({
         netWorth={netWorth}
         onBack={onBack}
         onCashChange={onCashChange}
+        onLedger={onLedger}
         onChange={onChange}
       />
     );
@@ -122,6 +136,7 @@ export function BusinessMasterHubScreen({
         netWorth={netWorth}
         onBack={onBack}
         onCashChange={onCashChange}
+        onLedger={onLedger}
         onChange={(next: BusinessEntity) => onChange(next)}
       />
     );
@@ -133,6 +148,7 @@ export function BusinessMasterHubScreen({
         onBack={onBack}
         onCashChange={onCashChange}
         onChange={(next: BusinessEntity) => onChange(next)}
+        onLedger={onLedger || (() => undefined)}
       />
     );
   return (
@@ -140,10 +156,10 @@ export function BusinessMasterHubScreen({
       <SafeAreaView edges={["top", "left", "right"]} style={styles.safe}>
         <ScrollView ref={scrollRef} contentContainerStyle={styles.content}>
           <Pressable onPress={onBack}>
-            <Text style={styles.back}>‹ BUSINESS REGISTRY</Text>
+            <Text style={styles.back}>{BUSINESS_BACK_LABEL}</Text>
           </Pressable>
           <Text style={styles.eyebrow}>
-            {business.sector.toUpperCase()} · LIVE OPERATIONS
+            {display.categoryLabel} · LIVE OPERATIONS
           </Text>
           <View style={styles.titleRow}>
             <View style={{ flex: 1 }}>

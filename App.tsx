@@ -52,13 +52,15 @@ import {
   weekKeyFromSystemTime,
 } from "./src/engine/realTimeEngine";
 import { IPOListing } from "./src/types/ipo";
+import { BUSINESS_PORTFOLIO_ROUTE_ID } from "./src/screens/business/businessRouteCatalog";
 import {
   DEFAULT_PROGRESSION,
   dayKey,
   hydrateDailyProgress,
   ProgressionState,
 } from "./src/types/progression";
-import { capIPOProceeds, listingToAsset } from "./src/engine/ipoEngine";
+import { capIPOProceeds, founderOwnershipFraction, listingToAsset } from "./src/engine/ipoEngine";
+import { simulateBusinessOperations } from "./src/engine/businessSimulation";
 import {
   formatSettlementCountdown,
   settlementCountdownMs,
@@ -70,6 +72,7 @@ import {
 } from "./src/services/notifications";
 import { BUILD_COMMIT, BUILD_VERSION } from "./src/config/buildInfo";
 import { GAME_SAVE_VERSION, migrateGameSave } from "./src/engine/saveMigration";
+import { coordinatedWrite, recoverPendingSave } from "./src/engine/saveCoordinator";
 import { resolveCashUpdate, sanitizeCash } from "./src/engine/walletGuard";
 import {
   advanceMarketTick,
@@ -127,9 +130,17 @@ import {
 import { defaultBankState } from "./src/types/bank";
 import type { BankLedgerEntry } from "./src/types/bank";
 import { sanitizeBankState } from "./src/engine/bankEngine";
-import { calculateNetWorth, settleHour } from "./src/engine/financialCore";
+import {
+  calculateNetWorth,
+  settleHour,
+  type FinancialGameState,
+} from "./src/engine/financialCore";
+import { buildCanonicalBusinessRegistry, canonicalActiveCount, canonicalProjectedHourlyNet } from "./src/engine/canonicalBusinessRegistry";
+import { completeIPOTransaction } from "./src/engine/ipoCompletion";
+import { normalizeIPOState } from "./src/engine/ipoState";
 import { designSystem } from "./src/theme/designSystem";
-type Tab = "empire" | "business" | "markets" | "lifestyle" | "bank";
+import { APP_TABS, type AppTab } from "./src/navigation/navigationContract";
+type Tab = AppTab;
 type Filter = "dividend" | "cheap" | "crypto" | "watchlist" | "all";
 const C = {
   bg: designSystem.colors.background,
@@ -220,12 +231,6 @@ const lifestyleAssets = [
   ...JETS_DATA,
   ...PROPERTIES_DATA,
 ];
-const headlines = [
-  "Fed signals a softer landing: Growth stocks rally",
-  "Wall Street opens higher as clean energy leads",
-  "EV tax credits extended: Mobility stocks jump",
-  "Main Street spending rises: Retail margins improve",
-];
 const ONBOARDING_LOGOS: Record<string, number> = {
   "logo-01": require("./assets/onboarding/logo-01.png"),
   "logo-02": require("./assets/onboarding/logo-02.png"),
@@ -283,7 +288,37 @@ const normalizeMarketAsset = (asset: Asset): Asset => {
 
 function AppContent() {
   const insets = useSafeAreaInsets();
-  const { resetBusinesses, businesses, setBusinesses, taxiCompany } = useGame();
+  const {
+    resetBusinesses,
+    businesses,
+    setBusinesses,
+    taxiCompany,
+    setTaxiCompany,
+    shippingCompany,
+    setShippingCompany,
+    factoryCompany,
+    setFactoryCompany,
+    constructionCompany,
+    setConstructionCompany,
+    dealership,
+    setDealership,
+    softwareCompany,
+    setSoftwareCompany,
+    sportsClub,
+    setSportsClub,
+    oilGas,
+    setOilGas,
+    airline,
+    setAirline,
+    hotel,
+    setHotel,
+    blockchain,
+    setBlockchain,
+    space,
+    setSpace,
+    holding,
+    setHolding,
+  } = useGame();
   const { isOnline, clockTampered } = useNetwork();
   const clockTamperedRef = useRef(clockTampered);
   const boostTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -310,6 +345,9 @@ function AppContent() {
     hydrateDailyProgress(DEFAULT_PROGRESSION),
   );
   const [ipoListing, setIpoListing] = useState<IPOListing | null>(null);
+  const [ipoListings, setIpoListings] = useState<Record<string, IPOListing>>({});
+  const ipoListingsRef = useRef<Record<string, IPOListing>>({});
+  const ipoCompletionLocks = useRef(new Set<string>());
   const [ipoCelebration, setIpoCelebration] = useState<IPOListing | null>(null);
   const [clickValue, setClickValue] = useState(1);
   const [tapUpgradeLevel, setTapUpgradeLevel] = useState(0);
@@ -336,9 +374,10 @@ function AppContent() {
   >([]);
   const [rivalInvestors] = useState<RivalInvestor[]>(DEFAULT_RIVAL_INVESTORS);
   const marketTick = useRef(0);
+  const constructionSimulationSeconds = useRef(0);
   const lastDividendQuarter = useRef("");
   const [owned, setOwned] = useState<string[]>([]);
-  const [headline, setHeadline] = useState(headlines[0]);
+  const [headline, setHeadline] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
   const [loaded, setLoaded] = useState(false);
   const [onboardingComplete, setOnboardingComplete] = useState(false);
@@ -373,14 +412,44 @@ function AppContent() {
         { ...entry, amount: Number(entry.amount.toFixed(2)) },
       ].slice(-500),
     );
-  const businessProfit = useMemo(
+  const businessRegistry = useMemo(
     () =>
-      businesses.reduce(
-        (sum, item) =>
-          sum + (item.isAcquired ? Math.max(0, item.hourlyNetProfit) : 0),
-        0,
-      ),
-    [businesses],
+      buildCanonicalBusinessRegistry({
+        businesses,
+        taxiCompany,
+        shippingCompany,
+        factoryCompany,
+        constructionCompany,
+        dealership,
+        softwareCompany,
+        sportsClub,
+        oilGas,
+        airline,
+        hotel,
+        blockchain,
+        space,
+        holding,
+      }),
+    [
+      businesses,
+      taxiCompany,
+      shippingCompany,
+      factoryCompany,
+      constructionCompany,
+      dealership,
+      softwareCompany,
+      sportsClub,
+      oilGas,
+      airline,
+      hotel,
+      blockchain,
+      space,
+      holding,
+    ],
+  );
+  const businessProfit = useMemo(
+    () => canonicalProjectedHourlyNet(businessRegistry),
+    [businessRegistry],
   );
   const profit = useMemo(
     () => businessProfit * multiplier,
@@ -431,7 +500,7 @@ function AppContent() {
     () => portfolioAllocation(assets, holdings, cash),
     [assets, holdings, cash],
   );
-  const financialState = useMemo(
+  const financialState = useMemo<FinancialGameState>(
     () => ({
       cash,
       bank: bankState,
@@ -441,6 +510,22 @@ function AppContent() {
       lifestyleAssets,
       businesses,
       taxiCompany,
+      businessSources: {
+        taxiCompany,
+        shippingCompany,
+        factoryCompany,
+        constructionCompany,
+        dealership,
+        softwareCompany,
+        sportsClub,
+        oilGas,
+        airline,
+        hotel,
+        blockchain,
+        space,
+        holding,
+      },
+      businessRegistry,
       systemTimeMs,
       multiplier,
     }),
@@ -452,6 +537,19 @@ function AppContent() {
       owned,
       businesses,
       taxiCompany,
+      shippingCompany,
+      factoryCompany,
+      constructionCompany,
+      dealership,
+      softwareCompany,
+      sportsClub,
+      oilGas,
+      airline,
+      hotel,
+      blockchain,
+      space,
+      holding,
+      businessRegistry,
       systemTimeMs,
       multiplier,
     ],
@@ -537,6 +635,31 @@ function AppContent() {
     return () => clearInterval(timer);
   }, []);
   useEffect(() => {
+    if (!loaded || clockTampered) return;
+    const timer = setInterval(() => {
+      constructionSimulationSeconds.current += 2;
+      const constructionSeconds = constructionSimulationSeconds.current >= 3 ? 3 : 0;
+      if (constructionSeconds) constructionSimulationSeconds.current -= 3;
+      const ownershipFractions = Object.fromEntries(
+        Object.values(ipoListings).map((listing) => [
+          listing.companyId,
+          founderOwnershipFraction(listing),
+        ]),
+      );
+      setBusinesses((current) =>
+        simulateBusinessOperations(
+          current,
+          2,
+          constructionSeconds,
+          cash,
+          ownershipFractions,
+          netWorth,
+        ).businesses,
+      );
+    }, 2000);
+    return () => clearInterval(timer);
+  }, [cash, clockTampered, ipoListings, loaded, netWorth, setBusinesses]);
+  useEffect(() => {
     clockTamperedRef.current = clockTampered;
   }, [clockTampered]);
   const realDayKey = dayKey(systemTimeMs);
@@ -553,7 +676,9 @@ function AppContent() {
     );
   }, [loaded, weeklyEventKey]);
   useEffect(() => {
-    AsyncStorage.getItem(SAVE)
+    recoverPendingSave()
+      .catch(() => false)
+      .then(() => AsyncStorage.getItem(SAVE))
       .then((raw) => {
         try {
           const saved = migrateGameSave(raw ? JSON.parse(raw) : null);
@@ -641,7 +766,13 @@ function AppContent() {
               lastAccountingAt: Date.now(),
             },
           );
-          setIpoListing(saved?.ipoListing || null);
+          const normalizedIPO = normalizeIPOState(
+            saved?.ipoListing,
+            saved?.ipoListings,
+          );
+          ipoListingsRef.current = normalizedIPO.listings;
+          setIpoListings(normalizedIPO.listings);
+          setIpoListing(normalizedIPO.current);
           setProgression(hydrateDailyProgress(saved?.progression));
           setAdFree(Boolean(saved?.adFree));
           setHapticsEnabled(saved?.hapticsEnabled !== false);
@@ -684,22 +815,36 @@ function AppContent() {
       .catch(() => setLoaded(true));
   }, []);
   useEffect(() => {
-    if (!ipoListing) return;
-    const safeListing = capIPOProceeds(ipoListing, netWorth);
-    if (
-      safeListing.valuationAtIPO !== ipoListing.valuationAtIPO ||
-      safeListing.capitalRaised !== ipoListing.capitalRaised ||
-      safeListing.currentPrice !== ipoListing.currentPrice
-    ) {
-      setIpoListing(safeListing);
-      return;
-    }
-    setAssets((list) =>
-      list.some((asset) => asset.id === `ipo-${safeListing.companyId}`)
-        ? list
-        : [...list, listingToAsset(safeListing) as Asset],
+    ipoListingsRef.current = ipoListings;
+  }, [ipoListings]);
+  useEffect(() => {
+    const listings = Object.values(ipoListings);
+    if (!listings.length) return;
+    const safeListings = listings.map((listing) =>
+      capIPOProceeds(listing, netWorth),
     );
-  }, [ipoListing, netWorth]);
+    const safeMap = Object.fromEntries(
+      safeListings.map((listing) => [listing.companyId, listing]),
+    );
+    const changed = safeListings.some((listing) => {
+      const previous = ipoListings[listing.companyId];
+      return (
+        previous?.valuationAtIPO !== listing.valuationAtIPO ||
+        previous?.capitalRaised !== listing.capitalRaised ||
+        previous?.currentPrice !== listing.currentPrice
+      );
+    });
+    if (changed) {
+      ipoListingsRef.current = safeMap;
+      setIpoListings(safeMap);
+      if (ipoListing && safeMap[ipoListing.companyId])
+        setIpoListing(safeMap[ipoListing.companyId]);
+    }
+    setAssets((list) => [
+      ...list.filter((asset) => !asset.isPlayerCompany),
+      ...safeListings.map((listing) => listingToAsset(listing) as Asset),
+    ]);
+  }, [ipoListing, ipoListings, netWorth]);
   useEffect(() => {
     latestState.current = {
       schemaVersion: GAME_SAVE_VERSION,
@@ -723,6 +868,7 @@ function AppContent() {
       clickLevel: tapUpgradeLevel,
       retail,
       ipoListing,
+      ipoListings,
       progression,
       adFree,
       multiplier,
@@ -748,6 +894,7 @@ function AppContent() {
     tapUpgradeLevel,
     retail,
     ipoListing,
+    ipoListings,
     progression,
     adFree,
     multiplier,
@@ -825,6 +972,23 @@ function AppContent() {
       };
     }
     setLastSettlementAtMs((value) => value + elapsedHours * 3600000);
+    setBusinesses(cursor.businesses);
+    const sources = cursor.businessSources;
+    if (sources) {
+      setTaxiCompany(sources.taxiCompany ?? null);
+      setShippingCompany(sources.shippingCompany ?? null);
+      setFactoryCompany(sources.factoryCompany ?? null);
+      setConstructionCompany(sources.constructionCompany ?? null);
+      setDealership(sources.dealership ?? null);
+      setSoftwareCompany(sources.softwareCompany ?? null);
+      setSportsClub(sources.sportsClub ?? null);
+      setOilGas(sources.oilGas ?? null);
+      setAirline(sources.airline ?? null);
+      setHotel(sources.hotel ?? null);
+      setBlockchain(sources.blockchain ?? null);
+      setSpace(sources.space ?? null);
+      setHolding(sources.holding ?? null);
+    }
     guardedSetCash((value) =>
       Math.max(0, Math.min(Number.MAX_SAFE_INTEGER, value + totalDelta)),
     );
@@ -1008,7 +1172,7 @@ function AppContent() {
         schemaVersion: GAME_SAVE_VERSION,
         saved: Date.now(),
       };
-      void AsyncStorage.setItem(SAVE, JSON.stringify(snapshot))
+      void coordinatedWrite([{ key: SAVE, value: JSON.stringify(snapshot) }])
         .then(() => setLastSaved(Date.now()))
         .catch(() => undefined);
     };
@@ -1185,13 +1349,28 @@ function AppContent() {
     );
   };
   const completeIPO = (listing: IPOListing) => {
-    if (
-      ipoListing?.companyId === listing.companyId &&
-      ipoListing.stage === "public"
-    )
+    if (ipoCompletionLocks.current.has(listing.companyId)) return;
+    ipoCompletionLocks.current.add(listing.companyId);
+    const existing = ipoListingsRef.current[listing.companyId];
+    if (existing?.stage === "public") {
+      ipoCompletionLocks.current.delete(listing.companyId);
       return;
-    const safeListing = capIPOProceeds(listing, netWorth);
+    }
+    const transaction = completeIPOTransaction({
+      listing,
+      listings: ipoListingsRef.current,
+      assets,
+      cash,
+      netWorth,
+    });
+    if (!transaction.accepted) {
+      ipoCompletionLocks.current.delete(listing.companyId);
+      return;
+    }
+    const safeListing = transaction.listing;
+    ipoListingsRef.current = transaction.listings;
     haptic(true);
+    setIpoListings(transaction.listings);
     setIpoListing(safeListing);
     setIpoCelebration(safeListing);
     setProgression((current) => ({
@@ -1200,13 +1379,11 @@ function AppContent() {
         ? current.achievements
         : [...current.achievements, "first-ipo"],
     }));
-    setAssets((list) => [
-      ...list.filter((asset) => !asset.isPlayerCompany),
-      listingToAsset(safeListing) as Asset,
-    ]);
+    setAssets(transaction.assets);
     guardedSetCash((value) =>
       Math.min(Number.MAX_SAFE_INTEGER, value + safeListing.capitalRaised),
     );
+    postLedger(transaction.ledgerEntry);
     pushIncomeEvent({
       source: `${safeListing.companyName} IPO`,
       amount: safeListing.capitalRaised,
@@ -1216,6 +1393,7 @@ function AppContent() {
       "OPENING BELL",
       `${safeListing.ticker} is now public. ${money(safeListing.capitalRaised)} growth capital has been raised. Founder ownership: 80%. Public Company Founder rank unlocked.`,
     );
+    setTimeout(() => ipoCompletionLocks.current.delete(listing.companyId), 0);
   };
   const placeLimitOrder = (
     asset: Asset,
@@ -1463,8 +1641,8 @@ function AppContent() {
                 style={styles.headerLogo}
               />
             )}
-            <View>
-              <Text style={styles.brand}>BUILDBOSS</Text>
+            <View style={styles.headerIdentityCopy}>
+              <Text style={styles.brand} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.82}>BUILDBOSS</Text>
               {founderProfile?.companyName && (
                 <Text style={styles.companyIdentity} numberOfLines={1}>
                   {founderProfile.companyName}
@@ -1473,11 +1651,10 @@ function AppContent() {
             <Text style={styles.simClock}>
               {formatSystemDateTime(systemTimeMs)}
             </Text>
-            <Text style={styles.micro}>REAL-TIME TYCOON · LIVE</Text>
             </View>
           </View>
-          <View style={{ alignItems: "flex-end" }}>
-            <Text style={styles.headerCash}>{money(cash)}</Text>
+          <View style={styles.headerStats}>
+            <Text style={styles.headerCash} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.78}>{money(cash)}</Text>
             <Pressable onPress={() => setEarningsModal(true)}>
               <Animated.View
                 style={[
@@ -1498,16 +1675,16 @@ function AppContent() {
                   },
                 ]}
               >
-                <Text style={styles.epsText}>
+                <Text style={styles.epsText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.72}>
                   +{money(projectedHourlyIncome)} / hr projected
                 </Text>
               </Animated.View>
             </Pressable>
-            <Text style={styles.settlementHint}>
+            <Text style={styles.settlementHint} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.72}>
               NEXT SETTLEMENT · {nextSettlementCountdown}
             </Text>
             <View style={styles.headerActions}>
-              <Text style={styles.muted}>
+              <Text style={styles.muted} numberOfLines={1}>
                 {isOnline && !clockTampered
                   ? "ONLINE · LIVE TICKS"
                   : "OFFLINE · LOCAL TICKS"}
@@ -1521,12 +1698,14 @@ function AppContent() {
             </View>
           </View>
         </View>
-        <View style={styles.news}>
-          <Text style={styles.newsTag}>BREAKING</Text>
-          <Text style={styles.newsText} numberOfLines={1} ellipsizeMode="tail">
-            {headline}
-          </Text>
-        </View>
+        {headline && (
+          <View style={styles.news}>
+            <Text style={styles.newsTag}>BREAKING</Text>
+            <Text style={styles.newsText} numberOfLines={1} ellipsizeMode="tail">
+              {headline}
+            </Text>
+          </View>
+        )}
         {incomeEvents.map((event) => (
           <View key={event.id} style={styles.incomeToast}>
             <Text style={styles.incomeToastSource}>{event.source}</Text>
@@ -1536,12 +1715,14 @@ function AppContent() {
         <View style={styles.screenBody}>
           {tab === "business" ? (
             <RetailBusinessScreen
+              routeId={BUSINESS_PORTFOLIO_ROUTE_ID}
               state={retail}
               cash={cash}
               netWorth={netWorth}
               netIncomePerHour={projectedHourlyIncome}
               timestamp={systemTimeMs}
               ipoListing={ipoListing}
+              ipoListings={ipoListings}
               onIPOComplete={completeIPO}
               focusRetail={focusRetail}
               onRetailFocusHandled={() => setFocusRetail(false)}
@@ -1555,6 +1736,11 @@ function AppContent() {
               cash={cash}
               netWorth={netWorth}
               projectedHourlyIncome={projectedHourlyIncome}
+              businesses={businesses}
+              portfolioBusinesses={businessRegistry}
+              activeBusinessCount={canonicalActiveCount(businessRegistry)}
+              founderProfile={founderProfile}
+              portfolioHistory={portfolioHistory}
               settlementCountdown={nextSettlementCountdown}
               clickValue={clickValue}
               tapUpgradeLevel={tapUpgradeLevel}
@@ -1583,6 +1769,10 @@ function AppContent() {
               onUpgrade={upgradeClick}
               onClaimMission={claimMission}
               onOpenBusiness={() => setTab("business")}
+              onOpenMarkets={() => setTab("markets")}
+              onOpenLifestyle={() => setTab("lifestyle")}
+              onOpenBank={() => setTab("bank")}
+              onOpenSettings={() => setSettingsOpen(true)}
               onOpenNextGoal={() => {
                 setFocusRetail(true);
                 setTab("business");
@@ -1642,6 +1832,7 @@ function AppContent() {
                   ledger={ledger}
                   state={bankState}
                   businesses={businesses}
+                  businessRegistry={businessRegistry}
                   collateralAssets={
                     owned
                       .map((id) => {
@@ -1964,18 +2155,13 @@ function SettingRow({
 function Nav({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
   return (
     <View style={styles.nav}>
-      {(
-        [
-          ["empire", "⌂", "EMPIRE"],
-          ["business", "◈", "BUSINESS"],
-          ["markets", "↗", "MARKETS"],
-          ["lifestyle", "◇", "LIFESTYLE"],
-          ["bank", "▥", "BANK"],
-        ] as const
-      ).map(([key, icon, label]) => (
+      {APP_TABS.map(({ id: key, icon, label, accessibilityLabel }) => (
         <Pressable
           key={key}
           onPress={() => setTab(key)}
+          accessibilityRole="tab"
+          accessibilityLabel={accessibilityLabel}
+          accessibilityState={{ selected: tab === key }}
           style={({ pressed }) => [
             styles.navItem,
             tab === key && styles.navOn,
@@ -2044,34 +2230,38 @@ function hapticGlobal(success = false) {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: C.bg },
   app: { flex: 1, backgroundColor: C.bg },
-  screenBody: { flex: 1, minHeight: 0, overflow: "hidden" },
+  screenBody: { flex: 1, minHeight: 0, overflow: "hidden", backgroundColor: C.bg },
   loading: { flex: 1, justifyContent: "center", alignItems: "center", gap: 14 },
   header: {
     paddingHorizontal: 18,
-    paddingTop: 9,
-    paddingBottom: 5,
+    paddingTop: 5,
+    paddingBottom: 3,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    backgroundColor: C.bg,
+    zIndex: 2,
   },
-  headerIdentity: { flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 1 },
-  headerLogo: { width: 28, height: 28, borderRadius: 8, borderWidth: 1, borderColor: C.slate },
-  brand: { color: C.green, fontSize: 20, fontWeight: "900", letterSpacing: 2 },
-  companyIdentity: { color: C.text, fontSize: 9, fontWeight: "800", maxWidth: 170, marginTop: 1 },
+  headerIdentity: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 1, paddingRight: 8 },
+  headerIdentityCopy: { flex: 1, minWidth: 0 },
+  headerStats: { width: "46%", maxWidth: 190, minWidth: 145, alignItems: "flex-end", flexShrink: 0 },
+  headerLogo: { width: 24, height: 24, borderRadius: 7, borderWidth: 1, borderColor: C.slate },
+  brand: { color: C.green, fontSize: 18, fontWeight: "900", letterSpacing: 1.8 },
+  companyIdentity: { color: C.text, fontSize: 8, fontWeight: "800", maxWidth: 170, marginTop: 0 },
   simClock: {
     color: "#64748B",
-    fontSize: 11,
+    fontSize: 9,
     fontFamily: "monospace",
-    marginTop: 3,
-    letterSpacing: 0.4,
+    marginTop: 1,
+    letterSpacing: 0.2,
   },
   micro: { color: C.muted, fontSize: 8, letterSpacing: 1, marginTop: 3 },
-  headerCash: { color: C.text, fontWeight: "900", fontSize: 17 },
+  headerCash: { color: C.text, fontWeight: "900", fontSize: 17, maxWidth: "100%" },
   headerActions: { flexDirection: "row", alignItems: "center", gap: 8 },
   settingsGlyph: { color: C.cyan, fontSize: 17 },
   epsBadge: { alignSelf: "flex-end", marginTop: 2 },
   epsText: { color: C.green, fontSize: 12, fontWeight: "800" },
-  settlementHint: {
+  settlementHint: { maxWidth: "100%",
     color: C.muted,
     fontSize: 9,
     fontWeight: "800",

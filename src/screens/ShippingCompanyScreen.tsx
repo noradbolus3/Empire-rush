@@ -1,4 +1,5 @@
 import { designSystem } from "../theme/designSystem";
+import { commitCashTransaction } from "../engine/transactionGateway";
 import React, { useMemo, useState } from "react";
 import {
   Alert,
@@ -74,30 +75,23 @@ export default function ShippingCompanyScreen({
   const update = (next: ShippingCompanyState) =>
     onChange({ ...next, level: shippingLevelFor(next) });
   const charge = (cost: number, label: string, next: ShippingCompanyState) => {
-    if (cash < cost)
-      return Alert.alert(
-        "INSUFFICIENT CASH",
-        `${label} requires ${formatCurrency(cost)}.`,
-      );
-    onCashChange((value) => value - cost);
-    update(next);
-    onLedger?.({
-      id: `shipping-${Date.now()}`,
-      kind: "UPKEEP",
-      label: `Shipping · ${label}`,
-      amount: -cost,
-      timestamp: Date.now(),
-      detail: current.name,
+    const timestamp = Date.now();
+    const result = commitCashTransaction({
+      key: `shipping:${current.id}:${label}`,
+      cash,
+      amount: cost,
+      onCashChange,
+      onLedger,
+      ledgerEntry: { id: `shipping-${timestamp}`, kind: "UPKEEP", label: `Shipping · ${label}`, amount: -cost, timestamp, detail: current.name },
+      onCommit: () => update(next),
+      now: timestamp,
     });
+    if (!result.accepted && result.reason === "insufficient-funds")
+      Alert.alert("INSUFFICIENT CASH", `${label} requires ${formatCurrency(cost)}.`);
   };
   const launch = () => {
     const vehicleCost = setupFleet === "van" ? 12000 : 38000;
     const total = vehicleCost + 10000;
-    if (cash < total)
-      return Alert.alert(
-        "LAUNCH CAPITAL SHORTFALL",
-        `Need ${formatCurrency(total - cash)} more for warehouse registration and the first vehicle.`,
-      );
     const next = {
       ...DEFAULT_SHIPPING_COMPANY,
       status: "operating" as const,
@@ -108,17 +102,19 @@ export default function ShippingCompanyScreen({
       cashInvested: total,
       lastShiftAt: Date.now(),
     };
-    onCashChange((value) => value - total);
-    update(next);
-    onLedger?.({
-      id: `shipping-launch-${Date.now()}`,
-      kind: "PURCHASE",
-      label: "Shipping company launch capital",
-      amount: -total,
-      timestamp: Date.now(),
-      detail: `${setupCity} · warehouse registration + first ${setupFleet}`,
+    const timestamp = Date.now();
+    const result = commitCashTransaction({
+      key: `shipping:launch:${setupCity}:${setupFleet}`,
+      cash,
+      amount: total,
+      onCashChange,
+      onLedger,
+      ledgerEntry: { id: `shipping-launch-${timestamp}`, kind: "PURCHASE", label: "Shipping company launch capital", amount: -total, timestamp, detail: `${setupCity} · warehouse registration + first ${setupFleet}` },
+      onCommit: () => { update(next); setPage("overview"); },
+      now: timestamp,
     });
-    setPage("overview");
+    if (!result.accepted && result.reason === "insufficient-funds")
+      Alert.alert("LAUNCH CAPITAL SHORTFALL", `Need ${formatCurrency(total - cash)} more for warehouse registration and the first vehicle.`);
   };
   return (
     <SpecializedBusinessShell

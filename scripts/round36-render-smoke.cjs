@@ -783,17 +783,19 @@ const factoryInteraction = async (label, company, cash, actions) => {
   }
 };
 (async () => {
-  await interaction("interaction-retail-l1-quick-action", [retail], 10000, [
-    "RESTOCK 1,000",
+  await interaction("interaction-retail-l1-manage", [retail], 10000, [
+    "MANAGE",
+    "DASHBOARD",
   ]);
-  await interaction("interaction-mobility-l1-quick-action", [mobility], 20000, [
-    "BUY VEHICLE",
+  await interaction("interaction-mobility-l1-manage", [mobility], 20000, [
+    "MANAGE",
+    "UPGRADES",
   ]);
   await interaction("interaction-my-companies", [retail], 10000, [
-    "MY COMPANIES",
+    "MANAGE",
   ]);
-  await interaction("interaction-start-a-business", [retail], 10000, [
-    "START A BUSINESS",
+  await interaction("interaction-start-a-business", [retail], 50000, [
+    "START",
   ]);
   await interaction(
     "interaction-insufficient-funds-purchase",

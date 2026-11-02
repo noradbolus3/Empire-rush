@@ -9,18 +9,8 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import Svg, {
-  Circle,
-  Defs,
-  LinearGradient,
-  Path,
-  Rect,
-  Stop,
-} from "react-native-svg";
 import BusinessRegistrationModal from "../components/modals/BusinessRegistrationModal";
 import { useGame } from "../context/GameContext";
-import { simulateBusinessOperations } from "../engine/businessSimulation";
-import { founderOwnershipFraction } from "../engine/ipoEngine";
 import {
   BusinessEntity,
   OperatingStructure,
@@ -53,10 +43,25 @@ import SpaceCompanyScreen from "./SpaceCompanyScreen";
 import HoldingCompanyScreen from "./HoldingCompanyScreen";
 import {
   clearLevelUpNotice,
-  levelConfig,
   normalizeBusinessLevel,
 } from "../engine/businessLevels";
 import { designSystem } from "../theme/designSystem";
+import { buildCanonicalBusinessRegistry, canonicalActiveCount } from "../engine/canonicalBusinessRegistry";
+import type { CanonicalBusiness } from "../engine/canonicalBusinessRegistry";
+import { getBusinessDisplayMeta } from "../data/businessDisplayCatalog";
+import { BusinessPortfolioCard } from "../components/business/BusinessPortfolioCard";
+import { commitBusinessAcquisition } from "../engine/businessAcquisition";
+import {
+  buildUnifiedBusinessPortfolio,
+  portfolioStatus,
+  portfolioUnlockShortfall,
+  sourceBusinessForPortfolioRecord,
+} from "../engine/businessPortfolio";
+import {
+  BUSINESS_PORTFOLIO_ROUTE_ID,
+  getBusinessRouteByKind,
+} from "./business/businessRouteCatalog";
+import type { BusinessRouteScreen } from "./business/businessRouteCatalog";
 
 const C = {
   bg: designSystem.colors.background,
@@ -73,12 +78,14 @@ const C = {
   ink: designSystem.colors.heading,
 };
 type Props = {
+  routeId?: typeof BUSINESS_PORTFOLIO_ROUTE_ID;
   state?: RetailShopState;
   cash: number;
   netWorth: number;
   netIncomePerHour: number;
   timestamp: number;
   ipoListing?: IPOListing | null;
+  ipoListings?: Record<string, IPOListing>;
   onIPOComplete: (listing: IPOListing) => void;
   onStateChange?: React.Dispatch<React.SetStateAction<RetailShopState>>;
   onCashChange: React.Dispatch<React.SetStateAction<number>>;
@@ -99,58 +106,6 @@ const accent: Record<BusinessEntity["sector"], string> = {
   Sports: "#FB923C",
   Airline: "#60A5FA",
   Banking: "#1769AA",
-};
-const iconAccent: Record<BusinessEntity["sector"], string> = {
-  Retail: "#63B49C",
-  Mobility: "#C39A5B",
-  Tech_SaaS: "#9B8BC3",
-  Construction_Mega: "#6FA8C7",
-  Real_Estate: "#6EAAC7",
-  Energy: "#C9A85A",
-  Pharma: "#C9828A",
-  Media: "#A68BC5",
-  Sports: "#C7936E",
-  Airline: "#7EA5C5",
-  Banking: "#6F9BC4",
-};
-const sectorLabel: Record<BusinessEntity["sector"], string> = {
-  Retail: "RETAIL",
-  Mobility: "MOBILITY",
-  Tech_SaaS: "TECH",
-  Construction_Mega: "INFRASTRUCTURE",
-  Real_Estate: "REAL ESTATE",
-  Energy: "ENERGY",
-  Pharma: "PHARMA",
-  Media: "MEDIA",
-  Sports: "SPORTS",
-  Airline: "AIRLINE",
-  Banking: "BANKING",
-};
-const tierLabel: Record<BusinessEntity["sector"], string> = {
-  Retail: "STARTER",
-  Mobility: "GROWTH",
-  Tech_SaaS: "SCALE",
-  Construction_Mega: "TITAN",
-  Real_Estate: "ASSET",
-  Energy: "UTILITY",
-  Pharma: "SCIENCE",
-  Media: "CULTURE",
-  Sports: "MOMENTUM",
-  Airline: "GLOBAL",
-  Banking: "FINANCE",
-};
-const sectorDescription: Record<BusinessEntity["sector"], string> = {
-  Retail: "Stock shelves, price smart, and compound daily footfall.",
-  Mobility: "Build a city fleet where surge pricing meets reliability.",
-  Tech_SaaS: "Turn subscribers and uptime into recurring software cashflow.",
-  Construction_Mega: "Win tenders, manage phases, and release escrow payouts.",
-  Real_Estate: "Own property branches and capture dependable rental demand.",
-  Energy: "Sell grid capacity as American infrastructure modernizes.",
-  Pharma: "Fund trials, protect trust, and commercialize breakthroughs.",
-  Media: "Convert attention, contracts, and viral reach into revenue.",
-  Sports: "Monetize fans, events, and championship momentum.",
-  Airline: "Operate a national route network with premium demand.",
-  Banking: "Grow deposits, manage credit risk, and compound trusted capital.",
 };
 const unlockMilestones = [
   {
@@ -214,11 +169,13 @@ export function BusinessScreen(props: Props) {
 }
 
 function BusinessScreenContent({
+  routeId = BUSINESS_PORTFOLIO_ROUTE_ID,
   cash,
   netWorth,
   netIncomePerHour,
   timestamp,
   ipoListing,
+  ipoListings,
   onIPOComplete,
   onCashChange,
   onOpenBank,
@@ -226,6 +183,12 @@ function BusinessScreenContent({
   onRetailFocusHandled,
   onLedger,
 }: Props) {
+  // App mounts this component only as the canonical Business Portfolio route.
+  // Keep the assertion close to the route boundary so a second business mount
+  // cannot silently become an alternate navigation authority.
+  if (routeId !== BUSINESS_PORTFOLIO_ROUTE_ID) {
+    throw new Error(`Unsupported business route: ${String(routeId)}`);
+  }
   const {
     businesses,
     setBusinesses,
@@ -271,29 +234,7 @@ function BusinessScreenContent({
   const [spaceOpen, setSpaceOpen] = useState(false);
   const [holdingOpen, setHoldingOpen] = useState(false);
   const [registrationId, setRegistrationId] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<"start" | "companies">("start");
   const celebratedRef = useRef("");
-  const constructionElapsed = useRef(0);
-  useEffect(() => {
-    const timer = setInterval(() => {
-      constructionElapsed.current += 2;
-      const constructionSeconds = constructionElapsed.current >= 3 ? 3 : 0;
-      if (constructionSeconds) constructionElapsed.current -= 3;
-      const ownershipFractions = ipoListing
-        ? { [ipoListing.companyId]: founderOwnershipFraction(ipoListing) }
-        : {};
-      const result = simulateBusinessOperations(
-        businesses,
-        2,
-        constructionSeconds,
-        cash,
-        ownershipFractions,
-        netWorth,
-      );
-      if (result.businesses !== businesses) setBusinesses(result.businesses);
-    }, 2000);
-    return () => clearInterval(timer);
-  }, [businesses, cash, ipoListing, netWorth, setBusinesses]);
   const selected = useMemo(
     () =>
       businesses.find((item) => item.id === selectedId && item.isAcquired) ||
@@ -309,7 +250,42 @@ function BusinessScreenContent({
     else if (retail) setRegistrationId(retail.id);
     onRetailFocusHandled?.();
   }, [businesses, focusRetail, onRetailFocusHandled]);
-  const activeCount = businesses.filter((item) => item.isAcquired).length;
+  const canonicalRegistry = useMemo(
+    () =>
+      buildCanonicalBusinessRegistry({
+        businesses,
+        taxiCompany,
+        shippingCompany,
+        factoryCompany,
+        constructionCompany,
+        dealership,
+        softwareCompany,
+        sportsClub,
+        oilGas,
+        airline,
+        hotel,
+        blockchain,
+        space,
+        holding,
+      }),
+    [
+      businesses,
+      taxiCompany,
+      shippingCompany,
+      factoryCompany,
+      constructionCompany,
+      dealership,
+      softwareCompany,
+      sportsClub,
+      oilGas,
+      airline,
+      hotel,
+      blockchain,
+      space,
+      holding,
+    ],
+  );
+  const activeCount = canonicalActiveCount(canonicalRegistry);
   const levelNotice = businesses.find((item) => item.levelUpNotice);
   useEffect(() => {
     if (!levelNotice?.levelUpNotice) return;
@@ -326,7 +302,6 @@ function BusinessScreenContent({
   const nextGoal =
     nextUnlock?.unlockNetWorthRequired || Math.max(netWorth * 1.5, 100000);
   const progress = Math.min(1, netWorth / Math.max(nextGoal, 1));
-  const ownedBusinesses = businesses.filter((item) => item.isAcquired);
   const businessCost = (item: BusinessEntity) =>
     Math.max(0, item.acquisitionCost);
   const estimatedHourly = (item: BusinessEntity) => {
@@ -357,6 +332,10 @@ function BusinessScreenContent({
     .filter((entry) => entry.hourly > 0)
     .sort((a, b) => a.cost / a.hourly - b.cost / b.hourly);
   const bestAffordable = opportunities.find((entry) => entry.cost <= cash);
+  const portfolioRows = useMemo(
+    () => buildUnifiedBusinessPortfolio(canonicalRegistry, businesses),
+    [businesses, canonicalRegistry],
+  );
   const openSportsClub = () => {
     if (sportsClub) return setSportsOpen(true);
     const setupCost = 250000;
@@ -364,10 +343,22 @@ function BusinessScreenContent({
       Alert.alert("SPORTS CLUB LOCKED", `Need ${formatCurrency(setupCost - cash)} more for the club charter and first season budget.`);
       return;
     }
-    onCashChange((value) => value - setupCost);
-    setSportsClub({ ...DEFAULT_SPORTS_CLUB, cashReserve: setupCost });
-    onLedger?.({ id: `sports-charter-${Date.now()}`, kind: "PURCHASE", label: "Sports Club charter", amount: -setupCost, timestamp: Date.now(), detail: "Club headquarters and first-season operating reserve" });
-    setSportsOpen(true);
+    const result = commitBusinessAcquisition({
+      key: "sports-charter",
+      businessId: DEFAULT_SPORTS_CLUB.id,
+      businessName: DEFAULT_SPORTS_CLUB.clubName,
+      amount: setupCost,
+      detail: "Club headquarters and first-season operating reserve",
+      cash,
+      onCashChange,
+      onLedger,
+      onCommit: () => {
+        setSportsClub({ ...DEFAULT_SPORTS_CLUB, cashReserve: setupCost });
+        setSportsOpen(true);
+      },
+    });
+    if (!result.accepted && result.reason === "insufficient-funds")
+      Alert.alert("SPORTS CLUB LOCKED", `Need ${formatCurrency(setupCost - cash)} more for the club charter and first season budget.`);
   };
   const openOilGas = () => {
     if (oilGas) return setOilGasOpen(true);
@@ -376,10 +367,22 @@ function BusinessScreenContent({
       Alert.alert("OIL & GAS LOCKED", `Need ${formatCurrency(setupCost - cash)} more for the energy charter and first field budget.`);
       return;
     }
-    onCashChange((value) => value - setupCost);
-    setOilGas({ ...DEFAULT_OIL_GAS, cashReserve: setupCost });
-    onLedger?.({ id: `oilgas-charter-${Date.now()}`, kind: "PURCHASE", label: "Oil & Gas charter", amount: -setupCost, timestamp: Date.now(), detail: "Energy headquarters and first-field operating reserve" });
-    setOilGasOpen(true);
+    const result = commitBusinessAcquisition({
+      key: "oilgas-charter",
+      businessId: DEFAULT_OIL_GAS.id,
+      businessName: DEFAULT_OIL_GAS.companyName,
+      amount: setupCost,
+      detail: "Energy headquarters and first-field operating reserve",
+      cash,
+      onCashChange,
+      onLedger,
+      onCommit: () => {
+        setOilGas({ ...DEFAULT_OIL_GAS, cashReserve: setupCost });
+        setOilGasOpen(true);
+      },
+    });
+    if (!result.accepted && result.reason === "insufficient-funds")
+      Alert.alert("OIL & GAS LOCKED", `Need ${formatCurrency(setupCost - cash)} more for the energy charter and first field budget.`);
   };
   const openAirline = () => {
     if (airline) return setAirlineOpen(true);
@@ -388,10 +391,22 @@ function BusinessScreenContent({
       Alert.alert("AIRLINE LOCKED", `Need ${formatCurrency(setupCost - cash)} more for the air operator certificate and launch fleet.`);
       return;
     }
-    onCashChange((value) => value - setupCost);
-    setAirline({ ...DEFAULT_AIRLINE, cashReserve: setupCost });
-    onLedger?.({ id: `airline-charter-${Date.now()}`, kind: "PURCHASE", label: "Airline charter", amount: -setupCost, timestamp: Date.now(), detail: "Air operator certificate and launch fleet reserve" });
-    setAirlineOpen(true);
+    const result = commitBusinessAcquisition({
+      key: "airline-charter",
+      businessId: DEFAULT_AIRLINE.id,
+      businessName: DEFAULT_AIRLINE.companyName,
+      amount: setupCost,
+      detail: "Air operator certificate and launch fleet reserve",
+      cash,
+      onCashChange,
+      onLedger,
+      onCommit: () => {
+        setAirline({ ...DEFAULT_AIRLINE, cashReserve: setupCost });
+        setAirlineOpen(true);
+      },
+    });
+    if (!result.accepted && result.reason === "insufficient-funds")
+      Alert.alert("AIRLINE LOCKED", `Need ${formatCurrency(setupCost - cash)} more for the air operator certificate and launch fleet.`);
   };
   const openHotel = () => {
     if (hotel) return setHotelOpen(true);
@@ -400,10 +415,22 @@ function BusinessScreenContent({
       Alert.alert("HOTEL LOCKED", `Need ${formatCurrency(setupCost - cash)} more for the property acquisition and opening team.`);
       return;
     }
-    onCashChange((value) => value - setupCost);
-    setHotel({ ...DEFAULT_HOTEL, cashReserve: setupCost });
-    onLedger?.({ id: `hotel-charter-${Date.now()}`, kind: "PURCHASE", label: "Hotel property charter", amount: -setupCost, timestamp: Date.now(), detail: "Property acquisition and opening team reserve" });
-    setHotelOpen(true);
+    const result = commitBusinessAcquisition({
+      key: "hotel-charter",
+      businessId: DEFAULT_HOTEL.id,
+      businessName: DEFAULT_HOTEL.companyName,
+      amount: setupCost,
+      detail: "Property acquisition and opening team reserve",
+      cash,
+      onCashChange,
+      onLedger,
+      onCommit: () => {
+        setHotel({ ...DEFAULT_HOTEL, cashReserve: setupCost });
+        setHotelOpen(true);
+      },
+    });
+    if (!result.accepted && result.reason === "insufficient-funds")
+      Alert.alert("HOTEL LOCKED", `Need ${formatCurrency(setupCost - cash)} more for the property acquisition and opening team.`);
   };
   const openBlockchain = () => {
     if (blockchain) return setBlockchainOpen(true);
@@ -412,10 +439,22 @@ function BusinessScreenContent({
       Alert.alert("TECHNOLOGY LOCKED", `Need ${formatCurrency(setupCost - cash)} more for the infrastructure and research launch.`);
       return;
     }
-    onCashChange((value) => value - setupCost);
-    setBlockchain({ ...DEFAULT_BLOCKCHAIN, cashReserve: setupCost });
-    onLedger?.({ id: `blockchain-charter-${Date.now()}`, kind: "PURCHASE", label: "Technology company charter", amount: -setupCost, timestamp: Date.now(), detail: "Infrastructure and research launch reserve" });
-    setBlockchainOpen(true);
+    const result = commitBusinessAcquisition({
+      key: "blockchain-charter",
+      businessId: DEFAULT_BLOCKCHAIN.id,
+      businessName: DEFAULT_BLOCKCHAIN.companyName,
+      amount: setupCost,
+      detail: "Infrastructure and research launch reserve",
+      cash,
+      onCashChange,
+      onLedger,
+      onCommit: () => {
+        setBlockchain({ ...DEFAULT_BLOCKCHAIN, cashReserve: setupCost });
+        setBlockchainOpen(true);
+      },
+    });
+    if (!result.accepted && result.reason === "insufficient-funds")
+      Alert.alert("TECHNOLOGY LOCKED", `Need ${formatCurrency(setupCost - cash)} more for the infrastructure and research launch.`);
   };
   const openSpace = () => {
     if (space) return setSpaceOpen(true);
@@ -424,10 +463,22 @@ function BusinessScreenContent({
       Alert.alert("AEROSPACE LOCKED", `Need ${formatCurrency(setupCost - cash)} more for the launch program and engineering team.`);
       return;
     }
-    onCashChange((value) => value - setupCost);
-    setSpace({ ...DEFAULT_SPACE, cashReserve: setupCost });
-    onLedger?.({ id: `space-charter-${Date.now()}`, kind: "PURCHASE", label: "Aerospace company charter", amount: -setupCost, timestamp: Date.now(), detail: "Launch program and engineering team reserve" });
-    setSpaceOpen(true);
+    const result = commitBusinessAcquisition({
+      key: "space-charter",
+      businessId: DEFAULT_SPACE.id,
+      businessName: DEFAULT_SPACE.companyName,
+      amount: setupCost,
+      detail: "Launch program and engineering team reserve",
+      cash,
+      onCashChange,
+      onLedger,
+      onCommit: () => {
+        setSpace({ ...DEFAULT_SPACE, cashReserve: setupCost });
+        setSpaceOpen(true);
+      },
+    });
+    if (!result.accepted && result.reason === "insufficient-funds")
+      Alert.alert("AEROSPACE LOCKED", `Need ${formatCurrency(setupCost - cash)} more for the launch program and engineering team.`);
   };
   const openHolding = () => {
     if (holding) return setHoldingOpen(true);
@@ -436,11 +487,87 @@ function BusinessScreenContent({
       Alert.alert("HOLDING COMPANY LOCKED", `Need ${formatCurrency(setupCost - cash)} more for the corporate headquarters and group treasury.`);
       return;
     }
-    onCashChange((value) => value - setupCost);
-    setHolding({ ...DEFAULT_HOLDING, cashReserve: setupCost });
-    onLedger?.({ id: `holding-charter-${Date.now()}`, kind: "PURCHASE", label: "Holding Company charter", amount: -setupCost, timestamp: Date.now(), detail: "Corporate headquarters and group treasury reserve" });
-    setHoldingOpen(true);
+    const result = commitBusinessAcquisition({
+      key: "holding-charter",
+      businessId: DEFAULT_HOLDING.id,
+      businessName: DEFAULT_HOLDING.companyName,
+      amount: setupCost,
+      detail: "Corporate headquarters and group treasury reserve",
+      cash,
+      onCashChange,
+      onLedger,
+      onCommit: () => {
+        setHolding({ ...DEFAULT_HOLDING, cashReserve: setupCost });
+        setHoldingOpen(true);
+      },
+    });
+    if (!result.accepted && result.reason === "insufficient-funds")
+      Alert.alert("HOLDING COMPANY LOCKED", `Need ${formatCurrency(setupCost - cash)} more for the corporate headquarters and group treasury.`);
   };
+  const openSpecializedRoute = (
+    screen: Exclude<BusinessRouteScreen, "portfolio" | "business-master-hub">,
+  ) => {
+    switch (screen) {
+      case "taxi":
+        setTaxiOpen(true);
+        return;
+      case "shipping":
+        setShippingOpen(true);
+        return;
+      case "factory":
+        setFactoryOpen(true);
+        return;
+      case "construction":
+        setConstructionOpen(true);
+        return;
+      case "dealership":
+        setDealershipOpen(true);
+        return;
+      case "software":
+        setSoftwareOpen(true);
+        return;
+      case "sports":
+        openSportsClub();
+        return;
+      case "oilGas":
+        openOilGas();
+        return;
+      case "airline":
+        openAirline();
+        return;
+      case "hotel":
+        openHotel();
+        return;
+      case "blockchain":
+        openBlockchain();
+        return;
+      case "space":
+        openSpace();
+        return;
+      case "holding":
+        openHolding();
+        return;
+      default:
+        return;
+    }
+  };
+  const openPortfolioRecord = (record: CanonicalBusiness) => {
+    if (portfolioStatus(record, businesses, netWorth) === "locked") return;
+    if (record.owned) {
+      if (record.kind === "generic") setSelectedId(record.id);
+      else openSpecializedRoute(getBusinessRouteByKind(record.kind).screen as Exclude<BusinessRouteScreen, "portfolio" | "business-master-hub">);
+      return;
+    }
+    if (record.kind !== "generic") {
+      openSpecializedRoute(getBusinessRouteByKind(record.kind).screen as Exclude<BusinessRouteScreen, "portfolio" | "business-master-hub">);
+      return;
+    }
+    const source = sourceBusinessForPortfolioRecord(record, businesses);
+    if (source) setRegistrationId(source.id);
+  };
+  const ownedRows = portfolioRows.filter((record) => portfolioStatus(record, businesses, netWorth) === "owned");
+  const availableRows = portfolioRows.filter((record) => portfolioStatus(record, businesses, netWorth) === "available");
+  const lockedRows = portfolioRows.filter((record) => portfolioStatus(record, businesses, netWorth) === "locked");
   const nextMove = bestAffordable
     ? `Start ${bestAffordable.item.name} · ~${Math.max(1, Math.ceil(bestAffordable.cost / bestAffordable.hourly))} settlements to pay back at +${formatCurrency(bestAffordable.hourly)}/hr`
     : (() => {
@@ -594,6 +721,34 @@ function BusinessScreenContent({
         onLedger={onLedger}
       />
     );
+  const selectedCanonical = selected
+    ? canonicalRegistry.find((record) => record.id === selected.id)
+    : null;
+  const selectedRoute = selectedCanonical?.source === "specialized-state"
+    ? getBusinessRouteByKind(selectedCanonical.kind)
+    : null;
+  if (selectedRoute?.screen === "construction")
+    return (
+      <ConstructionCompanyScreen
+        company={constructionCompany}
+        cash={cash}
+        onCashChange={onCashChange}
+        onChange={setConstructionCompany || (() => undefined)}
+        onBack={() => setSelectedId(null)}
+        onLedger={onLedger}
+      />
+    );
+  if (selectedRoute?.screen === "software")
+    return (
+      <SoftwareCompanyScreen
+        company={softwareCompany}
+        cash={cash}
+        onCashChange={onCashChange}
+        onChange={setSoftwareCompany || (() => undefined)}
+        onBack={() => setSelectedId(null)}
+        onLedger={onLedger}
+      />
+    );
   if (selected)
     return (
       <BusinessMasterHubScreen
@@ -601,7 +756,7 @@ function BusinessScreenContent({
         cash={cash}
         netWorth={netWorth}
         timestamp={timestamp}
-        ipoListing={ipoListing}
+        ipoListing={ipoListings?.[selected.id] ?? (ipoListing?.companyId === selected.id ? ipoListing : null)}
         focusRetail={focusRetail}
         onBack={() => setSelectedId(null)}
         onCashChange={onCashChange}
@@ -619,42 +774,52 @@ function BusinessScreenContent({
     structure: OperatingStructure,
     fee: number,
   ) => {
-    if (
-      !registrationTarget ||
-      cash < fee + registrationTarget.acquisitionCost
-    ) {
+    if (!registrationTarget) {
+      return;
+    }
+    const target = registrationTarget;
+    const total = fee + target.acquisitionCost;
+    if (cash < total) {
       Alert.alert(
         "INSUFFICIENT CAPITAL",
-        `This deal requires ${formatCurrency((registrationTarget?.acquisitionCost || 0) + fee)} liquid cash.`,
+        `This deal requires ${formatCurrency(total)} liquid cash.`,
       );
       return;
     }
-    const total = fee + registrationTarget.acquisitionCost;
-    onCashChange((value) => value - total);
-    onLedger?.({
-      id: `ledger-business-${registrationTarget.id}-${Date.now()}`,
-      kind: "PURCHASE",
-      label: `Business purchase · ${name}`,
-      amount: -total,
-      timestamp: Date.now(),
+    const result = commitBusinessAcquisition({
+      key: `generic:${target.id}`,
+      businessId: target.id,
+      businessName: name,
+      amount: total,
       detail: `${structure} acquisition`,
+      cash,
+      onCashChange,
+      onLedger,
+      onCommit: () => {
+        setBusinesses((items) =>
+          items.map((item) =>
+            item.id === target.id
+              ? {
+                  ...item,
+                  name,
+                  isAcquired: true,
+                  operatingRampSeconds: 0,
+                  legalStatus: structure,
+                  policeHeat: structure === "Shadow_Underground" ? 2 : 0,
+                  stability: structure === "Shadow_Underground" ? 70 : 95,
+                }
+              : item,
+          ),
+        );
+        setRegistrationId(null);
+      },
     });
-    setBusinesses((items) =>
-      items.map((item) =>
-        item.id === registrationTarget.id
-          ? {
-              ...item,
-              name,
-              isAcquired: true,
-              operatingRampSeconds: 0,
-              legalStatus: structure,
-              policeHeat: structure === "Shadow_Underground" ? 2 : 0,
-              stability: structure === "Shadow_Underground" ? 70 : 95,
-            }
-          : item,
-      ),
-    );
-    setRegistrationId(null);
+    if (!result.accepted && result.reason === "insufficient-funds") {
+      Alert.alert(
+        "INSUFFICIENT CAPITAL",
+        `This deal requires ${formatCurrency(total)} liquid cash.`,
+      );
+    }
   };
   const quickAction = (item: BusinessEntity) => {
     if (!item.isAcquired) return setRegistrationId(item.id);
@@ -712,259 +877,62 @@ function BusinessScreenContent({
             />
             <SummaryMetric
               label="COMPANIES"
-              value={`${activeCount} / ${businesses.length}`}
+              value={`${activeCount} / ${canonicalRegistry.length}`}
             />
           </View>
-          <View style={styles.taxiCard}>
-            <View style={styles.taxiCardCopy}>
-              <Text style={styles.taxiEyebrow}>FIRST SPECIALIZED BUSINESS</Text>
-              <Text style={styles.taxiTitle}>
-                {taxiCompany ? "My Taxi Company" : "Start a Taxi Company"}
-              </Text>
-              <Text style={styles.taxiCopy}>
-                {taxiCompany
-                  ? `${taxiCompany.area} · ${taxiCompany.status === "operating" ? "Operating" : "Setup in progress"} · ${taxiCompany.economyTaxis + taxiCompany.electricTaxis + taxiCompany.luxuryTaxis} vehicles`
-                  : "Choose a service area, fund a first vehicle and launch a real operating company."}
-              </Text>
+          <View style={styles.sectionHead}>
+            <View style={styles.sectionHeadCopy}>
+              <Text style={styles.sectionEyebrow}>BUSINESS PORTFOLIO</Text>
+              <Text style={styles.sectionTitle}>One empire, one source of truth</Text>
             </View>
-            <Pressable
-              style={styles.taxiButton}
-              onPress={() => setTaxiOpen(true)}
-            >
-              <Text style={styles.taxiButtonText}>
-                {taxiCompany ? "MANAGE TAXI" : "START TAXI"}
-              </Text>
-            </Pressable>
+            <Text style={styles.sectionCount}>{portfolioRows.length} ROUTES</Text>
           </View>
-          <View style={styles.shippingCard}>
-            <View style={styles.shippingCardCopy}>
-              <Text style={styles.shippingEyebrow}>LOGISTICS COMPANY</Text>
-              <Text style={styles.shippingTitle}>
-                {shippingCompany
-                  ? "My Shipping Company"
-                  : "Start a Shipping Company"}
-              </Text>
-              <Text style={styles.shippingCopy}>
-                {shippingCompany
-                  ? `${shippingCompany.city} · ${shippingCompany.level} · ${shippingCompany.shipments.filter((item) => item.status !== "delivered").length} active shipments · ${shippingCompany.warehouseCapacity.toLocaleString()} cargo units`
-                  : "Build warehouses, manage cargo, assign vehicles and complete delivery orders."}
-              </Text>
+          <Text style={styles.portfolioIntro}>Owned, available and locked companies are sourced from the canonical registry. Specialized companies keep their own engines and open through the same portfolio route.</Text>
+          <View style={styles.portfolioGroup}>
+            <Text style={styles.portfolioGroupTitle}>OWNED · {ownedRows.length}</Text>
+            {ownedRows.map((record) => (
+              <BusinessPortfolioCard
+                key={`owned-${record.id}`}
+                record={record}
+                display={getBusinessDisplayMeta(record.kind)}
+                status="owned"
+                onPress={() => openPortfolioRecord(record)}
+              />
+            ))}
+            {ownedRows.length === 0 && <Text style={styles.emptyCompanies}>No owned companies yet. Start with an available opportunity below.</Text>}
+          </View>
+          <View style={styles.portfolioGroup}>
+            <Text style={styles.portfolioGroupTitle}>AVAILABLE · {availableRows.length}</Text>
+            {availableRows.map((record) => {
+              return (
+                <BusinessPortfolioCard
+                  key={`available-${record.id}`}
+                  record={record}
+                  display={getBusinessDisplayMeta(record.kind)}
+                  status="available"
+                  actionLabel={record.source === "generic-state" ? "INCORPORATE" : "START"}
+                  onPress={() => openPortfolioRecord(record)}
+                  unlockShortfall={portfolioUnlockShortfall(record, businesses, netWorth)}
+                />
+              );
+            })}
+          </View>
+          {lockedRows.length > 0 && (
+            <View style={styles.portfolioGroup}>
+              <Text style={styles.portfolioGroupTitle}>LOCKED · {lockedRows.length}</Text>
+              {lockedRows.map((record) => {
+                return (
+                  <BusinessPortfolioCard
+                    key={`locked-${record.id}`}
+                    record={record}
+                    display={getBusinessDisplayMeta(record.kind)}
+                    status="locked"
+                    unlockShortfall={portfolioUnlockShortfall(record, businesses, netWorth)}
+                  />
+                );
+              })}
             </View>
-            <Pressable
-              style={styles.shippingButton}
-              onPress={() => setShippingOpen(true)}
-            >
-              <Text style={styles.shippingButtonText}>
-                {shippingCompany ? "MANAGE SHIPPING" : "START SHIPPING"}
-              </Text>
-            </Pressable>
-          </View>
-          <View style={styles.factoryCard}>
-            <View style={styles.factoryCardCopy}>
-              <Text style={styles.factoryEyebrow}>MANUFACTURING COMPANY</Text>
-              <Text style={styles.factoryTitle}>
-                {factoryCompany
-                  ? "My Factory Company"
-                  : "Start a Factory Company"}
-              </Text>
-              <Text style={styles.factoryCopy}>
-                {factoryCompany
-                  ? `${factoryCompany.factoryType} · ${factoryCompany.level} · ${factoryCompany.machineLines} production lines · ${factoryCompany.finishedGoods.toLocaleString()} finished goods`
-                  : "Turn raw materials into products with machines, workers, inventory and sales."}
-              </Text>
-            </View>
-            <Pressable
-              style={styles.factoryButton}
-              onPress={() => setFactoryOpen(true)}
-            >
-              <Text style={styles.factoryButtonText}>
-                {factoryCompany ? "MANAGE FACTORY" : "START FACTORY"}
-              </Text>
-            </Pressable>
-          </View>
-          <View style={styles.constructionCard}>
-            <View style={styles.factoryCardCopy}>
-              <Text style={styles.constructionEyebrow}>
-                DEVELOPMENT COMPANY
-              </Text>
-              <Text style={styles.factoryTitle}>
-                {constructionCompany
-                  ? "My Construction Company"
-                  : "Start a Construction Company"}
-              </Text>
-              <Text style={styles.factoryCopy}>
-                {constructionCompany
-                  ? `${constructionCompany.level} · ${constructionCompany.activeProjects} active projects · ${constructionCompany.landParcels} parcels`
-                  : "Buy land, manage machinery, build projects and win construction contracts."}
-              </Text>
-            </View>
-            <Pressable
-              style={styles.constructionButton}
-              onPress={() => setConstructionOpen(true)}
-            >
-              <Text style={styles.factoryButtonText}>
-                {constructionCompany
-                  ? "MANAGE CONSTRUCTION"
-                  : "START CONSTRUCTION"}
-              </Text>
-            </Pressable>
-          </View>
-          <View style={styles.dealershipCard}>
-            <View style={styles.factoryCardCopy}>
-              <Text style={styles.dealershipEyebrow}>AUTOMOTIVE COMPANY</Text>
-              <Text style={styles.factoryTitle}>
-                {dealership ? "My Car Dealership" : "Start a Car Dealership"}
-              </Text>
-              <Text style={styles.factoryCopy}>
-                {dealership
-                  ? `${dealership.level} · ${dealership.inventory} cars in stock · ${dealership.totalSales} sales · ${dealership.branches} branches`
-                  : "Buy vehicles, build a showroom, serve customers and expand into an automobile group."}
-              </Text>
-            </View>
-            <Pressable
-              style={styles.dealershipButton}
-              onPress={() => setDealershipOpen(true)}
-            >
-              <Text style={styles.factoryButtonText}>
-                {dealership ? "MANAGE DEALERSHIP" : "START DEALERSHIP"}
-              </Text>
-            </Pressable>
-          </View>
-          <View style={styles.softwareCard}>
-            <View style={styles.factoryCardCopy}>
-              <Text style={styles.softwareEyebrow}>TECHNOLOGY COMPANY</Text>
-              <Text style={styles.factoryTitle}>
-                {softwareCompany
-                  ? "My Software Company"
-                  : "Start an IT & Software Company"}
-              </Text>
-              <Text style={styles.factoryCopy}>
-                {softwareCompany
-                  ? `${softwareCompany.stage} · ${softwareCompany.developers} developers · ${softwareCompany.activeProjects} active projects · ${softwareCompany.saasProducts} SaaS products`
-                  : "Hire developers, win client contracts, deliver software and grow into a technology enterprise."}
-              </Text>
-            </View>
-            <Pressable
-              style={styles.softwareButton}
-              onPress={() => setSoftwareOpen(true)}
-            >
-              <Text style={styles.factoryButtonText}>
-                {softwareCompany ? "MANAGE SOFTWARE" : "START SOFTWARE"}
-              </Text>
-            </Pressable>
-          </View>
-          <View style={styles.sportsCard}>
-            <View style={styles.factoryCardCopy}>
-              <Text style={styles.sportsEyebrow}>SPORTS & ENTERTAINMENT</Text>
-              <Text style={styles.factoryTitle}>{sportsClub ? sportsClub.clubName : "Sports Club Company"}</Text>
-              <Text style={styles.factoryCopy}>
-                {sportsClub
-                  ? `${sportsClub.stage} · ${sportsClub.teams} teams · ${sportsClub.stadiumCapacity.toLocaleString()} seats`
-                  : "Build teams, stadiums, tournaments, sponsorships and a multi-city sports group."}
-              </Text>
-            </View>
-            <Pressable style={styles.sportsButton} onPress={openSportsClub}>
-              <Text style={styles.factoryButtonText}>{sportsClub ? "MANAGE SPORTS" : "START SPORTS"}</Text>
-            </Pressable>
-          </View>
-          <View style={styles.oilGasCard}>
-            <View style={styles.factoryCardCopy}>
-              <Text style={styles.oilGasEyebrow}>ENERGY & INFRASTRUCTURE</Text>
-              <Text style={styles.factoryTitle}>{oilGas ? oilGas.companyName : "Oil & Gas Company"}</Text>
-              <Text style={styles.factoryCopy}>
-                {oilGas ? `${oilGas.stage} · ${oilGas.fields} fields · ${oilGas.fuelStations} stations` : "Build fields, refineries, terminals, fuel stations and global energy operations."}
-              </Text>
-            </View>
-            <Pressable style={styles.oilGasButton} onPress={openOilGas}>
-              <Text style={styles.factoryButtonText}>{oilGas ? "MANAGE ENERGY" : "START ENERGY"}</Text>
-            </Pressable>
-          </View>
-          <View style={styles.bankingCard}>
-            <View style={styles.factoryCardCopy}>
-              <Text style={styles.bankingEyebrow}>FINANCIAL SERVICES</Text>
-              <Text style={styles.factoryTitle}>Banking Company</Text>
-              <Text style={styles.factoryCopy}>
-                Manage credit, deposits, insurance, tax, treasury risk and investor capital in the dedicated Bank module.
-              </Text>
-            </View>
-            <Pressable style={styles.bankingButton} onPress={onOpenBank}>
-              <Text style={styles.factoryButtonText}>OPEN BANKING</Text>
-            </Pressable>
-          </View>
-          <View style={styles.airlineCard}>
-            <View style={styles.factoryCardCopy}>
-              <Text style={styles.airlineEyebrow}>AVIATION & TRAVEL</Text>
-              <Text style={styles.factoryTitle}>{airline ? airline.companyName : "Airline Company"}</Text>
-              <Text style={styles.factoryCopy}>
-                {airline ? `${airline.stage} · ${airline.aircraft} aircraft · ${airline.routes} routes` : "Build a regional carrier, schedule routes, fill seats and expand into a global airline group."}
-              </Text>
-            </View>
-            <Pressable style={styles.airlineButton} onPress={openAirline}>
-              <Text style={styles.factoryButtonText}>{airline ? "MANAGE AIRLINE" : "START AIRLINE"}</Text>
-            </Pressable>
-          </View>
-          <View style={styles.hotelCard}>
-            <View style={styles.factoryCardCopy}>
-              <Text style={styles.hotelEyebrow}>HOSPITALITY & TRAVEL</Text>
-              <Text style={styles.factoryTitle}>{hotel ? hotel.companyName : "Hotel & Hospitality Company"}</Text>
-              <Text style={styles.factoryCopy}>
-                {hotel ? `${hotel.stage} · ${hotel.properties} properties · ${hotel.rooms} rooms` : "Acquire properties, fill rooms, build guest services and grow an international hospitality group."}
-              </Text>
-            </View>
-            <Pressable style={styles.hotelButton} onPress={openHotel}>
-              <Text style={styles.factoryButtonText}>{hotel ? "MANAGE HOTEL" : "START HOTEL"}</Text>
-            </Pressable>
-          </View>
-          <View style={styles.blockchainCard}>
-            <View style={styles.factoryCardCopy}>
-              <Text style={styles.blockchainEyebrow}>DIGITAL INFRASTRUCTURE</Text>
-              <Text style={styles.factoryTitle}>{blockchain ? blockchain.companyName : "Blockchain & Digital Technology"}</Text>
-              <Text style={styles.factoryCopy}>
-                {blockchain ? `${blockchain.stage} · ${blockchain.servers} servers · ${blockchain.clients} clients` : "Build infrastructure, research products, launch a reliable platform and win enterprise technology clients."}
-              </Text>
-            </View>
-            <Pressable style={styles.blockchainButton} onPress={openBlockchain}>
-              <Text style={styles.factoryButtonText}>{blockchain ? "MANAGE TECHNOLOGY" : "START TECHNOLOGY"}</Text>
-            </Pressable>
-          </View>
-          <View style={styles.spaceCard}>
-            <View style={styles.factoryCardCopy}>
-              <Text style={styles.spaceEyebrow}>AEROSPACE & EXPLORATION</Text>
-              <Text style={styles.factoryTitle}>{space ? space.companyName : "Space & Aerospace Company"}</Text>
-              <Text style={styles.factoryCopy}>
-                {space ? `${space.stage} · ${space.launches} launches · ${space.satellites} satellites` : "Fund research, build rockets, schedule missions and grow an advanced space enterprise."}
-              </Text>
-            </View>
-            <Pressable style={styles.spaceButton} onPress={openSpace}>
-              <Text style={styles.factoryButtonText}>{space ? "MANAGE AEROSPACE" : "START AEROSPACE"}</Text>
-            </Pressable>
-          </View>
-          <View style={styles.holdingCard}>
-            <View style={styles.factoryCardCopy}>
-              <Text style={styles.holdingEyebrow}>GROUP MANAGEMENT LAYER</Text>
-              <Text style={styles.factoryTitle}>{holding ? holding.companyName : "Holding Company & Mergers"}</Text>
-              <Text style={styles.factoryCopy}>
-                {holding ? `${holding.stage} · ${holding.subsidiaries.length} subsidiaries · ${Math.round(holding.synergyRate * 100)}% synergy` : "Consolidate profitable businesses, acquire targets and manage group-wide treasury above the operating companies."}
-              </Text>
-            </View>
-            <Pressable style={styles.holdingButton} onPress={openHolding}>
-              <Text style={styles.factoryButtonText}>{holding ? "MANAGE GROUP" : "FORM HOLDING"}</Text>
-            </Pressable>
-          </View>
-          <View style={styles.primaryActions}>
-            <Pressable
-              style={styles.primaryButton}
-              onPress={() => setViewMode("start")}
-            >
-              <Text style={styles.primaryButtonText}>START A BUSINESS</Text>
-            </Pressable>
-            <Pressable
-              style={styles.secondaryButton}
-              onPress={() => setViewMode("companies")}
-            >
-              <Text style={styles.secondaryButtonText}>MY COMPANIES</Text>
-            </Pressable>
-          </View>
+          )}
           {levelNotice?.levelUpNotice && (
             <View style={styles.levelUpCard}>
               <Text style={styles.levelUpEyebrow}>NEW CONTROLS UNLOCKED</Text>
@@ -989,33 +957,6 @@ function BusinessScreenContent({
               </Pressable>
             </View>
           )}
-          <View style={styles.sectionHead}>
-            <View style={styles.sectionHeadCopy}>
-              <Text style={styles.sectionEyebrow}>YOUR COMPANIES</Text>
-              <Text style={styles.sectionTitle}>Owned and operating</Text>
-            </View>
-            <Text style={styles.sectionCount}>
-              {ownedBusinesses.length} ACTIVE
-            </Text>
-          </View>
-          <View style={styles.grid}>
-            {ownedBusinesses.map((item) => (
-              <BusinessCard
-                key={`owned-${item.id}`}
-                business={item}
-                netWorth={netWorth}
-                onAcquire={() => setRegistrationId(item.id)}
-                onManage={() => setSelectedId(item.id)}
-                onQuickAction={() => quickAction(item)}
-              />
-            ))}
-            {ownedBusinesses.length === 0 && (
-              <Text style={styles.emptyCompanies}>
-                No companies yet. Start with the most affordable
-                positive-cashflow opportunity below.
-              </Text>
-            )}
-          </View>
           <View style={styles.nextMoveCard}>
             <Text style={styles.goalEyebrow}>NEXT BEST MOVE</Text>
             <Text style={styles.nextMoveText}>{nextMove}</Text>
@@ -1048,30 +989,6 @@ function BusinessScreenContent({
               </Text>
             </View>
           </View>
-          <View style={styles.sectionHead}>
-            <View style={styles.sectionHeadCopy}>
-              <Text style={styles.sectionEyebrow}>START A NEW BUSINESS</Text>
-              <Text style={styles.sectionTitle}>Choose your next company</Text>
-            </View>
-            <Text style={styles.sectionCount}>
-              {businesses.filter((item) => !item.isAcquired).length}{" "}
-              OPPORTUNITIES
-            </Text>
-          </View>
-          <View style={styles.grid}>
-            {businesses
-              .filter((item) => !item.isAcquired)
-              .map((item) => (
-                <BusinessCard
-                  key={`start-${item.id}`}
-                  business={item}
-                  netWorth={netWorth}
-                  onAcquire={() => setRegistrationId(item.id)}
-                  onManage={() => setSelectedId(item.id)}
-                  onQuickAction={() => quickAction(item)}
-                />
-              ))}
-          </View>
           <View style={styles.tip}>
             <Text style={styles.tipIcon}>✦</Text>
             <View style={{ flex: 1 }}>
@@ -1100,332 +1017,6 @@ function SummaryMetric({ label, value }: { label: string; value: string }) {
       <Text style={styles.summaryLabel}>{label}</Text>
       <Text style={styles.summaryValue}>{value}</Text>
     </View>
-  );
-}
-function BusinessCard({
-  business,
-  netWorth,
-  onAcquire,
-  onManage,
-  onQuickAction,
-}: {
-  business: BusinessEntity;
-  netWorth: number;
-  onAcquire: () => void;
-  onManage: () => void;
-  onQuickAction: () => void;
-}) {
-  const unlocked =
-    business.isUnlocked || netWorth >= business.unlockNetWorthRequired;
-  const color = iconAccent[business.sector];
-  const level = normalizeBusinessLevel(business).level || 1;
-  const progressive =
-    business.sector === "Retail" || business.sector === "Mobility";
-  const metric =
-    business.sector === "Retail"
-      ? `${business.stockUnits.toLocaleString()} units in stock`
-      : business.sector === "Mobility"
-        ? `${business.economySedans + business.electricEVs + business.luxuryLimos} vehicles in fleet`
-        : business.sector === "Tech_SaaS"
-          ? `${business.activeSubscribers.toLocaleString()} active subscribers`
-          : business.sector === "Construction_Mega"
-            ? business.projectPhase === 0
-              ? "$1.2M tender opportunity"
-              : `Phase ${business.projectPhase} · ${business.phaseProgressPercent}% complete`
-            : `${business.branchCount ?? 0} branch${business.branchCount === 1 ? "" : "es"} · ${(business.reputation ?? 0).toFixed(0)} reputation`;
-  return (
-    <Pressable
-      disabled={!business.isAcquired && !unlocked}
-      onPress={
-        business.isAcquired &&
-        level === 1 &&
-        (business.sector === "Retail" || business.sector === "Mobility")
-          ? onQuickAction
-          : business.isAcquired
-            ? onManage
-            : onAcquire
-      }
-      style={({ pressed }) => [
-        styles.businessCard,
-        { borderColor: `${color}55` },
-        !unlocked && styles.lockedCard,
-        pressed && styles.pressed,
-      ]}
-    >
-      <View style={[styles.cardGlow, { backgroundColor: color }]} />
-      <View style={styles.cardHeader}>
-        <View
-          style={[
-            styles.iconBubble,
-            { backgroundColor: `${color}22`, borderColor: `${color}66` },
-          ]}
-        >
-          <BusinessIcon sector={business.sector} color={color} />
-        </View>
-        <View style={styles.cardPills}>
-          <Text style={[styles.tierPill, { color, borderColor: `${color}66` }]}>
-            {tierLabel[business.sector]}
-          </Text>
-          {!unlocked && <Text style={styles.lockPill}>LOCKED</Text>}
-          {business.isAcquired && <Text style={styles.livePill}>LIVE</Text>}
-        </View>
-      </View>
-      <Text style={styles.cardSector}>{sectorLabel[business.sector]}</Text>
-      <Text numberOfLines={2} style={styles.cardTitle}>
-        {business.name}
-      </Text>
-      <Text style={styles.cardMetric}>{metric}</Text>
-      {business.isAcquired &&
-        (business.sector === "Retail" || business.sector === "Mobility") &&
-        level === 1 && (
-          <Text style={styles.levelTeaser}>
-            {levelConfig(business).milestones[2].teaser}
-          </Text>
-        )}
-      <Text style={styles.cardDescription}>
-        {sectorDescription[business.sector]}
-      </Text>
-      <View style={styles.cardFooter}>
-        {business.isAcquired ? (
-          progressive ? (
-            <View style={{ flex: 1 }}>
-              <View style={styles.cardStatsRow}>
-                <View>
-                  <Text style={styles.earnLabel}>STATUS</Text>
-                  <Text style={styles.cardStatValue}>
-                    {level === 1 ? "OPERATING" : `LEVEL ${level}`}
-                  </Text>
-                </View>
-                <View>
-                  <Text style={styles.earnLabel}>REVENUE / HR</Text>
-                  <Text style={styles.cardStatValue}>
-                    {formatCurrency(Math.max(0, business.hourlyNetProfit))}
-                  </Text>
-                </View>
-                <View>
-                  <Text style={styles.earnLabel}>NET / HR</Text>
-                  <Text style={[styles.cardStatValue, { color }]}>
-                    {formatCurrency(Math.max(0, business.hourlyNetProfit))}
-                  </Text>
-                </View>
-              </View>
-              {level === 1 &&
-              (business.sector === "Retail" ||
-                business.sector === "Mobility") ? (
-                <Pressable
-                  style={[styles.cardAction, { borderColor: `${color}66` }]}
-                  onPress={onQuickAction}
-                >
-                  <Text style={[styles.cardActionText, { color }]}>
-                    {business.sector === "Retail"
-                      ? "RESTOCK 1,000"
-                      : "BUY VEHICLE"}
-                  </Text>
-                </Pressable>
-              ) : (
-                <Text style={[styles.arrow, { color, alignSelf: "flex-end" }]}>
-                  ›
-                </Text>
-              )}
-            </View>
-          ) : (
-            <>
-              <View>
-                <Text style={styles.earnLabel}>NET CASHFLOW</Text>
-                <Text style={[styles.earnValue, { color }]}>
-                  {formatCurrency(business.hourlyNetProfit)}
-                  <Text style={styles.perHour}> / HR</Text>
-                </Text>
-              </View>
-              <Text style={[styles.arrow, { color }]}>›</Text>
-            </>
-          )
-        ) : unlocked ? (
-          <>
-            <View>
-              <Text style={styles.earnLabel}>ENTRY CAPITAL</Text>
-              <Text style={styles.entryValue}>
-                {formatCurrency(business.acquisitionCost)}
-              </Text>
-            </View>
-            <Text style={[styles.startText, { color }]}>START ›</Text>
-          </>
-        ) : (
-          <>
-            <View>
-              <Text style={styles.earnLabel}>UNLOCK AT</Text>
-              <Text style={styles.entryValue}>
-                Need{" "}
-                {formatCurrency(
-                  Math.max(0, business.unlockNetWorthRequired - netWorth),
-                )}{" "}
-                more
-              </Text>
-            </View>
-            <Text style={styles.lockIcon}>⌁</Text>
-          </>
-        )}
-      </View>
-    </Pressable>
-  );
-}
-function BusinessIcon({
-  sector,
-  color,
-}: {
-  sector: BusinessEntity["sector"];
-  color: string;
-}) {
-  return (
-    <Svg width={37} height={37} viewBox="0 0 40 40">
-      <Circle
-        cx="20"
-        cy="20"
-        r="18"
-        fill="none"
-        stroke={color}
-        strokeWidth="1.8"
-        opacity=".9"
-      />
-      {sector === "Retail" && (
-        <>
-          <Path d="M10 17h20l-2-6H12l-2 6Z" fill={color} opacity=".9" />
-          <Path
-            d="M12 18v11h16V18M17 22h6v7h-6"
-            fill="none"
-            stroke={color}
-            strokeWidth="2"
-          />
-        </>
-      )}
-      {sector === "Mobility" && (
-        <>
-          <Path
-            d="M11 24l2-8c.3-1.2 1.2-2 2.4-2h9.2c1.2 0 2.1.8 2.4 2l2 8"
-            fill="none"
-            stroke={color}
-            strokeWidth="2"
-          />
-          <Path
-            d="M10 24h20v4H10zM14 28v2M26 28v2M14 18h12"
-            fill="none"
-            stroke={color}
-            strokeWidth="2"
-          />
-          <Circle cx="15" cy="25" r="1.5" fill={color} />
-          <Circle cx="25" cy="25" r="1.5" fill={color} />
-        </>
-      )}
-      {sector === "Tech_SaaS" && (
-        <>
-          <Rect
-            x="11"
-            y="12"
-            width="18"
-            height="16"
-            rx="2"
-            fill="none"
-            stroke={color}
-            strokeWidth="2"
-          />
-          <Path
-            d="M15 17h10M15 21h6M16 12v-3M24 12v-3"
-            stroke={color}
-            strokeWidth="2"
-            strokeLinecap="round"
-          />
-        </>
-      )}
-      {sector === "Construction_Mega" && (
-        <>
-          <Path
-            d="M12 29V17l8-7 8 7v12"
-            fill="none"
-            stroke={color}
-            strokeWidth="2"
-          />
-          <Path d="M9 29h22M16 29v-7h8v7" stroke={color} strokeWidth="2" />
-          <Path
-            d="M20 10V7h8"
-            stroke={color}
-            strokeWidth="2"
-            strokeLinecap="round"
-          />
-        </>
-      )}
-      {sector === "Real_Estate" && (
-        <>
-          <Path
-            d="M11 29V14l9-6 9 6v15M16 29V20h8v9M8 29h24"
-            fill="none"
-            stroke={color}
-            strokeWidth="2"
-            strokeLinejoin="round"
-          />
-        </>
-      )}
-      {sector === "Energy" && (
-        <>
-          <Path
-            d="M23 7 12 22h8l-3 11 11-16h-8l3-10Z"
-            fill="none"
-            stroke={color}
-            strokeWidth="2"
-            strokeLinejoin="round"
-          />
-        </>
-      )}
-      {sector === "Pharma" && (
-        <>
-          <Path
-            d="M14 10a5 5 0 0 1 7.1 0l4.9 4.9a5 5 0 0 1-7.1 7.1L14 17.1A5 5 0 0 1 14 10Z"
-            fill="none"
-            stroke={color}
-            strokeWidth="2"
-          />
-          <Path d="M16 12l8 8" stroke={color} strokeWidth="2" />
-        </>
-      )}
-      {sector === "Media" && (
-        <>
-          <Path
-            d="M12 12h16v16H12z"
-            fill="none"
-            stroke={color}
-            strokeWidth="2"
-          />
-          <Path d="M16 16l8 4-8 4v-8Z" fill={color} />
-        </>
-      )}
-      {sector === "Sports" && (
-        <>
-          <Circle
-            cx="20"
-            cy="20"
-            r="9"
-            fill="none"
-            stroke={color}
-            strokeWidth="2"
-          />
-          <Path
-            d="M14 14l12 12M26 14 14 26M11 20h18"
-            stroke={color}
-            strokeWidth="1.5"
-          />
-        </>
-      )}
-      {sector === "Airline" && (
-        <>
-          <Path
-            d="M8 22 32 18 21 15l-3-7-3 1 1 7-8 3Z"
-            fill="none"
-            stroke={color}
-            strokeWidth="2"
-            strokeLinejoin="round"
-          />
-        </>
-      )}
-    </Svg>
   );
 }
 const styles = StyleSheet.create({
@@ -2046,6 +1637,9 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     marginTop: 4,
   },
+  portfolioIntro: { color: C.muted, fontSize: 12, lineHeight: 18, marginBottom: 14 },
+  portfolioGroup: { marginBottom: 12 },
+  portfolioGroupTitle: { color: C.muted, fontSize: 10, fontWeight: "900", letterSpacing: 1.1, marginBottom: 8 },
   sectionCount: {
     color: C.cyan,
     fontSize: 8,

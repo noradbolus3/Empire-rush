@@ -17,6 +17,8 @@ import {
 } from "../types/dealership";
 import { formatCurrency } from "../utils/formatCurrency";
 import { SpecializedBusinessShell } from "../components/business/SpecializedBusinessShell";
+import { commitCashTransaction } from "../engine/transactionGateway";
+import { tryAcquireSpendLock } from "../engine/walletGuard";
 
 type Page =
   "dashboard" | "showroom" | "inventory" | "sales" | "finance" | "expansion";
@@ -58,39 +60,43 @@ export default function CarDealershipScreen({
   const update = (next: DealershipState) =>
     onChange({ ...next, level: dealershipLevelFor(next) });
   const spend = (cost: number, label: string, next: DealershipState) => {
-    if (cash < cost)
-      return Alert.alert(
-        "INSUFFICIENT CAPITAL",
-        `${label} requires ${formatCurrency(cost)}.`,
-      );
-    onCashChange((v) => v - cost);
-    update(next);
-    onLedger?.({
-      id: `dealership-${Date.now()}`,
-      kind: "PURCHASE",
-      label: `Dealership · ${label}`,
-      amount: -cost,
-      timestamp: Date.now(),
-      detail: current.name,
+    const timestamp = Date.now();
+    const result = commitCashTransaction({
+      key: `dealership:${current.id}:${label}`,
+      cash,
+      amount: cost,
+      onCashChange,
+      onLedger,
+      ledgerEntry: { id: `dealership-${timestamp}`, kind: "PURCHASE", label: `Dealership · ${label}`, amount: -cost, timestamp, detail: current.name },
+      onCommit: () => update(next),
+      now: timestamp,
     });
+    if (!result.accepted && result.reason === "insufficient-funds")
+      Alert.alert("INSUFFICIENT CAPITAL", `${label} requires ${formatCurrency(cost)}.`);
   };
   const launch = () => {
     const cost = 75000;
-    if (cash < cost)
-      return Alert.alert(
-        "SHOWROOM CAPITAL SHORTFALL",
-        `Need ${formatCurrency(cost - cash)} more.`,
-      );
-    onCashChange((v) => v - cost);
-    update({
+    const next = {
       ...DEFAULT_DEALERSHIP,
-      status: "operating",
+      status: "operating" as const,
       showroomSize: 1,
       salesStaff: 2,
       cashInvested: cost,
       showroomCapacity: 4,
+    };
+    const timestamp = Date.now();
+    const result = commitCashTransaction({
+      key: "dealership:launch",
+      cash,
+      amount: cost,
+      onCashChange,
+      onLedger,
+      ledgerEntry: { id: `dealership-launch-${timestamp}`, kind: "PURCHASE", label: "Dealership showroom launch", amount: -cost, timestamp, detail: "Showroom fit-out, staff onboarding and compliance" },
+      onCommit: () => { update(next); setPage("dashboard"); },
+      now: timestamp,
     });
-    setPage("dashboard");
+    if (!result.accepted && result.reason === "insufficient-funds")
+      Alert.alert("SHOWROOM CAPITAL SHORTFALL", `Need ${formatCurrency(cost - cash)} more.`);
   };
   const buyVehicle = (premium = false) =>
     spend(
@@ -103,6 +109,7 @@ export default function CarDealershipScreen({
       },
     );
   const sellVehicle = () => {
+    if (!tryAcquireSpendLock("dealership:sale")) return;
     const r = dealershipSellTick(current);
     if (!r.sold)
       return Alert.alert(

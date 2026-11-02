@@ -32,7 +32,7 @@ for (const page of requiredPages) assertMatch(screen, new RegExp(`tab: ['"]${pag
 for (const image of requiredImages) assertMatch(screen, new RegExp(image.replace('.', '\\.'), 'g'), `image missing: ${image}`);
 assertMatch(screen, /ConstructionOverview[\s\S]*GrowthStageTable/, 'overview growth table missing');
 assertMatch(screen, /OPEN PAGE/, 'overview action missing');
-assertMatch(screen, /useRef\(false\)/, 'purchase lock missing');
+assertMatch(screen, /commitCashTransaction[\s\S]*key: `construction:/, 'shared purchase gateway missing');
 assertMatch(screen, /project\.market === market/, 'market project filter missing');
 assertMatch(screen, /tab: ['"]Expansion['"],[^\n]*image: constructionVisuals\.project/, 'expansion visual missing');
 assertMatch(assets, /construction-dashboard\.webp/, 'dashboard asset missing');
@@ -51,7 +51,7 @@ console.log(JSON.stringify({
   overview: 'picture-led vertical overview',
   dedicatedPages: requiredPages,
   integratedVisuals: requiredImages,
-  actionGuard: 'rapid duplicate spend blocked for 300ms',
+  actionGuard: 'shared transaction gateway blocks rapid duplicate spend',
   marketFilter: 'project pipeline follows selected market',
   persistenceMigration: 'Ironline Civic Works -> Construction Company',
   deviceScreenshot: 'NOT RUN',

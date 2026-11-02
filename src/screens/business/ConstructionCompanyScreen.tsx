@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ConstructionData } from '../../types/business';
@@ -6,32 +6,52 @@ import { formatCurrency } from '../../utils/formatCurrency';
 import { CONSTRUCTION_CONTRACTS, CONSTRUCTION_PROJECTS, CONSTRUCTION_UPGRADES, constructionAssetValue, constructionHourlyProfit, constructionStageFor, canUseStage, initializeConstruction, stageIndex } from '../../engine/constructionCompanyEngine';
 import { constructionVisuals } from '../../data/constructionAssets';
 import { designSystem } from '../../theme/designSystem';
+import type { BankLedgerEntry } from '../../types/bank';
+import { commitCashTransaction } from '../../engine/transactionGateway';
+import { BUSINESS_BACK_LABEL } from '../../navigation/navigationContract';
 
 const C = { bg: designSystem.colors.surfaceLight, ink: designSystem.colors.textPrimary, muted: designSystem.colors.textSecondary, line: designSystem.colors.border, blue: designSystem.colors.primaryBlue, blueSoft: designSystem.colors.highlight, green: designSystem.colors.success, greenSoft: '#ECFDF5', gold: designSystem.colors.warning, red: designSystem.colors.danger, white: '#FFFFFF' };
 type Tab = 'Overview' | 'Dashboard' | 'Land & Projects' | 'Machinery' | 'Management' | 'Contracts' | 'Expansion';
-type Props = { business: ConstructionData; cash: number; netWorth: number; onBack: () => void; onCashChange: (updater: (value: number) => number) => void; onChange: (business: ConstructionData) => void };
+type Props = { business: ConstructionData; cash: number; netWorth: number; onBack: () => void; onCashChange: (updater: (value: number) => number) => void; onLedger?: (entry: BankLedgerEntry) => void; onChange: (business: ConstructionData) => void };
 
-export default function ConstructionCompanyScreen({ business: rawBusiness, cash, netWorth, onBack, onCashChange, onChange }: Props) {
+export default function ConstructionCompanyScreen({ business: rawBusiness, cash, netWorth, onBack, onCashChange, onLedger, onChange }: Props) {
   const business = useMemo(() => initializeConstruction(rawBusiness, netWorth), [rawBusiness, netWorth]);
   const [tab, setTab] = useState<Tab>('Overview');
-  const spendLock = useRef(false);
   const stage = constructionStageFor(netWorth);
   const update = (patch: Partial<ConstructionData>) => onChange({ ...business, ...patch });
   const spend = (cost: number, patch: Partial<ConstructionData>, label: string) => {
-    if (spendLock.current) return;
-    if (cash < cost) { Alert.alert('CAPITAL REQUIRED', `You need ${formatCurrency(cost - cash)} more liquid cash.`); return; }
-    spendLock.current = true;
-    onCashChange(value => Math.max(0, value - cost));
-    onChange({ ...business, ...patch });
-    Alert.alert('OPERATION CONFIRMED', `${label} · ${formatCurrency(cost)} invested.`);
-    setTimeout(() => { spendLock.current = false; }, 300);
+    const timestamp = Date.now();
+    const result = commitCashTransaction({
+      key: `construction:${business.id}:${label}`,
+      cash,
+      amount: cost,
+      onCashChange,
+      onLedger,
+      ledgerEntry: cost > 0 ? {
+        id: `ledger-construction-${business.id}-${timestamp}`,
+        kind: 'PURCHASE',
+        label: `Construction investment · ${label}`,
+        amount: -cost,
+        timestamp,
+        detail: `${business.name} operating investment`,
+      } : undefined,
+      onCommit: () => {
+        onChange({ ...business, ...patch });
+        Alert.alert('OPERATION CONFIRMED', `${label} · ${formatCurrency(cost)} invested.`);
+      },
+      now: timestamp,
+      lockDurationMs: 300,
+    });
+    if (!result.accepted && result.reason === 'insufficient-funds') {
+      Alert.alert('CAPITAL REQUIRED', `You need ${formatCurrency(cost - cash)} more liquid cash.`);
+    }
   };
   const machinery = business.machinery ?? { excavators: 0, cranes: 0, mixers: 0, dumpTrucks: 0 };
   const activeProject = CONSTRUCTION_PROJECTS.find(project => project.id === business.activeProjectId);
   const activeContract = CONSTRUCTION_CONTRACTS.find(contract => contract.id === business.activeContractName);
   const tabItems: Tab[] = ['Dashboard', 'Land & Projects', 'Machinery', 'Management', 'Contracts', 'Expansion'];
   return <View style={styles.root}><SafeAreaView edges={['top', 'left', 'right']} style={styles.safe}><ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-    <Pressable onPress={onBack}><Text style={styles.back}>‹ BUSINESS REGISTRY</Text></Pressable>
+    <Pressable onPress={onBack}><Text style={styles.back}>{BUSINESS_BACK_LABEL}</Text></Pressable>
     <View style={styles.header}><View style={{ flex: 1 }}><Text style={styles.eyebrow}>CONSTRUCTION COMPANY · {stage.toUpperCase()}</Text><Text style={styles.title}>{business.name}</Text><Text style={styles.subtitle}>Build infrastructure. Complete projects. Grow your empire.</Text></View><Text style={styles.city}>US OPERATIONS</Text></View>
     {tab !== 'Overview' && <Pressable onPress={() => setTab('Overview')} style={styles.overviewLink}><Text style={styles.overviewLinkText}>‹ CONSTRUCTION COMPANY OVERVIEW</Text></Pressable>}
     {tab !== 'Overview' && <ScrollView horizontal style={styles.tabScroller} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}><View style={styles.tabRail}>{tabItems.map(item => <Pressable key={item} onPress={() => setTab(item)} style={[styles.tab, tab === item && styles.tabActive]}><Text style={[styles.tabText, tab === item && styles.tabTextActive]}>{item}</Text></Pressable>)}</View></ScrollView>}

@@ -19,6 +19,7 @@ import {
 } from "./constructionCompanyEngine";
 import { advanceITCompany, DEFAULT_IT_SOFTWARE_STATE } from "./itCompanyEngine";
 import { advanceBankingCompany, DEFAULT_BANKING_COMPANY_STATE } from "./bankingCompanyEngine";
+import { coordinatedWrite } from "./saveCoordinator";
 
 export const BUSINESS_SIMULATION_SAVE = "empire-rush-unified-businesses-v2";
 export const BUSINESS_SIMULATION_SAVE_VERSION = 4;
@@ -744,24 +745,21 @@ export async function loadBusinessSimulation(): Promise<BusinessEntity[]> {
   try {
     const raw = await AsyncStorage.getItem(BUSINESS_SIMULATION_SAVE);
     if (!raw) {
-      await AsyncStorage.setItem(BUSINESS_SIMULATION_SAVE, JSON.stringify(DEFAULT_BUSINESSES));
+      await coordinatedWrite([{ key: BUSINESS_SIMULATION_SAVE, value: JSON.stringify(DEFAULT_BUSINESSES) }]);
       return DEFAULT_BUSINESSES;
     }
     return migrateBusinessSave(JSON.parse(raw));
   } catch {
-    await AsyncStorage.setItem(
-      BUSINESS_SIMULATION_SAVE,
-      JSON.stringify(DEFAULT_BUSINESSES),
-    );
+    await coordinatedWrite([{ key: BUSINESS_SIMULATION_SAVE, value: JSON.stringify(DEFAULT_BUSINESSES) }]);
     return DEFAULT_BUSINESSES;
   }
 }
 export async function persistBusinessSimulation(businesses: BusinessEntity[]) {
-  await AsyncStorage.setItem(
-    BUSINESS_SIMULATION_SAVE,
-    JSON.stringify({
+  await coordinatedWrite([{
+    key: BUSINESS_SIMULATION_SAVE,
+    value: JSON.stringify({
       schemaVersion: BUSINESS_SIMULATION_SAVE_VERSION,
       businesses,
     }),
-  );
+  }]);
 }

@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ITSoftwareData } from '../../types/business';
@@ -10,27 +10,47 @@ import { ITProjectsContractsScreen } from './it/ITProjectsContractsScreen';
 import { ITProductsSecurityScreen } from './it/ITProductsSecurityScreen';
 import { ITEnterpriseScreen } from './it/ITEnterpriseScreen';
 import { ITC, Metric, Section } from './it/ITPagePrimitives';
+import type { BankLedgerEntry } from '../../types/bank';
+import { commitCashTransaction } from '../../engine/transactionGateway';
+import { BUSINESS_BACK_LABEL } from '../../navigation/navigationContract';
 
 type ITTab = 'Formation & Office' | 'Workforce' | 'Projects & Contracts' | 'Products & Security' | 'Enterprise';
-type Props = { business: ITSoftwareData; cash: number; netWorth: number; onBack: () => void; onCashChange: (updater: (value: number) => number) => void; onChange: (business: ITSoftwareData) => void };
+type Props = { business: ITSoftwareData; cash: number; netWorth: number; onBack: () => void; onCashChange: (updater: (value: number) => number) => void; onLedger?: (entry: BankLedgerEntry) => void; onChange: (business: ITSoftwareData) => void };
 
-export default function ITSoftwareCompanyScreen({ business: rawBusiness, cash, netWorth, onBack, onCashChange, onChange }: Props) {
+export default function ITSoftwareCompanyScreen({ business: rawBusiness, cash, netWorth, onBack, onCashChange, onLedger, onChange }: Props) {
   const business = useMemo(() => initializeITCompany(rawBusiness, netWorth), [rawBusiness, netWorth]);
   const [tab, setTab] = useState<ITTab>('Formation & Office');
-  const actionLock = useRef(false);
   const stage = itStageFor(netWorth);
   const spend = (cost: number, update: (item: ITSoftwareData) => ITSoftwareData, label: string) => {
-    if (actionLock.current) return;
-    if (cash < cost) { Alert.alert('CAPITAL REQUIRED', `You need ${(cost - cash).toLocaleString('en-US', { style: 'currency', currency: 'USD' })} more liquid cash.`); return; }
-    actionLock.current = true;
-    onCashChange((value) => Math.max(0, value - cost));
-    onChange(update(business));
-    Alert.alert('IT COMPANY UPDATED', label);
-    setTimeout(() => { actionLock.current = false; }, 250);
+    const timestamp = Date.now();
+    const result = commitCashTransaction({
+      key: `it-software:${business.id}:${label}`,
+      cash,
+      amount: cost,
+      onCashChange,
+      onLedger,
+      ledgerEntry: cost > 0 ? {
+        id: `ledger-it-software-${business.id}-${timestamp}`,
+        kind: 'PURCHASE',
+        label: `IT & Software investment · ${label}`,
+        amount: -cost,
+        timestamp,
+        detail: `${business.name} operating investment`,
+      } : undefined,
+      onCommit: () => {
+        onChange(update(business));
+        Alert.alert('IT COMPANY UPDATED', label);
+      },
+      now: timestamp,
+      lockDurationMs: 250,
+    });
+    if (!result.accepted && result.reason === 'insufficient-funds') {
+      Alert.alert('CAPITAL REQUIRED', `You need ${(cost - cash).toLocaleString('en-US', { style: 'currency', currency: 'USD' })} more liquid cash.`);
+    }
   };
   const pageProps = { business, cash, netWorth, stage, onCashChange, onChange, spend };
   return <View style={styles.root}><SafeAreaView edges={['top', 'left', 'right']} style={styles.safe}><ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-    <Pressable onPress={onBack}><Text style={styles.back}>‹ BUSINESS REGISTRY</Text></Pressable>
+    <Pressable onPress={onBack}><Text style={styles.back}>{BUSINESS_BACK_LABEL}</Text></Pressable>
     <View style={styles.hero}><Text style={styles.kicker}>IT & SOFTWARE COMPANY · {stage.toUpperCase()}</Text><Text style={styles.title}>Build products people depend on.</Text><Text style={styles.subtitle}>Projects, people, products and trust—one operating system for the next company in your empire.</Text><View style={styles.metrics}><Metric label="NET / HOUR" value={itHourlyProfit(business).toLocaleString('en-US', { style: 'currency', currency: 'USD' })} accent={ITC.green} /><Metric label="PROJECTS" value={`${business.activeProjects.length}/${business.projectSlots}`} accent={ITC.blue} /><Metric label="PRODUCT USERS" value={business.activeSubscribers.toLocaleString()} /></View></View>
     <ScrollView horizontal style={styles.tabScroller} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}><View style={styles.tabRail}>{(['Formation & Office', 'Workforce', 'Projects & Contracts', 'Products & Security', 'Enterprise'] as ITTab[]).map((item) => <Pressable key={item} onPress={() => setTab(item)} style={[styles.tab, tab === item && styles.tabActive]}><Text style={[styles.tabText, tab === item && styles.tabTextActive]}>{item}</Text></Pressable>)}</View></ScrollView>
     {tab === 'Formation & Office' && <ITFormationOfficeScreen {...pageProps} />}

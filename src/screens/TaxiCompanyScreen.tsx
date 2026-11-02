@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { commitCashTransaction } from "../engine/transactionGateway";
 import {
   Alert,
   Image,
@@ -76,21 +77,19 @@ export default function TaxiCompanyScreen({
   const economics = taxiHourlyEconomics(current);
   const update = (next: TaxiCompanyState) => onChange(next);
   const charge = (cost: number, label: string, next: TaxiCompanyState) => {
-    if (cash < cost)
-      return Alert.alert(
-        "INSUFFICIENT CASH",
-        `${label} requires ${formatCurrency(cost)}.`,
-      );
-    onCashChange((value) => value - cost);
-    update(next);
-    onLedger?.({
-      id: `taxi-${Date.now()}`,
-      kind: "UPKEEP",
-      label: `Taxi · ${label}`,
-      amount: -cost,
-      timestamp: Date.now(),
-      detail: current.name,
+    const timestamp = Date.now();
+    const result = commitCashTransaction({
+      key: `taxi:${current.id}:${label}`,
+      cash,
+      amount: cost,
+      onCashChange,
+      onLedger,
+      ledgerEntry: { id: `taxi-${timestamp}`, kind: "UPKEEP", label: `Taxi · ${label}`, amount: -cost, timestamp, detail: current.name },
+      onCommit: () => update(next),
+      now: timestamp,
     });
+    if (!result.accepted && result.reason === "insufficient-funds")
+      Alert.alert("INSUFFICIENT CASH", `${label} requires ${formatCurrency(cost)}.`);
   };
   const launch = () => {
     const vehicleKey = setupVehicle;
@@ -100,11 +99,7 @@ export default function TaxiCompanyScreen({
         : vehicleKey === "electricTaxis"
           ? 18000
           : 35000;
-    if (cash < vehicleCost + 5000)
-      return Alert.alert(
-        "LAUNCH CAPITAL SHORTFALL",
-        `Need ${formatCurrency(vehicleCost + 5000 - cash)} more for the first vehicle and depot license.`,
-      );
+    const total = vehicleCost + 5000;
     const next = {
       ...DEFAULT_TAXI_COMPANY,
       status: "operating" as const,
@@ -114,17 +109,19 @@ export default function TaxiCompanyScreen({
       cashInvested: vehicleCost + 5000,
       lastShiftAt: Date.now(),
     };
-    onCashChange((value) => value - vehicleCost - 5000);
-    update(next);
-    onLedger?.({
-      id: `taxi-launch-${Date.now()}`,
-      kind: "PURCHASE",
-      label: "Taxi company launch capital",
-      amount: -(vehicleCost + 5000),
-      timestamp: Date.now(),
-      detail: `${setupArea} · first vehicle + depot license`,
+    const timestamp = Date.now();
+    const result = commitCashTransaction({
+      key: `taxi:launch:${setupArea}:${vehicleKey}`,
+      cash,
+      amount: total,
+      onCashChange,
+      onLedger,
+      ledgerEntry: { id: `taxi-launch-${timestamp}`, kind: "PURCHASE", label: "Taxi company launch capital", amount: -total, timestamp, detail: `${setupArea} · first vehicle + depot license` },
+      onCommit: () => { update(next); setPage("overview"); },
+      now: timestamp,
     });
-    setPage("overview");
+    if (!result.accepted && result.reason === "insufficient-funds")
+      Alert.alert("LAUNCH CAPITAL SHORTFALL", `Need ${formatCurrency(total - cash)} more for the first vehicle and depot license.`);
   };
   return (
     <SpecializedBusinessShell

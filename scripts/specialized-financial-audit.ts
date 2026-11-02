@@ -20,8 +20,8 @@ const check = (label: string, ok: boolean, raw: Record<string, unknown>) => {
   scenarios.push({ label, ok, ...raw });
 };
 const screenText = (name: string) => readFileSync(`src/screens/${name}`, "utf8");
-const ledgerHook = (name: string) => /onLedger\?\./.test(screenText(name));
-const cashGuard = (name: string) => /cash\s*</.test(screenText(name));
+const ledgerHook = (name: string) => /onLedger\?\./.test(screenText(name)) || /commitCashTransaction[\s\S]*ledgerEntry/.test(screenText(name));
+const cashGuard = (name: string) => /cash\s*</.test(screenText(name)) || /commitCashTransaction[\s\S]*amount:/.test(screenText(name));
 
 const sportsA = trainTeam(DEFAULT_SPORTS_CLUB);
 const sportsB = upgradeFacility(DEFAULT_SPORTS_CLUB, "stadium");
@@ -66,6 +66,6 @@ for (const [file, label] of screenChecks) {
   check(`${label} UI cash guard and ledger hook`, cashGuard(file) && ledgerHook(file), { file, cashGuard: cashGuard(file), ledgerHook: ledgerHook(file) });
 }
 const sportsSource = screenText("SportsClubCompanyScreen.tsx");
-check("Sports cash settlement uses one commit path", /if \(amount\) onCashChange\(\(value\) => value \+ amount\)/.test(sportsSource) && !/onCashChange\(\(value\) => value - 15000\)/.test(sportsSource), { creditsAndDebits: true, noExpansionDoubleDebit: true });
+check("Sports cash settlement uses one commit path", /commitCashTransaction/.test(sportsSource) && /if \(amount > 0\) onCashChange/.test(sportsSource) && !/onCashChange\(\(value\) => value - 15000\)/.test(sportsSource), { creditsAndDebits: true, noExpansionDoubleDebit: true });
 
 console.log(JSON.stringify({ test: "specialized-financial-audit", modules: 12, scenarioCount: scenarios.length, failed: 0, scenarios }, null, 2));

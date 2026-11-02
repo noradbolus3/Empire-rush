@@ -381,7 +381,7 @@ export function underwriteLoan(
       reason: `Requested amount exceeds the 70% LTV cap of ${money(Number(collateral.value) * 0.7)} for ${collateral.name}.`,
     };
   if (
-    !starterGrace &&
+    !starterProduct &&
     !isSecuredProduct(product) &&
     monthlyDebtService(state) + monthlyPayment(amount, apr, spec.termMonths) >
       Math.max(0, hourlyIncome) * MAX_UNSECURED_EMI_RATIO
@@ -1086,29 +1086,35 @@ export function settleBank(
   );
   let cashDelta = interestEarned;
   let paymentsMade = 0;
+  const MONTH_MS = 30 * 24 * BANK_SETTLEMENT_MS;
   const loans = state.loans.map((loan) => {
     if (!isActiveLoan(loan)) return loan;
-    const paymentCount = Math.min(
-      completedHours,
-      Math.max(
-        0,
-        Math.floor(
-          (safeNow - loan.nextDueAt + BANK_SETTLEMENT_MS) / BANK_SETTLEMENT_MS,
-        ),
-      ),
-    );
+    const elapsedSettlements = Number(loan.settlementsElapsed || 0);
+    const graceSettlements = Math.max(0, Number(loan.graceSettlements || 0));
+    const dueAt = Number.isFinite(loan.nextDueAt) ? loan.nextDueAt : safeNow;
+    const paymentDue =
+      safeNow >= dueAt &&
+      elapsedSettlements + completedHours >= graceSettlements;
+    const interest = paymentDue
+      ? safeMoney((Math.max(0, loan.balance) * Math.max(0, loan.apr)) / 100 / 12)
+      : 0;
     const paid = safeMoney(
-      Math.min(loan.balance, loan.monthlyPayment * paymentCount),
+      paymentDue
+        ? Math.min(loan.balance + interest, loan.monthlyPayment)
+        : 0,
     );
+    const principalPaid = safeMoney(Math.max(0, paid - interest));
     if (paid > 0) {
       cashDelta -= paid;
       paymentsMade += 1;
     }
     return {
       ...loan,
-      balance: safeMoney(loan.balance - paid),
-      nextDueAt: loan.nextDueAt + paymentCount * BANK_SETTLEMENT_MS,
-      status: loan.balance - paid <= 0 ? ("paid_off" as const) : loan.status,
+      balance: safeMoney(loan.balance - principalPaid),
+      nextDueAt: paid > 0 ? dueAt + MONTH_MS : loan.nextDueAt,
+      settlementsElapsed: elapsedSettlements + completedHours,
+      status:
+        loan.balance - principalPaid <= 0 ? ("paid_off" as const) : loan.status,
     };
   });
   let maturityCash = 0;
