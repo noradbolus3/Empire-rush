@@ -33,6 +33,7 @@ import ITSoftwareCompanyScreen from "./ITSoftwareCompanyScreen";
 import BankingCompanyScreen from "./BankingCompanyScreen";
 import { getBusinessDisplayMeta } from "../../data/businessDisplayCatalog";
 import { commitCashTransaction } from "../../engine/transactionGateway";
+import { BUSINESS_BACK_LABEL } from "../../navigation/navigationContract";
 
 const C = { bg: designSystem.colors.background, card: designSystem.colors.card, panel: designSystem.colors.highlight, slate: designSystem.colors.border, green: designSystem.colors.primary, cyan: designSystem.colors.cyan, red: designSystem.colors.negative, white: designSystem.colors.heading, muted: designSystem.colors.secondary, gold: designSystem.colors.gold, violet: designSystem.colors.violet };
 type Props = {
@@ -155,7 +156,7 @@ export function BusinessMasterHubScreen({
       <SafeAreaView edges={["top", "left", "right"]} style={styles.safe}>
         <ScrollView ref={scrollRef} contentContainerStyle={styles.content}>
           <Pressable onPress={onBack}>
-            <Text style={styles.back}>‹ BUSINESS REGISTRY</Text>
+            <Text style={styles.back}>{BUSINESS_BACK_LABEL}</Text>
           </Pressable>
           <Text style={styles.eyebrow}>
             {display.categoryLabel} · LIVE OPERATIONS

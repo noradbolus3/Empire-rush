@@ -8,6 +8,7 @@ import { constructionVisuals } from '../../data/constructionAssets';
 import { designSystem } from '../../theme/designSystem';
 import type { BankLedgerEntry } from '../../types/bank';
 import { commitCashTransaction } from '../../engine/transactionGateway';
+import { BUSINESS_BACK_LABEL } from '../../navigation/navigationContract';
 
 const C = { bg: designSystem.colors.surfaceLight, ink: designSystem.colors.textPrimary, muted: designSystem.colors.textSecondary, line: designSystem.colors.border, blue: designSystem.colors.primaryBlue, blueSoft: designSystem.colors.highlight, green: designSystem.colors.success, greenSoft: '#ECFDF5', gold: designSystem.colors.warning, red: designSystem.colors.danger, white: '#FFFFFF' };
 type Tab = 'Overview' | 'Dashboard' | 'Land & Projects' | 'Machinery' | 'Management' | 'Contracts' | 'Expansion';
@@ -50,7 +51,7 @@ export default function ConstructionCompanyScreen({ business: rawBusiness, cash,
   const activeContract = CONSTRUCTION_CONTRACTS.find(contract => contract.id === business.activeContractName);
   const tabItems: Tab[] = ['Dashboard', 'Land & Projects', 'Machinery', 'Management', 'Contracts', 'Expansion'];
   return <View style={styles.root}><SafeAreaView edges={['top', 'left', 'right']} style={styles.safe}><ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-    <Pressable onPress={onBack}><Text style={styles.back}>‹ BUSINESS REGISTRY</Text></Pressable>
+    <Pressable onPress={onBack}><Text style={styles.back}>{BUSINESS_BACK_LABEL}</Text></Pressable>
     <View style={styles.header}><View style={{ flex: 1 }}><Text style={styles.eyebrow}>CONSTRUCTION COMPANY · {stage.toUpperCase()}</Text><Text style={styles.title}>{business.name}</Text><Text style={styles.subtitle}>Build infrastructure. Complete projects. Grow your empire.</Text></View><Text style={styles.city}>US OPERATIONS</Text></View>
     {tab !== 'Overview' && <Pressable onPress={() => setTab('Overview')} style={styles.overviewLink}><Text style={styles.overviewLinkText}>‹ CONSTRUCTION COMPANY OVERVIEW</Text></Pressable>}
     {tab !== 'Overview' && <ScrollView horizontal style={styles.tabScroller} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}><View style={styles.tabRail}>{tabItems.map(item => <Pressable key={item} onPress={() => setTab(item)} style={[styles.tab, tab === item && styles.tabActive]}><Text style={[styles.tabText, tab === item && styles.tabTextActive]}>{item}</Text></Pressable>)}</View></ScrollView>}
