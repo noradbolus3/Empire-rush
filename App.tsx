@@ -137,6 +137,7 @@ import {
 } from "./src/engine/financialCore";
 import { buildCanonicalBusinessRegistry, canonicalActiveCount, canonicalProjectedHourlyNet } from "./src/engine/canonicalBusinessRegistry";
 import { completeIPOTransaction } from "./src/engine/ipoCompletion";
+import { normalizeIPOState } from "./src/engine/ipoState";
 import { designSystem } from "./src/theme/designSystem";
 import { APP_TABS, type AppTab } from "./src/navigation/navigationContract";
 type Tab = AppTab;
@@ -765,16 +766,13 @@ function AppContent() {
               lastAccountingAt: Date.now(),
             },
           );
-          const legacyListing = saved?.ipoListing || null;
-          const savedListings =
-            saved?.ipoListings && typeof saved.ipoListings === "object"
-              ? (saved.ipoListings as Record<string, IPOListing>)
-              : legacyListing
-                ? { [legacyListing.companyId]: legacyListing }
-                : {};
-          ipoListingsRef.current = savedListings;
-          setIpoListings(savedListings);
-          setIpoListing(legacyListing || Object.values(savedListings)[0] || null);
+          const normalizedIPO = normalizeIPOState(
+            saved?.ipoListing,
+            saved?.ipoListings,
+          );
+          ipoListingsRef.current = normalizedIPO.listings;
+          setIpoListings(normalizedIPO.listings);
+          setIpoListing(normalizedIPO.current);
           setProgression(hydrateDailyProgress(saved?.progression));
           setAdFree(Boolean(saved?.adFree));
           setHapticsEnabled(saved?.hapticsEnabled !== false);
