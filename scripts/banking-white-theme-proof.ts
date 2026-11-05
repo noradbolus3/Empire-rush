@@ -19,10 +19,13 @@ for (const asset of requiredAssets) {
 for (const key of ["home", "setup", "accounts", "loans", "operations", "branches", "investors", "enterprise", "credit", "deposits", "insurance", "tax", "history", "inspector"]) {
   assert.match(screen, new RegExp(`${key}: \\{ source: require`), `missing visual mapping for ${key}`);
 }
-assert.match(screen, /bg: "#FFFFFF"/);
-assert.match(screen, /panel2: "#EAF2FA"/);
-assert.match(screen, /text: "#172B4D"/);
+const designSystem = fs.readFileSync(path.join(root, "src/theme/designSystem.ts"), "utf8");
+assert.match(screen, /from "\.\.\/theme\/designSystem"/);
+assert.match(screen, /bg: designSystem\.colors\.background/);
+assert.match(screen, /panel: designSystem\.colors\.card/);
+assert.match(screen, /text: designSystem\.colors\.heading/);
 assert.match(screen, /<BankVisual tab=\{tab\} \/>/);
+assert.match(designSystem, /surface: '#FFFFFF'/);
 console.log(JSON.stringify({
   test: "banking-white-theme-proof",
   assets: requiredAssets.length,

@@ -30,7 +30,7 @@ assert(event && event.kind === 'STOCK');
 const changed = applyScheduledEvent(stocks, event);
 assert.notEqual(changed[0].price, stocks[0].price);
 const migrated = migrateGameSave(JSON.stringify({ schemaVersion: 10, cash: 100, assets: stocks, holdings: {}, tradeHistory: [], watchlist: [] }));
-assert.equal(GAME_SAVE_VERSION, 11);
+assert.equal(GAME_SAVE_VERSION, 15, 'current save schema version');
 assert.equal(migrated.lastDividendQuarter, '');
 assert.deepEqual(migrated.marketEventHistory, []);
 assert.match(moduleSource, /channelHoldings/);

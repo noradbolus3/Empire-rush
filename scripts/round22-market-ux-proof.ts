@@ -32,18 +32,18 @@ assert.equal(isDuplicateTrade({ assetId: 'up', side: 'BUY', quantity: 1, at: 100
 assert.equal(isDuplicateTrade({ assetId: 'up', side: 'BUY', quantity: 1, at: 1000 }, 'up', 'BUY', 1, 1600), false);
 
 const migrated = migrateGameSave({ schemaVersion: 8, tradeHistory: [{ assetId: 'up', side: 'BUY', quantity: 1, price: 100 }, { assetId: 7 }], watchlist: ['up', 'up', 7], limitOrders: [{ assetId: 'up', side: 'BUY', quantity: 1, limitPrice: 90, status: 'OPEN' }, { assetId: 'bad', side: 'NOPE', quantity: 1, limitPrice: 1, status: 'OPEN' }], portfolioHistory: [{ timestamp: now, value: 3 }, { timestamp: 'bad', value: 4 }] });
-assert.equal(GAME_SAVE_VERSION, 9);
+assert.equal(GAME_SAVE_VERSION, 15, 'current save schema version');
 assert.equal(migrated.tradeHistory.length, 1);
 assert.deepEqual(migrated.watchlist, ['up']);
 assert.equal(migrated.limitOrders.length, 1);
 assert.equal(migrated.portfolioHistory.length, 1);
 
-const marketScreen = source('src/screens/MarketScreen.tsx');
+const marketScreen = source('src/screens/markets/MarketsModuleScreen.tsx');
 const app = source('App.tsx');
-assert.match(marketScreen, /BULLISH.*BEARISH.*MIXED|marketPulse\.direction/);
-assert.match(marketScreen, /tradeFilter/);
-assert.match(marketScreen, /REMOVE ALL/);
-assert.match(marketScreen, /ALLOCATION/);
+assert.match(marketScreen, /pulse\.direction/);
+assert.match(marketScreen, /setFilter/);
+assert.match(marketScreen, /toggleWatchlist/);
+assert.match(marketScreen, /portfolioAllocation/);
 assert.match(marketScreen, /1D.*1W.*1M/);
 assert.match(app, /isDuplicateTrade/);
 assert.match(app, /tradeHistory/);

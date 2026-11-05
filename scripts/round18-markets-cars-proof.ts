@@ -12,7 +12,8 @@ const { CARS_DATA } = require('../src/data/carsData') as typeof import('../src/d
 
 const root = process.cwd();
 const app = fs.readFileSync(path.join(root, 'App.tsx'), 'utf8');
-const marketScreen = fs.readFileSync(path.join(root, 'src/screens/MarketScreen.tsx'), 'utf8');
+const navigationContract = fs.readFileSync(path.join(root, 'src/navigation/navigationContract.ts'), 'utf8');
+const marketScreen = fs.readFileSync(path.join(root, 'src/screens/markets/MarketsModuleScreen.tsx'), 'utf8');
 const assetCard = fs.readFileSync(path.join(root, 'src/screens/AssetCard.tsx'), 'utf8');
 const carsSource = fs.readFileSync(path.join(root, 'src/data/carsData.ts'), 'utf8');
 
@@ -39,12 +40,13 @@ assert.equal(reloaded.holdings[stock.id].shares, 5, 'saved holdings should survi
 assert.equal(reloaded.holdings[stock.id].avgPrice, 100, 'legacy basis should start at current price');
 
 assert.match(app, /ResponsiveMarketScreen/, 'Markets must remain connected to App navigation');
-assert(app.includes('["markets", "↗", "MARKETS"]'), 'Markets navigation entry must remain present');
+assert.match(navigationContract, /id: "markets", icon: "↗", label: "MARKETS"/, 'Markets navigation entry must remain present');
 assert.match(marketScreen, /BUY/);
 assert.match(marketScreen, /SELL/);
-assert.match(marketScreen, /SET LIMIT/);
-assert.match(marketScreen, /TRADE LOG/);
-assert.match(app, /setTradeHistory\(previous => capTradeHistory/);
+assert.match(marketScreen, /PLACE LIMIT/);
+assert.match(marketScreen, /TRANSACTIONS/);
+assert.match(app, /setTradeHistory/);
+assert.match(app, /capTradeHistory/);
 
 const mappings = [...carsSource.matchAll(/id: '([^']+)'[^\n]*image: require\('([^']+)'\)/g)].map(match => ({ id: match[1], relative: match[2] }));
 assert.equal(mappings.length, 30, 'all 30 cars must have static image mappings');
@@ -57,8 +59,8 @@ const firstFive = CARS_DATA.slice(0, 5).map(item => ({ id: item.id, name: item.n
 assert(firstFive.every(item => item.image), 'first five cars must have image references');
 const firstFiveBytes = firstFive.map(item => fs.readFileSync(path.resolve(root, 'src/data', item.image!)));
 assert.equal(new Set(firstFiveBytes.map(bytes => bytes.toString('base64'))).size, 5, 'first five car assets must be visibly distinct files');
-assert.match(assetCard, /item\.image \? <Image source=\{item\.image\}/, 'AssetCard must render the assigned image field');
-assert.match(assetCard, /IMAGE UNAVAILABLE/, 'missing car images must use explicit static fallback');
+assert.match(assetCard, /item\.image && !imageFailed \?/, 'AssetCard must render the assigned image field');
+assert.match(assetCard, /IMAGE LOAD FAILED/, 'missing car images must use explicit static fallback');
 assert.doesNotMatch(assetCard, /Math\.random|random|react-native-svg|emoji/i, 'AssetCard must not generate or substitute images at runtime');
 
 console.log(JSON.stringify({

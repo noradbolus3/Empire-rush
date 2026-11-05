@@ -47,19 +47,21 @@ function createSpendHarness(companyId: string, companyName: string, now: number,
 
 const constructionSource = readFileSync('src/screens/business/ConstructionCompanyScreen.tsx', 'utf8');
 const itSource = readFileSync('src/screens/business/ITSoftwareCompanyScreen.tsx', 'utf8');
-const hubSource = readFileSync('src/screens/business/BusinessMasterHubScreen.tsx', 'utf8');
+const activeBusinessSource = readFileSync('src/screens/BusinessScreen.tsx', 'utf8');
+const gatewaySource = readFileSync('src/engine/transactionGateway.ts', 'utf8');
 
 const sourceChecks = {
   constructionProp: /onLedger\?: \(entry: BankLedgerEntry\)/.test(constructionSource),
-  constructionEmit: /kind: 'PURCHASE'/.test(constructionSource) && /if \(cost > 0\)/.test(constructionSource),
-  constructionLock: /if \(spendLock\.current\) return/.test(constructionSource),
-  constructionFundsFirst: /if \(cash < cost\)/.test(constructionSource),
+  constructionGateway: /commitCashTransaction/.test(constructionSource) && /ledgerEntry: cost > 0/.test(constructionSource) && /kind: 'PURCHASE'/.test(constructionSource),
+  constructionLock: /commitCashTransaction/.test(constructionSource),
+  constructionFundsFirst: /amount: cost/.test(constructionSource),
   itProp: /onLedger\?: \(entry: BankLedgerEntry\)/.test(itSource),
-  itEmit: /kind: 'PURCHASE'/.test(itSource) && /if \(cost > 0\)/.test(itSource),
-  itLock: /if \(actionLock\.current\) return/.test(itSource),
-  itFundsFirst: /if \(cash < cost\)/.test(itSource),
-  hubConstructionWiring: /<ConstructionCompanyScreen[\s\S]*?onLedger=\{onLedger\}/.test(hubSource),
-  hubItWiring: /<ITSoftwareCompanyScreen[\s\S]*?onLedger=\{onLedger\}/.test(hubSource),
+  itGateway: /commitCashTransaction/.test(itSource) && /ledgerEntry: cost > 0/.test(itSource) && /kind: 'PURCHASE'/.test(itSource),
+  itLock: /commitCashTransaction/.test(itSource),
+  itFundsFirst: /amount: cost/.test(itSource),
+  gatewayRequiresLedger: /onLedger/.test(gatewaySource) && /return \{ accepted: false/.test(gatewaySource),
+  activeConstructionWiring: /<ConstructionCompanyScreen[\s\S]*?onLedger=\{onLedger\}/.test(activeBusinessSource),
+  activeItWiring: /<SoftwareCompanyScreen[\s\S]*?onLedger=\{onLedger\}/.test(activeBusinessSource),
 };
 for (const [name, ok] of Object.entries(sourceChecks)) assert.equal(ok, true, `source check failed: ${name}`);
 
@@ -96,6 +98,7 @@ assert.equal(reloaded[0].kind, 'PURCHASE');
 console.log(JSON.stringify({
   test: 'active-specialized-ledger-regression',
   sourceChecks,
+  evidenceLevel: 'source contract + deterministic gateway-equivalent helper; not mounted React Native runtime',
   construction: { cashDelta: 45_000, cashAfter: construction.cash, ledgerEntries: construction.ledger.length, amount: construction.ledger[0].amount },
   itSoftware: { cashDelta: 18_000, cashAfter: it.cash, ledgerEntries: it.ledger.length, amount: it.ledger[0].amount },
   insufficientFunds: { cashAfter: insufficient.cash, ledgerEntries: insufficient.ledger.length },

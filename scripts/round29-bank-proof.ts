@@ -29,9 +29,10 @@ const migrated = sanitizeBankState({ savingsBalance: -10, ficoScore: 900 }, now)
 assert.equal(migrated.savingsBalance, 0);
 assert.equal(migrated.ficoScore, 850);
 const app = fs.readFileSync(path.join(__dirname, '..', 'App.tsx'), 'utf8');
+const navigationContract = fs.readFileSync(path.join(__dirname, '..', 'src/navigation/navigationContract.ts'), 'utf8');
 assert.match(app, /<BankScreen/);
 assert.match(app, /bankState/);
 assert.doesNotMatch(app, /CasinoScreen/);
-assert.match(app, /\["bank", "[^"]+", "BANK"\]/);
+assert.match(navigationContract, /id: "bank", icon: "▥", label: "BANK"/);
 assert.ok(!fs.existsSync(path.join(__dirname, '..', 'src/screens/CasinoScreen.tsx')));
 console.log(JSON.stringify({ passed: true, tierAt100k: bankTier(100000), loanDecision: decision, loanBalanceAfter24Hours: settled.state.loans[0].balance, interestEarnedAfter24Hours: settled.interestEarned, offersGenerated: settled.newOffers, bankRoute: 'PASS', casinoRouteRemoved: 'PASS' }, null, 2));

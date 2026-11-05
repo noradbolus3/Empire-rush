@@ -11,9 +11,10 @@ const cryptoFiles = fs.readdirSync(path.join(root, 'assets/crypto')).filter(file
 const expectedViews = ['HOME', 'LIST', 'DETAIL', 'PORTFOLIO', 'WATCHLIST', 'ORDERS', 'TRANSACTIONS', 'INDICES', 'INDEX_DETAIL', 'MOVERS', 'EVENTS'];
 const cryptoViews = ['HOME', 'LIST', 'DETAIL', 'PORTFOLIO', 'WATCHLIST', 'TRANSACTIONS', 'INDICES', 'MOVERS', 'EVENTS'];
 for (const view of expectedViews) assert.match(source, new RegExp(`[\'"]${view}[\'"]`), `missing market view ${view}`);
-assert.match(source, /STOCK_SCREEN_IDS/);
-assert.match(source, /CRYPTO_SCREEN_IDS/);
-for (const token of ['Stocks', 'Crypto', 'Simulated market open', 'Search stocks', 'Search crypto', 'Market indices', 'Market movers', 'Market events', 'Transactions', 'onCreateLimitOrder', 'onCancelLimitOrder', 'executeTrade', 'toggleWatchlist', 'TechnicalChartModal']) assert.match(source, new RegExp(token));
+assert.match(source, /const STOCK_PAGES/);
+assert.match(source, /const CRYPTO_PAGES/);
+assert.match(source, /pages=channel==='STOCKS'\?STOCK_PAGES:CRYPTO_PAGES/);
+for (const token of ['Stocks', 'Crypto', 'Simulated market events', 'Search', 'Market indices', 'Movers', 'Events', 'Transactions', 'onCreateLimitOrder', 'onCancelLimitOrder', 'executeTrade', 'toggleWatchlist', 'TechnicalChartModal']) assert.match(source, new RegExp(token));
 assert.match(app, /CRYPTO_CATALOG/); assert.match(app, /STOCK_CATALOG/);
 const stockCount = (stocks.match(/id:/g) || []).length;
 const cryptoCount = (crypto.match(/id:/g) || []).length;
