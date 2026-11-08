@@ -13,11 +13,11 @@ jobs:
       contents: read
     timeout-minutes: 60
     env:
-      KEYSTORE_GENERATION_RUN_ID: '39946321331'
+      KEYSTORE_GENERATION_RUN_ID: '42514329058'
       KEYSTORE_GENERATION_WORKFLOW_ID: '393905812'
-      KEYSTORE_GENERATION_COMMIT: '0eca135baadf6fc05a07fe67dd211ace3fae959a'
-      KEYSTORE_GENERATION_ARTIFACT_ID: '12497849066'
-      EXPECTED_UPLOAD_CERT_SHA256: 'a3ee45b2a55aff0dbdd196d93faf1388422f9a20b452303ca753b24e6895f314'
+      KEYSTORE_GENERATION_COMMIT: 'a1192ca80a586ef3331c62420ae1eef193c489d0'
+      KEYSTORE_GENERATION_ARTIFACT_ID: '13631631397'
+      EXPECTED_UPLOAD_CERT_SHA256: 'ea49fbf92f3bf26a821ac16fb73f180d23e870c70a9857d637ecda47dbab3381'
     steps:
       - name: Checkout approved Round 42 source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -93,8 +93,8 @@ jobs:
       - name: Download encrypted upload-keystore backup
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          name: empire-rush-encrypted-upload-keystore-39946321331
-          run-id: '39946321331'
+          name: empire-rush-encrypted-upload-keystore-42514329058
+          run-id: '42514329058'
           repository: ${{ github.repository }}
           github-token: ${{ github.token }}
           path: ${{ runner.temp }}/empire-rush-key-backup
