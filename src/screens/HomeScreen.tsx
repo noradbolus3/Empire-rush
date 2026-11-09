@@ -192,7 +192,7 @@ function DashboardOverview({ cash, netWorth, projectedHourlyIncome, settlementCo
       </View>
       <Pressable onPress={onOpenSettings} style={[styles.dashboardProfile, gameStyles.dashboardProfile]}>
         <Image source={founderAvatar} style={[styles.dashboardAvatar, gameStyles.dashboardAvatar]} />
-        <Text style={[styles.dashboardProfileName, gameStyles.dashboardProfileName]} numberOfLines={1}>{rank.replace('PUBLIC COMPANY ', '')}</Text>
+        <Text style={[styles.dashboardProfileName, gameStyles.dashboardProfileName]} numberOfLines={1}>{rank === 'STARTUP FOUNDER' ? 'FOUNDER' : rank.replace('PUBLIC COMPANY ', '')}</Text>
         <Text style={styles.dashboardChevron}>⌄</Text>
       </Pressable>
     </View>
@@ -202,7 +202,7 @@ function DashboardOverview({ cash, netWorth, projectedHourlyIncome, settlementCo
       <View style={styles.hqShade} />
       <View style={[styles.hqOverlay, gameStyles.hqOverlay]}>
         <View>
-          <Text style={[styles.hqKicker, gameStyles.hqKicker]}>HEADQUARTERS · LIVE</Text>
+          <Text style={[styles.hqKicker, gameStyles.hqKicker]}>EMPIRE OVERVIEW</Text>
           <Text style={[styles.hqTitle, gameStyles.hqTitle]} numberOfLines={1}>{founderProfile?.companyName || 'Your Empire'}</Text>
           <Text style={[styles.hqSub, gameStyles.hqSub]} numberOfLines={1}>Grow your portfolio. Build your empire.</Text>
         </View>
@@ -221,7 +221,7 @@ function DashboardOverview({ cash, netWorth, projectedHourlyIncome, settlementCo
 
     <View style={[styles.statGrid, gameStyles.statGrid]}>
       <DashboardStat label="CASH" value={formatCurrency(cash)} icon="$" accent="#62D6B0" />
-      <DashboardStat label="COMPANIES" value={String(displayedActiveCount)} icon="▦" accent="#F2BD3E" />
+      <DashboardStat label="BUSINESSES" value={String(displayedActiveCount)} icon="▦" accent="#F2BD3E" />
       <DashboardStat label="ASSETS" value={formatCurrency(totalAssets)} icon="◈" accent="#69B9FF" />
       <DashboardStat label="RANK" value={rank.replace('PUBLIC COMPANY ', '')} icon="♛" accent="#B49AFF" />
     </View>
@@ -241,13 +241,14 @@ function DashboardOverview({ cash, netWorth, projectedHourlyIncome, settlementCo
         </Svg>
       ) : (
         <View style={[styles.chartEmpty, gameStyles.chartEmpty]}>
-          <Text style={[styles.chartEmptyTitle, gameStyles.chartEmptyTitle]}>Your empire chart unlocks after two settlements</Text>
+          <Text style={[styles.chartEmptyTitle, gameStyles.chartEmptyTitle]}>{displayedActiveCount > 0 ? 'Your growth chart starts after two settlements' : 'Acquire a business to start your growth chart'}</Text>
+          <Text style={styles.chartEmptyCopy}>{displayedActiveCount > 0 ? 'Your first earnings will appear here.' : 'Choose a sector to begin earning passive income.'}</Text>
         </View>
       )}
       <View style={[styles.chartFooter, gameStyles.chartFooter]}>
         <Text style={[styles.chartLabel, gameStyles.chartLabel]}>CURRENT VALUE</Text>
         <Text style={[styles.chartValue, gameStyles.chartValue]}>{formatCurrency(netWorth)}</Text>
-        <Text style={[styles.chartHint, gameStyles.chartHint]}>{settlementCountdown} to payout</Text>
+        <Text style={[styles.chartHint, gameStyles.chartHint]}>{displayedActiveCount > 0 ? `${settlementCountdown} to payout` : 'Start a business to earn'}</Text>
       </View>
     </Pressable>
 
@@ -255,7 +256,7 @@ function DashboardOverview({ cash, netWorth, projectedHourlyIncome, settlementCo
       <Text style={[styles.goalStripIcon, gameStyles.goalStripIcon]}>⚑</Text>
       <View style={styles.goalStripCopy}>
         <Text style={[styles.cardKicker, gameStyles.cardKicker]}>NEXT OBJECTIVE</Text>
-        <Text style={[styles.goalStripTitle, gameStyles.goalStripTitle]}>{displayedActiveCount ? 'Grow your strongest company' : 'Acquire your first company'}</Text>
+        <Text style={[styles.goalStripTitle, gameStyles.goalStripTitle]}>{displayedActiveCount ? 'Grow your strongest business' : 'Start your first business'}</Text>
         <Text style={[styles.goalStripSub, gameStyles.goalStripSub]} numberOfLines={1}>{displayedActiveCount ? `${activeBusinesses[0]?.name || 'Your portfolio'} · buy an upgrade` : 'Choose a sector and start earning.'}</Text>
       </View>
       <View style={[styles.goalStripButton, gameStyles.goalStripButton]}><Text style={styles.goalStripButtonText}>PLAY</Text></View>
@@ -263,7 +264,7 @@ function DashboardOverview({ cash, netWorth, projectedHourlyIncome, settlementCo
 
     <View style={[styles.sectionHeadingRow, gameStyles.sectionHeadingRow]}>
       <View style={styles.sectionHeadingCopy}>
-        <Text style={[styles.cardKicker, gameStyles.cardKicker]}>MY COMPANIES</Text>
+        <Text style={[styles.cardKicker, gameStyles.cardKicker]}>OPERATING BUSINESSES</Text>
         <Text style={[styles.cardTitle, gameStyles.sectionTitle]}>Operating portfolio</Text>
       </View>
       <Pressable onPress={onOpenBusiness}><Text style={styles.seeAll}>ALL ›</Text></Pressable>
@@ -272,7 +273,7 @@ function DashboardOverview({ cash, netWorth, projectedHourlyIncome, settlementCo
       {activeBusinesses.map((business) => <CompanyPreview key={business.id} business={business} onPress={onOpenBusiness} />)}
       <Pressable onPress={onOpenBusiness} style={[styles.newCompanyCard, gameStyles.newCompanyCard]}>
         <Text style={styles.newCompanyPlus}>＋</Text>
-        <Text style={[styles.newCompanyTitle, gameStyles.newCompanyTitle]}>START COMPANY</Text>
+        <Text style={[styles.newCompanyTitle, gameStyles.newCompanyTitle]}>START BUSINESS</Text>
         <Text style={styles.newCompanySub}>Pick a sector · build income</Text>
       </Pressable>
     </ScrollView>

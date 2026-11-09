@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
+import { StatusBar } from 'expo-status-bar';
 
 export type FounderProfile = {
   founderName: string;
@@ -54,6 +55,11 @@ const logoOptions = [
   { key: 'logo-15', category: 'Luxury', source: require('../../assets/onboarding/logo-15.png') },
 ] as const;
 
+export function getCompanyLogoSource(logoKey: string, customLogoUri: string | null): number | { uri: string } {
+  if (logoKey === 'custom' && customLogoUri) return { uri: customLogoUri };
+  return logoOptions.find((logo) => logo.key === logoKey)?.source ?? logoOptions[0].source;
+}
+
 const categories = ['All', 'Modern', 'Classic', 'Tech', 'Industry', 'Luxury'] as const;
 
 type Category = (typeof categories)[number];
@@ -63,9 +69,11 @@ export default function FirstLaunchOnboarding({ initialProfile, onComplete }: Pr
   const [founderName, setFounderName] = useState(initialProfile?.founderName ?? '');
   const [avatarKey, setAvatarKey] = useState<string | null>(initialProfile?.avatarKey ?? 'founder');
   const [companyName, setCompanyName] = useState(initialProfile?.companyName ?? '');
-  const [logoKey, setLogoKey] = useState(initialProfile?.logoKey ?? 'logo-01');
+  const [logoKey, setLogoKey] = useState<string>(initialProfile?.logoKey ?? 'logo-01');
   const [customLogoUri, setCustomLogoUri] = useState<string | null>(initialProfile?.customLogoUri ?? null);
   const [category, setCategory] = useState<Category>('All');
+  const founderNameReady = founderName.trim().length > 0;
+  const companyNameReady = companyName.trim().length > 0;
 
   const visibleLogos = useMemo(
     () => category === 'All' ? logoOptions : logoOptions.filter((logo) => logo.category === category),
@@ -73,19 +81,13 @@ export default function FirstLaunchOnboarding({ initialProfile, onComplete }: Pr
   );
 
   const continueToCompany = () => {
-    if (!founderName.trim()) {
-      Alert.alert('Founder profile', 'Enter your name to create your founder profile.');
-      return;
-    }
+    if (!founderNameReady) return;
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setStep(2);
   };
 
   const continueToConfirmation = () => {
-    if (!companyName.trim()) {
-      Alert.alert('Company identity', 'Enter a company name before continuing.');
-      return;
-    }
+    if (!companyNameReady) return;
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setStep(3);
   };
@@ -124,6 +126,7 @@ export default function FirstLaunchOnboarding({ initialProfile, onComplete }: Pr
 
   return (
     <SafeAreaView edges={['top', 'bottom']} style={styles.safe}>
+      <StatusBar style="dark" />
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView
           contentContainerStyle={styles.scrollContent}
@@ -154,8 +157,9 @@ export default function FirstLaunchOnboarding({ initialProfile, onComplete }: Pr
             >
               <SectionHeading icon="●" title="What is your name?" copy="Enter your name to create your founder profile." />
               <Input value={founderName} onChangeText={setFounderName} placeholder="Enter your name" />
-              <Text style={styles.helper}>This name will be displayed in your profile and across the game.</Text>
+              <Text style={[styles.helper, !founderNameReady && styles.requiredHint]}>{founderNameReady ? 'This name will be displayed in your profile and across the game.' : 'Enter your name to continue.'}</Text>
               <Text style={styles.label}>CHOOSE YOUR AVATAR <Text style={styles.optional}>(OPTIONAL)</Text></Text>
+              <Text style={styles.carouselHint}>Swipe to explore all 5 avatars →</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.avatarRow}>
                 {avatarOptions.map((avatar) => (
                   <Pressable key={avatar.key} onPress={() => setAvatarKey(avatar.key)} style={[styles.avatarChoice, avatarKey === avatar.key && styles.avatarChoiceActive]}>
@@ -164,22 +168,24 @@ export default function FirstLaunchOnboarding({ initialProfile, onComplete }: Pr
                   </Pressable>
                 ))}
               </ScrollView>
-              <PrimaryButton title="Continue  →" onPress={continueToCompany} />
+              <PrimaryButton title="Continue  →" onPress={continueToCompany} disabled={!founderNameReady} />
             </StepFrame>
           )}
 
           {step === 2 && (
             <StepFrame
               image={require('../../assets/onboarding/company-hero.png')}
-              title="Name Your Company"
-              subtitle="Give your first company a unique identity."
+              title="Name Your Empire"
+              subtitle="Choose the brand shown above your portfolio. Businesses are acquired separately."
               sheetStyle={styles.companySheet}
             >
-              <Input value={companyName} onChangeText={setCompanyName} placeholder="Enter company name" />
-              <Text style={styles.label}>CHOOSE YOUR COMPANY LOGO</Text>
+              <Input value={companyName} onChangeText={setCompanyName} placeholder="Enter empire name" />
+              <Text style={[styles.helper, !companyNameReady && styles.requiredHint]}>{companyNameReady ? 'This brand represents your whole empire.' : 'Enter an empire name to continue.'}</Text>
+              <Text style={styles.label}>CHOOSE YOUR EMPIRE LOGO</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRow}>
                 {categories.map((item) => <Pressable key={item} onPress={() => setCategory(item)} style={[styles.categoryChip, category === item && styles.categoryChipActive]}><Text style={[styles.categoryText, category === item && styles.categoryTextActive]}>{item}</Text></Pressable>)}
               </ScrollView>
+              <Text style={styles.carouselHint}>Swipe to browse more logos →</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.logoGrid} style={styles.logoScroller}>
                 {visibleLogos.map((logo) => (
                   <Pressable key={logo.key} onPress={() => { setLogoKey(logo.key); setCustomLogoUri(null); }} style={[styles.logoChoice, logoKey === logo.key && styles.logoChoiceActive]}>
@@ -191,7 +197,7 @@ export default function FirstLaunchOnboarding({ initialProfile, onComplete }: Pr
                 {customLogoUri ? <Image source={{ uri: customLogoUri }} style={styles.uploadPreview} /> : <Text style={styles.uploadIcon}>↥</Text>}
                 <View><Text style={styles.uploadTitle}>{customLogoUri ? 'Custom logo selected' : 'Upload Custom Logo (Optional)'}</Text><Text style={styles.uploadCopy}>Use your own logo (PNG/JPG, max 2MB)</Text></View>
               </Pressable>
-              <PrimaryButton title="Continue  →" onPress={continueToConfirmation} />
+              <PrimaryButton title="Continue  →" onPress={continueToConfirmation} disabled={!companyNameReady} />
             </StepFrame>
           )}
 
@@ -201,26 +207,27 @@ export default function FirstLaunchOnboarding({ initialProfile, onComplete }: Pr
               title="All Set, Founder!"
               subtitle="Your journey to building a business empire begins now."
               darkOverlay
-              sheetStyle={styles.confirmSheet}
+              heroStyle={styles.confirmHero}
+              sheetStyle={styles.confirmSheetCompact}
             >
-              <View style={styles.summaryCard}>
-                <View style={styles.summaryHeader}><Text style={styles.summaryLabel}>YOUR PROFILE</Text><Pressable onPress={() => setStep(1)}><Text style={styles.edit}>Edit  ✎</Text></Pressable></View>
+              <View style={[styles.summaryCard, styles.confirmSummaryCard]}>
+                <View style={[styles.summaryHeader, styles.confirmSummaryHeader]}><Text style={styles.summaryLabel}>YOUR PROFILE</Text><Pressable onPress={() => setStep(1)}><Text style={styles.edit}>Edit  ✎</Text></Pressable></View>
                 <View style={styles.profileRow}>
-                  {avatarKey ? <Image source={avatarOptions.find((item) => item.key === avatarKey)?.source} style={styles.profileAvatar} /> : <View style={styles.profileAvatarFallback}><Text>F</Text></View>}
+                  {avatarKey ? <Image source={avatarOptions.find((item) => item.key === avatarKey)?.source} style={[styles.profileAvatar, styles.confirmAvatar]} /> : <View style={[styles.profileAvatarFallback, styles.confirmAvatar]}><Text>F</Text></View>}
                   <View style={styles.summaryCopy}><Text style={styles.summaryName}>{founderName}</Text><Text style={styles.summaryRole}>♛  Founder</Text></View>
                 </View>
               </View>
-              <View style={styles.summaryCard}>
-                <View style={styles.summaryHeader}><Text style={styles.summaryLabel}>YOUR COMPANY</Text><Pressable onPress={() => setStep(2)}><Text style={styles.edit}>Edit  ✎</Text></Pressable></View>
+              <View style={[styles.summaryCard, styles.confirmSummaryCard]}>
+                <View style={[styles.summaryHeader, styles.confirmSummaryHeader]}><Text style={styles.summaryLabel}>YOUR EMPIRE BRAND</Text><Pressable onPress={() => setStep(2)}><Text style={styles.edit}>Edit  ✎</Text></Pressable></View>
                 <View style={styles.profileRow}>
-                  {customLogoUri && logoKey === 'custom' ? <Image source={{ uri: customLogoUri }} style={styles.companyLogo} /> : <Image source={logoOptions.find((item) => item.key === logoKey)?.source} style={styles.companyLogo} />}
-                  <View style={styles.summaryCopy}><Text style={styles.summaryName}>{companyName}</Text><Text style={styles.summaryRole}>Building a Better Tomorrow</Text></View>
+                  <Image source={getCompanyLogoSource(logoKey, customLogoUri)} style={[styles.companyLogo, styles.confirmLogo]} />
+                  <View style={styles.summaryCopy}><Text style={styles.summaryName}>{companyName}</Text><Text style={styles.summaryRole}>Your brand · businesses acquired separately</Text></View>
                 </View>
               </View>
-              <View style={styles.promiseRow}>
-                {['Start Your First Business', 'Grow & Expand', 'Build a Global Empire'].map((text, index) => <View key={text} style={styles.promise}><Text style={styles.promiseIcon}>{['↗', '▥', '◎'][index]}</Text><Text style={styles.promiseTitle}>{text}</Text><Text style={styles.promiseCopy}>{['Choose a business and start earning', 'Unlock new companies and increase revenue', 'Become the ultimate business tycoon'][index]}</Text></View>)}
+              <View style={[styles.promiseRow, styles.confirmPromiseRow]}>
+                {['Start Your First Business', 'Grow & Expand', 'Build a Global Empire'].map((text, index) => <View key={text} style={[styles.promise, styles.confirmPromise]}><Text style={[styles.promiseIcon, styles.confirmPromiseIcon]}>{['↗', '▥', '◎'][index]}</Text><Text style={styles.promiseTitle}>{text}</Text><Text style={[styles.promiseCopy, styles.confirmPromiseCopy]}>{['Choose a business and start earning', 'Unlock new companies and increase revenue', 'Become the ultimate business tycoon'][index]}</Text></View>)}
               </View>
-              <PrimaryButton title="Enter Your Empire  →" onPress={finish} />
+              <PrimaryButton title="Enter Your Empire  →" onPress={finish} compact />
             </StepFrame>
           )}
           {step > 1 && <Pressable onPress={() => setStep((current) => current - 1)} style={styles.back}><Text style={styles.backText}>← Back</Text></Pressable>}
@@ -231,16 +238,17 @@ export default function FirstLaunchOnboarding({ initialProfile, onComplete }: Pr
   );
 }
 
-function StepFrame({ image, title, subtitle, children, darkOverlay = false, sheetStyle }: { image: number; title: string; subtitle: string; children: React.ReactNode; darkOverlay?: boolean; sheetStyle?: object }) {
-  return <View style={styles.frame}><View style={styles.hero}><Image source={image} style={styles.heroImage} /><View style={[styles.heroShade, darkOverlay && styles.heroShadeStrong]} /><View style={styles.heroCopy}><Text style={styles.heroTitle}>{title}</Text><Text style={styles.heroSubtitle}>{subtitle}</Text></View></View><View style={[styles.sheet, sheetStyle]}>{children}</View></View>;
+function StepFrame({ image, title, subtitle, children, darkOverlay = false, heroStyle, sheetStyle }: { image: number; title: string; subtitle: string; children: React.ReactNode; darkOverlay?: boolean; heroStyle?: object; sheetStyle?: object }) {
+  return <View style={styles.frame}><View style={[styles.hero, heroStyle]}><Image source={image} style={styles.heroImage} /><View style={[styles.heroShade, darkOverlay && styles.heroShadeStrong]} /><View style={styles.heroCopy}><Text style={styles.heroTitle}>{title}</Text><Text style={styles.heroSubtitle}>{subtitle}</Text></View></View><View style={[styles.sheet, sheetStyle]}>{children}</View></View>;
 }
 
 function SectionHeading({ icon, title, copy }: { icon: string; title: string; copy: string }) { return <View style={styles.sectionHeading}><View style={styles.sectionIcon}><Text style={styles.sectionIconText}>{icon}</Text></View><View><Text style={styles.sectionTitle}>{title}</Text><Text style={styles.sectionCopy}>{copy}</Text></View></View>; }
 function Input({ value, onChangeText, placeholder }: { value: string; onChangeText: (text: string) => void; placeholder: string }) { return <View style={styles.inputWrap}><Text style={styles.inputIcon}>♟</Text><TextInput value={value} onChangeText={onChangeText} placeholder={placeholder} placeholderTextColor="#7E8B9D" style={styles.input} autoCapitalize="words" returnKeyType="done" /></View>; }
-function PrimaryButton({ title, onPress }: { title: string; onPress: () => void }) { return <Pressable onPress={onPress} style={({ pressed }) => [styles.primary, pressed && styles.primaryPressed]}><Text style={styles.primaryText}>{title}</Text></Pressable>; }
+function PrimaryButton({ title, onPress, disabled = false, compact = false }: { title: string; onPress: () => void; disabled?: boolean; compact?: boolean }) { return <Pressable onPress={onPress} disabled={disabled} accessibilityState={{ disabled }} style={({ pressed }) => [styles.primary, compact && styles.primaryCompact, disabled && styles.primaryDisabled, pressed && !disabled && styles.primaryPressed]}><Text style={[styles.primaryText, disabled && styles.primaryTextDisabled]}>{title}</Text></Pressable>; }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#F4F8FC' }, flex: { flex: 1 }, scrollContent: { paddingBottom: 44 },
+  confirmHero: { height: 150 }, confirmSheetCompact: { paddingTop: 12, paddingBottom: 12 }, requiredHint: { color: '#B24646', fontWeight: '700' }, carouselHint: { color: '#718199', fontSize: 10, marginTop: -5, marginBottom: 4 }, primaryDisabled: { backgroundColor: '#B8C6D6' }, primaryTextDisabled: { color: '#F4F7FA' }, primaryCompact: { height: 48, marginTop: 4 }, confirmSummaryCard: { padding: 10, marginBottom: 8 }, confirmSummaryHeader: { marginBottom: 7 }, confirmAvatar: { width: 48, height: 48, borderRadius: 24 }, confirmLogo: { width: 48, height: 48, borderRadius: 12 }, confirmPromiseRow: { gap: 6, marginBottom: 8 }, confirmPromise: { padding: 8, minHeight: 96 }, confirmPromiseIcon: { marginBottom: 4 }, confirmPromiseCopy: { fontSize: 8, lineHeight: 11, marginTop: 4 },
   topBar: { paddingHorizontal: 18, paddingTop: 8, paddingBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   brandWrap: { flexDirection: 'row', alignItems: 'center', gap: 8 }, crown: { color: '#D9A528', fontSize: 30 }, brand: { color: '#0E1830', fontSize: 23, lineHeight: 24, fontWeight: '900', letterSpacing: -1.1 }, brandBlue: { color: '#1C72DC' }, brandSub: { color: '#253653', fontSize: 8, fontWeight: '800', letterSpacing: 1.1, marginTop: 1 }, stepWrap: { alignItems: 'flex-end', width: 122 }, stepText: { color: '#18253F', fontSize: 12, fontWeight: '800', marginBottom: 8 }, progressTrack: { height: 6, width: 116, backgroundColor: '#CAD3DE', borderRadius: 6, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, progressDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: '#BAC6D3', borderWidth: 2, borderColor: '#F4F8FC' }, progressDotActive: { backgroundColor: '#1976E8', width: 13, height: 13 },
   frame: { marginHorizontal: 12, borderRadius: 24, overflow: 'hidden', shadowColor: '#6C7B8E', shadowOpacity: 0.12, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 4 }, hero: { height: 210, position: 'relative', justifyContent: 'flex-end' }, heroImage: { ...StyleSheet.absoluteFill, width: '100%', height: '100%', resizeMode: 'cover' }, heroShade: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(2, 21, 45, 0.2)' }, heroShadeStrong: { backgroundColor: 'rgba(2, 20, 48, 0.42)' }, heroCopy: { paddingHorizontal: 20, paddingBottom: 18 }, heroTitle: { color: '#FFF', fontSize: 28, lineHeight: 32, fontWeight: '900', letterSpacing: -0.8 }, heroSubtitle: { color: '#FFF', fontSize: 13, lineHeight: 18, marginTop: 6, fontWeight: '600' }, sheet: { backgroundColor: '#FFF', paddingHorizontal: 18, paddingTop: 18, paddingBottom: 16, borderTopLeftRadius: 24, borderTopRightRadius: 24, marginTop: -4 }, companySheet: { paddingTop: 20, paddingBottom: 20 }, confirmSheet: { paddingTop: 18, paddingBottom: 20 }, sectionHeading: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 }, sectionIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#E9F3FF', alignItems: 'center', justifyContent: 'center' }, sectionIconText: { color: '#1474E8', fontSize: 20 }, sectionTitle: { color: '#12213D', fontSize: 21, fontWeight: '900' }, sectionCopy: { color: '#66758A', fontSize: 12, marginTop: 2 }, label: { color: '#162644', fontSize: 12, fontWeight: '900', letterSpacing: 0.3, marginTop: 18, marginBottom: 10 }, optional: { color: '#738196', fontWeight: '600' }, inputWrap: { height: 50, borderWidth: 1, borderColor: '#BCC9D9', borderRadius: 12, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 13, backgroundColor: '#FFF' }, inputIcon: { color: '#7E8EA3', fontSize: 20, marginRight: 10 }, input: { flex: 1, color: '#152542', fontSize: 15 }, helper: { color: '#738196', fontSize: 11, marginTop: 8 }, avatarRow: { flexDirection: 'row', gap: 8, paddingBottom: 4, marginBottom: 18 }, avatarChoice: { width: 58, height: 70, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: '#D5DFE9', position: 'relative', backgroundColor: '#EEF3F8' }, avatarChoiceActive: { borderColor: '#1976E8', borderWidth: 2 }, avatarImage: { width: '100%', height: '100%', resizeMode: 'cover' }, check: { position: 'absolute', right: 2, bottom: 2, width: 18, height: 18, borderRadius: 9, backgroundColor: '#1976E8', alignItems: 'center', justifyContent: 'center' }, checkText: { color: '#FFF', fontWeight: '900', fontSize: 12 }, primary: { height: 52, borderRadius: 14, backgroundColor: '#147BEA', alignItems: 'center', justifyContent: 'center', marginTop: 8 }, primaryPressed: { backgroundColor: '#0D63C4', transform: [{ scale: 0.99 }] }, primaryText: { color: '#FFF', fontSize: 16, fontWeight: '900' }, categoryRow: { flexDirection: 'row', gap: 8, paddingBottom: 10, paddingRight: 18 }, categoryChip: { height: 34, paddingHorizontal: 14, borderRadius: 18, borderWidth: 1, borderColor: '#CFD9E5', justifyContent: 'center', backgroundColor: '#F8FBFF' }, categoryChipActive: { backgroundColor: '#1976E8', borderColor: '#1976E8' }, categoryText: { color: '#52657D', fontSize: 11, fontWeight: '800' }, categoryTextActive: { color: '#FFF' }, logoScroller: { marginHorizontal: -2 }, logoGrid: { flexDirection: 'row', gap: 10, paddingBottom: 12, paddingHorizontal: 2, marginBottom: 2 }, logoChoice: { width: 64, height: 64, borderWidth: 1, borderColor: '#D8E1EB', borderRadius: 10, padding: 4, backgroundColor: '#F9FBFD', justifyContent: 'center', alignItems: 'center' }, logoChoiceActive: { borderColor: '#1976E8', borderWidth: 2 }, logoImage: { width: '100%', height: '100%', borderRadius: 7, resizeMode: 'contain' }, uploadButton: { minHeight: 58, borderWidth: 1, borderColor: '#C9D5E2', borderRadius: 12, backgroundColor: '#F4F9FF', paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 11, marginTop: 10, marginBottom: 14 }, uploadIcon: { color: '#1976E8', fontSize: 28, fontWeight: '700' }, uploadPreview: { width: 38, height: 38, borderRadius: 8 }, uploadTitle: { color: '#1A3154', fontWeight: '800', fontSize: 12 }, uploadCopy: { color: '#718199', fontSize: 10, marginTop: 3 }, summaryCard: { borderWidth: 1, borderColor: '#D7E1EB', borderRadius: 14, padding: 14, marginBottom: 12, backgroundColor: '#FFF' }, summaryHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 11 }, summaryLabel: { color: '#748197', fontSize: 10, fontWeight: '900', letterSpacing: 1 }, profileRow: { flexDirection: 'row', alignItems: 'center', gap: 12 }, profileAvatar: { width: 58, height: 58, borderRadius: 29, resizeMode: 'cover' }, profileAvatarFallback: { width: 58, height: 58, borderRadius: 29, backgroundColor: '#E8F2FF', alignItems: 'center', justifyContent: 'center' }, companyLogo: { width: 58, height: 58, borderRadius: 29, resizeMode: 'contain', borderWidth: 1, borderColor: '#DCE6F0', backgroundColor: '#F4F8FC' }, summaryCopy: { flex: 1, minWidth: 0 }, summaryName: { color: '#132443', fontSize: 17, lineHeight: 22, fontWeight: '900', flexShrink: 1 }, summaryRole: { color: '#718097', fontSize: 12, marginTop: 4 }, edit: { color: '#1C72DC', fontWeight: '800', fontSize: 12 }, promiseRow: { flexDirection: 'row', gap: 8, marginTop: 2, marginBottom: 16 }, promise: { flex: 1, borderWidth: 1, borderColor: '#DCE5EE', borderRadius: 12, padding: 10, minHeight: 128, justifyContent: 'flex-start' }, promiseIcon: { color: '#1476E4', fontSize: 20, marginBottom: 8 }, promiseTitle: { color: '#142442', fontSize: 11, fontWeight: '900', lineHeight: 15 }, promiseCopy: { color: '#718097', fontSize: 9, lineHeight: 13, marginTop: 6 }, back: { alignSelf: 'center', padding: 12, marginTop: 2 }, backText: { color: '#1C72DC', fontWeight: '800' }, pageDots: { flexDirection: 'row', justifyContent: 'center', gap: 8, paddingVertical: 6 }, pageDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#C5D0DE' }, pageDotActive: { backgroundColor: '#1476E4', width: 12, height: 12 },

@@ -121,6 +121,7 @@ import { Asset, Holding } from "./src/types/marketAsset";
 import { processQuarterlyDividends } from "./src/engine/dividendEngine";
 import FirstLaunchOnboarding, {
   FounderProfile,
+  getCompanyLogoSource,
 } from "./src/screens/FirstLaunchOnboarding";
 import {
   applyScheduledEvent,
@@ -231,23 +232,6 @@ const lifestyleAssets = [
   ...JETS_DATA,
   ...PROPERTIES_DATA,
 ];
-const ONBOARDING_LOGOS: Record<string, number> = {
-  "logo-01": require("./assets/onboarding/logo-01.png"),
-  "logo-02": require("./assets/onboarding/logo-02.png"),
-  "logo-03": require("./assets/onboarding/logo-03.png"),
-  "logo-04": require("./assets/onboarding/logo-04.png"),
-  "logo-05": require("./assets/onboarding/logo-05.png"),
-  "logo-06": require("./assets/onboarding/logo-06.png"),
-  "logo-07": require("./assets/onboarding/logo-07.png"),
-  "logo-08": require("./assets/onboarding/logo-08.png"),
-  "logo-09": require("./assets/onboarding/logo-09.png"),
-  "logo-10": require("./assets/onboarding/logo-10.png"),
-  "logo-11": require("./assets/onboarding/logo-11.png"),
-  "logo-12": require("./assets/onboarding/logo-12.png"),
-  "logo-13": require("./assets/onboarding/logo-13.png"),
-  "logo-14": require("./assets/onboarding/logo-14.png"),
-  "logo-15": require("./assets/onboarding/logo-15.png"),
-};
 const SAVE = "empire-rush-richman-v3";
 const sensibleCryptoPrices: Record<string, number> = {
   btc: 67500,
@@ -457,13 +441,27 @@ function AppContent() {
   );
   const pushIncomeEvent = useCallback((event: IncomeEventInput) => {
     if (!Number.isFinite(event.amount) || event.amount <= 0) return;
+    const now = Date.now();
     const next: IncomeEvent = {
       ...event,
       amount: Number(event.amount.toFixed(2)),
-      id: `income-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      timestamp: Date.now(),
+      id: `income-${now}-${Math.random().toString(36).slice(2, 7)}`,
+      timestamp: now,
     };
-    setIncomeEvents((current) => [...current.slice(-2), next]);
+    setIncomeEvents((current) => {
+      if (event.category === "tap") {
+        const previousTapTotal = current
+          .filter((item) => item.category === "tap")
+          .reduce((total, item) => total + item.amount, 0);
+        const withoutTapToasts = current.filter((item) => item.category !== "tap");
+        const mergedTap = {
+          ...next,
+          amount: Number((next.amount + previousTapTotal).toFixed(2)),
+        };
+        return [...withoutTapToasts.slice(-2), mergedTap];
+      }
+      return [...current.slice(-2), next];
+    });
     setTimeout(
       () =>
         setIncomeEvents((current) =>
@@ -1633,11 +1631,7 @@ function AppContent() {
           <View style={styles.headerIdentity}>
             {founderProfile && (
               <Image
-                source={
-                  founderProfile.logoKey === "custom" && founderProfile.customLogoUri
-                    ? { uri: founderProfile.customLogoUri }
-                    : ONBOARDING_LOGOS[founderProfile.logoKey] ?? ONBOARDING_LOGOS["logo-01"]
-                }
+                source={getCompanyLogoSource(founderProfile.logoKey, founderProfile.customLogoUri)}
                 style={styles.headerLogo}
               />
             )}
@@ -1681,7 +1675,9 @@ function AppContent() {
               </Animated.View>
             </Pressable>
             <Text style={styles.settlementHint} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.72}>
-              NEXT SETTLEMENT · {nextSettlementCountdown}
+              {businessProfit > 0
+                ? `NEXT SETTLEMENT · ${nextSettlementCountdown}`
+                : "NO PASSIVE INCOME · START A BUSINESS"}
             </Text>
             <View style={styles.headerActions}>
               <Text style={styles.muted} numberOfLines={1}>
