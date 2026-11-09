@@ -77,17 +77,17 @@ export function simulatedEventForAsset<T extends MarketAsset>(asset: T, tick: nu
 }
 
 export function createSeededHistory(seed: string, price: number, volatility: number, length = 18): number[] {
+  // Walk backwards from the live price so the chart always ends exactly at it (no end-of-chart spike).
   let state = Array.from(seed).reduce((value, character) => (value * 31 + character.charCodeAt(0)) >>> 0, 2166136261);
-  let current = price * (0.94 + (state % 7) * 0.01);
-  const values: number[] = [];
-  for (let index = 0; index < length; index += 1) {
+  let current = price;
+  const values: number[] = [Number(price.toFixed(2))];
+  for (let index = 1; index < length; index += 1) {
     state = (1664525 * state + 1013904223) >>> 0;
     const random = state / 4294967296;
     const drift = (random - 0.5) * volatility * 1.8 + (index % 5 === 0 ? 0.002 : -0.0005);
-    current = Math.max(price * 0.72, Math.min(price * 1.12, current * (1 + drift)));
-    values.push(Number(current.toFixed(2)));
+    current = Math.max(price * 0.82, Math.min(price * 1.18, current / (1 + drift)));
+    values.unshift(Number(current.toFixed(2)));
   }
-  values[values.length - 1] = Number(price.toFixed(2));
   return values;
 }
 

@@ -209,22 +209,27 @@ const cryptoSeed: [
 ]);
 const seedAssets = (seed: typeof stockSeed, kind: Asset["kind"]) =>
   seed.map(
-    ([id, symbol, name, price, change, dividend, volatility, sector]) => ({
+    ([id, symbol, name, price, change, dividend, volatility, sector]) => {
+    const history = createSeededHistory(id, price, volatility);
+    const prev = history[Math.max(0, history.length - 6)] || price;
+    const seededChange = change || Number((((price - prev) / Math.max(0.0001, prev)) * 100).toFixed(2));
+    return ({
       id,
       symbol,
       name,
       kind,
       sector: sector || (kind === "CRYPTO" ? "CRYPTO" : "TECH"),
       price,
-      change,
+      change: seededChange,
       dividend,
       volatility,
       logo:
         kind === "STOCK"
           ? STOCK_CATALOG.find((item) => item.id === id)?.logo
           : CRYPTO_CATALOG.find((item) => item.id === id)?.logo,
-      history: createSeededHistory(id, price, volatility),
-    }),
+      history,
+    });
+    },
   );
 const lifestyleAssets = [
   ...CARS_DATA,
