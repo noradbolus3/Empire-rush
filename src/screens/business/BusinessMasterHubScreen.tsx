@@ -35,6 +35,8 @@ import { getBusinessDisplayMeta } from "../../data/businessDisplayCatalog";
 import { commitCashTransaction } from "../../engine/transactionGateway";
 import { BUSINESS_BACK_LABEL } from "../../navigation/navigationContract";
 
+const STARTER_UNITS = 200;
+const STARTER_COST = 440;
 const C = { bg: designSystem.colors.background, card: designSystem.colors.card, panel: designSystem.colors.highlight, slate: designSystem.colors.border, green: designSystem.colors.primary, cyan: designSystem.colors.cyan, red: designSystem.colors.negative, white: designSystem.colors.heading, muted: designSystem.colors.secondary, gold: designSystem.colors.gold, violet: designSystem.colors.violet };
 type Props = {
   business: BusinessEntity;
@@ -153,87 +155,41 @@ export function BusinessMasterHubScreen({
     );
   return (
     <View style={styles.root}>
-      <SafeAreaView edges={["top", "left", "right"]} style={styles.safe}>
+      <SafeAreaView edges={["left", "right"]} style={styles.safe}>
         <ScrollView ref={scrollRef} contentContainerStyle={styles.content}>
-          <Pressable onPress={onBack}>
-            <Text style={styles.back}>{BUSINESS_BACK_LABEL}</Text>
-          </Pressable>
-          <Text style={styles.eyebrow}>
-            {display.categoryLabel} · LIVE OPERATIONS
-          </Text>
-          <View style={styles.titleRow}>
+          <View style={styles.topRow}>
+            <Pressable onPress={onBack} hitSlop={10} accessibilityRole="button" accessibilityLabel="Back to business portfolio" style={styles.backBtn}>
+              <Text style={styles.backGlyph}>‹</Text>
+            </Pressable>
             <View style={{ flex: 1 }}>
-              <Text style={styles.title}>{business.name}</Text>
-              <Text
-                style={
-                  business.legalStatus === "Licensed_Legal"
-                    ? styles.legal
-                    : styles.shadow
-                }
-              >
-                {business.legalStatus === "Licensed_Legal"
-                  ? "LICENSED & AUDITED"
-                  : `SHADOW · ${business.policeHeat.toFixed(1)}% RAID RISK`}
+              <Text style={styles.title} numberOfLines={1}>{business.name}</Text>
+              <Text style={business.legalStatus === "Licensed_Legal" ? styles.legal : styles.shadow} numberOfLines={1}>
+                {display.categoryLabel.toUpperCase()} · {business.legalStatus === "Licensed_Legal" ? "LICENSED" : `SHADOW · ${business.policeHeat.toFixed(1)}% RAID RISK`} · STABILITY {business.stability.toFixed(0)}%
               </Text>
             </View>
-            <Text style={styles.profit}>
-              {formatCurrency(business.hourlyNetProfit)}/hr
-            </Text>
+            <View style={styles.profitPill}>
+              <Text style={styles.profit}>{formatCurrency(business.hourlyNetProfit)}</Text>
+              <Text style={styles.profitUnit}>per hour</Text>
+            </View>
           </View>
-          <View style={styles.meta}>
-            <Metric
-              label="STABILITY"
-              value={`${business.stability.toFixed(0)}%`}
-            />
-            <Metric label="LIQUID CAPITAL" value={formatCurrency(cash)} />
-            <Metric
-              label="LEGAL EXPOSURE"
-              value={`${business.policeHeat.toFixed(1)}%`}
-            />
-          </View>
-          <Text style={styles.heatHelp}>
-            Legal exposure measures raid risk. Licensed entities remain at 0%;
-            shadow operations can attract inspections.
-          </Text>
-          {companyListing?.stage === "public" ||
-          netWorth >= IPO_MIN_VALUATION ? (
+          {companyListing?.stage === "public" || netWorth >= IPO_MIN_VALUATION ? (
             <View style={styles.ipoCard}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.ipoEyebrow}>LATE-GAME CAPITAL EVENT</Text>
                 <Text style={styles.ipoTitle}>
-                  {companyListing?.stage === "public"
-                    ? `${companyListing.ticker} · PUBLIC COMPANY`
-                    : "PUBLIC OFFERING WINDOW"}
+                  {companyListing?.stage === "public" ? `${companyListing.ticker} · PUBLIC COMPANY` : "IPO WINDOW OPEN"}
                 </Text>
                 <Text style={styles.ipoCopy}>
                   {companyListing?.stage === "public"
                     ? `Raised ${formatCurrency(companyListing.capitalRaised)} · founders retain 80%`
-                    : "Unlock growth capital by selling a minority stake to public investors."}
+                    : "Sell a minority stake to raise growth capital."}
                 </Text>
               </View>
-              <Pressable
-                onPress={() => setIpoOpen(true)}
-                style={styles.ipoButton}
-              >
-                <Text style={styles.ipoButtonText}>
-                  {companyListing?.stage === "public"
-                    ? "VIEW LISTING"
-                    : "PREPARE IPO"}
-                </Text>
+              <Pressable onPress={() => setIpoOpen(true)} style={styles.ipoButton}>
+                <Text style={styles.ipoButtonText}>{companyListing?.stage === "public" ? "VIEW" : "PREPARE IPO"}</Text>
               </Pressable>
             </View>
           ) : (
-            <View style={[styles.ipoCard, styles.ipoLockedCard]}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.ipoEyebrow}>LATE-GAME CAPITAL EVENT</Text>
-                <Text style={styles.ipoTitle}>IPO LOCKED</Text>
-                <Text style={styles.ipoCopy}>
-                  Need {formatCurrency(IPO_MIN_VALUATION - netWorth)} more net
-                  worth before the public-offering window opens.
-                </Text>
-              </View>
-              <Text style={styles.ipoLockedLabel}>LOCKED</Text>
-            </View>
+            <Text style={styles.ipoLine}>IPO unlocks at {formatCurrency(IPO_MIN_VALUATION)} net worth · {formatCurrency(Math.max(0, IPO_MIN_VALUATION - netWorth))} to go</Text>
           )}
           <ScrollView
             horizontal
@@ -266,6 +222,8 @@ export function BusinessMasterHubScreen({
               netWorth={netWorth}
               timestamp={timestamp}
               finance={finance}
+              onStarterOrder={business.sector === "Retail" ? () => { if (cash >= STARTER_COST) { spend(STARTER_COST, () => ({ ...(business as RetailData), stockUnits: (business as RetailData).stockUnits + STARTER_UNITS, onboardingStep: (business as RetailData).onboardingStep === "ORDER_STOCK" ? "WATCH_FIRST_SALE" : (business as RetailData).onboardingStep })); } else { setHubTab("operations"); } } : undefined}
+              starterLabel={`ORDER ${STARTER_UNITS} UNITS · ${formatCurrency(STARTER_COST)}`}
             />
           )}
           {hubTab === "upgrades" && (
@@ -381,13 +339,12 @@ function businessFinance(business: BusinessEntity) {
       : business.sector === "Mobility"
         ? Math.max(0, businessUnits(business) * 8)
         : 0;
+  const idle = business.sector === "Retail" && business.stockUnits <= 0;
   return {
-    revenue: net + expenses,
-    expenses,
-    net,
-    breakEven: Math.ceil(
-      Math.max(0, business.acquisitionCost) / Math.max(0.01, net),
-    ),
+    revenue: idle ? 0 : net + expenses,
+    expenses: idle ? 0 : expenses,
+    net: idle ? 0 : net,
+    breakEven: net > 0 ? Math.ceil(Math.max(0, business.acquisitionCost) / net) : 0,
     perUnit: net / Math.max(1, businessUnits(business)),
   };
 }
@@ -406,7 +363,7 @@ function FinancePanel({
         value={formatCurrency(finance.expenses)}
       />
       <Metric label="NET INCOME / HR" value={formatCurrency(finance.net)} />
-      <Metric label="BREAK-EVEN" value={`${finance.breakEven} settlements`} />
+      <Metric label="BREAK-EVEN" value={finance.breakEven > 0 ? `${finance.breakEven} settlements` : "—"} />
       <Metric label="NET / UNIT" value={formatCurrency(finance.perUnit)} />
     </Panel>
   );
@@ -480,39 +437,21 @@ function RetailControls({
           </Text>
         </Animated.View>
       )}
-      <Panel title="PULSE CHAIN · CUSTOMER DEMAND">
-        <Text style={styles.demandEvent}>{eventCopy}</Text>
-        <Text style={styles.muted}>
-          Match pricing to the pulse: Discount = 1.55× volume at $4.00, Standard
-          = balanced volume at $5.50, Luxury = 0.55× volume at $8.00.
-        </Text>
-      </Panel>
-      <Panel title="INVENTORY CONTROL">
-        <Text style={styles.gaugeLabel}>
-          {business.stockUnits.toLocaleString()} /{" "}
-          {business.maxStockCapacity.toLocaleString()} units
-        </Text>
-        <Gauge
-          value={business.stockUnits / Math.max(1, business.maxStockCapacity)}
-          color={
-            business.stockUnits < business.maxStockCapacity * 0.15
-              ? C.red
-              : C.green
-          }
+      <Panel title="BUY STOCK">
+        <Action
+          title={`STARTER BATCH · ${STARTER_UNITS} UNITS`}
+          copy={`${formatCurrency(STARTER_COST)} · $2.20 per unit · sells for $4–$8`}
+          onPress={() => order(STARTER_UNITS, STARTER_COST)}
+          disabled={business.stockUnits + STARTER_UNITS > business.maxStockCapacity || cash < STARTER_COST}
+          lockedReason={cash < STARTER_COST ? `Need ${formatCurrency(STARTER_COST - cash)} more` : "Warehouse capacity reached"}
         />
-        <View style={styles.grid}>
-          {(["Discount", "Standard", "Luxury"] as const).map((tier) => (
-            <Action
-              key={tier}
-              title={`${tier.toUpperCase()} SALE`}
-              copy={`${formatCurrency(pricing[tier])} per unit`}
-              active={business.pricingTier === tier}
-              onPress={() => onChange({ ...business, pricingTier: tier })}
-            />
-          ))}
-        </View>
-      </Panel>
-      <Panel title="SAFE WAREHOUSE PURCHASING">
+        <Action
+          title="ORDER 500 UNITS"
+          copy="$1,000 · $2.00 per unit"
+          onPress={() => order(500, 1000)}
+          disabled={business.stockUnits + 500 > business.maxStockCapacity || cash < 1000}
+          lockedReason={cash < 1000 ? `Need ${formatCurrency(1000 - cash)} more` : "Warehouse capacity reached"}
+        />
         <Action
           title="ORDER 1,000 UNITS"
           copy="$2,000 · $2.00 per unit"
@@ -555,6 +494,38 @@ function RetailControls({
               : "Warehouse capacity reached"
           }
         />
+      </Panel>
+      <Panel title="CUSTOMER DEMAND">
+        <Text style={styles.demandEvent}>{eventCopy}</Text>
+        <Text style={styles.muted}>
+          Match pricing to the pulse: Discount = 1.55× volume at $4.00, Standard
+          = balanced volume at $5.50, Luxury = 0.55× volume at $8.00.
+        </Text>
+      </Panel>
+      <Panel title="STOCK & PRICE">
+        <Text style={styles.gaugeLabel}>
+          {business.stockUnits.toLocaleString()} /{" "}
+          {business.maxStockCapacity.toLocaleString()} units
+        </Text>
+        <Gauge
+          value={business.stockUnits / Math.max(1, business.maxStockCapacity)}
+          color={
+            business.stockUnits < business.maxStockCapacity * 0.15
+              ? C.red
+              : C.green
+          }
+        />
+        <View style={styles.grid}>
+          {(["Discount", "Standard", "Luxury"] as const).map((tier) => (
+            <Action
+              key={tier}
+              title={`${tier.toUpperCase()} SALE`}
+              copy={`${formatCurrency(pricing[tier])} per unit`}
+              active={business.pricingTier === tier}
+              onPress={() => onChange({ ...business, pricingTier: tier })}
+            />
+          ))}
+        </View>
       </Panel>
       <Panel title="RETAIL UPGRADES">
         <Action
@@ -1075,9 +1046,9 @@ function Gauge({ value, color }: { value: number; color: string }) {
 }
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
-  hubTabs: { flexGrow: 0, flexShrink: 0, marginTop: 16, marginBottom: 12 },
+  hubTabs: { flexGrow: 0, flexShrink: 0, marginTop: 4, marginBottom: 10 },
   hubTabsContent: { flexDirection: "row", alignItems: "center", gap: 8 },
-  hubTab: { minHeight: 40, paddingHorizontal: 14, borderWidth: 1, borderColor: C.slate, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: C.card },
+  hubTab: { minHeight: 36, paddingHorizontal: 14, borderWidth: 1, borderColor: C.slate, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: C.card },
   hubTabActive: { backgroundColor: C.green, borderColor: C.green },
   hubTabPressed: { opacity: 0.78, transform: [{ scale: 0.985 }] },
   hubTabText: { color: C.muted, fontSize: 9, fontWeight: "900", letterSpacing: 0.6 },
@@ -1088,7 +1059,13 @@ const styles = StyleSheet.create({
   levelTabText: { color: C.muted, fontSize: 9, fontWeight: "900" },
   levelTabTextActive: { color: "#06100B" },
   safe: { flex: 1 },
-  content: { padding: 16, paddingBottom: 120 },
+  content: { paddingHorizontal: 14, paddingTop: 8, paddingBottom: 96 },
+  topRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 8 },
+  backBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: C.card, borderWidth: 1, borderColor: C.slate, alignItems: "center", justifyContent: "center" },
+  backGlyph: { color: C.cyan, fontSize: 24, fontWeight: "700", lineHeight: 26, marginTop: -2 },
+  profitPill: { alignItems: "flex-end" },
+  profitUnit: { color: C.muted, fontSize: 9, fontWeight: "700", marginTop: 1 },
+  ipoLine: { color: C.muted, fontSize: 10, marginBottom: 6 },
   back: {
     color: C.cyan,
     fontSize: 11,
@@ -1103,9 +1080,9 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
   },
   titleRow: { flexDirection: "row", alignItems: "center", marginTop: 7 },
-  title: { color: C.white, fontSize: 26, fontWeight: "900" },
-  legal: { color: C.green, fontSize: 10, fontWeight: "900", marginTop: 6 },
-  shadow: { color: C.red, fontSize: 10, fontWeight: "900", marginTop: 6 },
+  title: { color: C.white, fontSize: 20, fontWeight: "900" },
+  legal: { color: C.green, fontSize: 9, fontWeight: "800", marginTop: 2 },
+  shadow: { color: C.red, fontSize: 9, fontWeight: "800", marginTop: 2 },
   profit: { color: C.green, fontSize: 15, fontWeight: "900" },
   meta: { flexDirection: "row", gap: 8, marginVertical: 18 },
   metric: { flex: 1, backgroundColor: C.panel, borderRadius: 10, padding: 10 },
@@ -1119,10 +1096,10 @@ const styles = StyleSheet.create({
   ipoCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#12372F",
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 14,
+    backgroundColor: designSystem.colors.successSoft,
+    borderRadius: 14,
+    padding: 11,
+    marginBottom: 8,
     borderWidth: 1,
     borderColor: C.green,
   },
@@ -1133,7 +1110,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
   },
   ipoTitle: { color: C.white, fontSize: 14, fontWeight: "900", marginTop: 5 },
-  ipoCopy: { color: "#9ED9C4", fontSize: 10, lineHeight: 14, marginTop: 4 },
+  ipoCopy: { color: C.muted, fontSize: 10, lineHeight: 14, marginTop: 2 },
   ipoButton: {
     backgroundColor: C.green,
     borderRadius: 9,
@@ -1141,7 +1118,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 9,
     marginLeft: 8,
   },
-  ipoButtonText: { color: C.bg, fontSize: 8, fontWeight: "900" },
+  ipoButtonText: { color: "#FFFFFF", fontSize: 9, fontWeight: "900" },
   ipoLockedCard: { borderColor: C.slate, backgroundColor: C.panel },
   ipoLockedLabel: {
     color: C.muted,
@@ -1150,10 +1127,10 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   guided: {
-    backgroundColor: "#102F3D",
+    backgroundColor: designSystem.colors.primarySoft,
     borderRadius: 14,
-    padding: 13,
-    marginBottom: 14,
+    padding: 12,
+    marginBottom: 10,
     borderWidth: 1,
     borderColor: C.cyan,
   },
@@ -1163,14 +1140,14 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     letterSpacing: 0.7,
   },
-  guidedCopy: { color: "#B7D6E3", fontSize: 11, lineHeight: 16, marginTop: 5 },
+  guidedCopy: { color: C.muted, fontSize: 11, lineHeight: 16, marginTop: 4 },
   panel: {
     backgroundColor: C.card,
     borderRadius: 16,
-    padding: 15,
-    marginBottom: 14,
+    padding: 13,
+    marginBottom: 10,
     borderWidth: 1,
-    borderColor: "#263449",
+    borderColor: C.slate,
   },
   panelTitle: {
     color: C.white,
@@ -1182,7 +1159,7 @@ const styles = StyleSheet.create({
   gaugeLabel: { color: C.white, fontWeight: "800", marginBottom: 8 },
   gauge: {
     height: 9,
-    backgroundColor: "#263449",
+    backgroundColor: designSystem.colors.surfaceMuted,
     borderRadius: 9,
     overflow: "hidden",
     marginBottom: 10,
@@ -1200,12 +1177,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: C.panel,
     borderRadius: 11,
-    padding: 13,
-    marginTop: 8,
+    padding: 11,
+    marginTop: 7,
     borderWidth: 1,
-    borderColor: "#263449",
+    borderColor: C.slate,
   },
-  actionActive: { borderColor: C.green, backgroundColor: "#0F2A24" },
+  actionActive: { borderColor: C.green, backgroundColor: designSystem.colors.successSoft },
   actionDisabled: { opacity: 0.45 },
   actionTitle: { color: C.white, fontSize: 11, fontWeight: "900" },
   muted: { color: C.muted, fontSize: 11, marginTop: 4 },
@@ -1221,7 +1198,7 @@ const styles = StyleSheet.create({
   },
   warning: { color: C.red, fontSize: 11, fontWeight: "800", marginTop: 8 },
   saleFlash: {
-    backgroundColor: "#123D34",
+    backgroundColor: designSystem.colors.successSoft,
     borderWidth: 1,
     borderColor: C.green,
     borderRadius: 12,

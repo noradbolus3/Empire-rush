@@ -45,11 +45,7 @@ export function BusinessAnalyticsPanel({ business, finance }: Props) {
 
   return (
     <View style={styles.root}>
-      <View style={styles.hero}>
-        <Text style={styles.eyebrow}>DECISION ANALYTICS</Text>
-        <Text style={styles.title}>Know what the next reinvestment buys.</Text>
-        <Text style={styles.subtitle}>Transparent projections from the current settlement rate. This is a run-rate view, not fabricated historical performance.</Text>
-      </View>
+      <Text style={styles.note}>Projection from the current hourly rate - not past results.</Text>
       <View style={styles.rangeRow} accessibilityRole="tablist">
         {horizons.map((item) => <Pressable key={item.id} onPress={() => setHorizon(item.id)} accessibilityRole="tab" accessibilityState={{ selected: horizon === item.id }} style={({ pressed }) => [styles.range, horizon === item.id && styles.rangeActive, pressed && styles.pressed]}><Text style={[styles.rangeText, horizon === item.id && styles.rangeTextActive]}>{item.label}</Text></Pressable>)}
       </View>
@@ -80,7 +76,8 @@ function Score({ label, value, fill, color }: { label: string; value: string; fi
 }
 
 const styles = StyleSheet.create({
-  root: { gap: 12 },
+  root: { gap: 10 },
+  note: { color: colors.textSecondary, fontSize: 11, paddingHorizontal: 2 },
   hero: { backgroundColor: colors.surfaceDark, borderRadius: designSystem.radius.hero, borderWidth: 1, borderColor: colors.borderDark, padding: designSystem.spacing.xl },
   eyebrow: { color: colors.cyan, fontSize: 10, fontWeight: "800", letterSpacing: 1.1 },
   title: { color: colors.textOnDark, fontSize: 20, lineHeight: 25, fontWeight: "800", marginTop: 6 },

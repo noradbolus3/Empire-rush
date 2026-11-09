@@ -50,7 +50,7 @@ export default function ConstructionCompanyScreen({ business: rawBusiness, cash,
   const activeProject = CONSTRUCTION_PROJECTS.find(project => project.id === business.activeProjectId);
   const activeContract = CONSTRUCTION_CONTRACTS.find(contract => contract.id === business.activeContractName);
   const tabItems: Tab[] = ['Dashboard', 'Land & Projects', 'Machinery', 'Management', 'Contracts', 'Expansion'];
-  return <View style={styles.root}><SafeAreaView edges={['top', 'left', 'right']} style={styles.safe}><ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+  return <View style={styles.root}><SafeAreaView edges={['left', 'right']} style={styles.safe}><ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
     <Pressable onPress={onBack}><Text style={styles.back}>{BUSINESS_BACK_LABEL}</Text></Pressable>
     <View style={styles.header}><View style={{ flex: 1 }}><Text style={styles.eyebrow}>CONSTRUCTION COMPANY · {stage.toUpperCase()}</Text><Text style={styles.title}>{business.name}</Text><Text style={styles.subtitle}>Build infrastructure. Complete projects. Grow your empire.</Text></View><Text style={styles.city}>US OPERATIONS</Text></View>
     {tab !== 'Overview' && <Pressable onPress={() => setTab('Overview')} style={styles.overviewLink}><Text style={styles.overviewLinkText}>‹ CONSTRUCTION COMPANY OVERVIEW</Text></Pressable>}

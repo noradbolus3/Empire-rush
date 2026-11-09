@@ -51,11 +51,10 @@ function upgradesFor(business: BusinessEntity, cash: number): Upgrade[] {
 }
 
 export function BusinessUpgradePanel({ business, cash, spend }: Props) {
-  const upgrades = upgradesFor(business, cash);
+  const upgrades = upgradesFor(business, cash).sort((x, y) => Number(Boolean(x.locked || x.lockedReason)) - Number(Boolean(y.locked || y.lockedReason)));
   return (
     <View style={styles.root}>
-      <View style={styles.header}><View><Text style={styles.eyebrow}>CAPITAL ALLOCATION</Text><Text style={styles.title}>Upgrade what is holding you back.</Text></View><Text style={styles.cash}>{formatCurrency(cash)}</Text></View>
-      <Text style={styles.intro}>Every upgrade has a visible operating effect. Spend only when the next constraint is clear.</Text>
+      <View style={styles.header}><Text style={styles.title}>Upgrades</Text><Text style={styles.cash}>Cash {formatCurrency(cash)}</Text></View>
       {upgrades.map((upgrade) => {
         const disabled = Boolean(upgrade.locked || upgrade.lockedReason);
         return <Pressable key={upgrade.id} disabled={disabled} onPress={() => spend(upgrade.cost, upgrade.apply)} accessibilityRole="button" accessibilityState={{ disabled }} accessibilityLabel={`${upgrade.title}, ${disabled ? upgrade.lockedReason ?? "unavailable" : `install for ${formatCurrency(upgrade.cost)}`}`} style={({ pressed }) => [styles.card, disabled && styles.disabled, pressed && styles.pressed]}>
@@ -68,13 +67,13 @@ export function BusinessUpgradePanel({ business, cash, spend }: Props) {
 }
 
 const styles = StyleSheet.create({
-  root: { gap: 12 },
-  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", backgroundColor: colors.surfaceDark, borderRadius: designSystem.radius.hero, borderWidth: 1, borderColor: colors.borderDark, padding: designSystem.spacing.xl },
+  root: { gap: 9 },
+  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 2 },
   eyebrow: { color: colors.cyan, fontSize: 10, fontWeight: "800", letterSpacing: 1 },
-  title: { color: colors.textOnDark, fontSize: 20, lineHeight: 25, fontWeight: "800", marginTop: 6, maxWidth: 220 },
-  cash: { color: colors.successDark, fontSize: 16, fontWeight: "800" },
+  title: { color: colors.textPrimary, fontSize: 18, fontWeight: "800" },
+  cash: { color: colors.success, fontSize: 13, fontWeight: "800" },
   intro: { color: colors.textSecondary, fontSize: 12, lineHeight: 18, paddingHorizontal: 2 },
-  card: { flexDirection: "row", alignItems: "center", backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: designSystem.radius.large, padding: designSystem.spacing.lg, minHeight: 88 },
+  card: { flexDirection: "row", alignItems: "center", backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: designSystem.radius.large, padding: 12, minHeight: 74 },
   copy: { flex: 1, paddingRight: 10 },
   cardTitle: { color: colors.textPrimary, fontSize: 15, fontWeight: "800" },
   cardDescription: { color: colors.textSecondary, fontSize: 12, lineHeight: 17, marginTop: 4 },

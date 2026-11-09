@@ -23,7 +23,7 @@ const colors = designSystem.colors;
 export function SpecializedBusinessShell({ eyebrow, title, monogram, tabs = [], activeTab, onTabChange, onBack, children }: Props) {
   return (
     <View style={styles.root}>
-      <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
+      <SafeAreaView style={styles.safe} edges={["left", "right"]}>
         <ScreenScrollView contentContainerStyle={styles.content}>
           <ScreenBackButton onPress={onBack} label="‹ BUSINESS PORTFOLIO" style={styles.backButton} textStyle={styles.back} />
           <View style={styles.brandRow}>

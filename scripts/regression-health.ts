@@ -233,7 +233,7 @@ assert.match(read('src/engine/businessSimulation.ts'), /normalizeBusinessNames/,
 assert.match(read('src/engine/businessSimulation.ts'), /Sunward Gridworks/, 'business: distinct energy company name missing');
 assert.match(businessScreen, /minHeight: 164/, 'business UI: header hero gap remains oversized');
 assert.match(read('src/screens/BusinessScreen.tsx'), /flexShrink: 0/, 'business UI: active badge still lacks edge protection');
-assert.match(read('src/screens/business/BusinessMasterHubScreen.tsx'), /IPO LOCKED/, 'IPO UI: pre-net-worth lock copy missing');
+assert.match(read('src/screens/business/BusinessMasterHubScreen.tsx'), /IPO unlocks at/, 'IPO UI: pre-net-worth lock copy missing');
 assert.match(app, /PRESTIGE LOCKED/, 'rebirth UI: pre-net-worth lock copy missing');
 const assetCard = read('src/screens/AssetCard.tsx');
 assert.match(assetCard, /Image source=\{item\.image\}/, 'lifestyle UI: bundled image rendering missing');
@@ -251,7 +251,7 @@ assert.match(read('src/engine/businessSimulation.ts'), /demandEvent/, 'retail: t
 assert.match(read('src/engine/businessSimulation.ts'), /const unitsDeducted =/, 'retail: unit deduction guard missing');
 assert.match(read('src/engine/businessSimulation.ts'), /shelves empty; sales paused without operating-cost bleed/, 'retail: empty-shelf operating bleed guard missing');
 assert.match(financialCore, /businessAssets/, 'net worth: acquired business book value missing');
-assert.match(businessHub, /PULSE CHAIN/, 'retail: customer pulse UI missing');
+assert.match(businessHub, /CUSTOMER DEMAND/, 'retail: customer pulse UI missing');
 assert.match(app, /incomeEvents/, 'income ledger: source event state missing');
 assert.doesNotMatch(read('src/engine/incomeLedger.ts'), /Tap actions/, 'income ledger: tap activity must not be an income source');
 const incomeLedger = read('src/engine/incomeLedger.ts');
