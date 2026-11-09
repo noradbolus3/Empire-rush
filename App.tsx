@@ -134,6 +134,7 @@ import { sanitizeBankState } from "./src/engine/bankEngine";
 import {
   calculateNetWorth,
   settleHour,
+  projectHourlyNet,
   type FinancialGameState,
 } from "./src/engine/financialCore";
 import { buildCanonicalBusinessRegistry, canonicalActiveCount, canonicalProjectedHourlyNet } from "./src/engine/canonicalBusinessRegistry";
@@ -577,7 +578,7 @@ function AppContent() {
     [assets, businesses, holdings, profit, taxiCompany],
   );
   const projectedHourlyIncome = useMemo(
-    () => settleHour(financialState).projectedHourlyNet,
+    () => projectHourlyNet(financialState),
     [financialState],
   );
   const nextSettlementCountdown = formatSettlementCountdown(

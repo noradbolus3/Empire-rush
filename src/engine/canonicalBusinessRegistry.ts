@@ -66,6 +66,8 @@ export type CanonicalBusiness = {
   /** Management layers are shown/countable but do not re-credit subsidiary cashflow. */
   consolidatesOtherBusinesses: boolean;
   source: "generic-state" | "specialized-state";
+  /** Human sector label for generic-state records. */
+  sectorLabel?: string;
 };
 
 export type CanonicalBusinessInput = {
@@ -155,6 +157,7 @@ function genericRecord(business: BusinessEntity): CanonicalBusiness {
     assetValue,
     consolidatesOtherBusinesses: false,
     source: "generic-state",
+    sectorLabel: String(business.sector).replace(/_/g, " "),
   });
 }
 

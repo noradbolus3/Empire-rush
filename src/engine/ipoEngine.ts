@@ -1,7 +1,7 @@
 import { BusinessEntity, ExpansionData, RetailData } from '../types/business';
 import { Asset } from '../types/ipoAssets';
 import { IPOEligibility, IPOListing } from '../types/ipo';
-import { IPO_MAX_NET_WORTH_PROCEEDS_MULTIPLE, IPO_MIN_NET_WORTH, IPO_MIN_VALUATION } from './economyPlan';
+import { IPO_MAX_NET_WORTH_PROCEEDS_MULTIPLE, IPO_MIN_NET_WORTH, IPO_MIN_OPERATING_ASSETS, IPO_MIN_VALUATION } from './economyPlan';
 
 export const IPO_PUBLIC_OFFERING_PERCENT = 0.2;
 export const IPO_MAX_VALUATION_TO_NET_WORTH_MULTIPLE = 4;
@@ -61,6 +61,7 @@ export function getIPOEligibility(business: BusinessEntity, existingListing: IPO
   if (!business.isAcquired) return { eligible: false, valuation, reason: 'Acquire and operate this company before taking it public.' };
   if (existingListing?.companyId === business.id && existingListing.stage === 'public') return { eligible: false, valuation, reason: 'This company is already listed on the public exchange.' };
   if (playerNetWorth < IPO_MIN_NET_WORTH) return { eligible: false, valuation, reason: `Reach ${formatMoney(IPO_MIN_NET_WORTH)} net worth to unlock the IPO window.` };
+  if (operatingAssetBase(business) < IPO_MIN_OPERATING_ASSETS) return { eligible: false, valuation, reason: `This company is too small to list. Grow it to ${formatMoney(IPO_MIN_OPERATING_ASSETS)} in operating assets (now ${formatMoney(operatingAssetBase(business))}) before an IPO.` };
   if (valuation < IPO_MIN_VALUATION) return { eligible: false, valuation, reason: `Reach ${formatMoney(IPO_MIN_VALUATION)} valuation to unlock an IPO.` };
   return { eligible: true, valuation, reason: 'IPO window open. Sell a minority stake and raise growth capital.' };
 }

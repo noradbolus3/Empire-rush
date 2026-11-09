@@ -21,7 +21,7 @@ import {
 import { formatCurrency } from "../../utils/formatCurrency";
 import IPOLaunchModal from "../../components/modals/IPOLaunchModal";
 import { IPOListing } from "../../types/ipo";
-import { IPO_MIN_VALUATION } from "../../engine/ipoEngine";
+import { getIPOEligibility } from "../../engine/ipoEngine";
 import type { BankLedgerEntry } from "../../types/bank";
 import { normalizeBusinessLevel } from "../../engine/businessLevels";
 import ConstructionCompanyScreen from "./ConstructionCompanyScreen";
@@ -172,7 +172,7 @@ export function BusinessMasterHubScreen({
               <Text style={styles.profitUnit}>per hour</Text>
             </View>
           </View>
-          {companyListing?.stage === "public" || netWorth >= IPO_MIN_VALUATION ? (
+          {companyListing?.stage === "public" || getIPOEligibility(business, companyListing, netWorth).eligible ? (
             <View style={styles.ipoCard}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.ipoTitle}>
@@ -189,7 +189,7 @@ export function BusinessMasterHubScreen({
               </Pressable>
             </View>
           ) : (
-            <Text style={styles.ipoLine}>IPO unlocks at {formatCurrency(IPO_MIN_VALUATION)} net worth · {formatCurrency(Math.max(0, IPO_MIN_VALUATION - netWorth))} to go</Text>
+            <Text style={styles.ipoLine}>{getIPOEligibility(business, companyListing, netWorth).reason}</Text>
           )}
           <ScrollView
             horizontal

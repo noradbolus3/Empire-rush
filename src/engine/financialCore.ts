@@ -210,6 +210,12 @@ function loanParts(state: FinancialGameState, timestamp: number) {
   );
 }
 
+/** Steady-state hourly net: ignores amounts already accrued for the next settlement. */
+export function projectHourlyNet(state: FinancialGameState): number {
+  const registry = getBusinessRegistry(state).map((b) => ({ ...b, pendingSettlementAmount: 0 }));
+  return settleHour({ ...state, businessRegistry: registry }).projectedHourlyNet;
+}
+
 export function settleHour(state: FinancialGameState): SettlementResult {
   const timestamp = state.systemTimeMs;
   const revenue = businessRevenue(state);

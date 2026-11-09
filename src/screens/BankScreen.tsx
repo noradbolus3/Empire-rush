@@ -89,13 +89,9 @@ const bankingVisuals = {
 } as const;
 const tabs = [
   { id: "home", label: "Bank Home" },
-  { id: "setup", label: "Setup & HQ" },
   { id: "accounts", label: "Accounts" },
   { id: "loans", label: "Loans" },
-  { id: "operations", label: "Operations" },
-  { id: "branches", label: "Branches" },
   { id: "investors", label: "Investors" },
-  { id: "enterprise", label: "Enterprise" },
   { id: "credit", label: "Credit" },
   { id: "deposits", label: "Deposits" },
   { id: "insurance", label: "Insurance" },

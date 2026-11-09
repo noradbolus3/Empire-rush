@@ -11,6 +11,7 @@ import type { BusinessEntity } from '../types/business';
 import type { PortfolioPoint } from '../types/market';
 import type { FounderProfile } from './FirstLaunchOnboarding';
 import type { CanonicalBusiness } from '../engine/canonicalBusinessRegistry';
+import { getBusinessDisplayMeta } from '../data/businessDisplayCatalog';
 import { selectHomePortfolioBusinesses } from '../engine/homePortfolio';
 
 type BadgeItem = { id: number; amount: number; lane: number };
@@ -303,7 +304,7 @@ function CompanyPreview({ business, onPress }: { business: BusinessEntity | Cano
   const canonical = 'kind' in business;
   const name = business.name;
   const owned = canonical ? business.owned : business.isAcquired;
-  const sector = canonical ? business.kind : business.sector.replace('_', ' ');
+  const sector = canonical ? (business.sectorLabel || getBusinessDisplayMeta(business.kind).shortLabel) : business.sector.replace('_', ' ');
   const hourlyNet = canonical ? business.hourlyNet : business.hourlyNetProfit;
   const hint = canonical
     ? `${business.operating ? 'Operating' : 'Owned'} · ${formatCurrency(business.assetValue)} value`
