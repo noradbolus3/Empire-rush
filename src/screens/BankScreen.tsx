@@ -956,8 +956,8 @@ function Inspector({
         {entries.length ? (
           entries.map((entry: any) => (
             <Text key={entry.id} style={styles.muted}>
-              {entry.amount >= 0 ? "+" : ""}
-              {money(entry.amount)} · {entry.label}
+              {entry.amount < 0 ? "-" : "+"}
+              {money(Math.abs(entry.amount))} · {entry.label}
             </Text>
           ))
         ) : (
@@ -1669,6 +1669,10 @@ function History({ state, ledger, search, setSearch }: any) {
         }))}
         selectedId={category}
         onSelect={setCategory}
+        chipStyle={styles.smallChip}
+        activeStyle={styles.smallChipActive}
+        textStyle={styles.smallChipText}
+        activeTextStyle={styles.tabTextActive}
       />
       <Card
         title="MONTHLY STATEMENT"
@@ -1678,11 +1682,11 @@ function History({ state, ledger, search, setSearch }: any) {
         entries.map((entry: any) => (
           <View key={entry.id} style={styles.listCard}>
             <View style={styles.rowBetween}>
-              <Text style={styles.cardTitle}>{entry.label}</Text>
+              <Text style={[styles.cardTitle, { flex: 1, minWidth: 0 }]} numberOfLines={2}>{entry.label}</Text>
               <Text
                 style={[
                   styles.value,
-                  { color: entry.amount < 0 ? C.red : C.green },
+                  { color: entry.amount < 0 ? C.red : C.green, flexShrink: 0 },
                 ]}
               >
                 {entry.amount < 0 ? "-" : "+"}
@@ -1690,7 +1694,7 @@ function History({ state, ledger, search, setSearch }: any) {
               </Text>
             </View>
             <Text style={styles.muted}>
-              {entry.kind} · {fmtDate(entry.timestamp)} · {entry.detail}
+              {entry.kind} · {fmtDate(entry.timestamp)} · {String(entry.detail || "").replace(/_/g, " ")}
             </Text>
           </View>
         ))
