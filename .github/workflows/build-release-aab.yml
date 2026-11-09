@@ -22,12 +22,12 @@ jobs:
       - name: Checkout approved onboarding and dashboard source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          ref: 3b382e48c32f8be0c4060b1296060bec2986a7e3
+          ref: 0d196d45bd5352c9c0f45d4148586d1a7c310382
           fetch-depth: 1
 
       - name: Verify approved source commit
         env:
-          EXPECTED_COMMIT: 3b382e48c32f8be0c4060b1296060bec2986a7e3
+          EXPECTED_COMMIT: 0d196d45bd5352c9c0f45d4148586d1a7c310382
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$EXPECTED_COMMIT"
@@ -292,7 +292,7 @@ jobs:
 
       - name: Verify AAB, package ID, signing certificate, and source commit
         env:
-          EXPECTED_COMMIT: 3b382e48c32f8be0c4060b1296060bec2986a7e3
+          EXPECTED_COMMIT: 0d196d45bd5352c9c0f45d4148586d1a7c310382
           EXPECTED_PACKAGE_ID: com.empirerush.tycoon
         run: |
           set -euo pipefail
