@@ -413,6 +413,18 @@ export default function BankScreen({
               : round === "IPO"
                 ? 12
                 : 10;
+    const roundLabel = round.replace(/_/g, " ");
+    if (state.investors.some((item) => item.round === round))
+      return Alert.alert(
+        "ROUND ALREADY FUNDED",
+        `You have already closed a ${roundLabel} round. Pick the next round on the funding ladder.`,
+      );
+    const requiredPreMoney = Math.round(amount / (equity / 100) - amount);
+    if (companyValue < requiredPreMoney)
+      return Alert.alert(
+        "VALUATION TOO LOW",
+        `Investors need a company valuation of at least ${money(requiredPreMoney)} to fund a ${roundLabel} round of ${money(amount)} for ${equity}% equity.\n\nYour company is worth ${money(companyValue)}. Buy and grow businesses first.`,
+      );
     const allocated = state.investors.reduce(
       (sum, item) => sum + item.equityPercent,
       0,
@@ -424,7 +436,7 @@ export default function BankScreen({
       );
     Alert.alert(
       "TERM SHEET READY",
-      `${round.replace("_", " ")} · ${instrument}\nAsk: ${money(amount)}\nPre-money: ${money(companyValue)}\nEquity: ${equity}%`,
+      `${roundLabel} · ${String(instrument).replace(/_/g, " ")}\nAsk: ${money(amount)}\nPre-money: ${money(companyValue)}\nEquity: ${equity}%`,
       [
         { text: "Reject", style: "cancel" },
         {
@@ -1031,9 +1043,7 @@ function BankHome({
           label="INTEREST EARNED"
           value={money(state.totalInterestEarned)}
         />
-        <View style={styles.metricGrid}>
         <Metric label="COMPANY VALUE" value={money(companyValue)} />
-        </View>
       </View>
       <Card
         title="MARKET EVENT"
@@ -1370,7 +1380,8 @@ function Investors({ netWorth, companyValue, state, onPitch }: any) {
       </Text>
       <ChipRow
  flush
-        items={roundNames.map((id) => ({ id, label: id.replace("_", " ") }))}
+        wrap
+        items={roundNames.map((id) => ({ id, label: id.replace(/_/g, " ") }))}
         selectedId={round}
         onSelect={(id) => setRound(id as InvestorRound)}
         chipStyle={styles.smallChip}
@@ -1380,7 +1391,8 @@ function Investors({ netWorth, companyValue, state, onPitch }: any) {
       />
       <ChipRow
  flush
-        items={instruments.map((id) => ({ id, label: id.replace("_", " ") }))}
+        wrap
+        items={instruments.map((id) => ({ id, label: id.replace(/_/g, " ") }))}
         selectedId={instrument}
         onSelect={(id) => setInstrument(id as InvestorInstrument)}
         chipStyle={styles.smallChip}

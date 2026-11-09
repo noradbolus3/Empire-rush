@@ -1642,10 +1642,17 @@ function AppContent() {
             )}
             <View style={styles.headerIdentityCopy}>
               <Text maxFontSizeMultiplier={1.1} style={styles.brand} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.82}>BUILDBOSS</Text>
-              <Text maxFontSizeMultiplier={1.1} style={styles.companyIdentity} numberOfLines={1}>
-                {founderProfile?.companyName ? `${founderProfile.companyName} · ` : ""}
-                {formatSystemDateTime(systemTimeMs)}
-              </Text>
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                {founderProfile?.companyName ? (
+                  <Text maxFontSizeMultiplier={1.1} style={[styles.companyIdentity, { flexShrink: 1 }]} numberOfLines={1}>
+                    {founderProfile.companyName}
+                  </Text>
+                ) : null}
+                <Text maxFontSizeMultiplier={1.1} style={[styles.companyIdentity, { flexShrink: 0 }]} numberOfLines={1}>
+                  {founderProfile?.companyName ? " · " : ""}
+                  {formatSystemDateTime(systemTimeMs)}
+                </Text>
+              </View>
             </View>
           </View>
           <View style={styles.headerStats}>

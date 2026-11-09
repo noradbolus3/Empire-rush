@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
 import { designSystem } from '../theme/designSystem';
 
 type Chip = { id: string; label: string };
@@ -15,9 +15,21 @@ type Props = {
   accessibilityLabel?: string;
   scrollRef?: React.RefObject<ScrollView | null>;
   flush?: boolean;
+  wrap?: boolean;
 };
 
-export function ChipRow({ items, selectedId, onSelect, activeStyle, activeTextStyle, chipStyle, textStyle, accessibilityLabel, scrollRef, flush }: Props) {
+export function ChipRow({ items, selectedId, onSelect, activeStyle, activeTextStyle, chipStyle, textStyle, accessibilityLabel, scrollRef, flush, wrap }: Props) {
+  if (wrap) {
+    return (
+      <View style={styles.wrap} accessibilityLabel={accessibilityLabel}>
+        {items.map(item => (
+          <Pressable key={item.id} onPress={() => onSelect(item.id)} style={[styles.chip, chipStyle, selectedId === item.id && activeStyle]}>
+            <Text style={[styles.text, textStyle, selectedId === item.id && activeTextStyle]} numberOfLines={1}>{item.label}</Text>
+          </Pressable>
+        ))}
+      </View>
+    );
+  }
   return (
     <ScrollView
       ref={scrollRef}
@@ -46,6 +58,7 @@ const styles = StyleSheet.create({
   row: { flexGrow: 0, flexShrink: 0 },
   content: { alignItems: 'center', gap: designSystem.spacing.compact, paddingHorizontal: designSystem.spacing.screen },
   flush: { paddingHorizontal: 0 },
+  wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: designSystem.spacing.compact },
   chip: { height: 42, minWidth: 72, paddingHorizontal: 14, borderRadius: designSystem.radius.control, alignItems: 'center', justifyContent: 'center' },
   text: { fontSize: 10, fontWeight: '900', textAlign: 'center' },
 });
