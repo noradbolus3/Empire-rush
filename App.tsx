@@ -1636,19 +1636,24 @@ function AppContent() {
               />
             )}
             <View style={styles.headerIdentityCopy}>
-              <Text style={styles.brand} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.82}>BUILDBOSS</Text>
-              {founderProfile?.companyName && (
-                <Text style={styles.companyIdentity} numberOfLines={1}>
-                  {founderProfile.companyName}
-                </Text>
-              )}
-            <Text style={styles.simClock}>
-              {formatSystemDateTime(systemTimeMs)}
-            </Text>
+              <Text maxFontSizeMultiplier={1.1} style={styles.brand} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.82}>BUILDBOSS</Text>
+              <Text maxFontSizeMultiplier={1.1} style={styles.companyIdentity} numberOfLines={1}>
+                {founderProfile?.companyName ? `${founderProfile.companyName} · ` : ""}
+                {formatSystemDateTime(systemTimeMs)}
+              </Text>
             </View>
           </View>
           <View style={styles.headerStats}>
-            <Text style={styles.headerCash} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.78}>{money(cash)}</Text>
+            <View style={styles.headerCashRow}>
+              <Text maxFontSizeMultiplier={1.1} style={styles.headerCash} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.78}>{money(cash)}</Text>
+              <Pressable
+                onPress={() => setSettingsOpen(true)}
+                accessibilityLabel="Open settings"
+                hitSlop={10}
+              >
+                <Text style={styles.settingsGlyph}>⚙</Text>
+              </Pressable>
+            </View>
             <Pressable onPress={() => setEarningsModal(true)}>
               <Animated.View
                 style={[
@@ -1669,32 +1674,21 @@ function AppContent() {
                   },
                 ]}
               >
-                <Text style={styles.epsText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.72}>
-                  +{money(projectedHourlyIncome)} / hr projected
+                <Text maxFontSizeMultiplier={1.1} style={styles.epsText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.72}>
+                  {businessProfit > 0
+                    ? `+${money(projectedHourlyIncome)}/hr · ${nextSettlementCountdown}`
+                    : "Start a business to earn"}
                 </Text>
               </Animated.View>
             </Pressable>
-            <Text style={styles.settlementHint} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.72}>
-              {businessProfit > 0
-                ? `NEXT SETTLEMENT · ${nextSettlementCountdown}`
-                : "NO PASSIVE INCOME · START A BUSINESS"}
-            </Text>
-            <View style={styles.headerActions}>
-              <Text style={styles.muted} numberOfLines={1}>
-                {isOnline && !clockTampered
-                  ? "ONLINE · LIVE TICKS"
-                  : "OFFLINE · LOCAL TICKS"}
+            {!(isOnline && !clockTampered) && (
+              <Text maxFontSizeMultiplier={1.1} style={styles.settlementHint} numberOfLines={1}>
+                OFFLINE · LOCAL TICKS
               </Text>
-              <Pressable
-                onPress={() => setSettingsOpen(true)}
-                accessibilityLabel="Open settings"
-              >
-                <Text style={styles.settingsGlyph}>⚙</Text>
-              </Pressable>
-            </View>
+            )}
           </View>
         </View>
-        {headline && (
+        {headline && !/net \$0\.00/.test(headline) && (
           <View style={styles.news}>
             <Text style={styles.newsTag}>BREAKING</Text>
             <Text style={styles.newsText} numberOfLines={1} ellipsizeMode="tail">
@@ -2161,20 +2155,19 @@ function Nav({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
           style={({ pressed }) => [
             styles.navItem,
             tab === key && styles.navOn,
-            key === "empire" && styles.navCenter,
             pressed && { transform: [{ scale: 0.94 }] },
           ]}
         >
           <Text
+            maxFontSizeMultiplier={1.1}
             style={[
               styles.navIcon,
               tab === key && styles.navIconOn,
-              key === "empire" && styles.navCenterIcon,
             ]}
           >
             {icon}
           </Text>
-          <Text style={[styles.navLabel, tab === key && styles.navLabelOn]}>
+          <Text maxFontSizeMultiplier={1.1} numberOfLines={1} style={[styles.navLabel, tab === key && styles.navLabelOn]}>
             {label}
           </Text>
         </Pressable>
@@ -2240,10 +2233,11 @@ const styles = StyleSheet.create({
   },
   headerIdentity: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 1, paddingRight: 8 },
   headerIdentityCopy: { flex: 1, minWidth: 0 },
-  headerStats: { width: "46%", maxWidth: 190, minWidth: 145, alignItems: "flex-end", flexShrink: 0 },
-  headerLogo: { width: 24, height: 24, borderRadius: 7, borderWidth: 1, borderColor: C.slate },
-  brand: { color: C.green, fontSize: 18, fontWeight: "900", letterSpacing: 1.8 },
-  companyIdentity: { color: C.text, fontSize: 8, fontWeight: "800", maxWidth: 170, marginTop: 0 },
+  headerStats: { maxWidth: "58%", minWidth: 130, alignItems: "flex-end", flexShrink: 0 },
+  headerCashRow: { flexDirection: "row", alignItems: "center", gap: 8, maxWidth: "100%" },
+  headerLogo: { width: 30, height: 30, borderRadius: 8, borderWidth: 1, borderColor: C.slate },
+  brand: { color: C.green, fontSize: 16, fontWeight: "900", letterSpacing: 1.4 },
+  companyIdentity: { color: C.muted, fontSize: 10, fontWeight: "700", marginTop: 1 },
   simClock: {
     color: "#64748B",
     fontSize: 9,
@@ -2252,11 +2246,11 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   micro: { color: C.muted, fontSize: 8, letterSpacing: 1, marginTop: 3 },
-  headerCash: { color: C.text, fontWeight: "900", fontSize: 17, maxWidth: "100%" },
+  headerCash: { color: C.text, fontWeight: "900", fontSize: 18, flexShrink: 1 },
   headerActions: { flexDirection: "row", alignItems: "center", gap: 8 },
-  settingsGlyph: { color: C.cyan, fontSize: 17 },
-  epsBadge: { alignSelf: "flex-end", marginTop: 2 },
-  epsText: { color: C.green, fontSize: 12, fontWeight: "800" },
+  settingsGlyph: { color: C.cyan, fontSize: 18 },
+  epsBadge: { alignSelf: "flex-end", marginTop: 1 },
+  epsText: { color: C.green, fontSize: 11, fontWeight: "800" },
   settlementHint: { maxWidth: "100%",
     color: C.muted,
     fontSize: 9,
@@ -2619,37 +2613,26 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: 54,
+    height: 58,
     backgroundColor: C.panel,
     borderTopWidth: 1,
     borderTopColor: C.slate,
     flexDirection: "row",
-    paddingVertical: 1,
+    paddingVertical: 4,
     paddingHorizontal: 6,
+    gap: 2,
   },
   navItem: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 1,
-    borderRadius: 9,
+    paddingVertical: 2,
+    borderRadius: 12,
   },
-  navCenter: {
-    backgroundColor: C.green,
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    marginTop: -10,
-    borderWidth: 4,
-    borderColor: C.bg,
-    justifyContent: "center",
-    alignSelf: "center",
-  },
-  navCenterIcon: { color: C.bg, fontSize: 22 },
   navOn: { backgroundColor: C.panel2 },
-  navIcon: { color: C.muted, fontSize: 18 },
+  navIcon: { color: C.muted, fontSize: 19 },
   navIconOn: { color: C.green },
-  navLabel: { color: C.muted, fontSize: 8, fontWeight: "900", marginTop: 3 },
+  navLabel: { color: C.muted, fontSize: 9, fontWeight: "900", marginTop: 2, letterSpacing: 0.2 },
   navLabelOn: { color: C.text },
   modalShade: {
     flex: 1,

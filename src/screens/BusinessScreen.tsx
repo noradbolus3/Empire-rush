@@ -234,6 +234,7 @@ function BusinessScreenContent({
   const [spaceOpen, setSpaceOpen] = useState(false);
   const [holdingOpen, setHoldingOpen] = useState(false);
   const [registrationId, setRegistrationId] = useState<string | null>(null);
+  const [showLocked, setShowLocked] = useState(false);
   const celebratedRef = useRef("");
   const selected = useMemo(
     () =>
@@ -566,17 +567,48 @@ function BusinessScreenContent({
     if (source) setRegistrationId(source.id);
   };
   const ownedRows = portfolioRows.filter((record) => portfolioStatus(record, businesses, netWorth) === "owned");
-  const availableRows = portfolioRows.filter((record) => portfolioStatus(record, businesses, netWorth) === "available");
-  const lockedRows = portfolioRows.filter((record) => portfolioStatus(record, businesses, netWorth) === "locked");
+  const entryCostOf = (record: CanonicalBusiness) =>
+    Math.max(0, getBusinessDisplayMeta(record.kind).charterCost || record.assetValue);
+  const availableRows = portfolioRows
+    .filter((record) => portfolioStatus(record, businesses, netWorth) === "available")
+    .sort((a, b) => {
+      const aOk = entryCostOf(a) <= cash ? 0 : 1;
+      const bOk = entryCostOf(b) <= cash ? 0 : 1;
+      return aOk - bOk || entryCostOf(a) - entryCostOf(b);
+    });
+  const lockedRows = portfolioRows
+    .filter((record) => portfolioStatus(record, businesses, netWorth) === "locked")
+    .sort(
+      (a, b) =>
+        portfolioUnlockShortfall(a, businesses, netWorth) -
+        portfolioUnlockShortfall(b, businesses, netWorth),
+    );
+  const starterCopy = (record: CanonicalBusiness): { categoryLabel?: string; tagline?: string } => {
+    if (record.kind !== "generic") return {};
+    const byName: Record<string, { categoryLabel: string; tagline: string }> = {
+      "Copper & Bloom Market": { categoryLabel: "RETAIL", tagline: "Stock shelves and sell units for daily margin." },
+      "Neon Mile Fleet": { categoryLabel: "MOBILITY", tagline: "Grow a vehicle fleet with steady ride income." },
+      "Banking Company": { categoryLabel: "FINANCE", tagline: "Hold deposits and earn from lending spreads." },
+      "Harborlight Properties": { categoryLabel: "REAL ESTATE", tagline: "Collect rent from a growing property portfolio." },
+      "Sunward Gridworks": { categoryLabel: "ENERGY", tagline: "Build power capacity and sell steady output." },
+      "Northstar Therapeutics": { categoryLabel: "HEALTHCARE", tagline: "Fund research and license new treatments." },
+      "Signal & Story Studios": { categoryLabel: "MEDIA", tagline: "Produce content and earn from audiences." },
+    };
+    return byName[record.name] ?? {};
+  };
   const nextMove = bestAffordable
-    ? `Start ${bestAffordable.item.name} · ~${Math.max(1, Math.ceil(bestAffordable.cost / bestAffordable.hourly))} settlements to pay back at +${formatCurrency(bestAffordable.hourly)}/hr`
+    ? (() => {
+        const hours = Math.max(1, Math.ceil(bestAffordable.cost / bestAffordable.hourly));
+        return `Start ${bestAffordable.item.name} · pays back in ~${hours} hr at +${formatCurrency(bestAffordable.hourly)}/hr`;
+      })()
     : (() => {
         const next = opportunities[0];
         const shortfall = next ? Math.max(0, next.cost - cash) : 0;
         const rate = Math.max(0, netIncomePerHour);
-        const settlements =
-          rate > 0 ? Math.max(1, Math.ceil(shortfall / rate)) : "—";
-        return `affordable in ~${settlements} settlements at +${formatCurrency(rate)}/hr`;
+        if (!next) return "Earn cash to unlock your next business.";
+        if (rate <= 0) return `Save ${formatCurrency(shortfall)} more to start ${next.item.name}.`;
+        const hours = Math.max(1, Math.ceil(shortfall / rate));
+        return `${next.item.name} is affordable in ~${hours} hr at +${formatCurrency(rate)}/hr`;
       })();
   if (factoryOpen)
     return (
@@ -863,46 +895,47 @@ function BusinessScreenContent({
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.content}
         >
-          <View style={styles.commandLine}>
-            <Text style={styles.commandEyebrow}>FOUNDER COMMAND DECK</Text>
-            <Text style={styles.commandValue}>
-              Net worth {formatCurrency(netWorth)} · {activeCount} active
-            </Text>
-          </View>
-          <View style={styles.summaryStrip}>
-            <SummaryMetric label="CASH" value={formatCurrency(cash)} />
-            <SummaryMetric
-              label="NET / HR"
-              value={formatCurrency(netIncomePerHour)}
-            />
-            <SummaryMetric
-              label="COMPANIES"
-              value={`${activeCount} / ${canonicalRegistry.length}`}
-            />
-          </View>
-          <View style={styles.sectionHead}>
-            <View style={styles.sectionHeadCopy}>
-              <Text style={styles.sectionEyebrow}>BUSINESS PORTFOLIO</Text>
-              <Text style={styles.sectionTitle}>One empire, one source of truth</Text>
+          <View style={styles.goalHeroCard}>
+            <View style={styles.goalHeroTop}>
+              <View style={styles.goalHeroCopy}>
+                <Text maxFontSizeMultiplier={1.15} style={styles.goalEyebrow}>NEXT GOAL</Text>
+                <Text maxFontSizeMultiplier={1.15} style={styles.goalHeroTitle} numberOfLines={2}>
+                  {nextUnlock ? `Unlock ${nextUnlock.name}` : "Become a national conglomerate"}
+                </Text>
+              </View>
+              <Text maxFontSizeMultiplier={1.15} style={styles.goalPercent}>{Math.round(progress * 100)}%</Text>
             </View>
-            <Text style={styles.sectionCount}>{portfolioRows.length} ROUTES</Text>
+            <View style={styles.goalTrack}>
+              <View style={[styles.goalFill, { width: `${progress * 100}%` }]} />
+            </View>
+            <View style={styles.goalBottom}>
+              <Text maxFontSizeMultiplier={1.15} style={styles.goalHeroSmall}>Net worth {formatCurrency(netWorth)}</Text>
+              <Text maxFontSizeMultiplier={1.15} style={styles.goalHeroSmall}>Goal {formatCurrency(nextGoal)}</Text>
+            </View>
+            <Text maxFontSizeMultiplier={1.15} style={styles.goalHeroMove} numberOfLines={3}>➜ {nextMove}</Text>
           </View>
-          <Text style={styles.portfolioIntro}>Owned, available and locked companies are sourced from the canonical registry. Specialized companies keep their own engines and open through the same portfolio route.</Text>
           <View style={styles.portfolioGroup}>
-            <Text style={styles.portfolioGroupTitle}>OWNED · {ownedRows.length}</Text>
+            <Text maxFontSizeMultiplier={1.15} style={styles.portfolioGroupTitle}>
+              YOUR BUSINESSES · {ownedRows.length}
+            </Text>
             {ownedRows.map((record) => (
               <BusinessPortfolioCard
                 key={`owned-${record.id}`}
                 record={record}
                 display={getBusinessDisplayMeta(record.kind)}
                 status="owned"
+                {...starterCopy(record)}
                 onPress={() => openPortfolioRecord(record)}
               />
             ))}
-            {ownedRows.length === 0 && <Text style={styles.emptyCompanies}>No owned companies yet. Start with an available opportunity below.</Text>}
+            {ownedRows.length === 0 && (
+              <Text maxFontSizeMultiplier={1.15} style={styles.emptyCompanies}>
+                You don't own a business yet. Pick one below to start earning.
+              </Text>
+            )}
           </View>
           <View style={styles.portfolioGroup}>
-            <Text style={styles.portfolioGroupTitle}>AVAILABLE · {availableRows.length}</Text>
+            <Text maxFontSizeMultiplier={1.15} style={styles.portfolioGroupTitle}>START A BUSINESS · {availableRows.length}</Text>
             {availableRows.map((record) => {
               return (
                 <BusinessPortfolioCard
@@ -910,6 +943,8 @@ function BusinessScreenContent({
                   record={record}
                   display={getBusinessDisplayMeta(record.kind)}
                   status="available"
+                  cash={cash}
+                  {...starterCopy(record)}
                   actionLabel={record.source === "generic-state" ? "INCORPORATE" : "START"}
                   onPress={() => openPortfolioRecord(record)}
                   unlockShortfall={portfolioUnlockShortfall(record, businesses, netWorth)}
@@ -919,14 +954,28 @@ function BusinessScreenContent({
           </View>
           {lockedRows.length > 0 && (
             <View style={styles.portfolioGroup}>
-              <Text style={styles.portfolioGroupTitle}>LOCKED · {lockedRows.length}</Text>
-              {lockedRows.map((record) => {
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ expanded: showLocked }}
+                onPress={() => setShowLocked((value) => !value)}
+                style={styles.lockedToggle}
+              >
+                <Text maxFontSizeMultiplier={1.15} style={styles.lockedToggleTitle}>
+                  LOCKED · {lockedRows.length}
+                </Text>
+                <Text maxFontSizeMultiplier={1.15} style={styles.lockedToggleAction}>
+                  {showLocked ? "HIDE ▴" : "SHOW ▾"}
+                </Text>
+              </Pressable>
+              {showLocked && lockedRows.map((record) => {
                 return (
                   <BusinessPortfolioCard
                     key={`locked-${record.id}`}
                     record={record}
                     display={getBusinessDisplayMeta(record.kind)}
                     status="locked"
+                    netWorth={netWorth}
+                    {...starterCopy(record)}
                     unlockShortfall={portfolioUnlockShortfall(record, businesses, netWorth)}
                   />
                 );
@@ -957,48 +1006,6 @@ function BusinessScreenContent({
               </Pressable>
             </View>
           )}
-          <View style={styles.nextMoveCard}>
-            <Text style={styles.goalEyebrow}>NEXT BEST MOVE</Text>
-            <Text style={styles.nextMoveText}>{nextMove}</Text>
-          </View>
-          <View style={styles.goalCard}>
-            <View style={styles.goalTop}>
-              <View>
-                <Text style={styles.goalEyebrow}>NEXT MILESTONE</Text>
-                <Text style={styles.goalTitle}>
-                  {nextUnlock
-                    ? `Unlock ${nextUnlock.name}`
-                    : "Become a national conglomerate"}
-                </Text>
-              </View>
-              <Text style={styles.goalPercent}>
-                {Math.round(progress * 100)}%
-              </Text>
-            </View>
-            <View style={styles.goalTrack}>
-              <View
-                style={[styles.goalFill, { width: `${progress * 100}%` }]}
-              />
-            </View>
-            <View style={styles.goalBottom}>
-              <Text style={styles.goalText}>
-                {formatCurrency(netWorth)} current
-              </Text>
-              <Text style={styles.goalText}>
-                Goal {formatCurrency(nextGoal)}
-              </Text>
-            </View>
-          </View>
-          <View style={styles.tip}>
-            <Text style={styles.tipIcon}>✦</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.tipTitle}>PLAY THE LONG GAME</Text>
-              <Text style={styles.tipCopy}>
-                Every business unlocks a new cashflow loop. Reinvest earnings to
-                reach the next tier faster.
-              </Text>
-            </View>
-          </View>
         </ScrollView>
         <BusinessRegistrationModal
           visible={Boolean(registrationTarget)}
@@ -1011,14 +1018,7 @@ function BusinessScreenContent({
     </View>
   );
 }
-function SummaryMetric({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.summaryMetric}>
-      <Text style={styles.summaryLabel}>{label}</Text>
-      <Text style={styles.summaryValue}>{value}</Text>
-    </View>
-  );
-}
+
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   errorBoundary: {
@@ -1045,8 +1045,8 @@ const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
     paddingHorizontal: 16,
-    paddingTop: 4,
-    paddingBottom: 144,
+    paddingTop: 8,
+    paddingBottom: 96,
   },
   factoryCard: {
     backgroundColor: "#FFFFFF",
@@ -1639,7 +1639,34 @@ const styles = StyleSheet.create({
   },
   portfolioIntro: { color: C.muted, fontSize: 12, lineHeight: 18, marginBottom: 14 },
   portfolioGroup: { marginBottom: 12 },
-  portfolioGroupTitle: { color: C.muted, fontSize: 10, fontWeight: "900", letterSpacing: 1.1, marginBottom: 8 },
+  portfolioGroupTitle: { color: "#4A5968", fontSize: 12, fontWeight: "900", letterSpacing: 0.9, marginBottom: 8 },
+  goalHeroCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#B9D2F5",
+    padding: 14,
+    marginBottom: 14,
+  },
+  goalHeroTop: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
+  goalHeroCopy: { flex: 1, minWidth: 0 },
+  goalHeroTitle: { color: C.ink, fontSize: 16, lineHeight: 21, fontWeight: "900", marginTop: 3 },
+  goalHeroSmall: { color: "#5A6B7C", fontSize: 11, fontWeight: "700" },
+  goalHeroMove: { color: "#1E7A57", fontSize: 12, lineHeight: 17, fontWeight: "800", marginTop: 10 },
+  lockedToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    minHeight: 44,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: "#EEF2F7",
+    borderWidth: 1,
+    borderColor: "#D5DEE8",
+    marginBottom: 8,
+  },
+  lockedToggleTitle: { color: "#4A5968", fontSize: 12, fontWeight: "900", letterSpacing: 0.9 },
+  lockedToggleAction: { color: "#2E6BC4", fontSize: 12, fontWeight: "900", letterSpacing: 0.6 },
   sectionCount: {
     color: C.cyan,
     fontSize: 8,

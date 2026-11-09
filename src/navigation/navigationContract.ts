@@ -15,7 +15,7 @@ export const APP_TABS: readonly AppTabDefinition[] = [
   { id: "bank", icon: "▥", label: "BANK", accessibilityLabel: "Open Founder Bank" },
 ];
 
-export const BOTTOM_NAV_HEIGHT = 54;
+export const BOTTOM_NAV_HEIGHT = 58;
 export const SCREEN_BOTTOM_PADDING = BOTTOM_NAV_HEIGHT + 24;
 export const BUSINESS_BACK_LABEL = "‹ BUSINESS PORTFOLIO";
 export const FOUNDER_BANK_LABEL = "FOUNDER BANK";
