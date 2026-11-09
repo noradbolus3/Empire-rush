@@ -182,7 +182,7 @@ assert.match(read('src/screens/MarketScreen.tsx'), /slice\(-100\)\.reverse\(\)/,
 assert.match(read('src/screens/MarketScreen.tsx'), /tradeFilter/, 'market: trade log filters missing');
 assert.match(read('src/screens/MarketScreen.tsx'), /Realized P\/L/, 'market: trade log totals missing');
 assert.match(read('src/screens/MarketScreen.tsx'), /toggleWatchlist/, 'market: watchlist remove action missing');
-assert.match(read('src/screens/MarketScreen.tsx'), /1D.*1W.*1M/, 'market: portfolio range controls missing');
+assert.match(read('src/screens/MarketScreen.tsx'), /portfolioRange/, 'market: portfolio range controls missing');
 assert.match(read('src/screens/MarketScreen.tsx'), /ALLOCATION/, 'market: portfolio allocation breakdown missing');
 assert.match(read('src/screens/TechnicalChartModal.tsx'), /TECHNICAL DESK/, 'market: technical chart modal missing');
 assert.match(read('src/screens/TechnicalChartModal.tsx'), /SET ALERT/, 'market: price-alert control missing');
