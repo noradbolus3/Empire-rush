@@ -65,7 +65,9 @@ import {
   formatSettlementCountdown,
   settlementCountdownMs,
 } from "./src/engine/settlementEngine";
-import { showTestRewardedAd } from "./src/services/rewardedAds";
+import { initAds, showAdsPrivacyOptions, showRewardedAd } from "./src/services/rewardedAds";
+import { connectBilling, loadPrices, restorePurchases, startPurchase, startPurchaseListeners } from "./src/services/billing";
+import type { ProductId } from "./src/config/monetization";
 import {
   syncBankNotifications,
   syncFounderReminder,
@@ -121,7 +123,6 @@ import { Asset, Holding } from "./src/types/marketAsset";
 import { processQuarterlyDividends } from "./src/engine/dividendEngine";
 import FirstLaunchOnboarding, {
   FounderProfile,
-  getCompanyLogoSource,
 } from "./src/screens/FirstLaunchOnboarding";
 import {
   applyScheduledEvent,
@@ -390,6 +391,9 @@ function AppContent() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [adFree, setAdFree] = useState(false);
   const [multiplier, setMultiplier] = useState(1);
+  const [executiveBoost, setExecutiveBoost] = useState(false);
+  const [storePrices, setStorePrices] = useState<Partial<Record<ProductId, string>>>({});
+  const incomeMultiplier = multiplier * (executiveBoost ? 1.25 : 1);
   const [tapBoostUntil, setTapBoostUntil] = useState(0);
   const [earningsModal, setEarningsModal] = useState(false);
   const [incomeEvents, setIncomeEvents] = useState<IncomeEvent[]>([]);
@@ -442,8 +446,8 @@ function AppContent() {
     [businessRegistry],
   );
   const profit = useMemo(
-    () => businessProfit * multiplier,
-    [businessProfit, multiplier],
+    () => businessProfit * incomeMultiplier,
+    [businessProfit, incomeMultiplier],
   );
   const pushIncomeEvent = useCallback((event: IncomeEventInput) => {
     if (!Number.isFinite(event.amount) || event.amount <= 0) return;
@@ -531,7 +535,7 @@ function AppContent() {
       },
       businessRegistry,
       systemTimeMs,
-      multiplier,
+      multiplier: incomeMultiplier,
     }),
     [
       cash,
@@ -555,7 +559,7 @@ function AppContent() {
       holding,
       businessRegistry,
       systemTimeMs,
-      multiplier,
+      incomeMultiplier,
     ],
   );
   const netWorth = useMemo(
@@ -790,13 +794,8 @@ function AppContent() {
           setOnboardingComplete(
             saved?.onboardingComplete === true || isLegacyProgressSave,
           );
-          setMultiplier(
-            saved?.multiplier === 1.5
-              ? 1.5
-              : saved?.multiplier === 1.25
-                ? 1.25
-                : 1,
-          );
+          setExecutiveBoost(saved?.executiveBoost === true || saved?.multiplier === 1.25);
+          setMultiplier(saved?.multiplier === 1.5 ? 1.5 : 1);
           setLastSaved(Date.now());
         } catch {
           setCash(STARTING_CASH);
@@ -875,6 +874,7 @@ function AppContent() {
       ipoListings,
       progression,
       adFree,
+      executiveBoost,
       multiplier,
       hapticsEnabled,
       soundEnabled,
@@ -901,6 +901,7 @@ function AppContent() {
     ipoListings,
     progression,
     adFree,
+    executiveBoost,
     multiplier,
     hapticsEnabled,
     soundEnabled,
@@ -1184,6 +1185,38 @@ function AppContent() {
     const timer = setInterval(saveNow, 5000);
     return () => clearInterval(timer);
   }, [loaded]);
+  const grantProduct = useCallback((id: ProductId) => {
+    if (id === "ad_free") setAdFree(true);
+    if (id === "executive_boost") setExecutiveBoost(true);
+  }, []);
+  useEffect(() => {
+    if (!loaded) return;
+    void initAds();
+    let alive = true;
+    let unsubscribe: () => void = () => undefined;
+    void (async () => {
+      const available = await connectBilling();
+      if (!available || !alive) return;
+      unsubscribe = startPurchaseListeners(grantProduct, (message) => Alert.alert("Google Play", message));
+      const prices = await loadPrices();
+      if (alive) setStorePrices(prices);
+      await restorePurchases(grantProduct);
+    })();
+    return () => { alive = false; unsubscribe(); };
+  }, [loaded, grantProduct]);
+  const buyProduct = useCallback(async (id: ProductId) => {
+    const started = await startPurchase(id);
+    if (started === "failed") Alert.alert("Google Play unavailable", "Billing is unavailable or this product is not configured. You were not charged.");
+  }, []);
+  const restoreProducts = useCallback(async () => {
+    const restored = await restorePurchases(grantProduct);
+    if (restored === null) Alert.alert("Restore unavailable", "Google Play Billing is unavailable right now. Please try again later.");
+    else Alert.alert("Restore purchases", restored.length ? "Your previous purchase has been restored." : "No purchases were found for this Google account.");
+  }, [grantProduct]);
+  const runRewarded = useCallback((reward: () => void) => {
+    if (adFree) { reward(); return Promise.resolve(true); }
+    return showRewardedAd(reward);
+  }, [adFree]);
   const watchBoost = useCallback(() => {
     if (!businesses.some((item) => item.isAcquired)) {
       Alert.alert(
@@ -1192,7 +1225,7 @@ function AppContent() {
       );
       return;
     }
-    void showTestRewardedAd(() => {
+    void runRewarded(() => {
       setMultiplier(2);
       Alert.alert(
         "BOOST ACTIVE",
@@ -1207,10 +1240,10 @@ function AppContent() {
       if (!success)
         Alert.alert(
           "AD UNAVAILABLE",
-          "The test reward ad could not load. No boost was applied.",
+          "The reward ad could not load. No boost was applied.",
         );
     });
-  }, [businesses]);
+  }, [businesses, runRewarded]);
   const watchTapBoost = useCallback(() => {
     if (!businesses.some((item) => item.isAcquired)) {
       Alert.alert(
@@ -1219,7 +1252,7 @@ function AppContent() {
       );
       return;
     }
-    void showTestRewardedAd(() => {
+    void runRewarded(() => {
       setTapBoostUntil(startTapBoost(systemTimeMs));
       Alert.alert(
         "TAP OVERDRIVE ACTIVE",
@@ -1229,10 +1262,10 @@ function AppContent() {
       if (!success)
         Alert.alert(
           "AD UNAVAILABLE",
-          "The test reward ad could not load. No tap boost was applied.",
+          "The reward ad could not load. No tap boost was applied.",
         );
     });
-  }, [businesses, systemTimeMs]);
+  }, [businesses, systemTimeMs, runRewarded]);
   const haptic = (success = false) => {
     if (!hapticsEnabled) return Promise.resolve();
     return success
@@ -1637,7 +1670,7 @@ function AppContent() {
           <View style={styles.headerIdentity}>
             {founderProfile && (
               <Image
-                source={getCompanyLogoSource(founderProfile.logoKey, founderProfile.customLogoUri)}
+                source={require("./assets/buildboss-app-icon.png")} accessibilityLabel="BuildBoss app icon"
                 style={styles.headerLogo}
               />
             )}
@@ -1780,7 +1813,7 @@ function AppContent() {
                 setFocusRetail(true);
                 setTab("business");
               }}
-              onOpenStore={() => setStoreOpen(true)}
+              onOpenStore={() => { setStoreOpen(true); void loadPrices().then(setStorePrices); }}
               onOpenEarnings={() => setEarningsModal(true)}
             />
           ) : (
@@ -1876,9 +1909,10 @@ function AppContent() {
           visible={storeOpen}
           close={() => setStoreOpen(false)}
           adFree={adFree}
-          setAdFree={setAdFree}
-          setCash={guardedSetCash}
-          setMultiplier={setMultiplier}
+          executiveBoost={executiveBoost}
+          prices={storePrices}
+          onBuy={(id) => void buyProduct(id)}
+          onRestore={() => void restoreProducts()}
         />
         <SettingsModal
           visible={settingsOpen}
@@ -1891,6 +1925,7 @@ function AppContent() {
           setNotificationsEnabled={setNotificationsEnabled}
           buildVersion={BUILD_VERSION}
           buildCommit={BUILD_COMMIT}
+          onAdPrivacyOptions={() => { void showAdsPrivacyOptions().then((shown) => { if (!shown) Alert.alert("Ad privacy options", "No Google ad privacy form is currently available for this device or region."); }); }}
         />
         <IPOAnnouncementModal
           visible={Boolean(ipoCelebration)}
@@ -1903,125 +1938,32 @@ function AppContent() {
 }
 
 function StoreModal({
-  visible,
-  close,
-  adFree,
-  setAdFree,
-  setCash,
-  setMultiplier,
+  visible, close, adFree, executiveBoost, prices, onBuy, onRestore,
 }: {
-  visible: boolean;
-  close: () => void;
-  adFree: boolean;
-  setAdFree: (v: boolean) => void;
-  setCash: React.Dispatch<React.SetStateAction<number>>;
-  setMultiplier: React.Dispatch<React.SetStateAction<number>>;
+  visible: boolean; close: () => void; adFree: boolean; executiveBoost: boolean;
+  prices: Partial<Record<ProductId, string>>; onBuy: (id: ProductId) => void; onRestore: () => void;
 }) {
-  const packs = [
-    {
-      id: "starter_stock",
-      title: "Starter Stock Credit",
-      price: "$0.49",
-      reward: "One free 500-unit Retail stock order",
-      consumable: true,
-      action: () =>
-        Alert.alert(
-          "STOCK CREDIT",
-          "Your next Retail stock order is covered. Open Copper & Bloom to place it.",
-        ),
-    },
-    {
-      id: "ad_free",
-      title: "Ad-Free License",
-      price: "$1.99",
-      reward: "Removes interstitial ads",
-      consumable: false,
-      action: () => setAdFree(true),
-    },
-    {
-      id: "executive_boost",
-      title: "Executive Boost",
-      price: "$4.99",
-      reward: "+25% passive income",
-      consumable: false,
-      action: () => setMultiplier(1.25),
-    },
-    {
-      id: "roadshow_pass",
-      title: "IPO Roadshow Pass",
-      price: "$9.99",
-      reward: "IPO celebration visuals and milestone badge",
-      consumable: false,
-      action: () =>
-        Alert.alert(
-          "ROADSHOW PASS",
-          "Your next IPO will receive the full public-company celebration treatment.",
-        ),
-    },
+  const packs: Array<{ id: ProductId; title: string; reward: string; owned: boolean }> = [
+    { id: "ad_free", title: "Ad-Free Boosts", reward: "Claim both opt-in video boosts without watching ads. One-time purchase.", owned: adFree },
+    { id: "executive_boost", title: "Executive Boost", reward: "+25% passive income permanently. Stacks with temporary boosts. One-time purchase.", owned: executiveBoost },
   ];
-  const buy = async (pack: (typeof packs)[number]) => {
-    try {
-      const iap = require("react-native-iap");
-      const purchaseResult = await iap.requestPurchase({
-        request: { android: { skus: [pack.id] }, ios: { sku: pack.id } },
-      });
-      const purchase = Array.isArray(purchaseResult)
-        ? purchaseResult[0]
-        : purchaseResult;
-      if (!purchase) throw new Error("Purchase was not confirmed");
-      pack.action();
-      if (iap.finishTransaction)
-        await iap.finishTransaction({
-          purchase,
-          isConsumable: pack.consumable,
-        });
-      Alert.alert(
-        "Purchase complete",
-        `${pack.title} reward added to your account.`,
-      );
-    } catch {
-      Alert.alert(
-        "Purchase not completed",
-        "No charge was made and no reward was applied. Try again when Play Billing is available.",
-      );
-    }
-  };
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={close}
-    >
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={close}>
       <View style={styles.modalShade}>
         <View style={styles.store}>
           <View style={styles.storeHead}>
-            <View>
-              <Text style={styles.eyebrow}>BANK / STORE</Text>
-              <Text style={styles.h1}>Founder packs</Text>
-            </View>
-            <Pressable onPress={close}>
-              <Text style={styles.close}>×</Text>
-            </Pressable>
+            <View><Text style={styles.eyebrow}>BUILDBOSS · STORE</Text><Text style={styles.h1}>Founder upgrades</Text></View>
+            <Pressable onPress={close}><Text style={styles.close}>×</Text></Pressable>
           </View>
-          {packs.map((pack) => (
-            <Pressable
-              key={pack.id}
-              onPress={() => void buy(pack)}
-              style={styles.pack}
-            >
-              <View>
-                <Text style={styles.packTitle}>{pack.title}</Text>
-                <Text style={styles.muted}>{pack.reward}</Text>
-              </View>
-              <Text style={styles.packPrice}>{pack.price}</Text>
-            </Pressable>
-          ))}
-          <Text style={styles.storeNote}>
-            {adFree
-              ? "Ad-Free License active"
-              : "Rewards apply only after Play Billing confirms payment."}
-          </Text>
+          {packs.map((pack) => {
+            const price = prices[pack.id];
+            return <Pressable key={pack.id} disabled={pack.owned || !price} onPress={() => onBuy(pack.id)} style={[styles.pack, (pack.owned || !price) && { opacity: 0.6 }]}>
+              <View style={{ flex: 1, paddingRight: 10 }}><Text style={styles.packTitle}>{pack.title}</Text><Text style={styles.muted}>{pack.reward}</Text></View>
+              <Text style={styles.packPrice}>{pack.owned ? "OWNED" : price ?? "Unavailable"}</Text>
+            </Pressable>;
+          })}
+          <Pressable onPress={onRestore} style={styles.legalButton}><Text style={styles.legalButtonText}>RESTORE PURCHASES</Text></Pressable>
+          <Text style={styles.storeNote}>Prices are provided by Google Play for your account and region. Purchases are optional; all core gameplay is free. Rewards unlock only after Google confirms payment.</Text>
         </View>
       </View>
     </Modal>
@@ -2038,6 +1980,7 @@ function SettingsModal({
   setNotificationsEnabled,
   buildVersion,
   buildCommit,
+  onAdPrivacyOptions,
 }: {
   visible: boolean;
   close: () => void;
@@ -2049,6 +1992,7 @@ function SettingsModal({
   setNotificationsEnabled: (value: boolean) => void;
   buildVersion: string;
   buildCommit: string;
+  onAdPrivacyOptions: () => void;
 }) {
   return (
     <Modal
@@ -2096,21 +2040,27 @@ function SettingsModal({
             <Text style={styles.muted}>Source commit {buildCommit}</Text>
             <Text style={styles.packTitle}>PRIVACY & TERMS</Text>
             <Text style={styles.muted}>
-              BuildBoss is a single-player business simulation. We do not
-              require an account to save local progress. Purchases are processed
-              by the platform store; no payment details are handled by the game.
+              BuildBoss is a single-player simulation. Progress is stored on
+              this device. Optional reward ads are served by Google AdMob; we
+              request non-personalized ads, but Google may process device and ad
+              data under its own privacy policy. Purchases are processed by the
+              platform store. All companies, stocks and crypto here are fictional
+              simulations with no cash value; this is not financial advice.
             </Text>
           </View>
           <Pressable
             onPress={() =>
               Alert.alert(
                 "Privacy policy",
-                "Local game progress is stored on this device. Optional purchase processing is handled by Google Play or the App Store.",
+                "Progress is stored on this device. Rewarded ads use Google AdMob and non-personalized requests; Google may process device and ad data. Purchases are processed by Google Play. For ad settings, visit Android Settings > Google > Ads. A public privacy policy is still required before store release.",
               )
             }
             style={styles.legalButton}
           >
             <Text style={styles.legalButtonText}>VIEW PRIVACY SUMMARY</Text>
+          </Pressable>
+          <Pressable onPress={onAdPrivacyOptions} style={styles.legalButton}>
+            <Text style={styles.legalButtonText}>MANAGE AD PRIVACY OPTIONS</Text>
           </Pressable>
           <Pressable
             onPress={() =>
