@@ -1031,7 +1031,9 @@ function BankHome({
           label="INTEREST EARNED"
           value={money(state.totalInterestEarned)}
         />
+        <View style={styles.metricGrid}>
         <Metric label="COMPANY VALUE" value={money(companyValue)} />
+        </View>
       </View>
       <Card
         title="MARKET EVENT"
@@ -1412,9 +1414,11 @@ function Credit({ state, onStateChange, onCelebrate }: any) {
         title="FACTOR WEIGHTS"
         copy={`Payment history 35% · Utilization 30% · History length 15% · New credit 10% · Credit mix 10%`}
       />
+      <View style={styles.metricGrid}>
       <Metric label="PAYMENT HISTORY" value={`${score.paymentHistory}/100`} />
       <Metric label="UTILIZATION" value={`${score.utilization}/100`} />
       <Metric label="HISTORY LENGTH" value={`${score.historyLength}/100`} />
+      </View>
       <Card
         title="IMPROVEMENT TIPS"
         copy="Pay on time, keep utilization below 30%, avoid rapid hard inquiries, and maintain a mix of responsible accounts."
@@ -1547,12 +1551,14 @@ function TaxPanel({
         title="US TAX DESK"
         copy="Progressive federal brackets, state tax, payroll/FICA, capital gains, deductions, quarterly estimates, and Tax Day are simulated."
       />
+      <View style={styles.metricGrid}>
       <Metric label="FEDERAL" value={money(tax.federal)} />
       <Metric label="STATE" value={money(tax.state)} />
       <Metric label="PAYROLL/FICA" value={money(tax.payroll)} />
       <Metric label="CAPITAL GAINS" value={money(tax.capitalGains)} />
       <Metric label="SHORT-TERM GAINS / LOSSES" value={money(shortTerm)} />
       <Metric label="LONG-TERM GAINS / LOSSES" value={money(longTerm)} />
+      </View>
       <Text style={styles.muted}>
         Estimated total due: {money(total)} · deductions include interest,
         depreciation, and expenses.
