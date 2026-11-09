@@ -1210,6 +1210,7 @@ function Loans({
       </Text>
       <View style={styles.loanRail}>
         <ChipRow
+ flush
           items={loanProducts.map((id) => ({
             id,
             label: loanProduct(id).name,
@@ -1232,6 +1233,7 @@ function Loans({
           {money(selected === "SBA_MICROLOAN" ? 50000 : spec.max)} · collateral
           required: {spec.collateral}
         </Text>
+        <Text style={styles.muted}>LOAN AMOUNT (USD)</Text>
         <TextInput
           value={amount}
           onChangeText={setAmount}
@@ -1242,6 +1244,7 @@ function Loans({
         />
         <Text style={styles.muted}>TERM</Text>
         <ChipRow
+ flush
           items={terms.map((item) => ({
             id: String(item),
             label: `${item} months`,
@@ -1257,6 +1260,7 @@ function Loans({
           <>
             <Text style={styles.muted}>PLEDGED COLLATERAL</Text>
             <ChipRow
+ flush
               items={availableCollateral.map((item: any) => ({
                 id: item.id,
                 label: `${item.name} · ${money(item.value)}`,
@@ -1363,6 +1367,7 @@ function Investors({ netWorth, companyValue, state, onPitch }: any) {
         FUNDING LADDER · {state.investors.length + 1}
       </Text>
       <ChipRow
+ flush
         items={roundNames.map((id) => ({ id, label: id.replace("_", " ") }))}
         selectedId={round}
         onSelect={(id) => setRound(id as InvestorRound)}
@@ -1372,6 +1377,7 @@ function Investors({ netWorth, companyValue, state, onPitch }: any) {
         activeTextStyle={styles.tabTextActive}
       />
       <ChipRow
+ flush
         items={instruments.map((id) => ({ id, label: id.replace("_", " ") }))}
         selectedId={instrument}
         onSelect={(id) => setInstrument(id as InvestorInstrument)}
@@ -1650,6 +1656,7 @@ function History({ state, ledger, search, setSearch }: any) {
         style={styles.input}
       />
       <ChipRow
+ flush
         items={categories.map((item) => ({
           id: item,
           label: item.toUpperCase(),
@@ -1733,6 +1740,7 @@ function TransferDialog({
           />
           <Text style={styles.muted}>From account</Text>
           <ChipRow
+ flush
             items={labels}
             selectedId={from}
             onSelect={(id) => setFrom(id)}
@@ -1743,6 +1751,7 @@ function TransferDialog({
           />
           <Text style={styles.muted}>To account</Text>
           <ChipRow
+ flush
             items={labels}
             selectedId={to}
             onSelect={(id) => setTo(id)}
@@ -1823,7 +1832,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   eyebrow: {
-    color: C.cyan,
+    color: "#4F7F92",
     fontSize: 9,
     fontWeight: "900",
     letterSpacing: 1.4,
@@ -1976,31 +1985,31 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   sectionTitle: {
-    color: C.cyan,
+    color: "#4F7F92",
     fontSize: 10,
     fontWeight: "900",
     letterSpacing: 1.2,
     marginTop: 5,
   },
   tabChip: {
-    minWidth: 104,
-    height: 42,
+    minWidth: 88,
+    height: 38,
     backgroundColor: C.panel,
     borderWidth: 1,
     borderColor: C.slate,
   },
-  tabChipActive: { backgroundColor: "#D9EAF7", borderColor: C.cyan },
-  tabText: { color: C.muted, fontSize: 10, fontWeight: "900" },
-  tabTextActive: { color: C.cyan, fontSize: 10, fontWeight: "900" },
+  tabChipActive: { backgroundColor: "#DCE9FB", borderColor: "#2563C9" },
+  tabText: { color: C.muted, fontSize: 11, fontWeight: "800" },
+  tabTextActive: { color: "#1E4FA8", fontSize: 11, fontWeight: "900" },
   smallChip: {
-    minWidth: 110,
-    height: 42,
+    minWidth: 0,
+    height: 36,
     backgroundColor: C.panel,
     borderWidth: 1,
     borderColor: C.slate,
   },
-  smallChipActive: { backgroundColor: "#D9EAF7", borderColor: C.green },
-  smallChipText: { color: C.muted, fontSize: 10, fontWeight: "800" },
+  smallChipActive: { backgroundColor: "#DCE9FB", borderColor: "#2563C9" },
+  smallChipText: { color: C.muted, fontSize: 11, fontWeight: "800" },
   listCard: {
     backgroundColor: C.panel,
     borderRadius: 12,
@@ -2049,7 +2058,7 @@ const styles = StyleSheet.create({
     padding: 12,
     gap: 6,
   },
-  previewTitle: { color: C.gold, fontSize: 9, fontWeight: "900" },
+  previewTitle: { color: "#8A6A10", fontSize: 9, fontWeight: "900" },
   previewLine: { color: C.muted, fontSize: 11 },
   chartRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   chartTrack: { flex: 1, height: 7, backgroundColor: C.slate, borderRadius: 4 },
