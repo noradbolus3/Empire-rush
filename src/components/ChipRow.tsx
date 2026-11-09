@@ -14,16 +14,17 @@ type Props = {
   textStyle?: StyleProp<TextStyle>;
   accessibilityLabel?: string;
   scrollRef?: React.RefObject<ScrollView | null>;
+  flush?: boolean;
 };
 
-export function ChipRow({ items, selectedId, onSelect, activeStyle, activeTextStyle, chipStyle, textStyle, accessibilityLabel, scrollRef }: Props) {
+export function ChipRow({ items, selectedId, onSelect, activeStyle, activeTextStyle, chipStyle, textStyle, accessibilityLabel, scrollRef, flush }: Props) {
   return (
     <ScrollView
       ref={scrollRef}
       horizontal
       showsHorizontalScrollIndicator={false}
       style={styles.row}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, flush && styles.flush]}
       accessibilityLabel={accessibilityLabel}
     >
       {items.map(item => (
@@ -44,6 +45,7 @@ export function ChipRow({ items, selectedId, onSelect, activeStyle, activeTextSt
 const styles = StyleSheet.create({
   row: { flexGrow: 0, flexShrink: 0 },
   content: { alignItems: 'center', gap: designSystem.spacing.compact, paddingHorizontal: designSystem.spacing.screen },
+  flush: { paddingHorizontal: 0 },
   chip: { height: 42, minWidth: 72, paddingHorizontal: 14, borderRadius: designSystem.radius.control, alignItems: 'center', justifyContent: 'center' },
   text: { fontSize: 10, fontWeight: '900', textAlign: 'center' },
 });

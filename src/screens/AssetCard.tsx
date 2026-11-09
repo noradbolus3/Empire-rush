@@ -10,69 +10,80 @@ export type AssetCardProps = {
   item: CollectionItem;
   owned: boolean;
   canAfford: boolean;
+  shortBy?: number;
   onAcquire: (item: CollectionItem) => void;
 };
 
-export function AssetCard({ item, owned, canAfford, onAcquire }: AssetCardProps) {
+export function AssetCard({ item, owned, canAfford, shortBy = 0, onAcquire }: AssetCardProps) {
   const [imageFailed, setImageFailed] = useState(false);
   return (
     <View style={styles.card}>
-      {item.image && !imageFailed ? (
-        <Image source={item.image} resizeMode="cover" style={styles.image} onError={() => setImageFailed(true)} />
-      ) : (
-        <View style={[styles.image, styles.imageUnavailable]}>
-          <Text style={styles.unavailableText}>IMAGE LOAD FAILED</Text>
-          <Text style={styles.assetError}>asset: {item.id}</Text>
+      <View style={styles.imageFrame}>
+        {item.image && !imageFailed ? (
+          <Image source={item.image} resizeMode="cover" style={styles.image} onError={() => setImageFailed(true)} />
+        ) : (
+          <View style={[styles.image, styles.imageUnavailable]}>
+            <Text style={styles.unavailableText}>IMAGE LOAD FAILED</Text>
+            <Text style={styles.assetError}>asset: {item.id}</Text>
+          </View>
+        )}
+        <View style={styles.imageShade}>
+          <Text style={styles.type}>{item.type.toUpperCase()}</Text>
+          <Text style={styles.prestige}>PRESTIGE +{item.prestige}</Text>
         </View>
-      )}
-      <View style={styles.imageShade}>
-        <Text style={styles.type}>{item.type.toUpperCase()}</Text>
-        <Text style={styles.prestige}>PRESTIGE +{item.prestige}</Text>
       </View>
       <View style={styles.body}>
-        <Text style={styles.name}>{item.name}</Text>
-        <Text style={styles.price}>{money(item.price)}</Text>
-        <View style={styles.metaRow}>
-          <Text style={styles.metaLabel}>UPKEEP</Text>
-          <Text style={styles.metaValue}>{money(item.upkeep)} / MO</Text>
+        <View style={styles.titleRow}>
+          <Text style={styles.name} numberOfLines={1}>{item.name}</Text>
+          <Text style={styles.price}>{money(item.price)}</Text>
         </View>
-        {owned ? (
-          <View style={styles.ownedPill}><Text style={styles.ownedText}>OWNED · ACTIVE PRESTIGE</Text></View>
-        ) : (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`Acquire ${item.name}`}
-            disabled={!canAfford}
-            onPress={() => onAcquire(item)}
-            style={({ pressed }) => [styles.acquire, !canAfford && styles.locked, pressed && styles.pressed]}
-          >
-            <Text style={styles.acquireText}>{canAfford ? 'ACQUIRE ASSET' : 'LOCKED · NEED MORE CASH'}</Text>
-          </Pressable>
-        )}
+        <View style={styles.actionRow}>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={styles.metaLabel}>UPKEEP</Text>
+            <Text style={styles.metaValue}>{money(item.upkeep)} / mo</Text>
+          </View>
+          {owned ? (
+            <View style={[styles.button, styles.ownedPill]}><Text style={styles.ownedText}>OWNED</Text></View>
+          ) : (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Acquire ${item.name}`}
+              disabled={!canAfford}
+              onPress={() => onAcquire(item)}
+              style={({ pressed }) => [styles.button, styles.acquire, !canAfford && styles.locked, pressed && styles.pressed]}
+            >
+              <Text style={[styles.acquireText, !canAfford && styles.lockedText]} numberOfLines={1}>{canAfford ? 'ACQUIRE' : shortBy > 0 ? `NEED ${money(shortBy)} MORE` : 'LOCKED'}</Text>
+            </Pressable>
+          )}
+        </View>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { backgroundColor: C.panel, borderRadius: 18, borderWidth: 1, borderColor: C.slate, overflow: 'hidden', marginBottom: 14 },
-  image: { width: '100%', height: 154, backgroundColor: C.panel2 },
-  imageUnavailable: { alignItems: 'center', justifyContent: 'center', borderBottomWidth: 1, borderBottomColor: C.slate },
+  card: { backgroundColor: C.panel, borderRadius: 16, borderWidth: 1, borderColor: C.slate, overflow: 'hidden', marginBottom: 10 },
+  imageFrame: { height: 128, overflow: 'hidden', backgroundColor: C.panel2 },
+  image: { width: '100%', height: 128, backgroundColor: C.panel2, transform: [{ scale: 1.1 }] },
+  imageUnavailable: { alignItems: 'center', justifyContent: 'center' },
   unavailableText: { color: C.muted, fontSize: 11, fontWeight: '900', letterSpacing: 1.2 },
   assetError: { color: C.muted, fontSize: 9, marginTop: 6 },
-  imageShade: { position: 'absolute', left: 0, right: 0, top: 124, minHeight: 30, paddingHorizontal: 12, paddingVertical: 7, backgroundColor: 'rgba(24,49,83,.78)', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  type: { color: C.cyan, fontSize: 9, fontWeight: '900', letterSpacing: 1.2 },
-  prestige: { color: C.gold, fontSize: 9, fontWeight: '900' },
-  body: { padding: 14 },
-  name: { color: C.text, fontSize: 18, fontWeight: '900' },
-  price: { color: C.gold, fontSize: 19, fontWeight: '900', marginTop: 5, marginBottom: 10 },
-  metaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 11, marginBottom: 11, borderBottomWidth: 1, borderBottomColor: C.slate },
-  metaLabel: { color: C.muted, fontSize: 10, fontWeight: '800', letterSpacing: 1 },
-  metaValue: { color: C.text, fontSize: 11, fontWeight: '800' },
-  ownedPill: { borderRadius: 10, paddingVertical: 11, alignItems: 'center', backgroundColor: '#E7F5EF', borderWidth: 1, borderColor: C.green },
-  ownedText: { color: C.green, fontSize: 10, fontWeight: '900', letterSpacing: .7 },
-  acquire: { backgroundColor: C.green, borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
-  locked: { backgroundColor: '#EEF1F4', borderWidth: 1, borderColor: C.slate },
+  imageShade: { position: 'absolute', left: 0, right: 0, bottom: 0, minHeight: 26, paddingHorizontal: 12, paddingVertical: 5, backgroundColor: 'rgba(16,37,68,.72)', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  type: { color: '#BFE9FF', fontSize: 9, fontWeight: '900', letterSpacing: 1.1 },
+  prestige: { color: '#FFD76A', fontSize: 9, fontWeight: '900' },
+  body: { paddingHorizontal: 12, paddingVertical: 10 },
+  titleRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 },
+  name: { flex: 1, color: C.text, fontSize: 16, fontWeight: '900' },
+  price: { color: '#9A7415', fontSize: 16, fontWeight: '900' },
+  actionRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8 },
+  metaLabel: { color: C.muted, fontSize: 9, fontWeight: '800', letterSpacing: 1 },
+  metaValue: { color: C.text, fontSize: 12, fontWeight: '800', marginTop: 1 },
+  button: { minWidth: 138, minHeight: 40, paddingHorizontal: 12, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  ownedPill: { backgroundColor: '#E7F5EF', borderWidth: 1, borderColor: C.green },
+  ownedText: { color: C.green, fontSize: 11, fontWeight: '900', letterSpacing: .7 },
+  acquire: { backgroundColor: '#2563C9' },
+  locked: { backgroundColor: '#EEF1F4', borderWidth: 1, borderColor: '#CBD6E2' },
   pressed: { opacity: .78, transform: [{ scale: .985 }] },
-  acquireText: { color: C.bg, fontSize: 10, fontWeight: '900' },
+  acquireText: { color: '#FFFFFF', fontSize: 11, fontWeight: '900' },
+  lockedText: { color: '#61758E' },
 });

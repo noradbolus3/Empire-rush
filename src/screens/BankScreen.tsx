@@ -614,11 +614,10 @@ export default function BankScreen({
   return (
     <View style={styles.root}>
       <View style={styles.moduleHead}>
-        <View>
-          <Text style={styles.eyebrow}>{FOUNDER_BANK_LABEL} · PERSONAL TREASURY</Text>
-          <Text style={styles.title}>{current}</Text>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={styles.title} numberOfLines={1}>{current}</Text>
+          <Text style={styles.eyebrow} numberOfLines={1}>{FOUNDER_BANK_LABEL} · PERSONAL TREASURY</Text>
         </View>
-        <Text style={styles.bankMark}>▥</Text>
       </View>
       <ChipRow
         items={tabs}
@@ -1817,8 +1816,8 @@ const styles = StyleSheet.create({
   root: { flex: 1, minHeight: 0, backgroundColor: C.bg },
   moduleHead: {
     paddingHorizontal: 18,
-    paddingTop: 10,
-    paddingBottom: 4,
+    paddingTop: 4,
+    paddingBottom: 2,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
@@ -1829,14 +1828,15 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     letterSpacing: 1.4,
   },
-  title: { color: C.text, fontSize: 25, fontWeight: "900", marginTop: 4 },
+  title: { color: C.text, fontSize: 21, fontWeight: "900" },
   bankMark: { color: C.green, fontSize: 32 },
   body: { flex: 1, minHeight: 0 },
   bodyContent: { paddingHorizontal: 18, paddingBottom: 96, gap: 10 },
-  screenGap: { height: 12 },
+  screenGap: { height: 6 },
   visualFrame: {
     marginHorizontal: 18,
-    height: 132,
+    marginBottom: 6,
+    height: 78,
     borderRadius: 16,
     overflow: "hidden",
     backgroundColor: C.panel2,
