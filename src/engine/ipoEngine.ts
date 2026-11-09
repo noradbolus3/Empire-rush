@@ -101,7 +101,7 @@ export function capIPOProceeds(listing: IPOListing, netWorth: number): IPOListin
 }
 
 export function listingToAsset(listing: IPOListing): Asset {
-  return { id: `ipo-${listing.companyId}`, symbol: listing.ticker, name: `${listing.companyName} · Class A`, kind: 'STOCK', price: listing.currentPrice, change: 0, dividend: 0, volatility: .018, history: listing.history.length ? listing.history : [listing.currentPrice], maxShares: listing.publicShares, isPlayerCompany: true };
+  return { id: `ipo-${listing.companyId}`, symbol: listing.ticker, name: `${listing.companyName} · Class A`, kind: 'STOCK', price: listing.currentPrice, change: 0, dividend: 0, volatility: .018, history: listing.history.length ? listing.history : [listing.currentPrice], maxShares: listing.publicShares, sharesOutstanding: listing.sharesOutstanding, founderShares: listing.founderShares, isPlayerCompany: true };
 }
 
 function formatMoney(value: number): string { return `$${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`; }

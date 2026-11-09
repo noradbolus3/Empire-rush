@@ -180,7 +180,7 @@ export function BusinessMasterHubScreen({
                 </Text>
                 <Text style={styles.ipoCopy}>
                   {companyListing?.stage === "public"
-                    ? `Raised ${formatCurrency(companyListing.capitalRaised)} · founders retain 80%`
+                    ? `Raised ${formatCurrency(companyListing.capitalRaised)} · you keep ${(companyListing.sharesOutstanding ? (companyListing.founderShares / companyListing.sharesOutstanding) * 100 : 80).toFixed(0)}% · public holds ${(companyListing.sharesOutstanding ? (companyListing.publicShares / companyListing.sharesOutstanding) * 100 : 20).toFixed(0)}%`
                     : "Sell a minority stake to raise growth capital."}
                 </Text>
               </View>

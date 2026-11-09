@@ -339,7 +339,7 @@ function BusinessScreenContent({
   );
   const openSportsClub = () => {
     if (sportsClub) return setSportsOpen(true);
-    const setupCost = 250000;
+    const setupCost = 4000000;
     if (cash < setupCost) {
       Alert.alert("SPORTS CLUB LOCKED", `Need ${formatCurrency(setupCost - cash)} more for the club charter and first season budget.`);
       return;
@@ -363,7 +363,7 @@ function BusinessScreenContent({
   };
   const openOilGas = () => {
     if (oilGas) return setOilGasOpen(true);
-    const setupCost = 400000;
+    const setupCost = 2000000;
     if (cash < setupCost) {
       Alert.alert("OIL & GAS LOCKED", `Need ${formatCurrency(setupCost - cash)} more for the energy charter and first field budget.`);
       return;
@@ -387,7 +387,7 @@ function BusinessScreenContent({
   };
   const openAirline = () => {
     if (airline) return setAirlineOpen(true);
-    const setupCost = 600000;
+    const setupCost = 8000000;
     if (cash < setupCost) {
       Alert.alert("AIRLINE LOCKED", `Need ${formatCurrency(setupCost - cash)} more for the air operator certificate and launch fleet.`);
       return;
@@ -411,7 +411,7 @@ function BusinessScreenContent({
   };
   const openHotel = () => {
     if (hotel) return setHotelOpen(true);
-    const setupCost = 420000;
+    const setupCost = 2500000;
     if (cash < setupCost) {
       Alert.alert("HOTEL LOCKED", `Need ${formatCurrency(setupCost - cash)} more for the property acquisition and opening team.`);
       return;
@@ -435,7 +435,7 @@ function BusinessScreenContent({
   };
   const openBlockchain = () => {
     if (blockchain) return setBlockchainOpen(true);
-    const setupCost = 300000;
+    const setupCost = 1200000;
     if (cash < setupCost) {
       Alert.alert("TECHNOLOGY LOCKED", `Need ${formatCurrency(setupCost - cash)} more for the infrastructure and research launch.`);
       return;
@@ -459,7 +459,7 @@ function BusinessScreenContent({
   };
   const openSpace = () => {
     if (space) return setSpaceOpen(true);
-    const setupCost = 850000;
+    const setupCost = 15000000;
     if (cash < setupCost) {
       Alert.alert("AEROSPACE LOCKED", `Need ${formatCurrency(setupCost - cash)} more for the launch program and engineering team.`);
       return;
@@ -483,7 +483,7 @@ function BusinessScreenContent({
   };
   const openHolding = () => {
     if (holding) return setHoldingOpen(true);
-    const setupCost = 1200000;
+    const setupCost = 30000000;
     if (cash < setupCost) {
       Alert.alert("HOLDING COMPANY LOCKED", `Need ${formatCurrency(setupCost - cash)} more for the corporate headquarters and group treasury.`);
       return;

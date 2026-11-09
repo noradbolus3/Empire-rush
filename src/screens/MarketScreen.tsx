@@ -1,3 +1,4 @@
+import { dividendPerShare } from "../engine/dividendEngine";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
@@ -136,12 +137,13 @@ export default function MarketScreen({
   const [tradeFilter, setTradeFilter] = useState<TradeFilter>("ALL");
   const [portfolioRange, setPortfolioRange] = useState<PortfolioRange>("1D");
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
+  const [chartAssetId, setChartAssetId] = useState<string | null>(null);
   const pulse = useRef(new Animated.Value(1)).current;
   const compact = width < 620;
   const displayKind = view === "CRYPTO" ? "CRYPTO" : view === "STOCKS" || view === "OVERVIEW" ? "STOCK" : undefined;
   const displayAssets = useMemo(() => displayKind ? assets.filter((asset) => asset.kind === displayKind) : assets, [assets, displayKind]);
   const marketPulse = useMemo(() => calculateMarketPulse(displayAssets), [displayAssets]);
-  const chartAsset = displayAssets[0];
+  const chartAsset = displayAssets.find((asset) => asset.id === chartAssetId) || displayAssets[0];
   const currentSelected = assets.find((asset) => asset.id === selectedAssetId) || displayAssets[0] || assets[0];
   const activeAlerts = priceAlerts.filter((alert) => alert.enabled);
 
@@ -191,17 +193,18 @@ export default function MarketScreen({
 
         {view === "OVERVIEW" && <View style={[styles.indexRow, compact && styles.indexRowCompact]}>{indexCards.map((item) => <IndexCard key={item.label} {...item} compact={compact} />)}</View>}
         {view === "NEWS" && <NewsPanel events={marketEventHistory} full />}
-        {view === "PORTFOLIO" && <PortfolioPanel summary={summary} allocation={allocation} points={rangePoints} range={portfolioRange} setRange={setPortfolioRange} rivalInvestors={playerRank} />}
+        {view === "PORTFOLIO" && <><PortfolioPanel summary={summary} allocation={allocation} points={rangePoints} range={portfolioRange} setRange={setPortfolioRange} rivalInvestors={playerRank} /><DividendPanel assets={assets} holdings={holdings} trades={tradeHistory} nowMs={systemTimeMs} /></>}
         {view === "HISTORY" && <TradeHistory trades={filteredTrades} filter={tradeFilter} setFilter={setTradeFilter} totals={tradeTotals} />}
 
         {(view === "OVERVIEW" || view === "STOCKS" || view === "CRYPTO" || view === "WATCHLIST") && <>
           {view !== "WATCHLIST" && <View style={[styles.mainGrid, compact && styles.stackGrid]}>
-            <Animated.View style={[styles.chartCard, { transform: [{ scale: pulse }] }]}><View style={styles.cardHeader}><View><Text style={styles.cardTitle}><Text style={styles.chartIcon}>▥</Text> {chartAsset?.name || (view === "CRYPTO" ? "Crypto Market" : "Stock Market")}</Text><View style={styles.chartValueRow}><Text style={styles.chartValue}>{short(chartAsset?.price || 0)}</Text><Text style={(chartAsset?.change || 0) >= 0 ? styles.positive : styles.negative}>{percent(chartAsset?.change || 0)}</Text></View></View><Text style={styles.liveTag}>● LIVE</Text></View><LiveChart asset={chartAsset} width={Math.max(240, width - 56)} /></Animated.View>
+            <Animated.View style={[styles.chartCard, { transform: [{ scale: pulse }] }]}><View style={styles.cardHeader}><View><Text style={styles.cardTitle}><Text style={styles.chartIcon}>▥</Text> {chartAsset?.name || (view === "CRYPTO" ? "Crypto Market" : "Stock Market")}</Text><View style={styles.chartValueRow}><Text style={styles.chartValue}>{short(chartAsset?.price || 0)}</Text><Text style={(chartAsset?.change || 0) >= 0 ? styles.positive : styles.negative}>{percent(chartAsset?.change || 0)}</Text></View></View><Text style={styles.liveTag}>● LIVE</Text></View><LiveChart asset={chartAsset} width={Math.max(240, width - 56)} /><ChartPicker assets={displayAssets} activeId={chartAsset?.id} onPick={setChartAssetId} /><AssetFacts asset={chartAsset} holding={chartAsset ? holdings[chartAsset.id] : undefined} /></Animated.View>
             {view === "OVERVIEW" && <NewsPanel events={marketEventHistory} compact />}
           </View>}
           {view !== "WATCHLIST" && <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll} contentContainerStyle={styles.filterScrollContent}>{(["all", "dividend", "cheap"] as Filter[]).map((value) => <Pressable key={value} onPress={() => setFilter(value)} style={[styles.filterButton, (filter === value || (value === "all" && (filter === "crypto" || filter === "watchlist"))) && styles.filterActive]}><Text style={[styles.filterText, (filter === value || (value === "all" && (filter === "crypto" || filter === "watchlist"))) && styles.filterTextActive]}>{value === "all" ? (view === "CRYPTO" ? "ALL COINS" : "ALL STOCKS") : value === "dividend" ? "PAYS DIVIDEND" : "UNDER $1,000"}</Text></Pressable>)}</ScrollView>}
           {!compact && <View style={styles.assetHeader}><Text style={[styles.headerCell, compact ? styles.headerCellCompactCompany : { flex: 1.8 }]}>COMPANY</Text><Text style={[styles.headerCell, compact && styles.headerCellCompact]}>PRICE</Text><Text style={[styles.headerCell, compact && styles.headerCellCompact]}>24H</Text><Text style={[styles.headerCell, compact && styles.headerCellCompact]}>CHART</Text><Text style={[styles.headerCell, compact && styles.headerCellCompact]}>ACTION</Text></View>}
           <View style={styles.assetList}>{tabAssets.length ? tabAssets.slice(0, view === "OVERVIEW" ? 8 : 50).map((asset) => <AssetRow key={asset.id} asset={asset} compact={compact} holding={holdings[asset.id]} cash={cash} watchlisted={watchlist.includes(asset.id)} onWatch={() => toggleWatchlist(asset.id)} onTrade={() => setSelectedAssetId(asset.id)} onLimit={onCreateLimitOrder} priceAlerts={priceAlerts} onCreateAlert={onCreatePriceAlert} />) : <View style={styles.empty}><Text style={styles.emptyTitle}>{view === "WATCHLIST" && !search.trim() ? "NOTHING TRACKED YET" : "NO MATCHING ASSETS"}</Text><Text style={styles.muted}>{view === "WATCHLIST" && !search.trim() ? "Tap the ☆ next to any stock or coin to follow its price here." : "Try another tab, filter or search term."}</Text></View>}</View>
+          {view === "OVERVIEW" && <DividendPanel assets={assets} holdings={holdings} trades={tradeHistory} nowMs={systemTimeMs} compact />}
           {view === "OVERVIEW" && <View style={[styles.bottomGrid, compact && styles.stackGrid]}><PortfolioPanel summary={summary} allocation={allocation} points={rangePoints} range={portfolioRange} setRange={setPortfolioRange} rivalInvestors={playerRank} compact /><QuickTrade asset={currentSelected} cash={cash} holding={currentSelected ? holdings[currentSelected.id] : undefined} onTrade={() => currentSelected && setSelectedAssetId(currentSelected.id)} /></View>}
         </>}
         {view === "WATCHLIST" && watchlist.length > 0 && <Text style={[styles.muted, { marginTop: 8 }]}>{watchlist.length} tracked · prices update every market tick</Text>}
@@ -261,7 +264,7 @@ function PortfolioPanel({ summary, allocation, points, range, setRange, rivalInv
 function Stat({ label, value, positive, compactValue = false }: { label: string; value: number; positive?: boolean; compactValue?: boolean }) { return <View style={styles.stat}><Text style={styles.statLabel}>{label}</Text><Text style={[compactValue ? styles.statSmallValue : styles.statValue, positive === undefined ? styles.navy : positive ? styles.positive : styles.negative]}>{short(value)}</Text></View>; }
 function QuickTrade({ asset, cash, holding, onTrade }: { asset?: Asset; cash: number; holding?: Holding; onTrade: () => void }) { return <View style={styles.quickCard}><Text style={styles.cardTitle}>⚡ Quick Trade</Text>{asset ? <><View style={styles.quickAsset}><View style={styles.symbolLogo}><Text style={styles.symbolText}>{asset.symbol.slice(0, 2)}</Text></View><View style={{ flex: 1 }}><Text style={styles.assetName}>{asset.name} ({asset.symbol})</Text><Text style={styles.assetMeta}>{holding?.shares || 0} {asset.kind === "CRYPTO" ? "units" : "shares"}</Text></View><View><Text style={styles.assetPrice}>{short(asset.price)}</Text><Text style={asset.change >= 0 ? styles.positive : styles.negative}>{percent(asset.change)}</Text></View></View><View style={styles.quickInfo}><Text style={styles.muted}>Cash available</Text><Text style={styles.navy}>{money(cash)}</Text></View><Pressable onPress={onTrade} style={styles.reviewButton}><Text style={styles.reviewButtonText}>Review Buy / Sell Order</Text></Pressable></> : <Text style={styles.muted}>Select an asset to trade.</Text>}</View>; }
 
-function TradeHistory({ trades, filter, setFilter, totals }: { trades: TradeRecord[]; filter: TradeFilter; setFilter: (filter: TradeFilter) => void; totals: { notional: number; realized: number } }) { return <View style={styles.historyCard}><View style={styles.cardHeader}><Text style={styles.cardTitle}>Trade History</Text><Text style={styles.muted}>{trades.length} entries</Text></View><View style={styles.filterRail}>{(["ALL", "BUY", "SELL", "LIMIT"] as TradeFilter[]).map((value) => <Pressable key={value} onPress={() => setFilter(value)} style={[styles.filterButton, filter === value && styles.filterActive]}><Text style={[styles.filterText, filter === value && styles.filterTextActive]}>{value}</Text></Pressable>)}</View><View style={styles.tradeTotals}><Text style={styles.muted}>Notional {short(totals.notional)}</Text><Text style={totals.realized >= 0 ? styles.positive : styles.negative}>Realized P/L {money(totals.realized)}</Text></View>{trades.length ? trades.slice(-100).reverse().map((record) => <View key={record.id} style={styles.historyRow}><Text style={record.side === "BUY" ? styles.positive : styles.negative}>{record.side}</Text><View style={{ flex: 1 }}><Text style={styles.assetName}>{record.name} · {record.quantity} {record.symbol}</Text><Text style={styles.muted}>{new Date(record.timestamp).toLocaleString()} · {money(record.price)} × {record.quantity}</Text></View><Text style={record.realizedPnl >= 0 ? styles.positive : styles.negative}>{record.side === "SELL" ? money(record.realizedPnl) : "—"}</Text></View>) : <Text style={styles.muted}>No trades yet. Completed orders will appear here.</Text>}</View>; }
+function TradeHistory({ trades, filter, setFilter, totals }: { trades: TradeRecord[]; filter: TradeFilter; setFilter: (filter: TradeFilter) => void; totals: { notional: number; realized: number } }) { return <View style={styles.historyCard}><View style={styles.cardHeader}><Text style={styles.cardTitle}>Trade History</Text><Text style={styles.muted}>{trades.length} entries</Text></View><View style={styles.filterRail}>{(["ALL", "BUY", "SELL", "LIMIT"] as TradeFilter[]).map((value) => <Pressable key={value} onPress={() => setFilter(value)} style={[styles.filterButton, filter === value && styles.filterActive]}><Text style={[styles.filterText, filter === value && styles.filterTextActive]}>{value}</Text></Pressable>)}</View><View style={styles.tradeTotals}><Text style={styles.muted}>Notional {short(totals.notional)}</Text><Text style={totals.realized >= 0 ? styles.positive : styles.negative}>Realized P/L {money(totals.realized)}</Text></View>{trades.length ? trades.slice(-100).reverse().map((record) => record.id.startsWith("dividend-") ? <View key={record.id} style={styles.historyRow}><Text style={styles.positive}>DIV</Text><View style={{ flex: 1 }}><Text style={styles.assetName}>{record.name} dividend</Text><Text style={styles.muted}>{new Date(record.timestamp).toLocaleDateString()} · {record.quantity} shares × {money(record.price)}</Text></View><Text style={styles.positive}>+{money(record.notional)}</Text></View> : <View key={record.id} style={styles.historyRow}><Text style={record.side === "BUY" ? styles.positive : styles.negative}>{record.side}</Text><View style={{ flex: 1 }}><Text style={styles.assetName}>{record.name} · {record.quantity} {record.symbol}</Text><Text style={styles.muted}>{new Date(record.timestamp).toLocaleString()} · {money(record.price)} × {record.quantity}</Text></View><Text style={record.realizedPnl >= 0 ? styles.positive : styles.negative}>{record.side === "SELL" ? money(record.realizedPnl) : "—"}</Text></View>) : <Text style={styles.muted}>No trades yet. Completed orders will appear here.</Text>}</View>; }
 
 function LimitOrderModal({ visible, asset, cash, holding, onClose, onSubmit }: { visible: boolean; asset: Asset; cash: number; holding?: Holding; onClose: () => void; onSubmit: (side: Side, quantity: number, price: number) => void }) { const [side, setSide] = useState<Side>("BUY"); const [quantity, setQuantity] = useState("1"); const [price, setPrice] = useState(asset.price.toFixed(2)); const safePrice = Number(price) || 0; const safeQuantity = asset.kind === "CRYPTO" ? Number(quantity) : Math.floor(Number(quantity)); const total = Number((safePrice * Math.max(0, safeQuantity)).toFixed(2)); const valid = safeQuantity > 0 && safePrice > 0 && (side === "BUY" ? total <= cash : Boolean(holding && safeQuantity <= holding.shares)); return <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}><View style={styles.modalShade}><View style={styles.modal}><View style={styles.modalHeader}><View><Text style={styles.sectionLabel}>LIMIT ORDER</Text><Text style={styles.modalTitle}>{asset.name} ({asset.symbol})</Text></View><Pressable onPress={onClose}><Text style={styles.close}>×</Text></Pressable></View><View style={styles.sideRow}><Pressable onPress={() => setSide("BUY")} style={[styles.sideButton, side === "BUY" && styles.sideBuy]}><Text style={styles.sideText}>BUY</Text></Pressable><Pressable onPress={() => setSide("SELL")} style={[styles.sideButton, side === "SELL" && styles.sideSell]}><Text style={styles.sideText}>SELL</Text></Pressable></View><Text style={styles.inputLabel}>QUANTITY</Text><TextInput value={quantity} onChangeText={setQuantity} keyboardType={asset.kind === "CRYPTO" ? "decimal-pad" : "number-pad"} style={styles.input} /><Text style={styles.inputLabel}>LIMIT PRICE</Text><TextInput value={price} onChangeText={setPrice} keyboardType="decimal-pad" style={styles.input} /><View style={styles.previewBox}><Text style={styles.sectionLabel}>ORDER PREVIEW</Text><Text style={styles.previewLine}>Quantity <Text style={styles.previewValue}>{safeQuantity}</Text></Text><Text style={styles.previewLine}>Limit price <Text style={styles.previewValue}>{money(safePrice)}</Text></Text><Text style={styles.previewLine}>Notional <Text style={styles.previewValue}>{money(total)}</Text></Text><Text style={styles.previewLine}>{side === "BUY" ? "Cash after fill" : "Cash after sale"} <Text style={styles.previewValue}>{money(side === "BUY" ? cash - total : cash + total)}</Text></Text></View><Pressable disabled={!valid} onPress={() => onSubmit(side, safeQuantity, safePrice)} style={[styles.reviewButton, !valid && styles.disabled]}><Text style={styles.reviewButtonText}>Place {side} Limit Order</Text></Pressable></View></View></Modal>; }
 
@@ -297,4 +300,81 @@ const styles = StyleSheet.create({
   rowC: { minHeight: 66, flexDirection: "row", alignItems: "center", gap: 6, paddingLeft: 10, paddingRight: 6, borderBottomWidth: 1, borderBottomColor: C.line }, rowCMain: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 9, paddingVertical: 8 }, rowCPrice: { alignItems: "flex-end", minWidth: 74 }, assetPriceC: { color: C.navy, fontSize: 13, fontWeight: "900" }, rowCAct: { alignItems: "center", gap: 3 }, tradeButtonC: { backgroundColor: C.blue, borderRadius: 8, minWidth: 58, height: 34, alignItems: "center", justifyContent: "center" }, limitLink: { color: C.blue, fontSize: 9, fontWeight: "800" }, starButtonC: { width: 30, height: 40, alignItems: "center", justifyContent: "center" },
   watchSummary: { backgroundColor: C.card, borderRadius: 14, padding: 18, borderWidth: 1, borderColor: C.line, marginBottom: 14 }, historyCard: { backgroundColor: C.card, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: C.line, marginBottom: 14 }, tradeTotals: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.line }, historyRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.line }, empty: { padding: 28, alignItems: "center" }, emptyTitle: { color: C.navy, fontSize: 15, fontWeight: "900", marginBottom: 6 }, muted: { color: C.muted, fontSize: 11, lineHeight: 16 }, positive: { color: C.green, fontWeight: "900" }, negative: { color: C.red, fontWeight: "900" }, flat: { color: C.muted, fontWeight: "800" },
   modalShade: { flex: 1, backgroundColor: "rgba(16,37,68,.42)", justifyContent: "flex-end" }, modal: { backgroundColor: C.card, borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 18, paddingBottom: 30 }, modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }, modalTitle: { color: C.navy, fontSize: 20, fontWeight: "900", marginTop: 4 }, close: { color: C.muted, fontSize: 30, lineHeight: 30 }, sideRow: { flexDirection: "row", gap: 8, marginTop: 16 }, sideButton: { flex: 1, height: 42, alignItems: "center", justifyContent: "center", borderRadius: 9, backgroundColor: "#EFF4F9" }, sideBuy: { backgroundColor: C.blue }, sideSell: { backgroundColor: "#FFECEF" }, sideText: { color: C.navy, fontWeight: "900" }, inputLabel: { color: C.muted, fontSize: 10, fontWeight: "900", marginTop: 14, marginBottom: 6 }, input: { height: 44, borderRadius: 9, borderWidth: 1, borderColor: C.line, paddingHorizontal: 12, color: C.navy, fontSize: 16, fontWeight: "800" }, quantityRail: { flexDirection: "row", flexWrap: "wrap", gap: 7, marginTop: 9 }, quantityButton: { minWidth: 48, paddingHorizontal: 9, height: 34, borderRadius: 8, backgroundColor: C.blueSoft, alignItems: "center", justifyContent: "center" }, quantityText: { color: C.blue, fontSize: 11, fontWeight: "900" }, previewBox: { backgroundColor: "#F4F8FC", borderRadius: 11, padding: 12, marginTop: 14 }, previewLine: { color: C.muted, fontSize: 12, paddingVertical: 3 }, previewValue: { color: C.navy, fontWeight: "900" },
+});
+
+const fmtInt = (n: number) => Math.round(n).toLocaleString("en-US");
+function ChartPicker({ assets, activeId, onPick }: { assets: Asset[]; activeId?: string; onPick: (id: string) => void }) {
+  if (assets.length < 2) return null;
+  return <ScrollView horizontal showsHorizontalScrollIndicator={false} style={xs.pickRail} contentContainerStyle={xs.pickContent}>
+    {assets.slice(0, 40).map((asset) => <Pressable key={asset.id} onPress={() => onPick(asset.id)} style={[xs.pickChip, asset.id === activeId && xs.pickChipOn]}><Text style={[xs.pickText, asset.id === activeId && xs.pickTextOn]}>{asset.symbol}</Text></Pressable>)}
+  </ScrollView>;
+}
+function AssetFacts({ asset, holding }: { asset?: Asset; holding?: Holding }) {
+  if (!asset) return null;
+  const perShare = dividendPerShare(asset);
+  const shares = Math.max(0, Number(holding?.shares || 0));
+  const own = asset.isPlayerCompany && asset.sharesOutstanding ? asset : undefined;
+  const outstanding = own?.sharesOutstanding || 0;
+  const float = own?.maxShares || 0;
+  const founder = own?.founderShares || 0;
+  return <View style={xs.facts}>
+    <View style={xs.factRow}><Text style={xs.factLabel}>Dividend</Text><Text style={xs.factValue}>{asset.kind === "CRYPTO" ? "Crypto pays none" : perShare > 0 ? `${asset.dividend.toFixed(2)}% yearly · ${money(perShare)}/share each quarter` : "No dividend"}</Text></View>
+    <View style={xs.factRow}><Text style={xs.factLabel}>You hold</Text><Text style={xs.factValue}>{shares > 0 ? `${fmtInt(shares)} ${asset.kind === "CRYPTO" ? "coins" : "shares"} · ${short(shares * asset.price)}` : "Nothing yet"}</Text></View>
+    {perShare > 0 && shares > 0 && <View style={xs.factRow}><Text style={xs.factLabel}>Your dividend</Text><Text style={[xs.factValue, xs.good]}>{money(shares * perShare)} per quarter</Text></View>}
+    {own && outstanding > 0 && <>
+      <View style={xs.factRow}><Text style={xs.factLabel}>Founder stake</Text><Text style={xs.factValue}>{fmtInt(founder)} shares · {((founder / outstanding) * 100).toFixed(1)}%</Text></View>
+      <View style={xs.factRow}><Text style={xs.factLabel}>Public float</Text><Text style={xs.factValue}>{fmtInt(float)} shares · {((float / outstanding) * 100).toFixed(1)}%</Text></View>
+      <View style={xs.factRow}><Text style={xs.factLabel}>Bought by you</Text><Text style={xs.factValue}>{fmtInt(shares)} shares · {((shares / outstanding) * 100).toFixed(2)}% of company · {float > 0 ? ((shares / float) * 100).toFixed(1) : "0.0"}% of float</Text></View>
+      <View style={xs.factRow}><Text style={xs.factLabel}>Left to buy</Text><Text style={xs.factValue}>{fmtInt(Math.max(0, float - shares))} shares</Text></View>
+    </>}
+  </View>;
+}
+function nextQuarterStart(nowMs: number): Date {
+  const d = new Date(nowMs);
+  const q = Math.floor(d.getUTCMonth() / 3);
+  return new Date(Date.UTC(d.getUTCFullYear() + (q === 3 ? 1 : 0), ((q + 1) % 4) * 3, 1));
+}
+function quarterStart(nowMs: number): Date {
+  const d = new Date(nowMs);
+  return new Date(Date.UTC(d.getUTCFullYear(), Math.floor(d.getUTCMonth() / 3) * 3, 1));
+}
+function DividendPanel({ assets, holdings, trades, nowMs, compact = false }: { assets: Asset[]; holdings: Record<string, Holding>; trades: TradeRecord[]; nowMs: number; compact?: boolean }) {
+  const payers = assets.flatMap((asset) => {
+    const shares = Math.max(0, Number(holdings[asset.id]?.shares || 0));
+    const perShare = dividendPerShare(asset);
+    return shares > 0 && perShare > 0 ? [{ asset, shares, perShare, quarter: shares * perShare }] : [];
+  });
+  const quarterly = payers.reduce((sum, row) => sum + row.quarter, 0);
+  const paid = trades.filter((record) => record.id.startsWith("dividend-"));
+  const paidTotal = paid.reduce((sum, record) => sum + record.notional, 0);
+  const start = quarterStart(nowMs).getTime();
+  const end = nextQuarterStart(nowMs).getTime();
+  const elapsed = Math.min(1, Math.max(0, (nowMs - start) / Math.max(1, end - start)));
+  const suggestions = assets.filter((asset) => asset.kind === "STOCK" && asset.dividend > 0 && !holdings[asset.id]?.shares).sort((a, b) => b.dividend - a.dividend).slice(0, 3);
+  return <View style={xs.divCard}>
+    <View style={xs.divHead}><Text style={xs.divTitle}>Dividend income</Text><Text style={xs.divSub}>Paid each quarter</Text></View>
+    <View style={xs.divStats}>
+      <View style={xs.divStat}><Text style={xs.factLabel}>Per quarter</Text><Text style={[xs.divBig, xs.good]}>{money(quarterly)}</Text></View>
+      <View style={xs.divStat}><Text style={xs.factLabel}>Per year</Text><Text style={xs.divBig}>{money(quarterly * 4)}</Text></View>
+      <View style={xs.divStat}><Text style={xs.factLabel}>Received so far</Text><Text style={xs.divBig}>{money(paidTotal)}</Text></View>
+    </View>
+    <Text style={xs.divNote}>{payers.length ? `Accrued this quarter ${money(quarterly * elapsed)} · next payout ${nextQuarterStart(nowMs).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}` : "You hold no dividend stocks yet. Buy one to start earning every quarter."}</Text>
+    {payers.slice(0, compact ? 4 : 20).map((row) => <View key={row.asset.id} style={xs.divRow}><Text style={xs.divSym}>{row.asset.symbol}</Text><Text style={xs.divMeta}>{fmtInt(row.shares)} sh · {row.asset.dividend.toFixed(2)}% yield</Text><Text style={xs.divAmt}>{money(row.quarter)}/qtr</Text></View>)}
+    {!payers.length && suggestions.map((asset) => <View key={asset.id} style={xs.divRow}><Text style={xs.divSym}>{asset.symbol}</Text><Text style={xs.divMeta}>{asset.dividend.toFixed(2)}% yield</Text><Text style={xs.divAmt}>{money(dividendPerShare(asset))}/sh/qtr</Text></View>)}
+    {paid.length > 0 && <><Text style={xs.divNote}>Recent payments</Text>{paid.slice(-5).reverse().map((record) => <View key={record.id} style={xs.divRow}><Text style={xs.divSym}>{record.symbol}</Text><Text style={xs.divMeta}>{new Date(record.timestamp).toLocaleDateString()} · {fmtInt(record.quantity)} sh</Text><Text style={[xs.divAmt, xs.good]}>+{money(record.notional)}</Text></View>)}</>}
+  </View>;
+}
+const xs = StyleSheet.create({
+  pickRail: { flexGrow: 0, marginTop: 8 }, pickContent: { gap: 6 },
+  pickChip: { paddingHorizontal: 11, height: 30, borderRadius: 9, alignItems: "center", justifyContent: "center", backgroundColor: "#EFF4F9", borderWidth: 1, borderColor: "#DCE6F0" },
+  pickChipOn: { backgroundColor: "#2F66C8", borderColor: "#2F66C8" }, pickText: { color: "#1B2B45", fontSize: 11, fontWeight: "800" }, pickTextOn: { color: "#fff" },
+  facts: { marginTop: 10, paddingTop: 8, borderTopWidth: 1, borderTopColor: "#E4ECF4", gap: 5 },
+  factRow: { flexDirection: "row", justifyContent: "space-between", gap: 10 }, factLabel: { color: "#5C6F86", fontSize: 11, fontWeight: "800" },
+  factValue: { color: "#1B2B45", fontSize: 12, fontWeight: "700", flexShrink: 1, textAlign: "right" }, good: { color: "#17935B" },
+  divCard: { marginTop: 14, backgroundColor: "#fff", borderRadius: 14, padding: 14, borderWidth: 1, borderColor: "#DCE6F0", gap: 6 },
+  divHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" }, divTitle: { color: "#1B2B45", fontSize: 16, fontWeight: "900" }, divSub: { color: "#5C6F86", fontSize: 11, fontWeight: "700" },
+  divStats: { flexDirection: "row", gap: 8, marginTop: 4 }, divStat: { flex: 1, minWidth: 0 }, divBig: { color: "#1B2B45", fontSize: 15, fontWeight: "900", marginTop: 2 },
+  divNote: { color: "#5C6F86", fontSize: 11, lineHeight: 16, marginTop: 4 },
+  divRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 6, borderTopWidth: 1, borderTopColor: "#EDF2F7" },
+  divSym: { width: 56, color: "#1B2B45", fontSize: 12, fontWeight: "900" }, divMeta: { flex: 1, color: "#5C6F86", fontSize: 11 }, divAmt: { color: "#1B2B45", fontSize: 12, fontWeight: "800" },
 });

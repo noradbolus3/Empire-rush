@@ -33,6 +33,8 @@ export interface Asset {
   sector?: MarketSector;
   logo?: number;
   maxShares?: number;
+  sharesOutstanding?: number;
+  founderShares?: number;
   isPlayerCompany?: boolean;
 }
 

@@ -2,7 +2,7 @@ import React from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import type { CanonicalBusiness } from "../../engine/canonicalBusinessRegistry";
 import type { BusinessDisplayMeta } from "../../data/businessDisplayCatalog";
-import { BUSINESS_PHOTOS } from "../../data/businessPhotos";
+import { BUSINESS_PHOTOS, photoKeyFor } from "../../data/businessPhotos";
 import { formatCurrency } from "../../utils/formatCurrency";
 
 export type PortfolioCardStatus = "owned" | "available" | "locked";
@@ -42,6 +42,7 @@ export function BusinessPortfolioCard({
   const category = categoryLabel ?? display.categoryLabel;
   const copy = tagline ?? display.tagline;
   const title = record.name || display.shortLabel;
+  const photoKey = photoKeyFor(record.kind, record.sectorLabel, display.visualKey);
   const entryCost = Math.max(0, display.charterCost || record.assetValue);
   const cashShortfall = cash === undefined ? 0 : Math.max(0, entryCost - cash);
   const canAfford = cashShortfall <= 0;
@@ -55,8 +56,8 @@ export function BusinessPortfolioCard({
         style={[styles.lockedRow, { borderColor: `${display.accent}33` }]}
       >
         <View style={[styles.lockedTile, { backgroundColor: `${display.accent}18` }]}>
-          {BUSINESS_PHOTOS[display.visualKey] ? (
-            <Image source={BUSINESS_PHOTOS[display.visualKey]} style={styles.lockedPhoto} resizeMode="cover" accessibilityIgnoresInvertColors />
+          {BUSINESS_PHOTOS[photoKey] ? (
+            <Image source={BUSINESS_PHOTOS[photoKey]} style={styles.lockedPhoto} resizeMode="cover" accessibilityIgnoresInvertColors />
           ) : (
             <Text maxFontSizeMultiplier={FONT_CAP} style={styles.lockedGlyph}>◌</Text>
           )}
@@ -93,8 +94,8 @@ export function BusinessPortfolioCard({
     >
       <View style={styles.cardTop}>
         <View style={[styles.tile, { backgroundColor: `${display.accent}1F`, borderColor: `${display.accent}55` }]}>
-          {BUSINESS_PHOTOS[display.visualKey] ? (
-            <Image source={BUSINESS_PHOTOS[display.visualKey]} style={styles.photo} resizeMode="cover" accessibilityIgnoresInvertColors />
+          {BUSINESS_PHOTOS[photoKey] ? (
+            <Image source={BUSINESS_PHOTOS[photoKey]} style={styles.photo} resizeMode="cover" accessibilityIgnoresInvertColors />
           ) : (
             <Text maxFontSizeMultiplier={FONT_CAP} style={[styles.tileMark, { color: display.accent }]}>{visualMark(display.visualKey)}</Text>
           )}

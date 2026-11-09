@@ -19,13 +19,13 @@ export const BUSINESS_DISPLAY_CATALOG: readonly BusinessDisplayMeta[] = [
   { kind: "construction", categoryLabel: "INFRASTRUCTURE", shortLabel: "Construction Company", tagline: "Win tenders and deliver valuable projects.", visualKey: "construction-site", accent: "#6FA8C7", charterCost: 180000 },
   { kind: "dealership", categoryLabel: "AUTOMOTIVE", shortLabel: "Car Dealership", tagline: "Turn inventory, showrooms and demand into margin.", visualKey: "dealership-showroom", accent: "#9B7A5D", charterCost: 220000 },
   { kind: "software", categoryLabel: "TECHNOLOGY", shortLabel: "IT & Software Company", tagline: "Ship products, retain clients and scale uptime.", visualKey: "software-studio", accent: "#9B8BC3", charterCost: 260000 },
-  { kind: "sports", categoryLabel: "SPORTS & ENTERTAINMENT", shortLabel: "Sports Club Company", tagline: "Build teams, venues and fan momentum.", visualKey: "sports-arena", accent: "#C7936E", charterCost: 250000 },
-  { kind: "oilGas", categoryLabel: "ENERGY", shortLabel: "Oil & Gas Company", tagline: "Develop fields, refining and energy distribution.", visualKey: "energy-infrastructure", accent: "#C9A85A", charterCost: 400000 },
-  { kind: "airline", categoryLabel: "AVIATION", shortLabel: "Airline Company", tagline: "Fill routes, manage aircraft and expand globally.", visualKey: "airline-hangar", accent: "#7EA5C5", charterCost: 600000 },
-  { kind: "hotel", categoryLabel: "HOSPITALITY", shortLabel: "Hotel & Hospitality Company", tagline: "Acquire properties and build guest loyalty.", visualKey: "hotel-property", accent: "#B18872", charterCost: 420000 },
-  { kind: "blockchain", categoryLabel: "DIGITAL INFRASTRUCTURE", shortLabel: "Blockchain & Digital Technology", tagline: "Build reliable platforms for enterprise clients.", visualKey: "digital-infrastructure", accent: "#7F8CC4", charterCost: 300000 },
-  { kind: "space", categoryLabel: "AEROSPACE", shortLabel: "Space & Aerospace Company", tagline: "Fund launches, missions and advanced systems.", visualKey: "aerospace", accent: "#7186B0", charterCost: 850000 },
-  { kind: "holding", categoryLabel: "GROUP MANAGEMENT", shortLabel: "Holding Company & Mergers", tagline: "Consolidate subsidiaries without double-counting them.", visualKey: "holding-group", accent: "#A68BC5", charterCost: 1200000 },
+  { kind: "sports", categoryLabel: "SPORTS & ENTERTAINMENT", shortLabel: "Sports Club Company", tagline: "Build teams, venues and fan momentum.", visualKey: "sports-arena", accent: "#C7936E", charterCost: 4000000 },
+  { kind: "oilGas", categoryLabel: "ENERGY", shortLabel: "Oil & Gas Company", tagline: "Develop fields, refining and energy distribution.", visualKey: "energy-infrastructure", accent: "#C9A85A", charterCost: 2000000 },
+  { kind: "airline", categoryLabel: "AVIATION", shortLabel: "Airline Company", tagline: "Fill routes, manage aircraft and expand globally.", visualKey: "airline-hangar", accent: "#7EA5C5", charterCost: 8000000 },
+  { kind: "hotel", categoryLabel: "HOSPITALITY", shortLabel: "Hotel & Hospitality Company", tagline: "Acquire properties and build guest loyalty.", visualKey: "hotel-property", accent: "#B18872", charterCost: 2500000 },
+  { kind: "blockchain", categoryLabel: "DIGITAL INFRASTRUCTURE", shortLabel: "Blockchain & Digital Technology", tagline: "Build reliable platforms for enterprise clients.", visualKey: "digital-infrastructure", accent: "#7F8CC4", charterCost: 1200000 },
+  { kind: "space", categoryLabel: "AEROSPACE", shortLabel: "Space & Aerospace Company", tagline: "Fund launches, missions and advanced systems.", visualKey: "aerospace", accent: "#7186B0", charterCost: 15000000 },
+  { kind: "holding", categoryLabel: "GROUP MANAGEMENT", shortLabel: "Holding Company & Mergers", tagline: "Consolidate subsidiaries without double-counting them.", visualKey: "holding-group", accent: "#A68BC5", charterCost: 30000000 },
 ] as const;
 
 const BY_KIND = new Map(

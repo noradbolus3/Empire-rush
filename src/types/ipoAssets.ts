@@ -9,5 +9,7 @@ export interface Asset {
   volatility: number;
   history: number[];
   maxShares?: number;
+  sharesOutstanding?: number;
+  founderShares?: number;
   isPlayerCompany?: boolean;
 }

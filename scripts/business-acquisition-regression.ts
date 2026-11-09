@@ -20,7 +20,7 @@ import { DEFAULT_BUSINESSES } from "../src/engine/businessSimulation";
 const acquisitionRoutes = BUSINESS_ROUTE_CATALOG.filter((route) => route.kind !== "generic");
 const ledger: { id: string; amount: number }[] = [];
 const owned = new Set<string>();
-let cash = 20_000_000;
+let cash = 500_000_000;
 const startingCash = cash;
 const onCashChange = (update: (value: number) => number) => {
   cash = update(cash);
