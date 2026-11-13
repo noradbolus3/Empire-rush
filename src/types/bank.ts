@@ -88,6 +88,13 @@ export type BankLoan = {
   termMonths: number;
   monthlyPayment: number;
   nextDueAt: number;
+  /** Completed game-settlement day on which the next monthly payment is due. */
+  nextDueGameDay?: number;
+  /** Number of settlements where a due EMI could not be funded in full. */
+  missedPayments?: number;
+  /** A company-specific business loan; null indicates an older unassigned loan. */
+  borrowerBusinessId?: string | null;
+  borrowerBusinessName?: string | null;
   originationFee: number;
   collateral: string;
   collateralAssetId?: string;
@@ -225,7 +232,7 @@ export type BankState = {
   noNewLoansUntilSettlement?: number;
 };
 
-export const BANK_SCHEMA_VERSION = 2;
+export const BANK_SCHEMA_VERSION = 3;
 export const PHASE2_ACHIEVEMENTS = [
   "FIRST_LOAN",
   "DEBT_FREE",

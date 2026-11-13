@@ -9,6 +9,7 @@ import {
   SaaSData,
 } from "../types/business";
 import { passiveIncomeMultiplier } from "./economyPlan";
+import { GAME_DAYS_PER_MONTH } from "./gameCalendar";
 import {
   businessUnitsOrAssets,
   normalizeBusinessLevel,
@@ -449,7 +450,7 @@ function retailOperations(
   const cogsPerHour = unitsPerHour * (business.unitWholesaleCost ?? 2);
   const fixedCostsPerHour =
     ((business.monthlyRent ?? 800) + (business.monthlyPayroll ?? 1200)) /
-    (30 * 24);
+    GAME_DAYS_PER_MONTH;
   const taxPerHour =
     business.legalStatus === "Licensed_Legal" ? revenuePerHour * 0.15 : 0;
   const declaredHourlyRate =
@@ -465,7 +466,9 @@ function retailOperations(
     business.stockUnits,
     Math.max(0, Math.floor(desiredUnits)),
   );
-  const salesRemainder = Math.max(0, desiredUnits - unitsDeducted);
+  const remainingStock = Math.max(0, business.stockUnits - unitsDeducted);
+  const salesRemainder =
+    remainingStock > 0 ? Math.max(0, desiredUnits - unitsDeducted) : 0;
   const revenueEarned = Number((unitsDeducted * price).toFixed(2));
   const nextDemandClock = (business.demandClockSeconds ?? 0) + seconds;
   const eventRemaining = Math.max(
@@ -513,7 +516,7 @@ function retailOperations(
   const taxPerUnit =
     business.legalStatus === "Licensed_Legal" ? price * 0.15 : 0;
   const netSaleAmount =
-    unitsDeducted * (price - (business.unitWholesaleCost ?? 2) - taxPerUnit);
+    unitsDeducted * (price - taxPerUnit);
   const fixedCostForPeriod =
     business.stockUnits > 0 ? (fixedCostsPerHour * seconds) / 3600 : 0;
   return {

@@ -28,8 +28,9 @@ export function processQuarterlyDividends(
   holdings: Record<string, Holding>,
   lastPaidQuarter: string | undefined,
   now: number,
+  quarterOverride?: string,
 ): { quarter: string; payout: number; payments: DividendPayment[]; records: TradeRecord[] } {
-  const quarter = dividendQuarter(now);
+  const quarter = quarterOverride || dividendQuarter(now);
   if (!lastPaidQuarter || lastPaidQuarter === quarter) return { quarter, payout: 0, payments: [], records: [] };
   const payments = assets.flatMap(asset => {
     const shares = Math.max(0, Number(holdings[asset.id]?.shares || 0));

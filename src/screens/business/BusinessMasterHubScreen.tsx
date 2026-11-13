@@ -24,6 +24,7 @@ import { IPOListing } from "../../types/ipo";
 import { getIPOEligibility } from "../../engine/ipoEngine";
 import type { BankLedgerEntry } from "../../types/bank";
 import { normalizeBusinessLevel } from "../../engine/businessLevels";
+import { GAME_DAYS_PER_MONTH } from "../../engine/gameCalendar";
 import ConstructionCompanyScreen from "./ConstructionCompanyScreen";
 import { designSystem } from '../../theme/designSystem';
 import { BusinessDashboardPanel } from "../../components/business/BusinessDashboardPanel";
@@ -335,7 +336,7 @@ function businessFinance(business: BusinessEntity) {
   const expenses =
     business.sector === "Retail"
       ? ((business.monthlyRent ?? 800) + (business.monthlyPayroll ?? 1200)) /
-        (30 * 24)
+        GAME_DAYS_PER_MONTH
       : business.sector === "Mobility"
         ? Math.max(0, businessUnits(business) * 8)
         : 0;

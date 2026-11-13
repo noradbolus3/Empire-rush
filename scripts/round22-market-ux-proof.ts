@@ -32,7 +32,7 @@ assert.equal(isDuplicateTrade({ assetId: 'up', side: 'BUY', quantity: 1, at: 100
 assert.equal(isDuplicateTrade({ assetId: 'up', side: 'BUY', quantity: 1, at: 1000 }, 'up', 'BUY', 1, 1600), false);
 
 const migrated = migrateGameSave({ schemaVersion: 8, tradeHistory: [{ assetId: 'up', side: 'BUY', quantity: 1, price: 100 }, { assetId: 7 }], watchlist: ['up', 'up', 7], limitOrders: [{ assetId: 'up', side: 'BUY', quantity: 1, limitPrice: 90, status: 'OPEN' }, { assetId: 'bad', side: 'NOPE', quantity: 1, limitPrice: 1, status: 'OPEN' }], portfolioHistory: [{ timestamp: now, value: 3 }, { timestamp: 'bad', value: 4 }] });
-assert.equal(GAME_SAVE_VERSION, 15, 'current save schema version');
+assert.equal(GAME_SAVE_VERSION, 16, 'current save schema version');
 assert.equal(migrated.tradeHistory.length, 1);
 assert.deepEqual(migrated.watchlist, ['up']);
 assert.equal(migrated.limitOrders.length, 1);

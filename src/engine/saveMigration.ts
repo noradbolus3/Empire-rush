@@ -1,9 +1,10 @@
 import { defaultBankState } from '../types/bank';
-export const GAME_SAVE_VERSION = 15;
+import { gameQuarterKey, migrateLegacyLoanDueDay, safeGameDayCounter } from './gameCalendar';
+export const GAME_SAVE_VERSION = 16;
 
 export type GameSaveRecord = Record<string, any> & { schemaVersion: number };
 
-export function migrateGameSave(input: unknown): GameSaveRecord {
+export function migrateGameSave(input: unknown, now = Date.now()): GameSaveRecord {
   const source = input && typeof input === 'object' && !Array.isArray(input) ? input as Record<string, any> : {};
   const version = Number.isFinite(source.schemaVersion) ? Number(source.schemaVersion) : 1;
   const migrated: GameSaveRecord = { ...source, schemaVersion: GAME_SAVE_VERSION };
@@ -72,5 +73,34 @@ export function migrateGameSave(input: unknown): GameSaveRecord {
   migrated.marketEventHistory = Array.isArray(source.marketEventHistory)
     ? source.marketEventHistory.filter((event: any) => event && typeof event.id === 'string' && typeof event.headline === 'string' && Number.isFinite(event.tick)).slice(-24)
     : [];
+  const completedSettlements = safeGameDayCounter(source.gameDayCounter);
+  migrated.gameDayCounter = completedSettlements;
+  migrated.gameCalendarVersion = 1;
+  migrated.timeModel = 'accelerated-calendar-v1';
+  const savedQuarter = typeof source.lastDividendQuarter === 'string'
+    ? source.lastDividendQuarter
+    : '';
+  migrated.lastDividendQuarter =
+    version < 16 || !/^Y\d+-Q[1-4]$/.test(savedQuarter)
+      ? gameQuarterKey(completedSettlements)
+      : savedQuarter;
+  const bankState = migrated.bankState && typeof migrated.bankState === 'object'
+    ? migrated.bankState as Record<string, any>
+    : defaultBankState(now) as unknown as Record<string, any>;
+  migrated.bankState = {
+    ...bankState,
+    schemaVersion: 3,
+    loans: Array.isArray(bankState.loans)
+      ? bankState.loans.map((loan: Record<string, any>) => ({
+          ...loan,
+          borrowerBusinessId: typeof loan.borrowerBusinessId === 'string'
+            ? loan.borrowerBusinessId
+            : null,
+          nextDueGameDay: Number.isFinite(Number(loan.nextDueGameDay))
+            ? Math.max(completedSettlements, Math.floor(Number(loan.nextDueGameDay)))
+            : migrateLegacyLoanDueDay(loan.nextDueAt, now, completedSettlements),
+        }))
+      : [],
+  };
   return migrated;
 }

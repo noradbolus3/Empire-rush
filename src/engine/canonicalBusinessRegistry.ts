@@ -30,6 +30,7 @@ import type { ITSoftwareData } from "../types/business";
 import { itCompanyAssetValue, itHourlyProfit } from "./itCompanyEngine";
 import type { BankingData } from "../types/business";
 import { bankingCompanyAssetValue, bankingHourlyProfit } from "./bankingCompanyEngine";
+import { GAME_DAYS_PER_YEAR } from "./gameCalendar";
 
 export type CanonicalBusinessKind =
   | "generic"
@@ -63,6 +64,10 @@ export type CanonicalBusiness = {
   pendingSettlementAmount: number;
   /** Asset value attributable to this record, excluding cash and debt. */
   assetValue: number;
+  /** Initial acquisition/investment capital attributed to this company. */
+  investedCapital: number;
+  /** Asset base plus capitalized earnings over the accelerated 360-day game-year. */
+  valuation: number;
   /** Management layers are shown/countable but do not re-credit subsidiary cashflow. */
   consolidatesOtherBusinesses: boolean;
   source: "generic-state" | "specialized-state";
@@ -111,17 +116,57 @@ const nonNegative = (value: unknown) => Math.max(0, finite(value));
 const money = (value: number) => Number(Math.max(0, value).toFixed(2));
 
 function record(
-  input: Omit<CanonicalBusiness, "hourlyNet"> & { hourlyNet?: number },
+  input: Omit<CanonicalBusiness, "hourlyNet" | "valuation" | "investedCapital"> & {
+    hourlyNet?: number;
+    valuation?: number;
+    investedCapital?: number;
+  },
 ): CanonicalBusiness {
   const hourlyRevenue = money(input.hourlyRevenue);
   const hourlyExpenses = money(input.hourlyExpenses);
+  const hourlyNet = money(input.hourlyNet ?? hourlyRevenue - hourlyExpenses);
+  const assetValue = money(input.assetValue);
+  const investedCapital = money(input.investedCapital ?? assetValue);
+  const multipleByKind: Record<CanonicalBusinessKind, number> = {
+    generic: 1.2,
+    taxi: 1.3,
+    shipping: 1.25,
+    factory: 1.4,
+    construction: 1.8,
+    dealership: 1.15,
+    software: 2.4,
+    sports: 1.35,
+    oilGas: 1.25,
+    airline: 1.1,
+    hotel: 1.15,
+    blockchain: 1.8,
+    space: 2,
+    holding: 1.2,
+  };
+  const multiple =
+    input.sectorLabel === "Retail"
+      ? 1.15
+      : input.sectorLabel === "Mobility"
+        ? 1.35
+        : input.sectorLabel === "Energy"
+          ? 1.25
+          : input.sectorLabel === "Pharma"
+            ? 2
+            : input.sectorLabel === "Media"
+              ? 1.5
+              : multipleByKind[input.kind];
+  const valuation = money(
+    input.valuation ?? assetValue + Math.max(0, hourlyNet) * GAME_DAYS_PER_YEAR * multiple,
+  );
   return {
     ...input,
     hourlyRevenue,
     hourlyExpenses,
-    hourlyNet: money(input.hourlyNet ?? hourlyRevenue - hourlyExpenses),
+    hourlyNet,
     pendingSettlementAmount: money(input.pendingSettlementAmount),
-    assetValue: money(input.assetValue),
+    assetValue,
+    investedCapital,
+    valuation,
   };
 }
 
@@ -158,6 +203,7 @@ function genericRecord(business: BusinessEntity): CanonicalBusiness {
     consolidatesOtherBusinesses: false,
     source: "generic-state",
     sectorLabel: String(business.sector).replace(/_/g, " "),
+    investedCapital: nonNegative(business.acquisitionCost),
   });
 }
 

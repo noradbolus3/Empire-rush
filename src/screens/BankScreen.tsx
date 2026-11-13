@@ -57,6 +57,8 @@ import { commitCashTransaction } from "../engine/transactionGateway";
 import type { BankLedgerEntry } from "../types/bank";
 import { calculateNetWorth } from "../engine/financialCore";
 import type { CanonicalBusiness } from "../engine/canonicalBusinessRegistry";
+import type { BorrowerBusinessContext } from "../engine/bankEngine";
+import { GAME_DAYS_PER_MONTH, GAME_DAYS_PER_YEAR } from "../engine/gameCalendar";
 import { designSystem } from "../theme/designSystem";
 
 const C = {
@@ -155,7 +157,7 @@ type Props = {
   state: BankState;
   businesses?: any[];
   businessRegistry?: CanonicalBusiness[];
-  collateralAssets?: { id: string; name: string; value: number }[];
+  gameDayCounter: number;
   onStateChange: (next: BankState) => void;
   onCashChange: (next: React.SetStateAction<number>) => void;
   onBreaking: (message: string) => void;
@@ -178,7 +180,7 @@ export default function BankScreen({
   state,
   businesses = [],
   businessRegistry,
-  collateralAssets = [],
+  gameDayCounter,
   onStateChange,
   onCashChange,
   onBreaking,
@@ -186,7 +188,7 @@ export default function BankScreen({
 }: Props) {
   const netWorth = calculateNetWorth(financialState);
   const companyValue = businessRegistry?.length
-    ? businessRegistry.filter((item) => item.owned).reduce((sum, item) => sum + item.assetValue, 0)
+    ? businessRegistry.filter((item) => item.owned).reduce((sum, item) => sum + item.valuation, 0)
     : calculateCompanyValuation(businesses);
   const [tab, setTab] = useState<BankTab>("home");
   const [search, setSearch] = useState("");
@@ -295,8 +297,18 @@ export default function BankScreen({
     product: LoanProduct,
     requested: number,
     termMonths?: number,
-    collateral?: { id: string; name: string; value?: number },
+    borrowerBusiness?: BorrowerBusinessContext,
   ) => {
+    if (!borrowerBusiness)
+      return Alert.alert(
+        "APPLICATION DECLINED",
+        "Select an owned company as the borrower. All new loans must be tied to a business.",
+      );
+    const businessCollateral = {
+      id: borrowerBusiness.id,
+      name: borrowerBusiness.name,
+      value: borrowerBusiness.valuation,
+    };
     const settlementNumber = Math.floor(
       Number(state.lastSettlementAt || Date.now()) / BANK_SETTLEMENT_MS,
     );
@@ -309,14 +321,15 @@ export default function BankScreen({
       requested,
       netWorth,
       hourlyIncome,
-      collateral,
+      businessCollateral,
+      { ...borrowerBusiness, termMonths },
     );
     if (decision.decision === "DECLINE")
       return Alert.alert("APPLICATION DECLINED", decision.reason);
     const spec = loanProduct(product);
     Alert.alert(
       decision.decision === "COUNTER" ? "COUNTER-OFFER" : "LOAN APPROVED",
-      `${decision.reason}\n\nAmount: ${money(decision.amount)}\nAPR: ${decision.apr.toFixed(2)}%\nPayment: ${money(monthlyPayment(decision.amount, decision.apr, termMonths || spec.termMonths))}/month`,
+      `${borrowerBusiness.name}\n\n${decision.reason}\n\nAmount: ${money(decision.amount)}\nAPR: ${decision.apr.toFixed(2)}%\nPayment: ${money(monthlyPayment(decision.amount, decision.apr, termMonths || spec.termMonths))}/game-month\nFirst payment: 30 game-days from approval`,
       [
         { text: "Reject", style: "cancel" },
         {
@@ -329,7 +342,12 @@ export default function BankScreen({
               decision.apr,
               Date.now(),
               termMonths,
-              collateral,
+              businessCollateral,
+              {
+                id: borrowerBusiness.id,
+                name: borrowerBusiness.name,
+                gameDayCounter,
+              },
             );
             const withLoanProceeds = addLedger(
               {
@@ -342,7 +360,7 @@ export default function BankScreen({
               `${spec.name} funded`,
               decision.amount,
               Date.now(),
-              "Underwriting accepted",
+              `Business loan · borrower ${borrowerBusiness.name}`,
             );
             const next = addLedger(
               withLoanProceeds,
@@ -360,7 +378,7 @@ export default function BankScreen({
               ),
             );
             onBreaking(
-              `Loan approved · ${spec.name} credited ${money(decision.amount)}.`,
+              `Loan approved for ${borrowerBusiness.name} · ${spec.name} credited ${money(decision.amount)}.`,
             );
             onHaptic?.(true);
             if (!state.achievements.includes("FIRST_LOAN"))
@@ -559,6 +577,18 @@ export default function BankScreen({
         "OFFER EXPIRED",
         gate.reason || "This Bank offer is no longer available.",
       );
+    if (offer.kind === "LOAN") {
+      if (!businessRegistry?.some((business) => business.owned))
+        return Alert.alert(
+          "BUSINESS REQUIRED",
+          "Acquire a business before applying for a company loan.",
+        );
+      setTab("loans");
+      return Alert.alert(
+        "SELECT YOUR BORROWER",
+        "This prequalified offer is not a loan yet. Choose an owned company in Loans to run its valuation and earnings checks, then accept the resulting application offer.",
+      );
+    }
     const now = Date.now();
     let next = {
       ...state,
@@ -567,20 +597,6 @@ export default function BankScreen({
     };
     if (offer.kind === "SAVINGS")
       next = { ...next, savingsRateBoostUntil: Number(offer.expiresAt || now) };
-    if (offer.kind === "LOAN") {
-      const amount = Math.max(0, Number(offer.amount) || 0);
-      const loan = createLoan(
-        state,
-        "SBA_MICROLOAN",
-        amount,
-        bankApr(state.ficoScore, "SBA_MICROLOAN"),
-        now,
-      );
-      next = { ...next, loans: [...next.loans, loan] };
-      onCashChange((value) =>
-        Math.max(0, value + amount - loan.originationFee),
-      );
-    }
     if (offer.kind === "INVESTOR") {
       const amount = Math.max(0, Number(offer.amount) || 0);
       const investor = {
@@ -613,7 +629,12 @@ export default function BankScreen({
     onBreaking(`Offer accepted · ${offer.title}.`);
     onHaptic?.(true);
   };
-  const tax = calculateTax(Math.max(0, hourlyIncome * 24 * 30), 0, 0, 0);
+  const tax = calculateTax(
+    Math.max(0, hourlyIncome * GAME_DAYS_PER_MONTH),
+    0,
+    0,
+    0,
+  );
   const achievements = achievementIds(state, netWorth);
   const event = bankEventForTick(
     Math.floor(Date.now() / 3_600_000),
@@ -674,7 +695,8 @@ export default function BankScreen({
           netWorth={netWorth}
           hourlyIncome={hourlyIncome}
           state={state}
-          collateralAssets={collateralAssets}
+          businessRegistry={businessRegistry || []}
+          gameDayCounter={gameDayCounter}
           onApply={applyLoan}
           onPrepay={prepayLoan}
         />
@@ -875,10 +897,11 @@ function Inspector({
         0,
       ) || 0;
   const interest =
-    (Math.max(0, Number(state.savingsBalance) || 0) * 0.0425) / 8760;
+    (Math.max(0, Number(state.savingsBalance) || 0) * 0.0425) /
+    GAME_DAYS_PER_YEAR;
   const emi = active.reduce(
     (n: number, loan: any) =>
-      n + Math.min(loan.balance, loan.monthlyPayment / 30 / 24),
+      n + Math.min(loan.balance, loan.monthlyPayment / GAME_DAYS_PER_MONTH),
     0,
   );
   const entries = (ledger.length ? ledger : state.ledger).slice(-20).reverse();
@@ -1182,7 +1205,8 @@ function Loans({
   netWorth,
   hourlyIncome,
   state,
-  collateralAssets,
+  businessRegistry = [],
+  gameDayCounter,
   onApply,
   onPrepay,
   onForeclose,
@@ -1190,8 +1214,17 @@ function Loans({
   const [selected, setSelected] = useState<LoanProduct>("SBA_MICROLOAN");
   const [amount, setAmount] = useState("5000");
   const [term, setTerm] = useState(loanProduct(selected).termMonths);
-  const [collateralId, setCollateralId] = useState<string | undefined>(
-    collateralAssets?.[0]?.id,
+  const [borrowerId, setBorrowerId] = useState("");
+  const ownedBusinesses = useMemo(
+    () => businessRegistry.filter((business: CanonicalBusiness) => business.owned),
+    [businessRegistry],
+  );
+  useEffect(() => {
+    if (!ownedBusinesses.some((business: CanonicalBusiness) => business.id === borrowerId))
+      setBorrowerId(ownedBusinesses[0]?.id || "");
+  }, [ownedBusinesses, borrowerId]);
+  const borrower = ownedBusinesses.find(
+    (business: CanonicalBusiness) => business.id === borrowerId,
   );
   const spec = loanProduct(selected);
   const apr = bankApr(state.ficoScore, selected);
@@ -1201,15 +1234,6 @@ function Loans({
     spec.termMonths,
     spec.termMonths * 2,
   ];
-  const availableCollateral = (collateralAssets || []).filter(
-    (item: any) =>
-      !state.loans.some(
-        (loan: any) => isActiveLoan(loan) && loan.collateralAssetId === item.id,
-      ),
-  );
-  const collateral =
-    availableCollateral.find((item: any) => item.id === collateralId) ||
-    availableCollateral[0];
   return (
     <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}>
       <Text style={styles.sectionTitle}>
@@ -1238,9 +1262,38 @@ function Loans({
         <Text style={styles.cardTitle}>{spec.name}</Text>
         <Text style={styles.muted}>
           Up to {money(spec.max)} · product cap{" "}
-          {money(selected === "SBA_MICROLOAN" ? 50000 : spec.max)} · collateral
-          required: {spec.collateral}
+          {money(selected === "SBA_MICROLOAN" ? 50000 : spec.max)} · secured by
+          the selected business
         </Text>
+        <Text style={styles.muted}>BUSINESS BORROWER</Text>
+        {ownedBusinesses.length > 0 ? (
+          <>
+            <ChipRow
+              flush
+              wrap
+              items={ownedBusinesses.map((business: CanonicalBusiness) => ({
+                id: business.id,
+                label: business.name,
+              }))}
+              selectedId={borrowerId}
+              onSelect={setBorrowerId}
+              chipStyle={styles.smallChip}
+              activeStyle={styles.smallChipActive}
+              textStyle={styles.smallChipText}
+              activeTextStyle={styles.tabTextActive}
+            />
+            {borrower && (
+              <Text style={styles.muted}>
+                Valuation {money(borrower.valuation)} · net earnings{" "}
+                {money(borrower.hourlyNet)} per game-day
+              </Text>
+            )}
+          </>
+        ) : (
+          <Text style={styles.muted}>
+            Acquire a business first. Every new loan is attached to one owned company.
+          </Text>
+        )}
         <Text style={styles.muted}>LOAN AMOUNT (USD)</Text>
         <TextInput
           value={amount}
@@ -1255,7 +1308,7 @@ function Loans({
  flush
           items={terms.map((item) => ({
             id: String(item),
-            label: `${item} months`,
+            label: `${item} game-months`,
           }))}
           selectedId={String(term)}
           onSelect={(id) => setTerm(Number(id))}
@@ -1264,60 +1317,45 @@ function Loans({
           textStyle={styles.smallChipText}
           activeTextStyle={styles.tabTextActive}
         />
-        {availableCollateral.length ? (
-          <>
-            <Text style={styles.muted}>PLEDGED COLLATERAL</Text>
-            <ChipRow
- flush
-              items={availableCollateral.map((item: any) => ({
-                id: item.id,
-                label: `${item.name} · ${money(item.value)}`,
-              }))}
-              selectedId={collateralId}
-              onSelect={setCollateralId}
-              chipStyle={styles.smallChip}
-              activeStyle={styles.smallChipActive}
-              textStyle={styles.smallChipText}
-              activeTextStyle={styles.tabTextActive}
-            />
-          </>
-        ) : (
-          <Text style={styles.muted}>
-            No owned asset available to pledge; starter underwriting can still
-            use net-worth capacity.
-          </Text>
-        )}
         <View style={styles.preview}>
           <Text style={styles.previewTitle}>LIVE AMORTIZATION PREVIEW</Text>
           <Text style={styles.previewLine}>
             APR <Text style={styles.value}>{apr.toFixed(2)}%</Text>
           </Text>
           <Text style={styles.previewLine}>
-            Monthly payment{" "}
+            EMI / game-month{" "}
             <Text style={styles.value}>
               {money(monthlyPayment(requested, apr, term))}
             </Text>
           </Text>
           <Text style={styles.previewLine}>
+            Schedule <Text style={styles.value}>Every 30 game-days · first EMI in 30 game-days</Text>
+          </Text>
+          <Text style={styles.previewLine}>
             Underwriting{" "}
             <Text style={styles.value}>
-              {selected === "SBA_MICROLOAN" || selected === "SBA_STARTUP"
-                ? "Collateral + FICO + total-cap check"
-                : hourlyIncome > 0
-                  ? "DTI under review"
-                  : "Income required"}
+              {borrower
+                ? "50% valuation + 40% company net-income cap"
+                : "Select an owned business"}
             </Text>
           </Text>
         </View>
         <Action
-          label="SUBMIT APPLICATION"
+          label={borrower ? "SUBMIT BUSINESS LOAN APPLICATION" : "ACQUIRE A BUSINESS FIRST"}
+          disabled={!borrower}
           onPress={() =>
             onApply(
               selected,
               requested,
               term,
-              collateral
-                ? { id: collateral.id, name: collateral.name }
+              borrower
+                ? {
+                    id: borrower.id,
+                    name: borrower.name,
+                    valuation: borrower.valuation,
+                    hourlyNet: borrower.hourlyNet,
+                    termMonths: term,
+                  }
                 : undefined,
             )
           }
@@ -1325,17 +1363,21 @@ function Loans({
       </View>
       {state.loans
         .filter((loan: any) => isActiveLoan(loan))
-        .map((loan: any) => (
+        .map((loan: any) => {
+          const gameDaysUntilDue = Math.max(
+            0,
+            Number.isFinite(loan.nextDueGameDay)
+              ? Number(loan.nextDueGameDay) - gameDayCounter
+              : Math.ceil((loan.nextDueAt - Date.now()) / BANK_SETTLEMENT_MS),
+          );
+          const isPastDue = gameDaysUntilDue === 0;
+          return (
           <View key={loan.id} style={styles.listCard}>
-            <Text style={styles.cardTitle}>{loan.name}</Text>
+            <Text style={styles.cardTitle}>
+              {loan.name} · {loan.borrowerBusinessName || "Legacy / unassigned"}
+            </Text>
             <Text style={styles.muted}>
-              {money(loan.balance)} remaining · {loan.apr.toFixed(2)}% APR · due
-              in{" "}
-              {Math.max(
-                0,
-                Math.ceil((loan.nextDueAt - Date.now()) / BANK_SETTLEMENT_MS),
-              )}{" "}
-              settlements · {loan.collateral}
+              Balance {money(loan.balance)} · EMI {money(loan.monthlyPayment)}/game-month · {loan.apr.toFixed(2)}% APR · {isPastDue ? `PAST DUE${loan.missedPayments ? ` · ${loan.missedPayments} missed` : ""}` : `due in ${gameDaysUntilDue} game-days`} · auto-debit at settlement · {loan.collateral}
             </Text>
             <View style={styles.actions}>
               <Action
@@ -1344,7 +1386,8 @@ function Loans({
               />
             </View>
           </View>
-        ))}
+          );
+        })}
       {state.loans.some((loan: any) => !isActiveLoan(loan)) && (
         <>
           <Text style={styles.sectionTitle}>CLOSED LOANS</Text>
@@ -1826,12 +1869,14 @@ function Card({
     </View>
   );
 }
-function Action({ label, onPress }: { label: string; onPress: () => void }) {
+function Action({ label, onPress, disabled = false }: { label: string; onPress: () => void; disabled?: boolean }) {
   return (
     <Pressable
+      disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [
         styles.action,
+        disabled && { opacity: 0.48 },
         pressed && { opacity: 0.8, transform: [{ scale: 0.98 }] },
       ]}
     >

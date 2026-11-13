@@ -1,4 +1,9 @@
 import { dividendPerShare } from "../engine/dividendEngine";
+import {
+  daysUntilNextGameQuarter,
+  formatGameDate,
+  gameQuarterKey,
+} from "../engine/gameCalendar";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
@@ -89,6 +94,7 @@ type Props = {
   rivalInvestors: RivalInvestor[];
   allocation: PortfolioAllocation[];
   systemTimeMs: number;
+  gameDayCounter: number;
   marketEventHistory?: MarketEvent[];
   priceAlerts: PriceAlert[];
   onCreatePriceAlert: (alert: PriceAlert) => void;
@@ -124,6 +130,7 @@ export default function MarketScreen({
   rivalInvestors,
   allocation,
   systemTimeMs,
+  gameDayCounter,
   marketEventHistory = [],
   priceAlerts,
   onCreatePriceAlert,
@@ -137,6 +144,7 @@ export default function MarketScreen({
   const [tradeFilter, setTradeFilter] = useState<TradeFilter>("ALL");
   const [portfolioRange, setPortfolioRange] = useState<PortfolioRange>("1D");
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
+  const [selectedTradeSide, setSelectedTradeSide] = useState<Side>("BUY");
   const [chartAssetId, setChartAssetId] = useState<string | null>(null);
   const pulse = useRef(new Animated.Value(1)).current;
   const compact = width < 620;
@@ -193,7 +201,7 @@ export default function MarketScreen({
 
         {view === "OVERVIEW" && <View style={[styles.indexRow, compact && styles.indexRowCompact]}>{indexCards.map((item) => <IndexCard key={item.label} {...item} compact={compact} />)}</View>}
         {view === "NEWS" && <NewsPanel events={marketEventHistory} full />}
-        {view === "PORTFOLIO" && <><PortfolioPanel summary={summary} allocation={allocation} points={rangePoints} range={portfolioRange} setRange={setPortfolioRange} rivalInvestors={playerRank} /><DividendPanel assets={assets} holdings={holdings} trades={tradeHistory} nowMs={systemTimeMs} /></>}
+        {view === "PORTFOLIO" && <><PortfolioPanel summary={summary} allocation={allocation} points={rangePoints} range={portfolioRange} setRange={setPortfolioRange} rivalInvestors={playerRank} /><HoldingsPanel assets={assets} holdings={holdings} onTrade={(assetId, side) => { setSelectedTradeSide(side); setSelectedAssetId(assetId); }} /><DividendPanel assets={assets} holdings={holdings} trades={tradeHistory} gameDayCounter={gameDayCounter} /></>}
         {view === "HISTORY" && <TradeHistory trades={filteredTrades} filter={tradeFilter} setFilter={setTradeFilter} totals={tradeTotals} />}
 
         {(view === "OVERVIEW" || view === "STOCKS" || view === "CRYPTO" || view === "WATCHLIST") && <>
@@ -203,13 +211,13 @@ export default function MarketScreen({
           </View>}
           {view !== "WATCHLIST" && <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll} contentContainerStyle={styles.filterScrollContent}>{(["all", "dividend", "cheap"] as Filter[]).map((value) => <Pressable key={value} onPress={() => setFilter(value)} style={[styles.filterButton, (filter === value || (value === "all" && (filter === "crypto" || filter === "watchlist"))) && styles.filterActive]}><Text style={[styles.filterText, (filter === value || (value === "all" && (filter === "crypto" || filter === "watchlist"))) && styles.filterTextActive]}>{value === "all" ? (view === "CRYPTO" ? "ALL COINS" : "ALL STOCKS") : value === "dividend" ? "PAYS DIVIDEND" : "UNDER $1,000"}</Text></Pressable>)}</ScrollView>}
           {!compact && <View style={styles.assetHeader}><Text style={[styles.headerCell, compact ? styles.headerCellCompactCompany : { flex: 1.8 }]}>COMPANY</Text><Text style={[styles.headerCell, compact && styles.headerCellCompact]}>PRICE</Text><Text style={[styles.headerCell, compact && styles.headerCellCompact]}>24H</Text><Text style={[styles.headerCell, compact && styles.headerCellCompact]}>CHART</Text><Text style={[styles.headerCell, compact && styles.headerCellCompact]}>ACTION</Text></View>}
-          <View style={styles.assetList}>{tabAssets.length ? tabAssets.slice(0, view === "OVERVIEW" ? 8 : 50).map((asset) => <AssetRow key={asset.id} asset={asset} compact={compact} holding={holdings[asset.id]} cash={cash} watchlisted={watchlist.includes(asset.id)} onWatch={() => toggleWatchlist(asset.id)} onTrade={() => setSelectedAssetId(asset.id)} onLimit={onCreateLimitOrder} priceAlerts={priceAlerts} onCreateAlert={onCreatePriceAlert} />) : <View style={styles.empty}><Text style={styles.emptyTitle}>{view === "WATCHLIST" && !search.trim() ? "NOTHING TRACKED YET" : "NO MATCHING ASSETS"}</Text><Text style={styles.muted}>{view === "WATCHLIST" && !search.trim() ? "Tap the ☆ next to any stock or coin to follow its price here." : "Try another tab, filter or search term."}</Text></View>}</View>
-          {view === "OVERVIEW" && <DividendPanel assets={assets} holdings={holdings} trades={tradeHistory} nowMs={systemTimeMs} compact />}
-          {view === "OVERVIEW" && <View style={[styles.bottomGrid, compact && styles.stackGrid]}><PortfolioPanel summary={summary} allocation={allocation} points={rangePoints} range={portfolioRange} setRange={setPortfolioRange} rivalInvestors={playerRank} compact /><QuickTrade asset={currentSelected} cash={cash} holding={currentSelected ? holdings[currentSelected.id] : undefined} onTrade={() => currentSelected && setSelectedAssetId(currentSelected.id)} /></View>}
+          <View style={styles.assetList}>{tabAssets.length ? tabAssets.slice(0, view === "OVERVIEW" ? 8 : 50).map((asset) => <AssetRow key={asset.id} asset={asset} compact={compact} holding={holdings[asset.id]} cash={cash} watchlisted={watchlist.includes(asset.id)} onWatch={() => toggleWatchlist(asset.id)} onTrade={() => { setSelectedTradeSide("BUY"); setSelectedAssetId(asset.id); }} onLimit={onCreateLimitOrder} priceAlerts={priceAlerts} onCreateAlert={onCreatePriceAlert} />) : <View style={styles.empty}><Text style={styles.emptyTitle}>{view === "WATCHLIST" && !search.trim() ? "NOTHING TRACKED YET" : "NO MATCHING ASSETS"}</Text><Text style={styles.muted}>{view === "WATCHLIST" && !search.trim() ? "Tap the ☆ next to any stock or coin to follow its price here." : "Try another tab, filter or search term."}</Text></View>}</View>
+          {view === "OVERVIEW" && <DividendPanel assets={assets} holdings={holdings} trades={tradeHistory} gameDayCounter={gameDayCounter} compact />}
+          {view === "OVERVIEW" && <View style={[styles.bottomGrid, compact && styles.stackGrid]}><PortfolioPanel summary={summary} allocation={allocation} points={rangePoints} range={portfolioRange} setRange={setPortfolioRange} rivalInvestors={playerRank} onViewAll={() => setView("PORTFOLIO")} compact /><QuickTrade asset={currentSelected} cash={cash} holding={currentSelected ? holdings[currentSelected.id] : undefined} onTrade={() => { if (currentSelected) { setSelectedTradeSide("BUY"); setSelectedAssetId(currentSelected.id); } }} /></View>}
         </>}
         {view === "WATCHLIST" && watchlist.length > 0 && <Text style={[styles.muted, { marginTop: 8 }]}>{watchlist.length} tracked · prices update every market tick</Text>}
       </ScrollView>
-      {selectedAssetId && currentSelected && <TradeModal visible asset={currentSelected} cash={cash} holding={holdings[currentSelected.id]} onClose={() => setSelectedAssetId(null)} onSubmit={(side, quantity) => { executeTrade(currentSelected, side, quantity); setSelectedAssetId(null); }} />}
+      {selectedAssetId && currentSelected && <TradeModal key={`${currentSelected.id}-${selectedTradeSide}`} visible initialSide={selectedTradeSide} asset={currentSelected} cash={cash} holding={holdings[currentSelected.id]} onClose={() => { setSelectedAssetId(null); setSelectedTradeSide("BUY"); }} onSubmit={(side, quantity) => { executeTrade(currentSelected, side, quantity); setSelectedAssetId(null); setSelectedTradeSide("BUY"); }} />}
     </View>
   );
 }
@@ -260,15 +268,43 @@ function AssetRow({ asset, compact = false, holding, cash, watchlisted, onWatch,
     <TechnicalChartModal visible={chartOpen} asset={asset} priceAlerts={priceAlerts.filter((alert) => alert.assetId === asset.id)} onClose={() => setChartOpen(false)} onCreateAlert={onCreateAlert} />
   </>;
 }
-function PortfolioPanel({ summary, allocation, points, range, setRange, rivalInvestors, compact = false }: { summary: PortfolioSummary; allocation: PortfolioAllocation[]; points: PortfolioPoint[]; range: PortfolioRange; setRange: (range: PortfolioRange) => void; rivalInvestors: Array<{ name: string; netWorth: number; strategy: string; weeklyReturn: number }>; compact?: boolean }) { return <View style={[styles.portfolioCard, compact && styles.portfolioCompact]}><View style={styles.cardHeader}><Text style={styles.cardTitle}>◕ My Portfolio</Text><Text style={styles.viewAll}>View All ›</Text></View><View style={styles.portfolioStats}><Stat label="Total Invested" value={summary.totalInvested} /><Stat label="Current Value" value={summary.currentValue} /><Stat label="Total P/L" value={summary.unrealizedPnl} positive={summary.unrealizedPnl >= 0} /></View><View style={styles.portfolioStats}><Stat label="Stocks & Crypto" value={summary.currentValue} compactValue /><Stat label="Realized P/L" value={summary.realizedPnl} positive={summary.realizedPnl >= 0} compactValue /><Stat label="Today's P/L" value={summary.unrealizedPnl} positive={summary.unrealizedPnl >= 0} compactValue /></View>{!compact && <><Text style={styles.sectionLabel}>ALLOCATION</Text>{allocation.slice(0, 4).map((item) => <View key={item.id} style={styles.allocationRow}><View style={[styles.allocationDot, { backgroundColor: item.color }]} /><Text style={styles.allocationLabel}>{item.label}</Text><Text style={styles.muted}>{short(item.value)} · {item.percentage.toFixed(1)}%</Text></View>)}<Text style={styles.sectionLabel}>RIVALS</Text>{rivalInvestors.slice(0, 3).map((rival, index) => <View key={rival.name} style={styles.rivalRow}><Text style={styles.rank}>{index + 1}</Text><Text style={styles.allocationLabel}>{rival.name}</Text><Text style={styles.muted}>{short(rival.netWorth)}</Text></View>)}</>}</View>; }
+function PortfolioPanel({ summary, allocation, points, range, setRange, rivalInvestors, onViewAll, compact = false }: { summary: PortfolioSummary; allocation: PortfolioAllocation[]; points: PortfolioPoint[]; range: PortfolioRange; setRange: (range: PortfolioRange) => void; rivalInvestors: Array<{ name: string; netWorth: number; strategy: string; weeklyReturn: number }>; onViewAll?: () => void; compact?: boolean }) { return <View style={[styles.portfolioCard, compact && styles.portfolioCompact]}><View style={styles.cardHeader}><Text style={styles.cardTitle}>◕ My Portfolio</Text>{onViewAll && <Pressable onPress={onViewAll} accessibilityRole="button"><Text style={styles.viewAll}>View All ›</Text></Pressable>}</View><View style={styles.portfolioStats}><Stat label="Total Invested" value={summary.totalInvested} /><Stat label="Current Value" value={summary.currentValue} /><Stat label="Total P/L" value={summary.unrealizedPnl} positive={summary.unrealizedPnl >= 0} /></View><View style={styles.portfolioStats}><Stat label="Stocks & Crypto" value={summary.currentValue} compactValue /><Stat label="Realized P/L" value={summary.realizedPnl} positive={summary.realizedPnl >= 0} compactValue /><Stat label="Today's P/L" value={summary.unrealizedPnl} positive={summary.unrealizedPnl >= 0} compactValue /></View>{!compact && <><Text style={styles.sectionLabel}>ALLOCATION</Text>{allocation.slice(0, 4).map((item) => <View key={item.id} style={styles.allocationRow}><View style={[styles.allocationDot, { backgroundColor: item.color }]} /><Text style={styles.allocationLabel}>{item.label}</Text><Text style={styles.muted}>{short(item.value)} · {item.percentage.toFixed(1)}%</Text></View>)}<Text style={styles.sectionLabel}>RIVALS</Text>{rivalInvestors.slice(0, 3).map((rival, index) => <View key={rival.name} style={styles.rivalRow}><Text style={styles.rank}>{index + 1}</Text><Text style={styles.allocationLabel}>{rival.name}</Text><Text style={styles.muted}>{short(rival.netWorth)}</Text></View>)}</>}</View>; }
+function HoldingsPanel({ assets, holdings, onTrade }: { assets: Asset[]; holdings: Record<string, Holding>; onTrade: (assetId: string, side: Side) => void }) {
+  const positions = Object.entries(holdings)
+    .map(([assetId, holding]) => ({
+      asset: assets.find((item) => item.id === assetId),
+      holding,
+    }))
+    .filter((item): item is { asset: Asset; holding: Holding } => Boolean(item.asset && item.holding.shares > 0))
+    .sort((a, b) => b.holding.shares * b.asset.price - a.holding.shares * a.asset.price);
+  return <View style={styles.historyCard}>
+    <View style={styles.cardHeader}><Text style={styles.cardTitle}>Your Positions</Text><Text style={styles.muted}>{positions.length} holdings</Text></View>
+    {positions.length ? positions.map(({ asset, holding }) => {
+      const value = holding.shares * asset.price;
+      const pnl = (asset.price - holding.avgPrice) * holding.shares;
+      return <View key={asset.id} style={positionStyles.positionRow}>
+        {asset.logo ? <Image source={asset.logo} style={styles.assetLogo} resizeMode="contain" /> : <View style={styles.symbolLogo}><Text style={styles.symbolText}>{asset.symbol.slice(0, 2)}</Text></View>}
+        <View style={positionStyles.positionMain}>
+          <Text style={styles.assetName} numberOfLines={1}>{asset.name} · {asset.symbol}</Text>
+          <Text style={styles.assetMeta}>{fmtInt(holding.shares)} {asset.kind === "CRYPTO" ? "coins" : "shares"} · avg. cost {money(holding.avgPrice)}</Text>
+        </View>
+        <View style={positionStyles.positionValue}>
+          <Text style={styles.assetName}>{money(value)}</Text>
+          <Text style={pnl >= 0 ? styles.positive : styles.negative}>{money(pnl)} P/L</Text>
+        </View>
+        <Pressable onPress={() => onTrade(asset.id, "SELL")} accessibilityRole="button" accessibilityLabel={`Sell ${asset.name}`} style={positionStyles.sellButton}><Text style={positionStyles.sellButtonText}>SELL</Text></Pressable>
+      </View>;
+    }) : <View style={styles.empty}><Text style={styles.emptyTitle}>NO OPEN POSITIONS</Text><Text style={styles.muted}>Buy stocks or crypto to see, manage, and sell them here.</Text></View>}
+  </View>;
+}
 function Stat({ label, value, positive, compactValue = false }: { label: string; value: number; positive?: boolean; compactValue?: boolean }) { return <View style={styles.stat}><Text style={styles.statLabel}>{label}</Text><Text style={[compactValue ? styles.statSmallValue : styles.statValue, positive === undefined ? styles.navy : positive ? styles.positive : styles.negative]}>{short(value)}</Text></View>; }
 function QuickTrade({ asset, cash, holding, onTrade }: { asset?: Asset; cash: number; holding?: Holding; onTrade: () => void }) { return <View style={styles.quickCard}><Text style={styles.cardTitle}>⚡ Quick Trade</Text>{asset ? <><View style={styles.quickAsset}><View style={styles.symbolLogo}><Text style={styles.symbolText}>{asset.symbol.slice(0, 2)}</Text></View><View style={{ flex: 1 }}><Text style={styles.assetName}>{asset.name} ({asset.symbol})</Text><Text style={styles.assetMeta}>{holding?.shares || 0} {asset.kind === "CRYPTO" ? "units" : "shares"}</Text></View><View><Text style={styles.assetPrice}>{short(asset.price)}</Text><Text style={asset.change >= 0 ? styles.positive : styles.negative}>{percent(asset.change)}</Text></View></View><View style={styles.quickInfo}><Text style={styles.muted}>Cash available</Text><Text style={styles.navy}>{money(cash)}</Text></View><Pressable onPress={onTrade} style={styles.reviewButton}><Text style={styles.reviewButtonText}>Review Buy / Sell Order</Text></Pressable></> : <Text style={styles.muted}>Select an asset to trade.</Text>}</View>; }
 
-function TradeHistory({ trades, filter, setFilter, totals }: { trades: TradeRecord[]; filter: TradeFilter; setFilter: (filter: TradeFilter) => void; totals: { notional: number; realized: number } }) { return <View style={styles.historyCard}><View style={styles.cardHeader}><Text style={styles.cardTitle}>Trade History</Text><Text style={styles.muted}>{trades.length} entries</Text></View><View style={styles.filterRail}>{(["ALL", "BUY", "SELL", "LIMIT"] as TradeFilter[]).map((value) => <Pressable key={value} onPress={() => setFilter(value)} style={[styles.filterButton, filter === value && styles.filterActive]}><Text style={[styles.filterText, filter === value && styles.filterTextActive]}>{value}</Text></Pressable>)}</View><View style={styles.tradeTotals}><Text style={styles.muted}>Notional {short(totals.notional)}</Text><Text style={totals.realized >= 0 ? styles.positive : styles.negative}>Realized P/L {money(totals.realized)}</Text></View>{trades.length ? trades.slice(-100).reverse().map((record) => record.id.startsWith("dividend-") ? <View key={record.id} style={styles.historyRow}><Text style={styles.positive}>DIV</Text><View style={{ flex: 1 }}><Text style={styles.assetName}>{record.name} dividend</Text><Text style={styles.muted}>{new Date(record.timestamp).toLocaleDateString()} · {record.quantity} shares × {money(record.price)}</Text></View><Text style={styles.positive}>+{money(record.notional)}</Text></View> : <View key={record.id} style={styles.historyRow}><Text style={record.side === "BUY" ? styles.positive : styles.negative}>{record.side}</Text><View style={{ flex: 1 }}><Text style={styles.assetName}>{record.name} · {record.quantity} {record.symbol}</Text><Text style={styles.muted}>{new Date(record.timestamp).toLocaleString()} · {money(record.price)} × {record.quantity}</Text></View><Text style={record.realizedPnl >= 0 ? styles.positive : styles.negative}>{record.side === "SELL" ? money(record.realizedPnl) : "—"}</Text></View>) : <Text style={styles.muted}>No trades yet. Completed orders will appear here.</Text>}</View>; }
+function TradeHistory({ trades, filter, setFilter, totals }: { trades: TradeRecord[]; filter: TradeFilter; setFilter: (filter: TradeFilter) => void; totals: { notional: number; realized: number } }) { return <View style={styles.historyCard}><View style={styles.cardHeader}><Text style={styles.cardTitle}>Trade History</Text><Text style={styles.muted}>{trades.length} entries</Text></View><View style={styles.filterRail}>{(["ALL", "BUY", "SELL", "LIMIT"] as TradeFilter[]).map((value) => <Pressable key={value} onPress={() => setFilter(value)} style={[styles.filterButton, filter === value && styles.filterActive]}><Text style={[styles.filterText, filter === value && styles.filterTextActive]}>{value}</Text></Pressable>)}</View><View style={styles.tradeTotals}><Text style={styles.muted}>Notional {short(totals.notional)}</Text><Text style={totals.realized >= 0 ? styles.positive : styles.negative}>Realized P/L {money(totals.realized)}</Text></View>{trades.length ? trades.slice(-100).reverse().map((record) => record.id.startsWith("dividend-") ? <View key={record.id} style={styles.historyRow}><Text style={styles.positive}>DIV</Text><View style={{ flex: 1 }}><Text style={styles.assetName}>{record.name} dividend</Text><Text style={styles.muted}>{new Date(record.timestamp).toLocaleDateString("en-US")} · {record.quantity} shares × {money(record.price)}</Text></View><Text style={styles.positive}>+{money(record.notional)}</Text></View> : <View key={record.id} style={styles.historyRow}><Text style={record.side === "BUY" ? styles.positive : styles.negative}>{record.side}</Text><View style={{ flex: 1 }}><Text style={styles.assetName}>{record.name} · {record.quantity} {record.symbol}</Text><Text style={styles.muted}>{new Date(record.timestamp).toLocaleString("en-US")} · {money(record.price)} × {record.quantity}</Text></View><Text style={record.realizedPnl >= 0 ? styles.positive : styles.negative}>{record.side === "SELL" ? money(record.realizedPnl) : "—"}</Text></View>) : <Text style={styles.muted}>No trades yet. Completed orders will appear here.</Text>}</View>; }
 
 function LimitOrderModal({ visible, asset, cash, holding, onClose, onSubmit }: { visible: boolean; asset: Asset; cash: number; holding?: Holding; onClose: () => void; onSubmit: (side: Side, quantity: number, price: number) => void }) { const [side, setSide] = useState<Side>("BUY"); const [quantity, setQuantity] = useState("1"); const [price, setPrice] = useState(asset.price.toFixed(2)); const safePrice = Number(price) || 0; const safeQuantity = asset.kind === "CRYPTO" ? Number(quantity) : Math.floor(Number(quantity)); const total = Number((safePrice * Math.max(0, safeQuantity)).toFixed(2)); const valid = safeQuantity > 0 && safePrice > 0 && (side === "BUY" ? total <= cash : Boolean(holding && safeQuantity <= holding.shares)); return <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}><View style={styles.modalShade}><View style={styles.modal}><View style={styles.modalHeader}><View><Text style={styles.sectionLabel}>LIMIT ORDER</Text><Text style={styles.modalTitle}>{asset.name} ({asset.symbol})</Text></View><Pressable onPress={onClose}><Text style={styles.close}>×</Text></Pressable></View><View style={styles.sideRow}><Pressable onPress={() => setSide("BUY")} style={[styles.sideButton, side === "BUY" && styles.sideBuy]}><Text style={styles.sideText}>BUY</Text></Pressable><Pressable onPress={() => setSide("SELL")} style={[styles.sideButton, side === "SELL" && styles.sideSell]}><Text style={styles.sideText}>SELL</Text></Pressable></View><Text style={styles.inputLabel}>QUANTITY</Text><TextInput value={quantity} onChangeText={setQuantity} keyboardType={asset.kind === "CRYPTO" ? "decimal-pad" : "number-pad"} style={styles.input} /><Text style={styles.inputLabel}>LIMIT PRICE</Text><TextInput value={price} onChangeText={setPrice} keyboardType="decimal-pad" style={styles.input} /><View style={styles.previewBox}><Text style={styles.sectionLabel}>ORDER PREVIEW</Text><Text style={styles.previewLine}>Quantity <Text style={styles.previewValue}>{safeQuantity}</Text></Text><Text style={styles.previewLine}>Limit price <Text style={styles.previewValue}>{money(safePrice)}</Text></Text><Text style={styles.previewLine}>Notional <Text style={styles.previewValue}>{money(total)}</Text></Text><Text style={styles.previewLine}>{side === "BUY" ? "Cash after fill" : "Cash after sale"} <Text style={styles.previewValue}>{money(side === "BUY" ? cash - total : cash + total)}</Text></Text></View><Pressable disabled={!valid} onPress={() => onSubmit(side, safeQuantity, safePrice)} style={[styles.reviewButton, !valid && styles.disabled]}><Text style={styles.reviewButtonText}>Place {side} Limit Order</Text></Pressable></View></View></Modal>; }
 
-function TradeModal({ visible, asset, cash, holding, onClose, onSubmit }: { visible: boolean; asset: Asset; cash: number; holding?: Holding; onClose: () => void; onSubmit: (side: Side, quantity: number) => void }) { const [side, setSide] = useState<Side>("BUY"); const [quantity, setQuantity] = useState("1"); const preview: TradePreview = previewTrade(asset, side, Number(quantity), cash, holding); const choosePercent = (value: 0.25 | 0.5 | 0.75 | 1) => setQuantity(String(side === "BUY" ? quantityFromCashPercent(asset, cash, value) : quantityFromHoldingPercent(asset, holding, value))); const submit = () => { if (!preview.valid) return Alert.alert("ORDER REJECTED", preview.reason || "Check quantity and available funds."); const commit = () => onSubmit(side, preview.quantity); if (side === "BUY" && preview.total > cash * 0.5) Alert.alert("CONFIRM LARGE ORDER", `This uses ${((preview.total / Math.max(cash, 1)) * 100).toFixed(0)}% of available cash.`, [{ text: "CANCEL", style: "cancel" }, { text: "CONFIRM", onPress: commit }]); else commit(); }; return <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}><View style={styles.modalShade}><View style={styles.modal}><View style={styles.modalHeader}><View><Text style={styles.sectionLabel}>ORDER PREVIEW</Text><Text style={styles.modalTitle}>{asset.name} ({asset.symbol})</Text></View><Pressable onPress={onClose}><Text style={styles.close}>×</Text></Pressable></View><View style={styles.sideRow}><Pressable onPress={() => setSide("BUY")} style={[styles.sideButton, side === "BUY" && styles.sideBuy]}><Text style={styles.sideText}>BUY</Text></Pressable><Pressable onPress={() => setSide("SELL")} style={[styles.sideButton, side === "SELL" && styles.sideSell]}><Text style={styles.sideText}>SELL</Text></Pressable></View><Text style={styles.inputLabel}>QUANTITY</Text><TextInput value={quantity} onChangeText={setQuantity} keyboardType={asset.kind === "CRYPTO" ? "decimal-pad" : "number-pad"} style={styles.input} /><View style={styles.quantityRail}>{TRADE_QUANTITY_PRESETS.map((value) => <Pressable key={value} onPress={() => setQuantity(String(value))} style={styles.quantityButton}><Text style={styles.quantityText}>{value}</Text></Pressable>)}{([0.25, 0.5, 0.75, 1] as const).map((value) => <Pressable key={value} onPress={() => choosePercent(value)} style={styles.quantityButton}><Text style={styles.quantityText}>{value === 1 ? (side === "BUY" ? "MAX" : "ALL") : `${value * 100}%`}</Text></Pressable>)}</View><View style={styles.previewBox}><Text style={styles.sectionLabel}>CONFIRMATION</Text><Text style={styles.previewLine}>Asset <Text style={styles.previewValue}>{asset.name}</Text></Text><Text style={styles.previewLine}>Quantity <Text style={styles.previewValue}>{preview.quantity}</Text></Text><Text style={styles.previewLine}>Price <Text style={styles.previewValue}>{money(preview.price)}</Text></Text><Text style={styles.previewLine}>Total {side === "BUY" ? "cost" : "proceeds"} <Text style={styles.previewValue}>{money(preview.total)}</Text></Text><Text style={styles.previewLine}>Cash after <Text style={styles.previewValue}>{money(preview.cashAfter)}</Text></Text><Text style={styles.previewLine}>Expected P/L <Text style={preview.expectedPnl >= 0 ? styles.positive : styles.negative}>{side === "SELL" ? money(preview.expectedPnl) : "—"}</Text></Text></View><Pressable onPress={submit} style={[styles.reviewButton, !preview.valid && styles.disabled]}><Text style={styles.reviewButtonText}>{side === "BUY" ? "Confirm Buy" : "Confirm Sell"}</Text></Pressable></View></View></Modal>; }
+function TradeModal({ visible, initialSide = "BUY", asset, cash, holding, onClose, onSubmit }: { visible: boolean; initialSide?: Side; asset: Asset; cash: number; holding?: Holding; onClose: () => void; onSubmit: (side: Side, quantity: number) => void }) { const [side, setSide] = useState<Side>(initialSide); const [quantity, setQuantity] = useState("1"); const preview: TradePreview = previewTrade(asset, side, Number(quantity), cash, holding); const choosePercent = (value: 0.25 | 0.5 | 0.75 | 1) => setQuantity(String(side === "BUY" ? quantityFromCashPercent(asset, cash, value) : quantityFromHoldingPercent(asset, holding, value))); const submit = () => { if (!preview.valid) return Alert.alert("ORDER REJECTED", preview.reason || "Check quantity and available funds."); const commit = () => onSubmit(side, preview.quantity); if (side === "BUY" && preview.total > cash * 0.5) Alert.alert("CONFIRM LARGE ORDER", `This uses ${((preview.total / Math.max(cash, 1)) * 100).toFixed(0)}% of available cash.`, [{ text: "CANCEL", style: "cancel" }, { text: "CONFIRM", onPress: commit }]); else commit(); }; return <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}><View style={styles.modalShade}><View style={styles.modal}><View style={styles.modalHeader}><View><Text style={styles.sectionLabel}>ORDER PREVIEW</Text><Text style={styles.modalTitle}>{asset.name} ({asset.symbol})</Text></View><Pressable onPress={onClose}><Text style={styles.close}>×</Text></Pressable></View><View style={styles.sideRow}><Pressable onPress={() => setSide("BUY")} style={[styles.sideButton, side === "BUY" && styles.sideBuy]}><Text style={styles.sideText}>BUY</Text></Pressable><Pressable onPress={() => setSide("SELL")} style={[styles.sideButton, side === "SELL" && styles.sideSell]}><Text style={styles.sideText}>SELL</Text></Pressable></View><Text style={styles.inputLabel}>QUANTITY</Text><TextInput value={quantity} onChangeText={setQuantity} keyboardType={asset.kind === "CRYPTO" ? "decimal-pad" : "number-pad"} style={styles.input} /><View style={styles.quantityRail}>{TRADE_QUANTITY_PRESETS.map((value) => <Pressable key={value} onPress={() => setQuantity(String(value))} style={styles.quantityButton}><Text style={styles.quantityText}>{value}</Text></Pressable>)}{([0.25, 0.5, 0.75, 1] as const).map((value) => <Pressable key={value} onPress={() => choosePercent(value)} style={styles.quantityButton}><Text style={styles.quantityText}>{value === 1 ? (side === "BUY" ? "MAX" : "ALL") : `${value * 100}%`}</Text></Pressable>)}</View><View style={styles.previewBox}><Text style={styles.sectionLabel}>CONFIRMATION</Text><Text style={styles.previewLine}>Asset <Text style={styles.previewValue}>{asset.name}</Text></Text><Text style={styles.previewLine}>Quantity <Text style={styles.previewValue}>{preview.quantity}</Text></Text><Text style={styles.previewLine}>Price <Text style={styles.previewValue}>{money(preview.price)}</Text></Text><Text style={styles.previewLine}>Total {side === "BUY" ? "cost" : "proceeds"} <Text style={styles.previewValue}>{money(preview.total)}</Text></Text><Text style={styles.previewLine}>Cash after <Text style={styles.previewValue}>{money(preview.cashAfter)}</Text></Text><Text style={styles.previewLine}>Expected P/L <Text style={preview.expectedPnl >= 0 ? styles.positive : styles.negative}>{side === "SELL" ? money(preview.expectedPnl) : "—"}</Text></Text></View><Pressable onPress={submit} style={[styles.reviewButton, !preview.valid && styles.disabled]}><Text style={styles.reviewButtonText}>{side === "BUY" ? "Confirm Buy" : "Confirm Sell"}</Text></Pressable></View></View></Modal>; }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.background },
@@ -329,16 +365,7 @@ function AssetFacts({ asset, holding }: { asset?: Asset; holding?: Holding }) {
     </>}
   </View>;
 }
-function nextQuarterStart(nowMs: number): Date {
-  const d = new Date(nowMs);
-  const q = Math.floor(d.getUTCMonth() / 3);
-  return new Date(Date.UTC(d.getUTCFullYear() + (q === 3 ? 1 : 0), ((q + 1) % 4) * 3, 1));
-}
-function quarterStart(nowMs: number): Date {
-  const d = new Date(nowMs);
-  return new Date(Date.UTC(d.getUTCFullYear(), Math.floor(d.getUTCMonth() / 3) * 3, 1));
-}
-function DividendPanel({ assets, holdings, trades, nowMs, compact = false }: { assets: Asset[]; holdings: Record<string, Holding>; trades: TradeRecord[]; nowMs: number; compact?: boolean }) {
+function DividendPanel({ assets, holdings, trades, gameDayCounter, compact = false }: { assets: Asset[]; holdings: Record<string, Holding>; trades: TradeRecord[]; gameDayCounter: number; compact?: boolean }) {
   const payers = assets.flatMap((asset) => {
     const shares = Math.max(0, Number(holdings[asset.id]?.shares || 0));
     const perShare = dividendPerShare(asset);
@@ -347,21 +374,23 @@ function DividendPanel({ assets, holdings, trades, nowMs, compact = false }: { a
   const quarterly = payers.reduce((sum, row) => sum + row.quarter, 0);
   const paid = trades.filter((record) => record.id.startsWith("dividend-"));
   const paidTotal = paid.reduce((sum, record) => sum + record.notional, 0);
-  const start = quarterStart(nowMs).getTime();
-  const end = nextQuarterStart(nowMs).getTime();
-  const elapsed = Math.min(1, Math.max(0, (nowMs - start) / Math.max(1, end - start)));
+  const daysToNextPayout = daysUntilNextGameQuarter(gameDayCounter);
+  const elapsedGameDays = 90 - daysToNextPayout;
+  const accrued = quarterly * (elapsedGameDays / 90);
+  const nextGameDate = formatGameDate(gameDayCounter + daysToNextPayout);
+  const quarter = gameQuarterKey(gameDayCounter);
   const suggestions = assets.filter((asset) => asset.kind === "STOCK" && asset.dividend > 0 && !holdings[asset.id]?.shares).sort((a, b) => b.dividend - a.dividend).slice(0, 3);
   return <View style={xs.divCard}>
-    <View style={xs.divHead}><Text style={xs.divTitle}>Dividend income</Text><Text style={xs.divSub}>Paid each quarter</Text></View>
+    <View style={xs.divHead}><Text style={xs.divTitle}>Dividend income</Text><Text style={xs.divSub}>Paid every 90 game-days</Text></View>
     <View style={xs.divStats}>
       <View style={xs.divStat}><Text style={xs.factLabel}>Per quarter</Text><Text style={[xs.divBig, xs.good]}>{money(quarterly)}</Text></View>
-      <View style={xs.divStat}><Text style={xs.factLabel}>Per year</Text><Text style={xs.divBig}>{money(quarterly * 4)}</Text></View>
+      <View style={xs.divStat}><Text style={xs.factLabel}>Per game-year</Text><Text style={xs.divBig}>{money(quarterly * 4)}</Text></View>
       <View style={xs.divStat}><Text style={xs.factLabel}>Received so far</Text><Text style={xs.divBig}>{money(paidTotal)}</Text></View>
     </View>
-    <Text style={xs.divNote}>{payers.length ? `Accrued this quarter ${money(quarterly * elapsed)} · next payout ${nextQuarterStart(nowMs).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}` : "You hold no dividend stocks yet. Buy one to start earning every quarter."}</Text>
+    <Text style={xs.divNote}>{payers.length ? `${quarter} · accrued this quarter ${money(accrued)} · next payout in ${daysToNextPayout} game-day${daysToNextPayout === 1 ? "" : "s"} (${nextGameDate})` : "You hold no dividend stocks yet. Buy one to start earning every game quarter."}</Text>
     {payers.slice(0, compact ? 4 : 20).map((row) => <View key={row.asset.id} style={xs.divRow}><Text style={xs.divSym}>{row.asset.symbol}</Text><Text style={xs.divMeta}>{fmtInt(row.shares)} sh · {row.asset.dividend.toFixed(2)}% yield</Text><Text style={xs.divAmt}>{money(row.quarter)}/qtr</Text></View>)}
     {!payers.length && suggestions.map((asset) => <View key={asset.id} style={xs.divRow}><Text style={xs.divSym}>{asset.symbol}</Text><Text style={xs.divMeta}>{asset.dividend.toFixed(2)}% yield</Text><Text style={xs.divAmt}>{money(dividendPerShare(asset))}/sh/qtr</Text></View>)}
-    {paid.length > 0 && <><Text style={xs.divNote}>Recent payments</Text>{paid.slice(-5).reverse().map((record) => <View key={record.id} style={xs.divRow}><Text style={xs.divSym}>{record.symbol}</Text><Text style={xs.divMeta}>{new Date(record.timestamp).toLocaleDateString()} · {fmtInt(record.quantity)} sh</Text><Text style={[xs.divAmt, xs.good]}>+{money(record.notional)}</Text></View>)}</>}
+    {paid.length > 0 && <><Text style={xs.divNote}>Recent payments</Text>{paid.slice(-5).reverse().map((record) => <View key={record.id} style={xs.divRow}><Text style={xs.divSym}>{record.symbol}</Text><Text style={xs.divMeta}>{new Date(record.timestamp).toLocaleDateString("en-US") } · {fmtInt(record.quantity)} sh</Text><Text style={[xs.divAmt, xs.good]}>+{money(record.notional)}</Text></View>)}</>}
   </View>;
 }
 const xs = StyleSheet.create({
@@ -377,4 +406,30 @@ const xs = StyleSheet.create({
   divNote: { color: "#5C6F86", fontSize: 11, lineHeight: 16, marginTop: 4 },
   divRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 6, borderTopWidth: 1, borderTopColor: "#EDF2F7" },
   divSym: { width: 56, color: "#1B2B45", fontSize: 12, fontWeight: "900" }, divMeta: { flex: 1, color: "#5C6F86", fontSize: 11 }, divAmt: { color: "#1B2B45", fontSize: 12, fontWeight: "800" },
+});
+
+
+const positionStyles = StyleSheet.create({
+  positionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: C.line,
+  },
+  positionMain: { flex: 1, minWidth: 0 },
+  positionValue: { alignItems: "flex-end", minWidth: 78 },
+  sellButton: {
+    minWidth: 54,
+    minHeight: 36,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    backgroundColor: "#FFECEF",
+    borderWidth: 1,
+    borderColor: "#F5C6CE",
+  },
+  sellButtonText: { color: C.red, fontSize: 11, fontWeight: "900" },
 });

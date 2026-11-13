@@ -3,7 +3,7 @@ import { createLoan, underwriteLoan } from "../src/engine/bankEngine";
 import { settleHour } from "../src/engine/financialCore";
 
 const HOUR = 3600000;
-const HOURS_PER_MONTH = 24 * 30;
+const GAME_DAYS_PER_MONTH = 30;
 const start = 1_800_000_000_000;
 
 const makeBank = () => ({
@@ -46,7 +46,7 @@ const makeBase = (bank: any) => ({
       pendingSettlementAmount: 0,
     },
   ],
-  systemTimeMs: start,
+  systemTimeMs: start + HOUR,
 });
 
 const decision = underwriteLoan(makeBank(), "SBA_MICROLOAN", 5_000, 2_000, 0);
@@ -65,7 +65,7 @@ const cashLedgerDelta = (result: ReturnType<typeof settleHour>) =>
 
 let state: any = { ...base, bank: { ...initialBank, loans: [loan] } };
 const hourlyResults: ReturnType<typeof settleHour>[] = [];
-for (let hour = 1; hour <= 4; hour += 1) {
+for (let hour = 1; hour <= GAME_DAYS_PER_MONTH; hour += 1) {
   const result = settleHour(state);
   hourlyResults.push(result);
   assert.equal(
@@ -73,7 +73,7 @@ for (let hour = 1; hour <= 4; hour += 1) {
     result.cashDelta,
     `hour ${hour}: cash delta must reconcile with non-tax ledger entries`,
   );
-  if (hour <= loan.graceSettlements!) {
+  if (hour < GAME_DAYS_PER_MONTH) {
     assert.equal(result.breakdown.emi, 0, `hour ${hour}: grace EMI must be zero`);
     assert.equal(
       result.ledger.some((entry) => entry.kind === "EMI" && entry.amount !== 0),
@@ -88,14 +88,14 @@ for (let hour = 1; hour <= 4; hour += 1) {
   };
 }
 
-const firstEligible = hourlyResults[3];
+const firstEligible = hourlyResults[GAME_DAYS_PER_MONTH - 1];
 assert.equal(firstEligible.breakdown.emi, loan.monthlyPayment);
 assert.equal(
   firstEligible.ledger.filter((entry) => entry.kind === "EMI" && entry.amount < 0).length,
   1,
 );
 assert.equal(firstEligible.state.bank.loans[0].balance, 4_883.93);
-assert.equal(firstEligible.state.bank.loans[0].nextDueAt, start + 3 * HOUR + HOURS_PER_MONTH * HOUR);
+assert.equal(firstEligible.state.bank.loans[0].nextDueAt, start + 2 * GAME_DAYS_PER_MONTH * HOUR);
 assert.equal(
   Number((base.cash + hourlyResults.reduce((sum, result) => sum + result.cashDelta, 0)).toFixed(2)),
   state.cash,
@@ -104,7 +104,7 @@ assert.equal(
 // Persist immediately after the first eligible payment, then continue for another month.
 state = JSON.parse(JSON.stringify(state));
 let paymentEvents = 1;
-for (let hour = 5; hour <= HOURS_PER_MONTH + 4; hour += 1) {
+for (let hour = GAME_DAYS_PER_MONTH + 1; hour <= 2 * GAME_DAYS_PER_MONTH; hour += 1) {
   const result = settleHour(state);
   assert.equal(
     cashLedgerDelta(result),
@@ -153,11 +153,11 @@ console.log(
     {
       test: "hourly-settlement-monthly-emi",
       graceSettlements: loan.graceSettlements,
-      firstEligibleHour: 4,
-      hourlySettlementsSimulatedAfterReload: HOURS_PER_MONTH,
+      firstEligibleGameDay: GAME_DAYS_PER_MONTH,
+      hourlySettlementsSimulatedAfterReload: GAME_DAYS_PER_MONTH,
       monthlyPayment: loan.monthlyPayment,
       firstEligibleBalance: firstEligible.state.bank.loans[0].balance,
-      paymentEventsAcrossThirtyDays: paymentEvents,
+      paymentEventsAcrossTwoGameMonths: paymentEvents,
       legacyMissingNextDueAt: "PASS",
       jsonReloadBetweenPayments: "PASS",
       result: "PASS",

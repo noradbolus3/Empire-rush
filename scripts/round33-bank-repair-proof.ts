@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import { canAcceptOffer, createLoan, isActiveLoan, payOffLoan, seizeDefaultedLoan, totalDebt, underwriteLoan } from '../src/engine/bankEngine';
 import { calculateNetWorth, settleHour } from '../src/engine/financialCore';
+import { GAME_DAYS_PER_MONTH } from '../src/engine/gameCalendar';
 
 const now = 1_800_000_000_000;
 const baseBank: any = { schemaVersion: 2, savingsBalance: 0, businessCheckingBalance: 0, deposits: [], loans: [], insurance: [], investors: [], offers: [], acceptedOfferIds: [], taxRecords: [], creditHistory: [], marketEvents: [], achievements: [], rivals: [], ficoScore: 700, totalCreditLimit: 25000, hardInquiries: 0, accountOpenedAt: now - 86400000 * 365, ledger: [], lastSettlementAt: now };
@@ -24,8 +25,8 @@ assert.equal(
   'starter microloan grace settlements do not debit EMI',
 );
 let firstEligibleSettlement = graceSettlement;
-let postGraceState: any = afterLoan;
-for (let hour = 1; hour <= 4; hour += 1) {
+let postGraceState: any = { ...afterLoan, systemTimeMs: now + 3600000 };
+for (let hour = 1; hour <= GAME_DAYS_PER_MONTH; hour += 1) {
     firstEligibleSettlement = settleHour(postGraceState);
     postGraceState = {
       ...firstEligibleSettlement.state,

@@ -18,6 +18,6 @@ assert.equal(evaluated.triggered.length, 1, 'above-price alert did not trigger')
 assert.equal(evaluated.alerts[0].enabled, false, 'triggered alert was not disabled');
 assert.equal(evaluated.alerts[0].triggeredAt, 2, 'trigger timestamp missing');
 const migrated = migrateGameSave({ schemaVersion: 9, priceAlerts: [{ ...alerts[0], target: 'bad' }, alerts[0]] });
-assert.equal(GAME_SAVE_VERSION, 15, 'current save schema version');
+assert.equal(GAME_SAVE_VERSION, 16, 'current save schema version');
 assert.equal(migrated.priceAlerts.length, 1, 'invalid alert was not sanitized');
 console.log(JSON.stringify({ indicators: { sma20: snapshot.sma20, ema12: snapshot.ema12, ema26: snapshot.ema26, rsi14: snapshot.rsi14, macd: snapshot.macd, signal9: snapshot.signal9, bollingerUpper: snapshot.bollingerUpper, bollingerLower: snapshot.bollingerLower, trend: snapshot.trend }, alert: { triggered: evaluated.triggered[0].reason, disabled: !evaluated.alerts[0].enabled }, migration: { version: GAME_SAVE_VERSION, validAlerts: migrated.priceAlerts.length } }, null, 2));

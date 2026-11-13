@@ -47,6 +47,7 @@ import {
 } from "../engine/businessLevels";
 import { designSystem } from "../theme/designSystem";
 import { buildCanonicalBusinessRegistry, canonicalActiveCount } from "../engine/canonicalBusinessRegistry";
+import { GAME_DAYS_PER_MONTH } from "../engine/gameCalendar";
 import type { CanonicalBusiness } from "../engine/canonicalBusinessRegistry";
 import { getBusinessDisplayMeta } from "../data/businessDisplayCatalog";
 import { BusinessPortfolioCard } from "../components/business/BusinessPortfolioCard";
@@ -311,7 +312,7 @@ function BusinessScreenContent({
       const revenue = units * 4;
       const cogs = units * (item.unitWholesaleCost ?? 2);
       const fixed =
-        ((item.monthlyRent ?? 800) + (item.monthlyPayroll ?? 1200)) / (30 * 24);
+        ((item.monthlyRent ?? 800) + (item.monthlyPayroll ?? 1200)) / GAME_DAYS_PER_MONTH;
       return Math.max(0, revenue - cogs - fixed - revenue * 0.15);
     }
     if (item.sector === "Mobility")

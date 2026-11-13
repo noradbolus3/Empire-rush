@@ -3,6 +3,7 @@ import { createLoan, settleBank, underwriteLoan } from "../src/engine/bankEngine
 import { defaultBankState } from "../src/types/bank";
 
 const HOUR = 3600000;
+const GAME_DAYS_PER_MONTH = 30;
 const start = 1_800_000_000_000;
 const initial = defaultBankState(start);
 const decision = underwriteLoan(initial, "SBA_MICROLOAN", 5_000, 2_000, 0);
@@ -16,7 +17,7 @@ let state: any = {
 let payments = 0;
 let cashDelta = 0;
 
-for (let hour = 1; hour <= 24 * 30; hour += 1) {
+for (let hour = 1; hour <= GAME_DAYS_PER_MONTH; hour += 1) {
   const result = settleBank(state, start + hour * HOUR, 0);
   payments += result.paymentsMade;
   cashDelta += result.cashDelta;
@@ -30,15 +31,15 @@ const expectedPrincipal = Number((loan.monthlyPayment - expectedInterest).toFixe
 assert.equal(state.loans[0].balance, Number((loan.balance - expectedPrincipal).toFixed(2)));
 assert.equal(
   state.loans[0].nextDueAt,
-  loan.nextDueAt + 30 * 24 * HOUR,
-  "next due date must advance by one 30-day month",
+  loan.nextDueAt + GAME_DAYS_PER_MONTH * HOUR,
+  "next due date must advance by one 30-game-day month",
 );
 
 console.log(
   JSON.stringify(
     {
       test: "legacy-settleBank-monthly-emi",
-      hourlyCalls: 24 * 30,
+      hourlyCalls: GAME_DAYS_PER_MONTH,
       monthlyPayment: loan.monthlyPayment,
       interest: expectedInterest,
       principal: expectedPrincipal,

@@ -12,7 +12,8 @@ const score = bank.creditBreakdown({ ...state, ficoScore: 740, savingsBalance: 3
 assert.equal(score.tier, 'Good');
 assert.equal(score.pointsToVeryGood > 0, true);
 const deposit = bank.openDeposit('CD_3M', 1000, now);
-assert.equal(deposit.maturesAt, now + 3 * 24 * 60 * 60 * 1000);
+assert.equal(deposit.maturesAt, now + deposit.termDays * bank.BANK_SETTLEMENT_MS);
+assert.equal(deposit.termDays, 90, '3-month CD is 90 game-days');
 const tax = bank.calculateTax(120_000, 10_000, 5_000, 50_000);
 assert.equal(tax.federal > 0, true);
 assert.equal(tax.payroll > 0, true);
@@ -25,7 +26,7 @@ const achievementState = { ...ledgerState, ficoScore: 800, loans: [bank.createLo
 assert( bank.achievementIds(achievementState, 1_000_000).includes('FIRST_LOAN') );
 const migrated = migrateGameSave({ schemaVersion: 12, cash: 1000 });
 assert.equal(migrated.schemaVersion, GAME_SAVE_VERSION);
-assert.equal(migrated.bankState.schemaVersion, 2);
+assert.equal(migrated.bankState.schemaVersion, types.BANK_SCHEMA_VERSION);
 const sourceFiles = ['src/data/stocksData.ts', 'src/data/cryptoData.ts', 'src/screens/LifestyleScreen.tsx', 'src/screens/BusinessScreen.tsx'];
 sourceFiles.forEach(file => assert.equal(fs.existsSync(path.join(root, file)), true));
-console.log(JSON.stringify({ passed: true, credit: { tier: score.tier, pointsToVeryGood: score.pointsToVeryGood }, deposit: { name: deposit.name, termDays: deposit.termDays, maturityDeltaDays: 3 }, tax: { federal: tax.federal, state: tax.state, payroll: tax.payroll, capitalGains: tax.capitalGains }, insurance: bank.insuranceSpec('CYBER'), marketEvent: event.kind, ledgerEntries: ledgerState.ledger.length, migration: { schemaVersion: migrated.schemaVersion, bankSchema: migrated.bankState.schemaVersion }, untouchedModules: 'verified-present' }, null, 2));
+console.log(JSON.stringify({ passed: true, credit: { tier: score.tier, pointsToVeryGood: score.pointsToVeryGood }, deposit: { name: deposit.name, termDays: deposit.termDays, maturityGameDays: deposit.termDays }, tax: { federal: tax.federal, state: tax.state, payroll: tax.payroll, capitalGains: tax.capitalGains }, insurance: bank.insuranceSpec('CYBER'), marketEvent: event.kind, ledgerEntries: ledgerState.ledger.length, migration: { schemaVersion: migrated.schemaVersion, bankSchema: migrated.bankState.schemaVersion }, untouchedModules: 'verified-present' }, null, 2));

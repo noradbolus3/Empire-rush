@@ -4,7 +4,7 @@ import { defaultBankState } from "../src/types/bank";
 import { settleHour, type FinancialGameState } from "../src/engine/financialCore";
 
 const HOUR = 3_600_000;
-const MONTH_HOURS = 30 * 24;
+const MONTH_HOURS = 30;
 const start = 1_800_000_000_000;
 
 function loanFixture(overrides: Record<string, unknown> = {}) {
@@ -35,7 +35,7 @@ function bankWith(loan: any, lastSettlementAt = start) {
   assert.equal(second.cashDelta, 0);
 }
 
-// 720 hourly calls: one payment at hour 1 and one at hour 721, not 30 payments.
+// 30 game-day calls: one payment at hour 1 and one at hour 31, not daily payments.
 {
   const loan = loanFixture();
   let state: any = bankWith(loan);
@@ -130,7 +130,7 @@ function bankWith(loan: any, lastSettlementAt = start) {
 console.log(JSON.stringify({
   test: "phase8-emi-timing",
   repeatedTimestamp: "PASS",
-  hourly720: "PASS",
+  thirtyGameDays: "PASS",
   longOfflineCap: "PASS",
   graceOfflineCatchUp: "PASS",
   missingNextDueAt: "PASS",

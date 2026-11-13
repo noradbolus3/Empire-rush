@@ -10,9 +10,11 @@ import {
   InsuranceProduct,
   LoanProduct,
   TaxRecord,
+  BANK_SCHEMA_VERSION,
   defaultBankState,
 } from "../types/bank";
 import type { BusinessEntity } from "../types/business";
+import { GAME_DAYS_PER_MONTH, GAME_DAYS_PER_YEAR, safeGameDayCounter } from "./gameCalendar";
 
 export const PRIME_RATE = 6.5;
 export const BANK_SETTLEMENT_MS = 60 * 60 * 1000;
@@ -21,7 +23,15 @@ export const MICROLOAN_TOTAL_CAP = 50_000;
 export const EARLY_PAYOFF_FEE_RATE = 0.01;
 export const STARTER_MICROLOAN_LIMIT = 5_000;
 export const STARTER_GRACE_SETTLEMENTS = 3;
-export const MAX_UNSECURED_EMI_RATIO = 0.6;
+export const MAX_UNSECURED_EMI_RATIO = 0.4;
+
+export type BorrowerBusinessContext = {
+  id: string;
+  name: string;
+  valuation: number;
+  hourlyNet: number;
+  termMonths?: number;
+};
 
 const clamp = (n: number, min: number, max: number) =>
   Math.min(max, Math.max(min, Number.isFinite(n) ? n : min));
@@ -234,7 +244,7 @@ export function totalDebtCap(
     Platinum: 2_500_000,
     Private: 10_000_000,
   };
-  const annualIncome = Math.max(0, hourlyIncome) * 24 * 365;
+  const annualIncome = Math.max(0, hourlyIncome) * GAME_DAYS_PER_YEAR;
   return Math.max(
     tierBase[tier] || 25_000,
     Math.min(50_000_000, Math.max(0, netWorth) * 1.5 + annualIncome * 0.35),
@@ -252,6 +262,22 @@ export function monthlyDebtService(state: Pick<BankState, "loans">): number {
   return safeMoney(
     state.loans
       .filter(isActiveLoan)
+      .reduce(
+        (sum, loan) => sum + Math.max(0, Number(loan.monthlyPayment) || 0),
+        0,
+      ),
+  );
+}
+function monthlyDebtServiceForBusiness(
+  state: Pick<BankState, "loans">,
+  businessId: string,
+): number {
+  return safeMoney(
+    state.loans
+      .filter(
+        (loan) =>
+          isActiveLoan(loan) && loan.borrowerBusinessId === businessId,
+      )
       .reduce(
         (sum, loan) => sum + Math.max(0, Number(loan.monthlyPayment) || 0),
         0,
@@ -302,6 +328,7 @@ export function underwriteLoan(
   netWorth: number,
   hourlyIncome: number,
   collateral?: { id: string; name: string; value?: number },
+  borrowerBusiness?: BorrowerBusinessContext,
 ): {
   decision: "APPROVE" | "COUNTER" | "DECLINE";
   amount: number;
@@ -340,7 +367,12 @@ export function underwriteLoan(
       reason: `Request exceeds the remaining ${spec.name} capacity of ${money(remainingProduct)} (${money(productCap)} total cap).`,
     };
   const debt = totalDebt(state);
-  const annualizedIncome = Math.max(0, hourlyIncome) * 24 * 30;
+  const incomePerSettlement = Math.max(
+    0,
+    borrowerBusiness?.hourlyNet ?? hourlyIncome,
+  );
+  const annualizedIncome = incomePerSettlement * GAME_DAYS_PER_YEAR;
+  const monthlyBusinessIncome = incomePerSettlement * GAME_DAYS_PER_MONTH;
   const starterProduct =
     product === "SBA_MICROLOAN" || product === "SBA_STARTUP";
   const dti = annualizedIncome > 0 ? debt / annualizedIncome : 0;
@@ -366,8 +398,58 @@ export function underwriteLoan(
       apr,
       reason: "FICO below 580. Pay down balances and rebuild payment history.",
     };
-  const starterGrace =
-    product === "SBA_MICROLOAN" && amount <= STARTER_MICROLOAN_LIMIT;
+  if (borrowerBusiness) {
+    const valuation = Math.max(0, Number(borrowerBusiness.valuation) || 0);
+    if (!borrowerBusiness.id || valuation <= 0)
+      return {
+        decision: "DECLINE",
+        amount: 0,
+        apr,
+        reason: "Select an owned company with a recorded positive valuation before applying.",
+      };
+    const companyDebt = state.loans
+      .filter(
+        (loan) =>
+          isActiveLoan(loan) &&
+          loan.borrowerBusinessId === borrowerBusiness.id,
+      )
+      .reduce((sum, loan) => sum + Math.max(0, Number(loan.balance) || 0), 0);
+    const companyCapacity = Math.max(0, valuation * 0.5 - companyDebt);
+    if (companyCapacity <= 0)
+      return {
+        decision: "DECLINE",
+        amount: 0,
+        apr,
+        reason: `${borrowerBusiness.name} has reached its 50% of valuation borrowing limit. Reduce its outstanding balance first.`,
+      };
+    if (amount > companyCapacity)
+      return {
+        decision: "COUNTER",
+        amount: safeMoney(companyCapacity),
+        apr,
+        reason: `${borrowerBusiness.name}'s 50% valuation limit supports up to ${money(companyCapacity)} in additional debt.`,
+      };
+    const companyDebtService = monthlyDebtServiceForBusiness(
+      state,
+      borrowerBusiness.id,
+    );
+    const paymentLimit = Math.max(
+      0,
+      monthlyBusinessIncome * MAX_UNSECURED_EMI_RATIO - companyDebtService,
+    );
+    const requestedPayment = monthlyPayment(
+      amount,
+      apr,
+      Math.max(1, Math.floor(borrowerBusiness.termMonths || spec.termMonths)),
+    );
+    if (requestedPayment > paymentLimit)
+      return {
+        decision: "DECLINE",
+        amount: 0,
+        apr,
+        reason: `The monthly payment of ${money(requestedPayment)} exceeds ${borrowerBusiness.name}'s available 40% net-income EMI limit (${money(paymentLimit)}). Improve its earnings or request a smaller monthly payment.`,
+      };
+  }
   if (
     isSecuredProduct(product) &&
     collateral &&
@@ -381,16 +463,17 @@ export function underwriteLoan(
       reason: `Requested amount exceeds the 70% LTV cap of ${money(Number(collateral.value) * 0.7)} for ${collateral.name}.`,
     };
   if (
+    !borrowerBusiness &&
     !starterProduct &&
     !isSecuredProduct(product) &&
     monthlyDebtService(state) + monthlyPayment(amount, apr, spec.termMonths) >
-      Math.max(0, hourlyIncome) * MAX_UNSECURED_EMI_RATIO
+      incomePerSettlement * GAME_DAYS_PER_MONTH * MAX_UNSECURED_EMI_RATIO
   )
     return {
       decision: "DECLINE",
       amount: 0,
       apr,
-      reason: `Total unsecured EMI would exceed 60% of net hourly income (${money(Math.max(0, hourlyIncome) * MAX_UNSECURED_EMI_RATIO)}).`,
+      reason: `Total unsecured EMI would exceed 40% of monthly net business earnings (${money(incomePerSettlement * GAME_DAYS_PER_MONTH * MAX_UNSECURED_EMI_RATIO)}).`,
     };
   const capacity = Math.max(
     spec.max * 0.1,
@@ -440,6 +523,7 @@ export function createLoan(
   now: number,
   termMonths?: number,
   collateral?: { id: string; name: string },
+  borrower?: { id: string; name: string; gameDayCounter?: number },
 ): BankLoan {
   const spec = loanProduct(product);
   const principal = safeMoney(amount);
@@ -453,12 +537,12 @@ export function createLoan(
     apr,
     termMonths: term,
     monthlyPayment: monthlyPayment(principal, apr, term),
-    nextDueAt:
-      now +
-      BANK_SETTLEMENT_MS *
-        (product === "SBA_MICROLOAN" && principal <= STARTER_MICROLOAN_LIMIT
-          ? STARTER_GRACE_SETTLEMENTS
-          : 1),
+    nextDueAt: now + GAME_DAYS_PER_MONTH * BANK_SETTLEMENT_MS,
+    nextDueGameDay:
+      safeGameDayCounter(borrower?.gameDayCounter) + GAME_DAYS_PER_MONTH,
+    borrowerBusinessId: borrower?.id ?? null,
+    borrowerBusinessName: borrower?.name ?? null,
+    missedPayments: 0,
     originationFee: safeMoney((principal * spec.fee) / 100),
     collateral: collateral ? `${collateral.name} · locked` : spec.collateral,
     collateralAssetId: collateral?.id,
@@ -616,12 +700,12 @@ export function depositSpec(product: DepositProduct): {
     DepositProduct,
     { name: string; termDays: number; rate: number; penalty: number }
   > = {
-    CD_3M: { name: "3-month CD", termDays: 3, rate: 4.5, penalty: 0.9 },
-    CD_6M: { name: "6-month CD", termDays: 6, rate: 4.75, penalty: 1.2 },
-    CD_12M: { name: "12-month CD", termDays: 12, rate: 5.1, penalty: 1.5 },
+    CD_3M: { name: "3-month CD", termDays: 3 * GAME_DAYS_PER_MONTH, rate: 4.5, penalty: 0.9 },
+    CD_6M: { name: "6-month CD", termDays: 6 * GAME_DAYS_PER_MONTH, rate: 4.75, penalty: 1.2 },
+    CD_12M: { name: "12-month CD", termDays: 12 * GAME_DAYS_PER_MONTH, rate: 5.1, penalty: 1.5 },
     RETIREMENT_IRA: {
       name: "IRA-style retirement account",
-      termDays: 365,
+      termDays: GAME_DAYS_PER_YEAR,
       rate: 5.25,
       penalty: 0.1,
     },
@@ -660,7 +744,7 @@ export function openDeposit(
     rate: spec.rate,
     termDays: spec.termDays,
     openedAt: now,
-    maturesAt: now + spec.termDays * 24 * 60 * 60 * 1000,
+    maturesAt: now + spec.termDays * BANK_SETTLEMENT_MS,
     earlyPenaltyRate: spec.penalty,
     status: "ACTIVE",
   };
@@ -675,7 +759,8 @@ export function withdrawDeposit(
     : safeMoney((deposit.principal * deposit.earlyPenaltyRate) / 100);
   const interest = matured
     ? safeMoney(
-        (((deposit.principal * deposit.rate) / 100) * deposit.termDays) / 365,
+        (((deposit.principal * deposit.rate) / 100) * deposit.termDays) /
+          GAME_DAYS_PER_YEAR,
       )
     : 0;
   return {
@@ -977,7 +1062,7 @@ export function calculateCompanyValuation(
       .filter((item) => item.isAcquired)
       .reduce((sum, item) => {
         const revenue =
-          Math.max(0, Number(item.hourlyNetProfit) || 0) * 24 * 365;
+          Math.max(0, Number(item.hourlyNetProfit) || 0) * GAME_DAYS_PER_YEAR;
         const multiple = sectorMultiples[item.sector] || 1.5;
         const assets =
           Math.max(0, Number(item.acquisitionCost) || 0) +
@@ -1080,13 +1165,13 @@ export function settleBank(
       newOffers: 0,
       completedHours: 0,
     };
-  const savingsRate = 0.0425 / 365 / 24;
+  const savingsRate = 0.0425 / GAME_DAYS_PER_YEAR;
   const interestEarned = safeMoney(
     state.savingsBalance * savingsRate * completedHours,
   );
   let cashDelta = interestEarned;
   let paymentsMade = 0;
-  const MONTH_MS = 30 * 24 * BANK_SETTLEMENT_MS;
+  const MONTH_MS = GAME_DAYS_PER_MONTH * BANK_SETTLEMENT_MS;
   const loans = state.loans.map((loan) => {
     if (!isActiveLoan(loan)) return loan;
     const elapsedSettlements = Number(loan.settlementsElapsed || 0);
@@ -1122,7 +1207,7 @@ export function settleBank(
     if (deposit.status === "ACTIVE" && safeNow >= deposit.maturesAt) {
       maturityCash += safeMoney(
         deposit.principal *
-          (1 + ((deposit.rate / 100) * deposit.termDays) / 365),
+          (1 + ((deposit.rate / 100) * deposit.termDays) / GAME_DAYS_PER_YEAR),
       );
       return { ...deposit, status: "MATURED" as const };
     }
@@ -1190,7 +1275,7 @@ export function sanitizeBankState(input: unknown, now = Date.now()): BankState {
   return {
     ...base,
     ...raw,
-    schemaVersion: 2,
+    schemaVersion: BANK_SCHEMA_VERSION,
     savingsBalance: Math.max(0, Number(raw.savingsBalance) || 0),
     businessCheckingBalance: Math.max(
       0,
@@ -1205,6 +1290,15 @@ export function sanitizeBankState(input: unknown, now = Date.now()): BankState {
             Number(loan.balance || 0) <= 0;
           return {
             ...loan,
+            borrowerBusinessId:
+              typeof loan.borrowerBusinessId === "string"
+                ? loan.borrowerBusinessId
+                : null,
+            borrowerBusinessName:
+              typeof loan.borrowerBusinessName === "string"
+                ? loan.borrowerBusinessName
+                : null,
+            missedPayments: Math.max(0, Math.floor(Number(loan.missedPayments) || 0)),
             balance: legacyReopen ? 49990.28 : loan.balance,
             collections: legacyReopen ? false : loan.collections,
             status: legacyReopen

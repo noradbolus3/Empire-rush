@@ -2,6 +2,7 @@ import { BusinessEntity, ExpansionData, RetailData } from '../types/business';
 import { Asset } from '../types/ipoAssets';
 import { IPOEligibility, IPOListing } from '../types/ipo';
 import { IPO_MAX_NET_WORTH_PROCEEDS_MULTIPLE, IPO_MIN_NET_WORTH, IPO_MIN_OPERATING_ASSETS, IPO_MIN_VALUATION } from './economyPlan';
+import { GAME_DAYS_PER_MONTH, GAME_DAYS_PER_YEAR } from './gameCalendar';
 
 export const IPO_PUBLIC_OFFERING_PERCENT = 0.2;
 export const IPO_MAX_VALUATION_TO_NET_WORTH_MULTIPLE = 4;
@@ -22,7 +23,7 @@ function rawOperatingProfitPerHour(business: BusinessEntity): number {
     const units = retailUnits[retail.pricingTier] * 1800 * modeMultiplier;
     const revenue = units * retailPrices[retail.pricingTier];
     const cogs = units * (retail.unitWholesaleCost ?? 2);
-    const fixedCosts = ((retail.monthlyRent ?? 800) + (retail.monthlyPayroll ?? 1200)) / (30 * 24);
+    const fixedCosts = ((retail.monthlyRent ?? 800) + (retail.monthlyPayroll ?? 1200)) / GAME_DAYS_PER_MONTH;
     const tax = retail.legalStatus === 'Licensed_Legal' ? revenue * 0.15 : 0;
     return Math.max(0, revenue - cogs - fixedCosts - tax);
   }
@@ -43,14 +44,14 @@ function operatingAssetBase(business: BusinessEntity): number {
 
 /**
  * Structural valuation formula:
- * min(operating assets + annualized raw operating profit × sector multiple,
+ * min(operating assets + game-year raw operating profit × sector multiple,
  *     player net worth × 4).
  * Runtime passive multipliers, founder dilution, and synergy are deliberately excluded.
  */
 export function businessValuation(business: BusinessEntity, playerNetWorth: number): number {
   const safeNetWorth = Math.max(0, Number.isFinite(playerNetWorth) ? playerNetWorth : 0);
   const rawProfit = rawOperatingProfitPerHour(business);
-  const annualizedProfit = rawProfit * 24 * 365;
+  const annualizedProfit = rawProfit * GAME_DAYS_PER_YEAR;
   const rawValuation = operatingAssetBase(business) + annualizedProfit * (sectorMultiples[business.sector] ?? 1.1);
   const cappedValuation = Math.min(rawValuation, safeNetWorth * IPO_MAX_VALUATION_TO_NET_WORTH_MULTIPLE);
   return Math.max(0, Math.round(cappedValuation / 1000) * 1000);

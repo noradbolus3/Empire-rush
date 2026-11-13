@@ -82,7 +82,7 @@ export function BusinessPortfolioCard({
   return (
     <Pressable
       accessibilityRole={interactive ? "button" : undefined}
-      accessibilityLabel={`${title} · ${statusLabel.toLowerCase()}${status === "available" ? ` · entry ${formatCurrency(entryCost)}` : ""}`}
+      accessibilityLabel={`${title} · ${statusLabel.toLowerCase()}${status === "available" ? ` · entry ${formatCurrency(entryCost)}` : status === "owned" ? ` · invested ${formatCurrency(record.investedCapital)} · valuation ${formatCurrency(record.valuation)}` : ""}`}
       disabled={!interactive}
       onPress={onPress}
       style={({ pressed }) => [
@@ -110,7 +110,8 @@ export function BusinessPortfolioCard({
         {status === "owned" ? (
           <View style={styles.metrics}>
             <Metric label="NET / HR" value={formatCurrency(record.hourlyNet)} />
-            <Metric label="ASSET VALUE" value={formatCurrency(record.assetValue)} />
+            <Metric label="INVESTED" value={formatCurrency(record.investedCapital)} />
+            <Metric label="VALUATION" value={formatCurrency(record.valuation)} />
             <Metric label="STATUS" value={record.operating ? "Operating" : "Setting up"} />
           </View>
         ) : (

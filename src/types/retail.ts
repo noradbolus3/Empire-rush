@@ -12,7 +12,8 @@ export const RETAIL_BATCH_UNITS = 100;
 export const RETAIL_SELLING_PRICE = 12;
 export const RETAIL_PAYROLL_MONTHLY = 1200;
 export const RETAIL_SALES_PER_HOUR = 10;
-export const RETAIL_HOURS_PER_MONTH = 30 * 24;
+// One hourly settlement is one game-day; preserve the old export name for save/API compatibility.
+export const RETAIL_HOURS_PER_MONTH = 30;
 
 export function retailHourlyAccounting(state: RetailShopState) {
   const salesUnits = state.owned && state.staffHired ? Math.min(state.inventoryUnits, RETAIL_SALES_PER_HOUR) : 0;

@@ -47,7 +47,6 @@ import { STOCK_LOGOS } from "./src/data/stockLogoData";
 import { STOCK_CATALOG } from "./src/data/stocksData";
 import { CRYPTO_CATALOG } from "./src/data/cryptoData";
 import {
-  formatSystemDateTime,
   readSystemTimeMs,
   weekKeyFromSystemTime,
 } from "./src/engine/realTimeEngine";
@@ -121,6 +120,7 @@ import { RETAIL_ENTRY_COST, STARTING_CASH } from "./src/engine/economyPlan";
 import { IncomeEvent, IncomeEventInput } from "./src/types/income";
 import { Asset, Holding } from "./src/types/marketAsset";
 import { processQuarterlyDividends } from "./src/engine/dividendEngine";
+import { formatGameDate, gameQuarterKey } from "./src/engine/gameCalendar";
 import FirstLaunchOnboarding, {
   FounderProfile,
 } from "./src/screens/FirstLaunchOnboarding";
@@ -367,6 +367,7 @@ function AppContent() {
   const marketTick = useRef(0);
   const constructionSimulationSeconds = useRef(0);
   const lastDividendQuarter = useRef("");
+  const [gameDayCounter, setGameDayCounter] = useState(0);
   const [owned, setOwned] = useState<string[]>([]);
   const [headline, setHeadline] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
@@ -534,6 +535,7 @@ function AppContent() {
         holding,
       },
       businessRegistry,
+      gameDayCounter,
       systemTimeMs,
       multiplier: incomeMultiplier,
     }),
@@ -558,6 +560,7 @@ function AppContent() {
       space,
       holding,
       businessRegistry,
+      gameDayCounter,
       systemTimeMs,
       incomeMultiplier,
     ],
@@ -690,6 +693,11 @@ function AppContent() {
       .then((raw) => {
         try {
           const saved = migrateGameSave(raw ? JSON.parse(raw) : null);
+          setGameDayCounter(
+            Number.isFinite(saved.gameDayCounter)
+              ? Math.max(0, Math.floor(saved.gameDayCounter))
+              : 0,
+          );
           const isLegacyProgressSave = Boolean(
             raw &&
               typeof saved?.onboardingComplete !== "boolean" &&
@@ -851,8 +859,10 @@ function AppContent() {
   useEffect(() => {
     latestState.current = {
       schemaVersion: GAME_SAVE_VERSION,
-      timeModel: "system-clock-v1",
+      timeModel: "accelerated-calendar-v1",
       settlementAt: lastSettlementAtMs,
+      gameDayCounter,
+      gameCalendarVersion: 1,
       cash,
       assets,
       holdings,
@@ -907,6 +917,7 @@ function AppContent() {
     soundEnabled,
     notificationsEnabled,
     bankState,
+    gameDayCounter,
     profit,
     onboardingComplete,
     founderProfile,
@@ -977,6 +988,11 @@ function AppContent() {
       };
     }
     setLastSettlementAtMs((value) => value + elapsedHours * 3600000);
+    setGameDayCounter(
+      Number.isFinite(cursor.gameDayCounter)
+        ? cursor.gameDayCounter!
+        : gameDayCounter,
+    );
     setBusinesses(cursor.businesses);
     const sources = cursor.businessSources;
     if (sources) {
@@ -1023,13 +1039,14 @@ function AppContent() {
         category: "other",
       });
     setHeadline(
-      `${elapsedHours} hourly settlement${elapsedHours === 1 ? "" : "s"} complete · net ${money(totalDelta)}.`,
+      `${elapsedHours} game-day settlement${elapsedHours === 1 ? "" : "s"} complete · net ${money(totalDelta)}.`,
     );
   }, [
     loaded,
     clockTampered,
     systemTimeMs,
     lastSettlementAtMs,
+    gameDayCounter,
     financialState,
     pushIncomeEvent,
   ]);
@@ -1137,6 +1154,7 @@ function AppContent() {
       holdings,
       lastDividendQuarter.current,
       systemTimeMs,
+      gameQuarterKey(gameDayCounter),
     );
     if (lastDividendQuarter.current === dividend.quarter) return;
     lastDividendQuarter.current = dividend.quarter;
@@ -1156,7 +1174,7 @@ function AppContent() {
         `Quarterly dividends paid: ${money(dividend.payout)} credited to your portfolio.`,
       );
     }
-  }, [loaded, systemTimeMs, assets, holdings]);
+  }, [loaded, systemTimeMs, gameDayCounter, assets, holdings]);
   useEffect(() => {
     if (!loaded) return;
     void syncFounderReminder(notificationsEnabled).catch(() => undefined);
@@ -1684,7 +1702,7 @@ function AppContent() {
                 ) : null}
                 <Text maxFontSizeMultiplier={1.1} style={[styles.companyIdentity, { flexShrink: 0 }]} numberOfLines={1}>
                   {founderProfile?.companyName ? " · " : ""}
-                  {formatSystemDateTime(systemTimeMs)}
+                  {formatGameDate(gameDayCounter)}
                 </Text>
               </View>
             </View>
@@ -1836,6 +1854,7 @@ function AppContent() {
                   rivalInvestors={rivalInvestors}
                   allocation={marketAllocation}
                   systemTimeMs={systemTimeMs}
+                  gameDayCounter={gameDayCounter}
                   marketEventHistory={marketEventHistory}
                   priceAlerts={priceAlerts}
                   onCreatePriceAlert={(alert) =>
@@ -1869,22 +1888,7 @@ function AppContent() {
                   state={bankState}
                   businesses={businesses}
                   businessRegistry={businessRegistry}
-                  collateralAssets={
-                    owned
-                      .map((id) => {
-                        const item = lifestyleAssets.find(
-                          (asset) => asset.id === id,
-                        );
-                        return item
-                          ? { id: item.id, name: item.name, value: item.price }
-                          : null;
-                      })
-                      .filter(Boolean) as {
-                      id: string;
-                      name: string;
-                      value: number;
-                    }[]
-                  }
+                  gameDayCounter={gameDayCounter}
                   onStateChange={handleBankStateChange}
                   onCashChange={guardedSetCash}
                   onBreaking={setHeadline}

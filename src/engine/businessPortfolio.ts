@@ -1,5 +1,6 @@
 import type { BusinessEntity } from "../types/business";
 import type { CanonicalBusiness } from "./canonicalBusinessRegistry";
+import { GAME_DAYS_PER_YEAR } from "./gameCalendar";
 import { getBusinessDisplayMeta } from "../data/businessDisplayCatalog";
 import {
   BUSINESS_ROUTE_CATALOG,
@@ -55,6 +56,31 @@ export function buildUnifiedBusinessPortfolio(
       .map((id) => businesses.find((item) => item.id === id) ?? null)
       .find((item): item is BusinessEntity => Boolean(item));
     const display = getBusinessDisplayMeta(route.kind);
+    const assetValue = Math.max(
+      0,
+      shadow?.assetValue ?? source?.acquisitionCost ?? display.charterCost,
+    );
+    const investedCapital = Math.max(
+      0,
+      shadow?.investedCapital ?? source?.acquisitionCost ?? display.charterCost,
+    );
+    const hourlyNet = Math.max(0, shadow?.hourlyNet ?? 0);
+    const multiple: Record<CanonicalBusiness["kind"], number> = {
+      generic: 1.2,
+      taxi: 1.3,
+      shipping: 1.25,
+      factory: 1.4,
+      construction: 1.8,
+      dealership: 1.15,
+      software: 2.4,
+      sports: 1.35,
+      oilGas: 1.25,
+      airline: 1.1,
+      hotel: 1.15,
+      blockchain: 1.8,
+      space: 2,
+      holding: 1.2,
+    };
     rows.push({
       id: shadow?.id ?? source?.id ?? route.routeId,
       name: shadow?.name ?? source?.name ?? display.shortLabel,
@@ -65,7 +91,11 @@ export function buildUnifiedBusinessPortfolio(
       hourlyExpenses: shadow?.hourlyExpenses ?? 0,
       hourlyNet: shadow?.hourlyNet ?? 0,
       pendingSettlementAmount: shadow?.pendingSettlementAmount ?? 0,
-      assetValue: Math.max(0, shadow?.assetValue ?? source?.acquisitionCost ?? display.charterCost),
+      assetValue,
+      investedCapital,
+      valuation:
+        shadow?.valuation ??
+        assetValue + hourlyNet * GAME_DAYS_PER_YEAR * multiple[route.kind],
       consolidatesOtherBusinesses: route.kind === "holding",
       source: "specialized-state",
     });
