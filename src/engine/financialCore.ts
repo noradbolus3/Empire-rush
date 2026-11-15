@@ -455,7 +455,7 @@ export function settleHour(state: FinancialGameState): SettlementResult {
       : business,
   );
   const nextBusinessSources = state.businessSources
-    ? advanceSpecializedBusinessSources(state.businessSources)
+    ? advanceSpecializedBusinessSources(state.businessSources, timestamp)
     : undefined;
   const nextRegistry = nextBusinessSources
     ? buildCanonicalBusinessRegistry({

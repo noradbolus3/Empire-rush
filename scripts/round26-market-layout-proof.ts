@@ -14,7 +14,7 @@ assert.match(moduleSource, /indexStrip:\{[^}]*flexWrap:'wrap'/);
 assert.match(moduleSource, /metric:\{[^}]*flexBasis:'47%'[^}]*minWidth:'47%'/);
 assert.match(moduleSource, /height=\{110\} viewBox="0 0 320 110"/);
 assert.match(appSource, /paddingTop: 5,[\s\S]*?paddingBottom: 3/);
-assert.match(appSource, /height: 54,[\s\S]*?paddingHorizontal: 6/);
+assert.match(appSource, /height: 58,[\s\S]*?paddingHorizontal: 6/);
 assert.match(appSource, /content: \{ paddingHorizontal: 18, paddingBottom: 72 \}/);
 
 console.log(JSON.stringify({

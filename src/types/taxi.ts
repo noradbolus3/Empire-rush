@@ -50,15 +50,49 @@ export function taxiCapacity(company: TaxiCompanyState) {
   return company.depotLevel * 10;
 }
 
+export function taxiAreaFareMultiplier(area: TaxiArea) {
+  switch (area) {
+    case "Harbor District":
+      return 1.12;
+    case "Airport Corridor":
+      return 1.25;
+    default:
+      return 1;
+  }
+}
+
 export function taxiHourlyEconomics(company: TaxiCompanyState) {
-  const rides =
+  const vehicleRideCapacity =
     company.economyTaxis * 7 +
     company.electricTaxis * 9 +
     company.luxuryTaxis * 12;
-  const revenue = rides * 18 * company.demandIndex;
+  // One staffed driver can dispatch up to seven rides per settlement.
+  const rides = Math.min(vehicleRideCapacity, Math.max(0, company.drivers) * 7);
+  const revenue =
+    rides * 18 * company.demandIndex * taxiAreaFareMultiplier(company.area);
   const expenses =
     company.drivers * 22 +
     taxiVehicleCount(company) * 8 +
     (100 - company.fleetCondition) * 2;
   return { revenue, expenses, net: revenue - expenses, rides };
+}
+
+/** One completed hourly settlement is one taxi dispatch shift/game-day. */
+export function taxiSettlementTick(
+  company: TaxiCompanyState,
+  settlementAt: number,
+): TaxiCompanyState {
+  if (company.status !== "operating") return company;
+  const economics = taxiHourlyEconomics(company);
+  return {
+    ...company,
+    completedRides: Math.max(0, company.completedRides) + economics.rides,
+    fleetCondition: Math.max(
+      0,
+      company.fleetCondition - Math.max(1, taxiVehicleCount(company) * 0.4),
+    ),
+    lastShiftAt: settlementAt,
+    lastShiftRevenue: Math.round(economics.revenue),
+    lastShiftExpenses: Math.round(economics.expenses),
+  };
 }

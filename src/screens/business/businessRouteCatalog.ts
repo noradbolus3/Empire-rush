@@ -52,7 +52,7 @@ export const BUSINESS_ROUTE_CATALOG: readonly BusinessRouteEntry[] = [
     routeId: "business-taxi",
     label: "Taxi Company",
     screen: "taxi",
-    stableIds: ["empire-taxi-company"],
+    stableIds: ["empire-taxi-company", "metro-mobility"],
     stateKey: "taxiCompany",
     supportsDirectLaunch: true,
   },

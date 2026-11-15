@@ -820,7 +820,6 @@ const factoryInteraction = async (label, company, cash, actions) => {
   ]);
   await taxiInteraction("taxi-screen-operations", operatingTaxi, 50000, [
     "OPERATIONS",
-    "RUN NEXT TAXI SHIFT",
   ]);
   await taxiInteraction("taxi-screen-workforce", operatingTaxi, 50000, [
     "WORKFORCE",

@@ -48,6 +48,23 @@ export function isGameQuarterBoundary(completedSettlements: number): boolean {
   return counter > 0 && counter % GAME_DAYS_PER_QUARTER === 0;
 }
 
+/** Quarter whose 90-game-day estimated payment is currently due, if any. */
+export function dueGameTaxQuarterKey(completedSettlements: number): string | null {
+  const counter = safeGameDayCounter(completedSettlements);
+  if (counter < GAME_DAYS_PER_QUARTER) return null;
+  const dueQuarterStart =
+    (Math.floor(counter / GAME_DAYS_PER_QUARTER) - 1) *
+    GAME_DAYS_PER_QUARTER;
+  return gameQuarterKey(dueQuarterStart);
+}
+
+/** At a due boundary, returns a full quarter until the following obligation. */
+export function daysUntilNextGameTaxDue(completedSettlements: number): number {
+  const counter = safeGameDayCounter(completedSettlements);
+  const remainder = counter % GAME_DAYS_PER_QUARTER;
+  return remainder === 0 ? GAME_DAYS_PER_QUARTER : GAME_DAYS_PER_QUARTER - remainder;
+}
+
 /**
  * Convert an old real-calendar monthly due timestamp into the accelerated
  * calendar without assigning an arbitrary borrower or changing loan terms.

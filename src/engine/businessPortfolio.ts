@@ -5,6 +5,7 @@ import { getBusinessDisplayMeta } from "../data/businessDisplayCatalog";
 import {
   BUSINESS_ROUTE_CATALOG,
   getBusinessRouteById,
+  getBusinessRouteForEntity,
   getBusinessRouteByKind,
 } from "../screens/business/businessRouteCatalog";
 
@@ -41,7 +42,18 @@ export function buildUnifiedBusinessPortfolio(
 ): CanonicalBusiness[] {
   const rows = registry.filter((record) => {
     if (record.source === "specialized-state") return true;
-    const route = getBusinessRouteById(record.id);
+    const source = businesses.find((item) => item.id === record.id);
+    const route =
+      getBusinessRouteById(record.id) ??
+      (source ? getBusinessRouteForEntity(source) : null);
+    if (record.id === "metro-mobility") {
+      const taxiOwned = registry.some(
+        (item) => item.kind === "taxi" && item.source === "specialized-state" && item.owned,
+      );
+      // An unowned generic Mobility entry is the legacy shadow for Taxi setup;
+      // keep an acquired pre-migration business visible unless Taxi now owns it.
+      return Boolean(source?.isAcquired) && !taxiOwned;
+    }
     return !route || route.kind === "generic";
   });
 
@@ -52,6 +64,7 @@ export function buildUnifiedBusinessPortfolio(
       (record) =>
         record.source === "generic-state" && route.stableIds.includes(record.id),
     );
+    if (route.kind === "taxi" && shadow?.owned) continue;
     const source = route.stableIds
       .map((id) => businesses.find((item) => item.id === id) ?? null)
       .find((item): item is BusinessEntity => Boolean(item));

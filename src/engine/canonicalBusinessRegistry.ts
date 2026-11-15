@@ -1,6 +1,10 @@
 import type { BusinessEntity } from "../types/business";
 import type { TaxiCompanyState } from "../types/taxi";
-import { taxiHourlyEconomics, taxiVehicleCount } from "../types/taxi";
+import {
+  taxiHourlyEconomics,
+  taxiSettlementTick,
+  taxiVehicleCount,
+} from "../types/taxi";
 import type { ShippingCompanyState } from "../types/shipping";
 import { shippingEconomics, shippingVehicleCount } from "../types/shipping";
 import type { FactoryCompanyState } from "../types/factory";
@@ -94,11 +98,14 @@ export type CanonicalBusinessInput = {
 
 export type SpecializedBusinessSources = Omit<CanonicalBusinessInput, "businesses">;
 
-/** Advance only specialized states with existing deterministic hourly transitions. */
+/** Advance specialized operating states once per centralized hourly settlement. */
 export function advanceSpecializedBusinessSources(
   sources: SpecializedBusinessSources,
+  settlementAt = Date.now(),
 ): SpecializedBusinessSources {
   const next = { ...sources };
+  if (sources.taxiCompany)
+    next.taxiCompany = taxiSettlementTick(sources.taxiCompany, settlementAt);
   if (sources.factoryCompany)
     next.factoryCompany = factorySettlementTick(sources.factoryCompany).factory;
   if (sources.constructionCompany)

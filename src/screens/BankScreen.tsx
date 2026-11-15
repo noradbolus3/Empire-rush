@@ -22,7 +22,7 @@ import {
   bankEventForTick,
   bankTier,
   calculateCompanyValuation,
-  calculateTax,
+  calculateQuarterlyTaxEstimate,
   canAcceptOffer,
   creditBreakdown,
   calculateFico,
@@ -58,7 +58,13 @@ import type { BankLedgerEntry } from "../types/bank";
 import { calculateNetWorth } from "../engine/financialCore";
 import type { CanonicalBusiness } from "../engine/canonicalBusinessRegistry";
 import type { BorrowerBusinessContext } from "../engine/bankEngine";
-import { GAME_DAYS_PER_MONTH, GAME_DAYS_PER_YEAR } from "../engine/gameCalendar";
+import {
+  GAME_DAYS_PER_MONTH,
+  GAME_DAYS_PER_YEAR,
+  daysUntilNextGameTaxDue,
+  dueGameTaxQuarterKey,
+  gameCalendarPosition,
+} from "../engine/gameCalendar";
 import { designSystem } from "../theme/designSystem";
 
 const C = {
@@ -146,8 +152,6 @@ const fmtDate = (value: number) =>
     month: "short",
     day: "numeric",
   });
-const TAX_QUARTER_MS = 90 * 24 * 60 * 60 * 1000;
-
 type Props = {
   cash: number;
   netWorth: number;
@@ -629,12 +633,7 @@ export default function BankScreen({
     onBreaking(`Offer accepted · ${offer.title}.`);
     onHaptic?.(true);
   };
-  const tax = calculateTax(
-    Math.max(0, hourlyIncome * GAME_DAYS_PER_MONTH),
-    0,
-    0,
-    0,
-  );
+  const tax = calculateQuarterlyTaxEstimate(Math.max(0, hourlyIncome));
   const achievements = achievementIds(state, netWorth);
   const event = bankEventForTick(
     Math.floor(Date.now() / 3_600_000),
@@ -736,6 +735,7 @@ export default function BankScreen({
           tax={tax}
           state={state}
           cash={cash}
+          gameDayCounter={gameDayCounter}
           onStateChange={update}
           onCashChange={onCashChange}
           onBreaking={onBreaking}
@@ -1579,15 +1579,24 @@ function TaxPanel({
   tax,
   state,
   cash,
+  gameDayCounter,
   onStateChange,
   onCashChange,
   onBreaking,
 }: any) {
   const total = tax.federal + tax.state + tax.payroll + tax.capitalGains;
-  const taxObligationId = `tax-quarter-${Math.floor(Date.now() / TAX_QUARTER_MS)}`;
+  const completedDays = Math.max(0, Math.floor(Number(gameDayCounter) || 0));
+  const dueQuarterKey = dueGameTaxQuarterKey(completedDays);
+  const taxObligationId = dueQuarterKey
+    ? `tax-quarter-${dueQuarterKey}`
+    : "tax-quarter-not-due";
   const alreadyPaid = (state.taxRecords || []).some(
-    (record: any) => record.id === taxObligationId && record.status === "PAID",
+    (record: any) =>
+      (record.id === taxObligationId || record.periodKey === dueQuarterKey) &&
+      record.status === "PAID",
   );
+  const paymentDue = Boolean(dueQuarterKey && !alreadyPaid);
+  const daysUntilDue = daysUntilNextGameTaxDue(completedDays);
   const shortTerm = (state.taxRecords || []).reduce(
     (sum: number, item: any) => sum + Number(item.shortTermGain || 0),
     0,
@@ -1600,25 +1609,40 @@ function TaxPanel({
     <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}>
       <Card
         title="US TAX DESK"
-        copy="Progressive federal brackets, state tax, payroll/FICA, capital gains, deductions, quarterly estimates, and Tax Day are simulated."
+        copy="Run-rate estimate: current net business earnings are projected across a 360-day game year. One-fourth is due every 90 game-days; this is a game estimate, not tax advice."
       />
       <View style={styles.metricGrid}>
-      <Metric label="FEDERAL" value={money(tax.federal)} />
-      <Metric label="STATE" value={money(tax.state)} />
-      <Metric label="PAYROLL/FICA" value={money(tax.payroll)} />
-      <Metric label="CAPITAL GAINS" value={money(tax.capitalGains)} />
-      <Metric label="SHORT-TERM GAINS / LOSSES" value={money(shortTerm)} />
-      <Metric label="LONG-TERM GAINS / LOSSES" value={money(longTerm)} />
+        <Metric label="FEDERAL · THIS QUARTER" value={money(tax.federal)} />
+        <Metric label="STATE · THIS QUARTER" value={money(tax.state)} />
+        <Metric label="PAYROLL/FICA · THIS QUARTER" value={money(tax.payroll)} />
+        <Metric label="CAPITAL GAINS · THIS QUARTER" value={money(tax.capitalGains)} />
+        <Metric label="SHORT-TERM GAINS / LOSSES" value={money(shortTerm)} />
+        <Metric label="LONG-TERM GAINS / LOSSES" value={money(longTerm)} />
       </View>
       <Text style={styles.muted}>
-        Estimated total due: {money(total)} · deductions include interest,
-        depreciation, and expenses.
+        Annualized income estimate: {money(tax.income * 4)} · quarterly estimate: {money(total)}.
+        {paymentDue
+          ? ` ${dueQuarterKey} is due.`
+          : alreadyPaid
+            ? ` ${dueQuarterKey} is paid. Next estimate due in ${daysUntilDue} game-days.`
+            : ` Next estimate due in ${daysUntilDue} game-days.`}
       </Text>
       <Action
-        label={alreadyPaid ? "TAX ESTIMATE PAID" : "PAY QUARTERLY ESTIMATE"}
+        label={
+          alreadyPaid
+            ? `${dueQuarterKey} ESTIMATE PAID`
+            : paymentDue && total > 0
+              ? `PAY ${dueQuarterKey} ESTIMATE · ${money(total)}`
+              : total <= 0
+                ? "NO ESTIMATED TAX DUE"
+                : `DUE IN ${daysUntilDue} GAME-DAYS`
+        }
+        disabled={!paymentDue || alreadyPaid || total <= 0}
         onPress={() => {
-          if (alreadyPaid)
-            return Alert.alert("TAX ALREADY PAID", "This tax obligation has already been paid.");
+          if (!paymentDue || alreadyPaid || !dueQuarterKey)
+            return Alert.alert("TAX NOT DUE", "A quarterly estimate becomes payable after 90 completed game-days.");
+          if (total <= 0)
+            return Alert.alert("NO TAX ESTIMATE", "The current projected run rate does not produce a tax payment.");
           if (cash < total)
             return Alert.alert("TAX PAYMENT DECLINED", "Not enough cash to pay this tax.");
           const timestamp = Date.now();
@@ -1643,14 +1667,22 @@ function TaxPanel({
                     ...state,
                     taxRecords: [
                       ...state.taxRecords,
-                      { ...tax, id: taxObligationId, paid: total, status: "PAID" },
+                      {
+                        ...tax,
+                        id: taxObligationId,
+                        periodKey: dueQuarterKey,
+                        year: gameCalendarPosition(completedDays).year,
+                        paid: total,
+                        status: "PAID",
+                        dueAt: timestamp,
+                      },
                     ],
                   },
                   "TAX",
                   "Quarterly estimated payment",
                   -total,
                   timestamp,
-                  "Federal, state, payroll, and capital gains estimate",
+                  `${dueQuarterKey}: federal, state, payroll, and capital gains estimate`,
                 ),
               ),
             now: timestamp,

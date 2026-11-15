@@ -43,6 +43,11 @@ assert.equal(
   "Construction shadow must be represented by specialized route authority",
 );
 assert.equal(
+  rows.filter((row) => row.id === "metro-mobility").length,
+  1,
+  "unlaunched Mobility must appear through exactly one Taxi setup shadow",
+);
+assert.equal(
   new Set(rows.map((row) => row.id)).size,
   rows.length,
   "portfolio row IDs must be unique",
@@ -76,6 +81,17 @@ const taxiRegistry = buildCanonicalBusinessRegistry({
 const taxiRows = buildUnifiedBusinessPortfolio(taxiRegistry, DEFAULT_BUSINESSES);
 assert.equal(taxiRows.filter((row) => row.kind === "taxi").length, 1, "owned specialized company must still appear once");
 assert.equal(taxiRows.find((row) => row.kind === "taxi")?.owned, true, "specialized operating state must be owned");
+assert.equal(taxiRows.filter((row) => row.id === "metro-mobility").length, 0, "launched Taxi must suppress the generic Mobility shadow");
+const supermarketAndTaxi = DEFAULT_BUSINESSES.map((business) =>
+  business.id === "apex-retail" ? { ...business, isAcquired: true } : business,
+);
+const combinedRegistry = buildCanonicalBusinessRegistry({
+  businesses: supermarketAndTaxi,
+  taxiCompany: { ...DEFAULT_TAXI_COMPANY, status: "operating", economyTaxis: 1, drivers: 1, cashInvested: 12_000 },
+});
+const combinedRows = buildUnifiedBusinessPortfolio(combinedRegistry, supermarketAndTaxi);
+assert.equal(combinedRows.find((row) => row.id === "apex-retail")?.owned, true, "starting Mobility must not hide an acquired supermarket");
+assert.equal(combinedRows.filter((row) => row.kind === "taxi").length, 1, "combined portfolio retains one Mobility company card");
 
 console.log(JSON.stringify({
   status: "PASS",

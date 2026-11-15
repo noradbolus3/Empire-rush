@@ -1,4 +1,4 @@
-import { DEFAULT_TAXI_COMPANY, taxiCapacity, taxiHourlyEconomics, taxiVehicleCount, TaxiCompanyState } from "../src/types/taxi";
+import { DEFAULT_TAXI_COMPANY, taxiCapacity, taxiHourlyEconomics, taxiSettlementTick, taxiVehicleCount, TaxiCompanyState } from "../src/types/taxi";
 
 const out: Record<string, unknown>[] = [];
 const assert = (label: string, condition: boolean, raw: Record<string, unknown>) => {
@@ -21,13 +21,10 @@ assert("launch", launched.status === "operating" && taxiVehicleCount(launched) =
 });
 
 const beforeShift = taxiHourlyEconomics(launched);
-const afterShift: TaxiCompanyState = {
-  ...launched,
-  completedRides: launched.completedRides + beforeShift.rides,
-  fleetCondition: Math.max(0, launched.fleetCondition - 0.4),
-  lastShiftRevenue: Math.round(beforeShift.revenue),
-  lastShiftExpenses: Math.round(beforeShift.expenses),
-};
+const afterShift: TaxiCompanyState = taxiSettlementTick(
+  launched,
+  launched.lastShiftAt + 3600000,
+);
 assert("one settlement tick", afterShift.completedRides > launched.completedRides && afterShift.lastShiftRevenue > afterShift.lastShiftExpenses, {
   rides: beforeShift.rides, revenue: Math.round(beforeShift.revenue), expenses: Math.round(beforeShift.expenses), net: Math.round(beforeShift.net), conditionAfter: afterShift.fleetCondition,
 });

@@ -171,6 +171,7 @@ export type TaxRecord = {
   paid: number;
   dueAt: number;
   status: "ESTIMATE" | "PAID" | "LATE";
+  periodKey?: string;
   shortTermGain?: number;
   longTermGain?: number;
 };

@@ -166,8 +166,6 @@ export default function TaxiCompanyScreen({
               company={current}
               economics={economics}
               cash={cash}
-              update={update}
-              onLedger={onLedger}
             />
           ) : page === "workforce" ? (
             <WorkforcePage company={current} cash={cash} charge={charge} />
@@ -392,49 +390,17 @@ function OperationsPage({
   company,
   economics,
   cash,
-  update,
-  onLedger,
 }: {
   company: TaxiCompanyState;
   economics: ReturnType<typeof taxiHourlyEconomics>;
   cash: number;
-  update: (next: TaxiCompanyState) => void;
-  onLedger?: (entry: BankLedgerEntry) => void;
 }) {
-  const runShift = () => {
-    if (!company.drivers)
-      return Alert.alert(
-        "NO DRIVERS",
-        "Hire at least one driver before running a shift.",
-      );
-    const revenue = Math.round(economics.revenue);
-    const expenses = Math.round(economics.expenses);
-    update({
-      ...company,
-      completedRides: company.completedRides + economics.rides,
-      fleetCondition: Math.max(
-        0,
-        company.fleetCondition - Math.max(1, taxiVehicleCount(company) * 0.4),
-      ),
-      lastShiftAt: Date.now(),
-      lastShiftRevenue: revenue,
-      lastShiftExpenses: expenses,
-    });
-    onLedger?.({
-      id: `taxi-shift-${Date.now()}`,
-      kind: "BUSINESS_REVENUE",
-      label: "Taxi shift settlement",
-      amount: revenue - expenses,
-      timestamp: Date.now(),
-      detail: `${economics.rides} rides · revenue ${formatCurrency(revenue)} · expenses ${formatCurrency(expenses)}`,
-    });
-  };
   return (
     <>
       <Image source={taxiOperations} style={styles.pageImage} />
       <Section
         title="TAXI OPERATIONS"
-        copy="A shift is a real settlement: rides create revenue, drivers and vehicles create expenses, and fleet condition changes."
+        copy="Dispatch runs automatically at each hourly settlement (one game-day). Completed fares are credited with business income; drivers, vehicles and fleet wear are included automatically."
       >
         <View style={styles.demand}>
           <Text style={styles.demandValue}>
@@ -456,13 +422,24 @@ function OperationsPage({
           label="Net shift result"
           value={formatCurrency(economics.net)}
         />
-        <Metric label="Wallet before shift" value={formatCurrency(cash)} />
+        <Metric label="Rides per next settlement" value={String(economics.rides)} />
+        <Metric label="Completed rides · all time" value={String(company.completedRides)} />
+        <Metric label="Last completed shift net" value={formatCurrency(company.lastShiftRevenue - company.lastShiftExpenses)} />
+        <Metric label="Current wallet" value={formatCurrency(cash)} />
       </Section>
-      <Action
-        title="RUN NEXT TAXI SHIFT"
-        copy="Complete rides, record revenue and apply operating wear"
-        onPress={runShift}
-      />
+      <Section
+        title="AUTOMATIC DISPATCH ACTIVE"
+        copy={
+          company.drivers > 0 && taxiVehicleCount(company) > 0
+            ? `${economics.rides} rides are scheduled for the next settlement. Airport Corridor fares receive a premium; Harbor District routes also pay more.`
+            : "Hire at least one driver and own a vehicle. The next settlement will then complete rides automatically; no manual shift button is needed."
+        }
+      >
+        <Metric
+          label="NEXT SETTLEMENT"
+          value={economics.rides > 0 ? `${economics.rides} rides queued` : "Waiting for a staffed fleet"}
+        />
+      </Section>
     </>
   );
 }

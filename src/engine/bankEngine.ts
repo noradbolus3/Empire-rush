@@ -848,6 +848,38 @@ export function calculateTax(
     status: "ESTIMATE",
   };
 }
+
+/**
+ * Estimate the next quarterly payment from the current settlement run rate.
+ * Income and payroll are annualized on the 360-day game year, then one-fourth
+ * of the annual liability is allocated to each 90-game-day quarter.
+ */
+export function calculateQuarterlyTaxEstimate(
+  netPerSettlement: number,
+  capitalGains = 0,
+  stateRate = 0.045,
+): TaxRecord {
+  const annualizedNet = safeMoney(Math.max(0, netPerSettlement) * GAME_DAYS_PER_YEAR);
+  const annualizedPayroll = safeMoney(annualizedNet * 0.2);
+  const annual = calculateTax(
+    annualizedNet,
+    0,
+    Math.max(0, capitalGains),
+    annualizedPayroll,
+    stateRate,
+  );
+  return {
+    ...annual,
+    income: safeMoney(annual.income / 4),
+    deductions: safeMoney(annual.deductions / 4),
+    federal: safeMoney(annual.federal / 4),
+    state: safeMoney(annual.state / 4),
+    payroll: safeMoney(annual.payroll / 4),
+    capitalGains: safeMoney(annual.capitalGains / 4),
+    paid: 0,
+  };
+}
+
 export function bankEventForTick(tick: number, now: number): BankMarketEvent {
   const events: BankMarketEvent[] = [
     {
@@ -1322,7 +1354,15 @@ export function sanitizeBankState(input: unknown, now = Date.now()): BankState {
       : base.creditHistory,
     deposits: Array.isArray(raw.deposits) ? raw.deposits : [],
     insurance: Array.isArray(raw.insurance) ? raw.insurance : [],
-    taxRecords: Array.isArray(raw.taxRecords) ? raw.taxRecords : [],
+    taxRecords: Array.isArray(raw.taxRecords)
+      ? raw.taxRecords.map((record: TaxRecord) =>
+          record.status === "PAID" &&
+          Number(record.paid) > 0 &&
+          !record.periodKey
+            ? { ...record, periodKey: "Y1-Q1" }
+            : record,
+        )
+      : [],
     ledger: Array.isArray(raw.ledger) ? raw.ledger : [],
     achievements: Array.isArray(raw.achievements) ? raw.achievements : [],
     loginStreak: Math.max(1, Number(raw.loginStreak) || 1),

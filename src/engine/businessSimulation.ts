@@ -738,10 +738,26 @@ export function migrateBusinessSave(parsed: unknown): BusinessEntity[] {
     : parsed && typeof parsed === "object" && Array.isArray((parsed as { businesses?: unknown }).businesses)
       ? (parsed as { businesses: unknown[] }).businesses
       : null;
-  const valid = Array.isArray(businesses) && businesses.length > 0 && businesses.every((item) => item && typeof item === "object" && typeof (item as { id?: unknown }).id === "string" && typeof (item as { name?: unknown }).name === "string" && ["Retail", "Mobility", "Tech_SaaS", "Construction_Mega", "Real_Estate", "Energy", "Pharma", "Media", "Sports", "Airline"].includes(String((item as { sector?: unknown }).sector)) && typeof (item as { isAcquired?: unknown }).isAcquired === "boolean");
-  if (!valid) throw new Error("Invalid business save");
-  const existing = new Set((businesses as BusinessEntity[]).map((item) => item.id));
-  return normalizeBusinessNames([...(businesses as BusinessEntity[]), ...DEFAULT_BUSINESSES.filter((item) => !existing.has(item.id))]);
+  const validRecords = Array.isArray(businesses)
+    ? businesses.filter(
+        (item): item is BusinessEntity =>
+          Boolean(item) &&
+          typeof item === "object" &&
+          typeof (item as BusinessEntity).id === "string" &&
+          Boolean((item as BusinessEntity).id.trim()) &&
+          typeof (item as BusinessEntity).name === "string" &&
+          Boolean((item as BusinessEntity).name.trim()) &&
+          typeof (item as BusinessEntity).sector === "string" &&
+          Boolean((item as BusinessEntity).sector.trim()) &&
+          typeof (item as BusinessEntity).isAcquired === "boolean",
+      )
+    : [];
+  if (validRecords.length === 0) throw new Error("Invalid business save");
+  const existing = new Set(validRecords.map((item) => item.id));
+  return normalizeBusinessNames([
+    ...validRecords,
+    ...DEFAULT_BUSINESSES.filter((item) => !existing.has(item.id)),
+  ]);
 }
 
 export async function loadBusinessSimulation(): Promise<BusinessEntity[]> {
