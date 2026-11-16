@@ -310,6 +310,7 @@ function AppContent() {
     setSpace,
     holding,
     setHolding,
+    businessResetAt,
     hydrated: businessesHydrated,
   } = useGame();
   const { isOnline, clockTampered } = useNetwork();
@@ -865,6 +866,7 @@ function AppContent() {
       settlementAt: lastSettlementAtMs,
       gameDayCounter,
       gameCalendarVersion: 1,
+      businessResetAt,
       cash,
       businesses,
       businessSources: {
@@ -950,6 +952,7 @@ function AppContent() {
     notificationsEnabled,
     bankState,
     gameDayCounter,
+    businessResetAt,
     profit,
     onboardingComplete,
     founderProfile,

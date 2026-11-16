@@ -766,16 +766,18 @@ export function recoverBusinessSave(
   primary: unknown,
   backup: unknown,
   root: unknown,
-): { businesses: BusinessEntity[]; source: "primary" | "backup" | "root" | "defaults" } {
+): { businesses: BusinessEntity[]; source: "primary" | "backup" | "root" | "defaults"; resetAt: number } {
   type Candidate = {
     businesses: BusinessEntity[];
     source: "primary" | "backup" | "root";
     savedAt: number;
+    resetAt: number;
   };
   const parse = (
     candidate: unknown,
     source: Candidate["source"],
     rootSavedAt = 0,
+    rootResetAt = 0,
   ): Candidate | null => {
     if (!candidate) return null;
     try {
@@ -790,6 +792,11 @@ export function recoverBusinessSave(
         businesses: migrateBusinessSave(parsed),
         source,
         savedAt: Number.isFinite(rawSavedAt) && rawSavedAt > 0 ? rawSavedAt : 0,
+        resetAt: Number(
+          (parsed as Record<string, unknown>)?.businessResetAt ??
+            (parsed as Record<string, unknown>)?.resetAt ??
+            rootResetAt,
+        ) || 0,
       };
     } catch {
       return null;
@@ -809,6 +816,7 @@ export function recoverBusinessSave(
           (rootSave as Record<string, unknown>).businesses,
           "root",
           Number((rootSave as Record<string, unknown>).saved),
+          Number((rootSave as Record<string, unknown>).businessResetAt),
         )
       : null;
   const candidates = [
@@ -818,6 +826,7 @@ export function recoverBusinessSave(
   ].filter((item): item is Candidate => Boolean(item));
   if (candidates.length) {
     const allHaveTimestamps = candidates.every((item) => item.savedAt > 0);
+    const resetAt = Math.max(0, ...candidates.map((item) => item.resetAt));
     const recordScore = (business: BusinessEntity) =>
       (business.isAcquired ? 1_000_000_000_000_000 : 0) +
       Math.max(0, Number(business.level) || 0) * 1_000_000_000 +
@@ -830,18 +839,18 @@ export function recoverBusinessSave(
         ? b.savedAt - a.savedAt || portfolioScore(b.businesses) - portfolioScore(a.businesses)
         : portfolioScore(b.businesses) - portfolioScore(a.businesses) || b.savedAt - a.savedAt,
     );
-    if (allHaveTimestamps)
-      return { businesses: ordered[0].businesses, source: ordered[0].source };
-
     const byId = new Map<string, { business: BusinessEntity; candidate: Candidate }>();
-    for (const candidate of candidates) {
+    const usableCandidates = resetAt
+      ? candidates.filter((candidate) => candidate.savedAt >= resetAt || candidate.resetAt >= resetAt)
+      : candidates;
+    for (const candidate of usableCandidates) {
       for (const business of candidate.businesses) {
         const prior = byId.get(business.id);
         if (!prior) {
           byId.set(business.id, { business, candidate });
           continue;
         }
-        const entries = candidates
+        const entries = usableCandidates
           .map((item) => ({ candidate: item, business: item.businesses.find((row) => row.id === business.id) }))
           .filter((item): item is { candidate: Candidate; business: BusinessEntity } => Boolean(item.business));
         const everyRecordHasTimestamp = entries.every((item) => item.candidate.savedAt > 0);
@@ -849,9 +858,9 @@ export function recoverBusinessSave(
           item.candidate.savedAt > best.candidate.savedAt ? item : best,
         );
         let selected = prior;
-        if (everyRecordHasTimestamp) selected = latest;
-        else if (prior.business.isAcquired !== business.isAcquired)
-          selected = business.isAcquired ? { business, candidate } : prior;
+        if (prior.business.isAcquired !== business.isAcquired)
+          selected = resetAt ? latest : (business.isAcquired ? { business, candidate } : prior);
+        else if (everyRecordHasTimestamp) selected = latest;
         else if (prior.business.isAcquired && candidate.savedAt > prior.candidate.savedAt && prior.candidate.savedAt > 0)
           selected = { business, candidate };
         else if (recordScore(business) > recordScore(prior.business))
@@ -865,26 +874,27 @@ export function recoverBusinessSave(
     const included = new Set(mergedBusinesses.map((business) => business.id));
     for (const [id, entry] of byId)
       if (!included.has(id)) mergedBusinesses.push(entry.business);
-    return { businesses: mergedBusinesses, source: ordered[0].source };
+    return { businesses: mergedBusinesses, source: ordered[0].source, resetAt };
   }
-  return { businesses: DEFAULT_BUSINESSES, source: "defaults" };
+  return { businesses: DEFAULT_BUSINESSES, source: "defaults", resetAt: 0 };
 }
 
-export async function loadBusinessSimulation(): Promise<BusinessEntity[]> {
+export async function loadBusinessSimulation(): Promise<{ businesses: BusinessEntity[]; resetAt: number }> {
   let primaryRaw: string | null = null;
   let backupRaw: string | null = null;
   let rootRaw: string | null = null;
-  const storeRecovered = async (businesses: BusinessEntity[]) => {
+  const storeRecovered = async (businesses: BusinessEntity[], resetAt: number) => {
     const value = JSON.stringify({
       schemaVersion: BUSINESS_SIMULATION_SAVE_VERSION,
       savedAt: Date.now(),
+      businessResetAt: resetAt,
       businesses,
     });
     await coordinatedWrite([
       { key: BUSINESS_SIMULATION_SAVE, value },
       { key: BUSINESS_SIMULATION_BACKUP, value },
     ]).catch(() => undefined);
-    return businesses;
+    return { businesses, resetAt };
   };
   try {
     [primaryRaw, backupRaw, rootRaw] = await Promise.all([
@@ -901,7 +911,7 @@ export async function loadBusinessSimulation(): Promise<BusinessEntity[]> {
         primaryRaw,
       ).catch(() => undefined);
     }
-    return storeRecovered(recovery.businesses);
+    return storeRecovered(recovery.businesses, recovery.resetAt);
   } catch (error) {
     // Storage I/O failure must not be converted into defaults: callers keep
     // hydration incomplete and skip autosave until data can be read again.

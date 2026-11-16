@@ -48,6 +48,24 @@ const newestAcquiredRoot = recoverBusinessSave(
 assert.equal(newestAcquiredRoot.source, "root");
 assert.equal(newestAcquiredRoot.businesses.find((item) => item.id === "apex-retail")?.isAcquired, true);
 
+const newerTimestampedDefaults = JSON.stringify({
+  schemaVersion: 4,
+  savedAt: 900,
+  businesses: DEFAULT_BUSINESSES,
+});
+const olderTimestampedAcquisitions = JSON.stringify({
+  schemaVersion: 4,
+  savedAt: 700,
+  businesses: [market, mobility],
+});
+const timestampedEmptyCannotEraseCompanies = recoverBusinessSave(
+  newerTimestampedDefaults,
+  olderTimestampedAcquisitions,
+  JSON.stringify({ saved: 800, businesses: DEFAULT_BUSINESSES }),
+);
+assert.equal(timestampedEmptyCannotEraseCompanies.businesses.find((item) => item.id === market.id)?.isAcquired, true);
+assert.equal(timestampedEmptyCannotEraseCompanies.businesses.find((item) => item.id === mobility.id)?.isAcquired, true);
+
 const retailOnlySave = DEFAULT_BUSINESSES.map((item) =>
   item.id === market.id ? market : item,
 );
@@ -63,12 +81,19 @@ assert.equal(complementaryLegacyCopies.businesses.find((item) => item.id === mar
 assert.equal(complementaryLegacyCopies.businesses.find((item) => item.id === mobility.id)?.isAcquired, true);
 
 const intentionalReset = recoverBusinessSave(
-  JSON.stringify({ schemaVersion: 4, savedAt: 700, businesses: DEFAULT_BUSINESSES }),
+  JSON.stringify({ schemaVersion: 4, savedAt: 700, businessResetAt: 700, businesses: DEFAULT_BUSINESSES }),
   JSON.stringify({ schemaVersion: 4, savedAt: 600, businesses: [market, mobility] }),
   JSON.stringify({ saved: 650, businesses: [market, mobility] }),
 );
 assert.equal(intentionalReset.source, "primary");
 assert.equal(intentionalReset.businesses.filter((item) => item.isAcquired).length, 0);
+const rootOnlyReset = recoverBusinessSave(
+  JSON.stringify({ schemaVersion: 4, savedAt: 600, businesses: [market, mobility] }),
+  null,
+  JSON.stringify({ saved: 700, businessResetAt: 700, businesses: DEFAULT_BUSINESSES }),
+);
+assert.equal(rootOnlyReset.source, "root");
+assert.equal(rootOnlyReset.businesses.filter((item) => item.isAcquired).length, 0);
 
 const earningMarket = {
   ...market,
@@ -119,7 +144,7 @@ assert.equal(calculateInvestorShare(equityState, 500, noCompanyRevenue), 75);
 
 console.log(JSON.stringify({
   test: "save-recovery-equity-regression",
-  checks: 24,
+  checks: 30,
   passed: true,
   recoveredSources: [fromBackup.source, fromRoot.source, primaryWins.source, stalePrimaryRecovered.source, newestAcquiredRoot.source, intentionalReset.source],
   companySpecificDistribution: 95,

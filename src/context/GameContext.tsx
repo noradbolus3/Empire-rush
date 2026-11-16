@@ -90,6 +90,7 @@ type GameContextValue = {
   setSpace: React.Dispatch<React.SetStateAction<SpaceState | null>>;
   holding: HoldingState | null;
   setHolding: React.Dispatch<React.SetStateAction<HoldingState | null>>;
+  businessResetAt: number;
   hydrated: boolean;
   resetBusinesses: () => void;
 };
@@ -122,6 +123,7 @@ const GameContext = createContext<GameContextValue>({
   setSpace: () => undefined,
   holding: null,
   setHolding: () => undefined,
+  businessResetAt: 0,
   hydrated: false,
   resetBusinesses: () => undefined,
 });
@@ -146,6 +148,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [blockchain, setBlockchain] = useState<BlockchainState | null>(null);
   const [space, setSpace] = useState<SpaceState | null>(null);
   const [holding, setHolding] = useState<HoldingState | null>(null);
+  const [businessResetAt, setBusinessResetAt] = useState(0);
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => {
     let active = true;
@@ -170,7 +173,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       ]))
       .then(
       ([
-        loadedBusinesses,
+        loadedBusinessRecovery,
         rawTaxi,
         rawShipping,
         rawFactory,
@@ -187,7 +190,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         rawRootSave,
       ]) => {
         if (!active) return;
-        setBusinesses(loadedBusinesses);
+        setBusinesses(loadedBusinessRecovery.businesses);
+        setBusinessResetAt(loadedBusinessRecovery.resetAt);
         let rootSources: Record<string, unknown> = {};
         try {
           const root = rawRootSave ? JSON.parse(rawRootSave) : null;
@@ -354,6 +358,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     const portfolioSnapshot = JSON.stringify({
       schemaVersion: 4,
       savedAt: Date.now(),
+      businessResetAt,
       businesses,
     });
     void coordinatedWrite([
@@ -394,9 +399,12 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     blockchain,
     space,
     holding,
+    businessResetAt,
     hydrated,
   ]);
   const resetBusinesses = () => {
+    const resetAt = Date.now();
+    setBusinessResetAt(resetAt);
     setBusinesses(DEFAULT_BUSINESSES);
     setTaxiCompany(null);
     setShippingCompany(null);
@@ -413,7 +421,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     setHolding(null);
     const resetSnapshot = JSON.stringify({
       schemaVersion: 4,
-      savedAt: Date.now(),
+      savedAt: resetAt,
+      businessResetAt: resetAt,
       businesses: DEFAULT_BUSINESSES,
     });
     void coordinatedWrite([
@@ -466,6 +475,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       setSpace,
       holding,
       setHolding,
+      businessResetAt,
       hydrated,
       resetBusinesses,
     }),
@@ -484,6 +494,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       blockchain,
       space,
       holding,
+      businessResetAt,
       hydrated,
     ],
   );
