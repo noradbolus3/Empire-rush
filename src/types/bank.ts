@@ -116,6 +116,9 @@ export type BankInvestor = {
   equityPercent: number;
   boardSeat: boolean;
   joinedAt: number;
+  /** New rounds belong to one selected company; omitted legacy records retain historical behavior. */
+  companyId?: string | null;
+  companyName?: string | null;
 };
 export type BankRival = {
   id: string;

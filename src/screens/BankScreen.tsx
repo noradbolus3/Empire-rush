@@ -402,7 +402,19 @@ export default function BankScreen({
     );
     onHaptic?.(true);
   };
-  const pitch = (round: InvestorRound, instrument: InvestorInstrument) => {
+  const pitch = (
+    round: InvestorRound,
+    instrument: InvestorInstrument,
+    companyId: string,
+  ) => {
+    const targetCompany = businessRegistry?.find(
+      (item) => item.id === companyId && item.owned,
+    );
+    if (!targetCompany)
+      return Alert.alert(
+        "CHOOSE A COMPANY",
+        "Angel and venture equity must be issued by a specific owned company. Acquire a business first.",
+      );
     const amount =
       round === "FRIENDS_FAMILY"
         ? 25_000
@@ -432,29 +444,34 @@ export default function BankScreen({
                 ? 12
                 : 10;
     const roundLabel = round.replace(/_/g, " ");
-    if (state.investors.some((item) => item.round === round))
+    if (
+      state.investors.some(
+        (item) => item.round === round && item.companyId === targetCompany.id,
+      )
+    )
       return Alert.alert(
         "ROUND ALREADY FUNDED",
-        `You have already closed a ${roundLabel} round. Pick the next round on the funding ladder.`,
+        `You have already closed a ${roundLabel} round for ${targetCompany.name}. Pick the next round for this company.`,
       );
     const requiredPreMoney = Math.round(amount / (equity / 100) - amount);
-    if (companyValue < requiredPreMoney)
+    if (targetCompany.valuation < requiredPreMoney)
       return Alert.alert(
         "VALUATION TOO LOW",
-        `Investors need a company valuation of at least ${money(requiredPreMoney)} to fund a ${roundLabel} round of ${money(amount)} for ${equity}% equity.\n\nYour company is worth ${money(companyValue)}. Buy and grow businesses first.`,
+        `${targetCompany.name} needs a valuation of at least ${money(requiredPreMoney)} for this ${roundLabel} offer. Its current company valuation is ${money(targetCompany.valuation)}.`,
       );
     const allocated = state.investors.reduce(
-      (sum, item) => sum + item.equityPercent,
+      (sum, item) =>
+        sum + (item.companyId === targetCompany.id ? item.equityPercent : 0),
       0,
     );
     if (allocated + equity > 100)
       return Alert.alert(
         "CAP TABLE FULL",
-        `Only ${(100 - allocated).toFixed(2)}% founder equity remains.`,
+        `Only ${(100 - allocated).toFixed(2)}% founder equity remains in ${targetCompany.name}.`,
       );
     Alert.alert(
       "TERM SHEET READY",
-      `${roundLabel} · ${String(instrument).replace(/_/g, " ")}\nAsk: ${money(amount)}\nPre-money: ${money(companyValue)}\nEquity: ${equity}%`,
+      `${targetCompany.name}\n${roundLabel} · ${String(instrument).replace(/_/g, " ")}\nInvestment: ${money(amount)}\nCompany valuation: ${money(targetCompany.valuation)}\nEquity in ${targetCompany.name}: ${equity}%`,
       [
         { text: "Reject", style: "cancel" },
         {
@@ -471,6 +488,8 @@ export default function BankScreen({
               instrument,
               invested: amount,
               equityPercent: equity,
+              companyId: targetCompany.id,
+              companyName: targetCompany.name,
               boardSeat:
                 round === "SERIES_A" ||
                 round === "SERIES_B" ||
@@ -481,17 +500,17 @@ export default function BankScreen({
               addLedger(
                 { ...state, investors: [...state.investors, investor] },
                 "INVESTOR",
-                `${round.replace("_", " ")} funding`,
+                `${round.replace("_", " ")} · ${targetCompany.name}`,
                 amount,
                 Date.now(),
-                `${instrument} term sheet accepted`,
+                `${instrument} term sheet accepted · ${equity}% ownership in ${targetCompany.name}`,
               ),
             );
             onCashChange((value) =>
               Math.min(Number.MAX_SAFE_INTEGER, Math.max(0, value + amount)),
             );
             onBreaking(
-              `Funding boom · ${round.replace("_", " ")} funds credited.`,
+              `${targetCompany.name} funding · ${round.replace("_", " ")} capital credited.`,
             );
             onHaptic?.(true);
           },
@@ -708,10 +727,11 @@ export default function BankScreen({
       )}
       {tab === "investors" && (
         <Investors
-          netWorth={netWorth}
-          companyValue={companyValue}
+          companies={businessRegistry?.filter((item) => item.owned) || []}
           state={state}
-          onPitch={pitch}
+          onPitch={(round: InvestorRound, instrument: InvestorInstrument, companyId: string) =>
+            pitch(round, instrument, companyId)
+          }
         />
       )}
       {tab === "enterprise" && (
@@ -720,7 +740,15 @@ export default function BankScreen({
           companyValue={companyValue}
           state={expansion}
           onExpand={launchEnterprise}
-          onPitch={() => pitch("SERIES_B", "SAFE")}
+          onPitch={() => {
+            const target = businessRegistry?.find((item) => item.owned);
+            if (target) pitch("SERIES_B", "SAFE", target.id);
+            else
+              Alert.alert(
+                "ACQUIRE A COMPANY FIRST",
+                "Investor equity must be issued by a named owned company.",
+              );
+          }}
         />
       )}
       {tab === "credit" && (
@@ -1409,16 +1437,64 @@ function Loans({
   );
 }
 
-function Investors({ netWorth, companyValue, state, onPitch }: any) {
+function Investors({ companies = [], state, onPitch }: any) {
   const [round, setRound] = useState<InvestorRound>("FRIENDS_FAMILY");
   const [instrument, setInstrument] = useState<InvestorInstrument>("SAFE");
+  const [selectedCompanyId, setSelectedCompanyId] = useState("");
+  const company =
+    companies.find((item: CanonicalBusiness) => item.id === selectedCompanyId) ||
+    companies[0];
+  const companyInvestors = company
+    ? state.investors.filter(
+        (item: any) => item.companyId === company.id,
+      )
+    : [];
+  const allocated = companyInvestors.reduce(
+    (sum: number, item: any) => sum + Number(item.equityPercent || 0),
+    0,
+  );
   return (
     <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}>
       <Text style={styles.sectionTitle}>
-        FUNDING LADDER · {state.investors.length + 1}
+        COMPANY FUNDING · {state.investors.length + 1}
       </Text>
+      {companies.length ? (
+        <>
+          <Text style={styles.muted}>Select the company issuing equity</Text>
+          <ChipRow
+            flush
+            wrap
+            items={companies.map((item: CanonicalBusiness) => ({
+              id: item.id,
+              label: item.name.toUpperCase(),
+            }))}
+            selectedId={company?.id || ""}
+            onSelect={setSelectedCompanyId}
+            chipStyle={styles.smallChip}
+            activeStyle={styles.smallChipActive}
+            textStyle={styles.smallChipText}
+            activeTextStyle={styles.tabTextActive}
+          />
+          <Card
+            title={`${company.name.toUpperCase()} · PRIVATE COMPANY`}
+            copy={`Company valuation ${money(company.valuation)} · operating net ${money(company.hourlyNet)}/game-day. Founder owns ${Math.max(0, 100 - allocated).toFixed(2)}% of ${company.name}; outside investors own ${allocated.toFixed(2)}%. This is this company's cap table, not your personal wallet or every business combined.`}
+          />
+          {companyInvestors.map((item: any) => (
+            <Card
+              key={item.id}
+              title={`${item.firm} · ${Number(item.equityPercent).toFixed(2)}% of ${company.name}`}
+              copy={`${String(item.round).replace(/_/g, " ")} · invested ${money(item.invested)} · ownership applies only to this company's settlement earnings.`}
+            />
+          ))}
+        </>
+      ) : (
+        <Card
+          title="NO COMPANY EQUITY YET"
+          copy="There is no business entity to own or dilute yet. Acquire a company first; then the cap table will identify that company's founder shares and investors."
+        />
+      )}
       <ChipRow
- flush
+        flush
         wrap
         items={roundNames.map((id) => ({ id, label: id.replace(/_/g, " ") }))}
         selectedId={round}
@@ -1429,7 +1505,7 @@ function Investors({ netWorth, companyValue, state, onPitch }: any) {
         activeTextStyle={styles.tabTextActive}
       />
       <ChipRow
- flush
+        flush
         wrap
         items={instruments.map((id) => ({ id, label: id.replace(/_/g, " ") }))}
         selectedId={instrument}
@@ -1439,14 +1515,17 @@ function Investors({ netWorth, companyValue, state, onPitch }: any) {
         textStyle={styles.smallChipText}
         activeTextStyle={styles.tabTextActive}
       />
-      <Card
-        title="CAP TABLE"
-        copy={`Founder ${Math.max(0, 100 - state.investors.reduce((sum: number, item: any) => sum + Number(item.equityPercent || 0), 0)).toFixed(2)}% · ${state.investors.length} fictional investor(s) · valuation ${money(companyValue)}`}
-      />
       <Action
-        label={`PITCH ${round.replace("_", " ")} · ${instrument}`}
-        onPress={() => onPitch(round, instrument)}
+        label={company ? `PITCH ${round.replace("_", " ")} FOR ${company.name.toUpperCase()}` : "ACQUIRE A COMPANY FIRST"}
+        disabled={!company}
+        onPress={() => company && onPitch(round, instrument, company.id)}
       />
+      {state.investors.some((item: any) => !item.companyId) && (
+        <Card
+          title="LEGACY / UNASSIGNED INVESTORS"
+          copy="Older save records did not store a company ID. They are preserved for backward compatibility and are not silently assigned to a newly selected company's cap table."
+        />
+      )}
     </ScrollView>
   );
 }

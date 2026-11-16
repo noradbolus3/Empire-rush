@@ -74,6 +74,7 @@ import {
 import { BUILD_COMMIT, BUILD_VERSION } from "./src/config/buildInfo";
 import { GAME_SAVE_VERSION, migrateGameSave } from "./src/engine/saveMigration";
 import { coordinatedWrite, recoverPendingSave } from "./src/engine/saveCoordinator";
+import { GAME_SAVE_STORAGE_KEY } from "./src/engine/saveKeys";
 import { resolveCashUpdate, sanitizeCash } from "./src/engine/walletGuard";
 import {
   advanceMarketTick,
@@ -239,7 +240,7 @@ const lifestyleAssets = [
   ...JETS_DATA,
   ...PROPERTIES_DATA,
 ];
-const SAVE = "empire-rush-richman-v3";
+const SAVE = GAME_SAVE_STORAGE_KEY;
 const sensibleCryptoPrices: Record<string, number> = {
   btc: 67500,
   eth: 3450,
@@ -309,6 +310,7 @@ function AppContent() {
     setSpace,
     holding,
     setHolding,
+    hydrated: businessesHydrated,
   } = useGame();
   const { isOnline, clockTampered } = useNetwork();
   const clockTamperedRef = useRef(clockTampered);
@@ -646,7 +648,7 @@ function AppContent() {
     return () => clearInterval(timer);
   }, []);
   useEffect(() => {
-    if (!loaded || clockTampered) return;
+    if (!loaded || !businessesHydrated || clockTampered) return;
     const timer = setInterval(() => {
       constructionSimulationSeconds.current += 2;
       const constructionSeconds = constructionSimulationSeconds.current >= 3 ? 3 : 0;
@@ -669,7 +671,7 @@ function AppContent() {
       );
     }, 2000);
     return () => clearInterval(timer);
-  }, [cash, clockTampered, ipoListings, loaded, netWorth, setBusinesses]);
+  }, [businessesHydrated, cash, clockTampered, ipoListings, loaded, netWorth, setBusinesses]);
   useEffect(() => {
     clockTamperedRef.current = clockTampered;
   }, [clockTampered]);
@@ -864,6 +866,22 @@ function AppContent() {
       gameDayCounter,
       gameCalendarVersion: 1,
       cash,
+      businesses,
+      businessSources: {
+        taxiCompany,
+        shippingCompany,
+        factoryCompany,
+        constructionCompany,
+        dealership,
+        softwareCompany,
+        sportsClub,
+        oilGas,
+        airline,
+        hotel,
+        blockchain,
+        space,
+        holding,
+      },
       assets,
       holdings,
       tradeHistory,
@@ -895,6 +913,20 @@ function AppContent() {
     };
   }, [
     cash,
+    businesses,
+    taxiCompany,
+    shippingCompany,
+    factoryCompany,
+    constructionCompany,
+    dealership,
+    softwareCompany,
+    sportsClub,
+    oilGas,
+    airline,
+    hotel,
+    blockchain,
+    space,
+    holding,
     assets,
     holdings,
     watchlist,
@@ -1188,7 +1220,7 @@ function AppContent() {
     ).catch(() => undefined);
   }, [loaded, notificationsEnabled, bankState, systemTimeMs]);
   useEffect(() => {
-    if (!loaded) return;
+    if (!loaded || !businessesHydrated) return;
     const saveNow = () => {
       const snapshot = {
         ...latestState.current,
@@ -1202,7 +1234,7 @@ function AppContent() {
     saveNow();
     const timer = setInterval(saveNow, 5000);
     return () => clearInterval(timer);
-  }, [loaded]);
+  }, [loaded, businessesHydrated]);
   const grantProduct = useCallback((id: ProductId) => {
     if (id === "ad_free") setAdFree(true);
     if (id === "executive_boost") setExecutiveBoost(true);

@@ -21,8 +21,12 @@ import {
 import { advanceITCompany, DEFAULT_IT_SOFTWARE_STATE } from "./itCompanyEngine";
 import { advanceBankingCompany, DEFAULT_BANKING_COMPANY_STATE } from "./bankingCompanyEngine";
 import { coordinatedWrite } from "./saveCoordinator";
+import {
+  BUSINESS_SIMULATION_BACKUP,
+  BUSINESS_SIMULATION_SAVE,
+  GAME_SAVE_STORAGE_KEY,
+} from "./saveKeys";
 
-export const BUSINESS_SIMULATION_SAVE = "empire-rush-unified-businesses-v2";
 export const BUSINESS_SIMULATION_SAVE_VERSION = 4;
 export { passiveIncomeMultiplier } from "./economyPlan";
 export const DEFAULT_BUSINESSES: BusinessEntity[] = [
@@ -760,25 +764,86 @@ export function migrateBusinessSave(parsed: unknown): BusinessEntity[] {
   ]);
 }
 
-export async function loadBusinessSimulation(): Promise<BusinessEntity[]> {
-  try {
-    const raw = await AsyncStorage.getItem(BUSINESS_SIMULATION_SAVE);
-    if (!raw) {
-      await coordinatedWrite([{ key: BUSINESS_SIMULATION_SAVE, value: JSON.stringify(DEFAULT_BUSINESSES) }]);
-      return DEFAULT_BUSINESSES;
+export function recoverBusinessSave(
+  primary: unknown,
+  backup: unknown,
+  root: unknown,
+): { businesses: BusinessEntity[]; source: "primary" | "backup" | "root" | "defaults" } {
+  const parse = (candidate: unknown): BusinessEntity[] | null => {
+    if (!candidate) return null;
+    try {
+      return migrateBusinessSave(
+        typeof candidate === "string" ? JSON.parse(candidate) : candidate,
+      );
+    } catch {
+      return null;
     }
-    return migrateBusinessSave(JSON.parse(raw));
-  } catch {
-    await coordinatedWrite([{ key: BUSINESS_SIMULATION_SAVE, value: JSON.stringify(DEFAULT_BUSINESSES) }]);
-    return DEFAULT_BUSINESSES;
+  };
+  const primaryBusinesses = parse(primary);
+  if (primaryBusinesses) return { businesses: primaryBusinesses, source: "primary" };
+  const backupBusinesses = parse(backup);
+  if (backupBusinesses) return { businesses: backupBusinesses, source: "backup" };
+  let rootSave = root;
+  if (typeof root === "string") {
+    try {
+      rootSave = JSON.parse(root);
+    } catch {
+      rootSave = null;
+    }
+  }
+  const rootBusinesses =
+    rootSave && typeof rootSave === "object"
+      ? parse((rootSave as Record<string, unknown>).businesses)
+      : null;
+  if (rootBusinesses) return { businesses: rootBusinesses, source: "root" };
+  return { businesses: DEFAULT_BUSINESSES, source: "defaults" };
+}
+
+export async function loadBusinessSimulation(): Promise<BusinessEntity[]> {
+  let primaryRaw: string | null = null;
+  let backupRaw: string | null = null;
+  let rootRaw: string | null = null;
+  const storeRecovered = async (businesses: BusinessEntity[]) => {
+    const value = JSON.stringify({
+      schemaVersion: BUSINESS_SIMULATION_SAVE_VERSION,
+      businesses,
+    });
+    await coordinatedWrite([
+      { key: BUSINESS_SIMULATION_SAVE, value },
+      { key: BUSINESS_SIMULATION_BACKUP, value },
+    ]).catch(() => undefined);
+    return businesses;
+  };
+  try {
+    [primaryRaw, backupRaw, rootRaw] = await Promise.all([
+      AsyncStorage.getItem(BUSINESS_SIMULATION_SAVE),
+      AsyncStorage.getItem(BUSINESS_SIMULATION_BACKUP),
+      AsyncStorage.getItem(GAME_SAVE_STORAGE_KEY),
+    ]);
+    const recovery = recoverBusinessSave(primaryRaw, backupRaw, rootRaw);
+    if (recovery.source === "primary") return recovery.businesses;
+    if (primaryRaw) {
+      // Keep the exact damaged value for diagnostics/manual recovery; never
+      // erase the only remaining copy merely because validation failed.
+      await AsyncStorage.setItem(
+        `${BUSINESS_SIMULATION_SAVE}-quarantine-${Date.now()}`,
+        primaryRaw,
+      ).catch(() => undefined);
+    }
+    return storeRecovered(recovery.businesses);
+  } catch (error) {
+    // Storage I/O failure must not be converted into defaults: callers keep
+    // hydration incomplete and skip autosave until data can be read again.
+    throw error;
   }
 }
 export async function persistBusinessSimulation(businesses: BusinessEntity[]) {
-  await coordinatedWrite([{
-    key: BUSINESS_SIMULATION_SAVE,
-    value: JSON.stringify({
+  const value = JSON.stringify({
       schemaVersion: BUSINESS_SIMULATION_SAVE_VERSION,
       businesses,
-    }),
-  }]);
+    });
+  await coordinatedWrite([
+    { key: BUSINESS_SIMULATION_SAVE, value },
+    { key: BUSINESS_SIMULATION_BACKUP, value },
+  ]);
 }

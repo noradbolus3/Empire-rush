@@ -144,10 +144,6 @@ function entry(
 ): BankLedgerEntry {
   return { id, kind, label, amount: round(amount), timestamp, detail };
 }
-function businessRevenue(state: FinancialGameState) {
-  return canonicalSettlementRevenue(getBusinessRegistry(state)) * (state.multiplier ?? 1);
-}
-
 function savingsInterest(state: FinancialGameState) {
   const event = state.bank.marketEvents?.[state.bank.marketEvents.length - 1];
   const eventBump =
@@ -179,9 +175,28 @@ function upkeep(state: FinancialGameState) {
     0,
   );
 }
-function investorShare(state: FinancialGameState, revenue: number) {
+export function calculateInvestorShare(
+  state: FinancialGameState,
+  revenue: number,
+  registry: CanonicalBusiness[],
+) {
   return (state.bank.investors || []).reduce(
-    (sum, investor) => sum + (revenue * positive(investor.equityPercent)) / 100,
+    (sum, investor) => {
+      const company = investor.companyId
+        ? registry.find((item) => item.id === investor.companyId)
+        : null;
+      const companyRevenue = investor.companyId
+        ? company?.owned && company.operating
+          ? Math.max(
+              0,
+              company.pendingSettlementAmount > 0
+                ? company.pendingSettlementAmount
+                : company.hourlyNet,
+            ) * (state.multiplier ?? 1)
+          : 0
+        : revenue;
+      return sum + (companyRevenue * positive(investor.equityPercent)) / 100;
+    },
     0,
   );
 }
@@ -243,14 +258,15 @@ export function settleHour(state: FinancialGameState): SettlementResult {
     state.gameDayCounter === undefined
       ? undefined
       : safeGameDayCounter(state.gameDayCounter) + 1;
-  const revenue = businessRevenue(state);
+  const registry = getBusinessRegistry(state);
+  const revenue = canonicalSettlementRevenue(registry) * (state.multiplier ?? 1);
   const interest = savingsInterest(state);
   const scheduledLoan = loanParts(state, timestamp, settlementGameDay);
   const premium = (state.bank.insurance || [])
     .filter((item) => item.active)
     .reduce((sum, item) => sum + positive(item.premium) / GAME_DAYS_PER_MONTH, 0);
   const assetUpkeep = upkeep(state);
-  const share = investorShare(state, revenue);
+  const share = calculateInvestorShare(state, revenue, registry);
   const taxableIncome = Math.max(
     0,
     revenue + interest - scheduledLoan.interest - assetUpkeep - premium,

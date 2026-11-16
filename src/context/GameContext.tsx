@@ -7,11 +7,15 @@ import React, {
   useState,
 } from "react";
 import {
-  BUSINESS_SIMULATION_SAVE,
   DEFAULT_BUSINESSES,
   loadBusinessSimulation,
 } from "../engine/businessSimulation";
 import { coordinatedWrite, recoverPendingSave } from "../engine/saveCoordinator";
+import {
+  BUSINESS_SIMULATION_BACKUP,
+  BUSINESS_SIMULATION_SAVE,
+  GAME_SAVE_STORAGE_KEY,
+} from "../engine/saveKeys";
 import { BusinessEntity } from "../types/business";
 import { DEFAULT_TAXI_COMPANY, TaxiCompanyState } from "../types/taxi";
 import {
@@ -86,6 +90,7 @@ type GameContextValue = {
   setSpace: React.Dispatch<React.SetStateAction<SpaceState | null>>;
   holding: HoldingState | null;
   setHolding: React.Dispatch<React.SetStateAction<HoldingState | null>>;
+  hydrated: boolean;
   resetBusinesses: () => void;
 };
 const GameContext = createContext<GameContextValue>({
@@ -117,6 +122,7 @@ const GameContext = createContext<GameContextValue>({
   setSpace: () => undefined,
   holding: null,
   setHolding: () => undefined,
+  hydrated: false,
   resetBusinesses: () => undefined,
 });
 
@@ -160,6 +166,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         AsyncStorage.getItem(BLOCKCHAIN_SAVE),
         AsyncStorage.getItem(SPACE_SAVE),
         AsyncStorage.getItem(HOLDING_SAVE),
+        AsyncStorage.getItem(GAME_SAVE_STORAGE_KEY),
       ]))
       .then(
       ([
@@ -177,9 +184,43 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         rawBlockchain,
         rawSpace,
         rawHolding,
+        rawRootSave,
       ]) => {
         if (!active) return;
         setBusinesses(loadedBusinesses);
+        let rootSources: Record<string, unknown> = {};
+        try {
+          const root = rawRootSave ? JSON.parse(rawRootSave) : null;
+          if (root?.businessSources && typeof root.businessSources === "object")
+            rootSources = root.businessSources;
+        } catch {
+          rootSources = {};
+        }
+        const fromRoot = (raw: string | null, key: string) => {
+          if (raw) {
+            try {
+              const parsed = JSON.parse(raw);
+              if (parsed && typeof parsed.id === "string") return raw;
+            } catch {
+              // Continue to the duplicate in the root game snapshot.
+            }
+          }
+          const value = rootSources[key];
+          return value && typeof value === "object" ? JSON.stringify(value) : null;
+        };
+        rawTaxi = fromRoot(rawTaxi, "taxiCompany");
+        rawShipping = fromRoot(rawShipping, "shippingCompany");
+        rawFactory = fromRoot(rawFactory, "factoryCompany");
+        rawConstruction = fromRoot(rawConstruction, "constructionCompany");
+        rawDealership = fromRoot(rawDealership, "dealership");
+        rawSoftware = fromRoot(rawSoftware, "softwareCompany");
+        rawSportsClub = fromRoot(rawSportsClub, "sportsClub");
+        rawOilGas = fromRoot(rawOilGas, "oilGas");
+        rawAirline = fromRoot(rawAirline, "airline");
+        rawHotel = fromRoot(rawHotel, "hotel");
+        rawBlockchain = fromRoot(rawBlockchain, "blockchain");
+        rawSpace = fromRoot(rawSpace, "space");
+        rawHolding = fromRoot(rawHolding, "holding");
         if (rawTaxi) {
           try {
             const parsed = JSON.parse(rawTaxi);
@@ -295,7 +336,11 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         }
         setHydrated(true);
       },
-    );
+    ).catch(() => {
+      // Deliberately remain unhydrated on read failure. App autosave is gated
+      // on this flag, preventing a transient storage error from erasing data.
+      if (active) setHydrated(false);
+    });
     return () => {
       active = false;
     };
@@ -309,6 +354,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     void coordinatedWrite([
       {
         key: BUSINESS_SIMULATION_SAVE,
+        value: JSON.stringify({ schemaVersion: 4, businesses }),
+      },
+      {
+        key: BUSINESS_SIMULATION_BACKUP,
         value: JSON.stringify({ schemaVersion: 4, businesses }),
       },
       specializedEntry(TAXI_COMPANY_SAVE, taxiCompany),
@@ -359,6 +408,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     setHolding(null);
     void coordinatedWrite([
       { key: BUSINESS_SIMULATION_SAVE, value: JSON.stringify({ schemaVersion: 4, businesses: DEFAULT_BUSINESSES }) },
+      { key: BUSINESS_SIMULATION_BACKUP, value: JSON.stringify({ schemaVersion: 4, businesses: DEFAULT_BUSINESSES }) },
       ...[
       TAXI_COMPANY_SAVE,
       SHIPPING_COMPANY_SAVE,
@@ -406,6 +456,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       setSpace,
       holding,
       setHolding,
+      hydrated,
       resetBusinesses,
     }),
     [
@@ -423,6 +474,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       blockchain,
       space,
       holding,
+      hydrated,
     ],
   );
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
