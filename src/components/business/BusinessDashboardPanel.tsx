@@ -8,6 +8,7 @@ type Props = {
   business: BusinessEntity;
   cash: number;
   netWorth: number;
+  companyValue: number;
   timestamp: number;
   finance: {
     revenue: number;
@@ -68,7 +69,7 @@ function nextAction(business: BusinessEntity, cash: number) {
   return !business.managerHired ? "Hire a manager to automate growth" : "Open the next branch";
 }
 
-export function BusinessDashboardPanel({ business, cash, netWorth, timestamp, finance, onStarterOrder, starterLabel }: Props) {
+export function BusinessDashboardPanel({ business, cash, netWorth, companyValue, timestamp, finance, onStarterOrder, starterLabel }: Props) {
   const units = unitsFor(business);
   const capacity = Math.max(1, capacityFor(business));
   const utilization = Math.min(1, Math.max(0, units / capacity));
@@ -101,11 +102,16 @@ export function BusinessDashboardPanel({ business, cash, netWorth, timestamp, fi
         </View>
       )}
 
+      <Text style={styles.financeNote}>
+        Run-rate is per game-hour. Sales cash is credited at settlement; the unsettled amount shows what this company has earned since the last settlement.
+      </Text>
       <View style={styles.metricGrid}>
-        <Metric label="PROFIT / HR" value={formatCurrency(finance.net)} accent={colors.success} />
-        <Metric label="CASH" value={formatCurrency(cash)} accent={colors.primary} />
-        <Metric label="NET WORTH" value={formatCurrency(netWorth)} accent={colors.gold} />
-        <Metric label="PAYS BACK IN" value={finance.breakEven > 0 ? `${finance.breakEven} hr` : "-"} accent={colors.cyan} />
+        <Metric label="PROJECTED SALES / HR" value={formatCurrency(finance.revenue)} accent={colors.primary} />
+        <Metric label="OPERATING COST / HR" value={formatCurrency(finance.expenses)} accent={colors.negative} />
+        <Metric label="NET PROFIT / HR" value={formatCurrency(finance.net)} accent={colors.success} />
+        <Metric label="COMPANY VALUE" value={formatCurrency(companyValue)} accent={colors.gold} />
+        <Metric label="UNSETTLED CASH" value={formatCurrency(Math.max(0, Number(business.pendingSettlementAmount) || 0))} accent={colors.cyan} />
+        <Metric label="EMPIRE NET WORTH" value={formatCurrency(netWorth)} accent={colors.textSecondary} />
       </View>
 
       <View style={styles.card}>
@@ -137,6 +143,7 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.85, transform: [{ scale: 0.985 }] },
   eyebrow: { color: colors.primary, fontSize: 10, fontWeight: "800", letterSpacing: 1 },
   metricGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  financeNote: { color: colors.textSecondary, fontSize: 11, lineHeight: 16, marginTop: 1 },
   metric: { width: "48.5%", minHeight: 58, justifyContent: "center", backgroundColor: colors.surface, borderRadius: designSystem.radius.medium, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 12 },
   metricLabel: { fontSize: 9, fontWeight: "800", letterSpacing: 0.8 },
   metricValue: { color: colors.textPrimary, fontSize: 16, fontWeight: "800", marginTop: 3 },

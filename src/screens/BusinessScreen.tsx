@@ -788,6 +788,7 @@ function BusinessScreenContent({
         business={selected}
         cash={cash}
         netWorth={netWorth}
+        companyValuation={selectedCanonical?.valuation ?? 0}
         timestamp={timestamp}
         ipoListing={ipoListings?.[selected.id] ?? (ipoListing?.companyId === selected.id ? ipoListing : null)}
         focusRetail={focusRetail}

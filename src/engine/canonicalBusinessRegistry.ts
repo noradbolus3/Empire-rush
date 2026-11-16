@@ -35,6 +35,7 @@ import { itCompanyAssetValue, itHourlyProfit } from "./itCompanyEngine";
 import type { BankingData } from "../types/business";
 import { bankingCompanyAssetValue, bankingHourlyProfit } from "./bankingCompanyEngine";
 import { GAME_DAYS_PER_YEAR } from "./gameCalendar";
+import { retailHourlyProjection } from "./businessSimulation";
 
 export type CanonicalBusinessKind =
   | "generic"
@@ -179,8 +180,15 @@ function record(
 
 function genericRecord(business: BusinessEntity): CanonicalBusiness {
   let assetValue = nonNegative(business.acquisitionCost);
+  let hourlyRevenue = nonNegative(business.hourlyNetProfit);
+  let hourlyExpenses = 0;
   if (business.sector === "Retail") {
     assetValue += nonNegative(business.stockUnits) * nonNegative(business.unitWholesaleCost);
+    const projection = retailHourlyProjection(business);
+    const currentNet = nonNegative(business.hourlyNetProfit);
+    const scale = projection.net > 0 ? currentNet / projection.net : 0;
+    hourlyRevenue = projection.revenue * scale;
+    hourlyExpenses = projection.expenses * scale;
   }
   if (business.sector === "Construction_Mega") {
     assetValue = constructionAssetValue(business);
@@ -202,8 +210,8 @@ function genericRecord(business: BusinessEntity): CanonicalBusiness {
           : "generic",
     owned: Boolean(business.isAcquired),
     operating: Boolean(business.isAcquired),
-    hourlyRevenue: nonNegative(business.hourlyNetProfit),
-    hourlyExpenses: 0,
+    hourlyRevenue,
+    hourlyExpenses,
     hourlyNet: nonNegative(business.hourlyNetProfit),
     pendingSettlementAmount: nonNegative(business.pendingSettlementAmount),
     assetValue,

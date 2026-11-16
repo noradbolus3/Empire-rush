@@ -282,6 +282,31 @@ export const DEFAULT_BUSINESSES: BusinessEntity[] = [
 const retailUnits = { Discount: 4, Standard: 2, Luxury: 1 } as const;
 const retailPrices = { Discount: 4, Standard: 5.5, Luxury: 8 } as const;
 
+export type RetailHourlyProjection = {
+  unitsPerHour: number;
+  revenue: number;
+  expenses: number;
+  net: number;
+};
+
+export function retailHourlyProjection(business: RetailData): RetailHourlyProjection {
+  if (!business.isAcquired || business.stockUnits <= 0)
+    return { unitsPerHour: 0, revenue: 0, expenses: 0, net: 0 };
+  const modeMultiplier =
+    business.pricingTier === "Discount" ? 1.55 : business.pricingTier === "Luxury" ? 0.55 : 1;
+  const event = (business.demandEventSeconds ?? 0) > 0 ? business.demandEvent : "None";
+  const eventMultiplier =
+    event === "Morning Rush" ? 1.8 : event === "Viral Drop" ? 2.4 : event === "Rain Delay" ? 0.7 : 1;
+  const unitsPerHour = retailUnits[business.pricingTier] * 1800 * modeMultiplier * eventMultiplier;
+  const price = retailPrices[business.pricingTier];
+  const revenue = unitsPerHour * price;
+  const cogs = unitsPerHour * (business.unitWholesaleCost ?? 2);
+  const fixed = ((business.monthlyRent ?? 800) + (business.monthlyPayroll ?? 1200)) / GAME_DAYS_PER_MONTH;
+  const tax = business.legalStatus === "Licensed_Legal" ? revenue * 0.15 : 0;
+  const expenses = cogs + fixed + tax;
+  return { unitsPerHour, revenue, expenses, net: Math.max(0, revenue - expenses) };
+}
+
 const expansionProfiles: Record<
   ExpansionSector,
   {
@@ -427,43 +452,16 @@ function retailOperations(
 ): OperationResult<RetailData> {
   if (!business.isAcquired)
     return { business: { ...business, hourlyNetProfit: 0 }, hourlyRate: 0 };
-  const modeMultiplier =
-    business.pricingTier === "Discount"
-      ? 1.55
-      : business.pricingTier === "Luxury"
-        ? 0.55
-        : 1;
+  const projection = retailHourlyProjection(business);
   const event =
     business.demandEvent &&
     business.demandEventSeconds &&
     business.demandEventSeconds > 0
       ? business.demandEvent
       : "None";
-  const eventMultiplier =
-    event === "Morning Rush"
-      ? 1.8
-      : event === "Viral Drop"
-        ? 2.4
-        : event === "Rain Delay"
-          ? 0.7
-          : 1;
-  const unitsPerHour =
-    retailUnits[business.pricingTier] * 1800 * modeMultiplier * eventMultiplier;
+  const unitsPerHour = projection.unitsPerHour;
   const price = retailPrices[business.pricingTier];
-  const revenuePerHour = unitsPerHour * price;
-  const cogsPerHour = unitsPerHour * (business.unitWholesaleCost ?? 2);
-  const fixedCostsPerHour =
-    ((business.monthlyRent ?? 800) + (business.monthlyPayroll ?? 1200)) /
-    GAME_DAYS_PER_MONTH;
-  const taxPerHour =
-    business.legalStatus === "Licensed_Legal" ? revenuePerHour * 0.15 : 0;
-  const declaredHourlyRate =
-    business.stockUnits > 0
-      ? Math.max(
-          0,
-          revenuePerHour - cogsPerHour - fixedCostsPerHour - taxPerHour,
-        )
-      : 0;
+  const declaredHourlyRate = projection.net;
   const priorRemainder = business.salesRemainder ?? 0;
   const desiredUnits = (unitsPerHour * seconds) / 3600 + priorRemainder;
   const unitsDeducted = Math.min(
@@ -522,7 +520,7 @@ function retailOperations(
   const netSaleAmount =
     unitsDeducted * (price - taxPerUnit);
   const fixedCostForPeriod =
-    business.stockUnits > 0 ? (fixedCostsPerHour * seconds) / 3600 : 0;
+    business.stockUnits > 0 ? ((business.monthlyRent ?? 800) + (business.monthlyPayroll ?? 1200)) / GAME_DAYS_PER_MONTH * seconds / 3600 : 0;
   return {
     business: nextBusiness,
     hourlyRate: Number(declaredHourlyRate.toFixed(2)),
@@ -769,20 +767,34 @@ export function recoverBusinessSave(
   backup: unknown,
   root: unknown,
 ): { businesses: BusinessEntity[]; source: "primary" | "backup" | "root" | "defaults" } {
-  const parse = (candidate: unknown): BusinessEntity[] | null => {
+  type Candidate = {
+    businesses: BusinessEntity[];
+    source: "primary" | "backup" | "root";
+    savedAt: number;
+  };
+  const parse = (
+    candidate: unknown,
+    source: Candidate["source"],
+    rootSavedAt = 0,
+  ): Candidate | null => {
     if (!candidate) return null;
     try {
-      return migrateBusinessSave(
-        typeof candidate === "string" ? JSON.parse(candidate) : candidate,
-      );
+      const parsed = typeof candidate === "string" ? JSON.parse(candidate) : candidate;
+      const rawSavedAt =
+        source === "root" && parsed && typeof parsed === "object"
+          ? Number((parsed as Record<string, unknown>).savedAt ?? (parsed as Record<string, unknown>).saved ?? rootSavedAt)
+          : parsed && typeof parsed === "object"
+            ? Number((parsed as Record<string, unknown>).savedAt ?? (parsed as Record<string, unknown>).updatedAt)
+            : rootSavedAt;
+      return {
+        businesses: migrateBusinessSave(parsed),
+        source,
+        savedAt: Number.isFinite(rawSavedAt) && rawSavedAt > 0 ? rawSavedAt : 0,
+      };
     } catch {
       return null;
     }
   };
-  const primaryBusinesses = parse(primary);
-  if (primaryBusinesses) return { businesses: primaryBusinesses, source: "primary" };
-  const backupBusinesses = parse(backup);
-  if (backupBusinesses) return { businesses: backupBusinesses, source: "backup" };
   let rootSave = root;
   if (typeof root === "string") {
     try {
@@ -793,9 +805,68 @@ export function recoverBusinessSave(
   }
   const rootBusinesses =
     rootSave && typeof rootSave === "object"
-      ? parse((rootSave as Record<string, unknown>).businesses)
+      ? parse(
+          (rootSave as Record<string, unknown>).businesses,
+          "root",
+          Number((rootSave as Record<string, unknown>).saved),
+        )
       : null;
-  if (rootBusinesses) return { businesses: rootBusinesses, source: "root" };
+  const candidates = [
+    parse(primary, "primary"),
+    parse(backup, "backup"),
+    rootBusinesses,
+  ].filter((item): item is Candidate => Boolean(item));
+  if (candidates.length) {
+    const allHaveTimestamps = candidates.every((item) => item.savedAt > 0);
+    const recordScore = (business: BusinessEntity) =>
+      (business.isAcquired ? 1_000_000_000_000_000 : 0) +
+      Math.max(0, Number(business.level) || 0) * 1_000_000_000 +
+      Math.max(0, businessUnitsOrAssets(business)) * 100 +
+      Math.max(0, Number(business.acquisitionCost) || 0);
+    const portfolioScore = (items: BusinessEntity[]) =>
+      items.reduce((sum, item) => sum + recordScore(item), 0);
+    const ordered = [...candidates].sort((a, b) =>
+      allHaveTimestamps
+        ? b.savedAt - a.savedAt || portfolioScore(b.businesses) - portfolioScore(a.businesses)
+        : portfolioScore(b.businesses) - portfolioScore(a.businesses) || b.savedAt - a.savedAt,
+    );
+    if (allHaveTimestamps)
+      return { businesses: ordered[0].businesses, source: ordered[0].source };
+
+    const byId = new Map<string, { business: BusinessEntity; candidate: Candidate }>();
+    for (const candidate of candidates) {
+      for (const business of candidate.businesses) {
+        const prior = byId.get(business.id);
+        if (!prior) {
+          byId.set(business.id, { business, candidate });
+          continue;
+        }
+        const entries = candidates
+          .map((item) => ({ candidate: item, business: item.businesses.find((row) => row.id === business.id) }))
+          .filter((item): item is { candidate: Candidate; business: BusinessEntity } => Boolean(item.business));
+        const everyRecordHasTimestamp = entries.every((item) => item.candidate.savedAt > 0);
+        const latest = entries.reduce((best, item) =>
+          item.candidate.savedAt > best.candidate.savedAt ? item : best,
+        );
+        let selected = prior;
+        if (everyRecordHasTimestamp) selected = latest;
+        else if (prior.business.isAcquired !== business.isAcquired)
+          selected = business.isAcquired ? { business, candidate } : prior;
+        else if (prior.business.isAcquired && candidate.savedAt > prior.candidate.savedAt && prior.candidate.savedAt > 0)
+          selected = { business, candidate };
+        else if (recordScore(business) > recordScore(prior.business))
+          selected = { business, candidate };
+        byId.set(business.id, selected);
+      }
+    }
+    const mergedBusinesses = ordered[0].businesses.map(
+      (business) => byId.get(business.id)?.business ?? business,
+    );
+    const included = new Set(mergedBusinesses.map((business) => business.id));
+    for (const [id, entry] of byId)
+      if (!included.has(id)) mergedBusinesses.push(entry.business);
+    return { businesses: mergedBusinesses, source: ordered[0].source };
+  }
   return { businesses: DEFAULT_BUSINESSES, source: "defaults" };
 }
 
@@ -806,6 +877,7 @@ export async function loadBusinessSimulation(): Promise<BusinessEntity[]> {
   const storeRecovered = async (businesses: BusinessEntity[]) => {
     const value = JSON.stringify({
       schemaVersion: BUSINESS_SIMULATION_SAVE_VERSION,
+      savedAt: Date.now(),
       businesses,
     });
     await coordinatedWrite([
@@ -821,10 +893,9 @@ export async function loadBusinessSimulation(): Promise<BusinessEntity[]> {
       AsyncStorage.getItem(GAME_SAVE_STORAGE_KEY),
     ]);
     const recovery = recoverBusinessSave(primaryRaw, backupRaw, rootRaw);
-    if (recovery.source === "primary") return recovery.businesses;
     if (primaryRaw) {
-      // Keep the exact damaged value for diagnostics/manual recovery; never
-      // erase the only remaining copy merely because validation failed.
+      // Keep the exact superseded or damaged value for diagnostics/manual
+      // recovery; never erase the only remaining copy during reconciliation.
       await AsyncStorage.setItem(
         `${BUSINESS_SIMULATION_SAVE}-quarantine-${Date.now()}`,
         primaryRaw,
@@ -840,6 +911,7 @@ export async function loadBusinessSimulation(): Promise<BusinessEntity[]> {
 export async function persistBusinessSimulation(businesses: BusinessEntity[]) {
   const value = JSON.stringify({
       schemaVersion: BUSINESS_SIMULATION_SAVE_VERSION,
+      savedAt: Date.now(),
       businesses,
     });
   await coordinatedWrite([

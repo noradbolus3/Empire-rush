@@ -351,14 +351,19 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       key,
       value: value == null ? null : JSON.stringify(value),
     });
+    const portfolioSnapshot = JSON.stringify({
+      schemaVersion: 4,
+      savedAt: Date.now(),
+      businesses,
+    });
     void coordinatedWrite([
       {
         key: BUSINESS_SIMULATION_SAVE,
-        value: JSON.stringify({ schemaVersion: 4, businesses }),
+        value: portfolioSnapshot,
       },
       {
         key: BUSINESS_SIMULATION_BACKUP,
-        value: JSON.stringify({ schemaVersion: 4, businesses }),
+        value: portfolioSnapshot,
       },
       specializedEntry(TAXI_COMPANY_SAVE, taxiCompany),
       specializedEntry(SHIPPING_COMPANY_SAVE, shippingCompany),
@@ -406,9 +411,14 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     setBlockchain(null);
     setSpace(null);
     setHolding(null);
+    const resetSnapshot = JSON.stringify({
+      schemaVersion: 4,
+      savedAt: Date.now(),
+      businesses: DEFAULT_BUSINESSES,
+    });
     void coordinatedWrite([
-      { key: BUSINESS_SIMULATION_SAVE, value: JSON.stringify({ schemaVersion: 4, businesses: DEFAULT_BUSINESSES }) },
-      { key: BUSINESS_SIMULATION_BACKUP, value: JSON.stringify({ schemaVersion: 4, businesses: DEFAULT_BUSINESSES }) },
+      { key: BUSINESS_SIMULATION_SAVE, value: resetSnapshot },
+      { key: BUSINESS_SIMULATION_BACKUP, value: resetSnapshot },
       ...[
       TAXI_COMPANY_SAVE,
       SHIPPING_COMPANY_SAVE,

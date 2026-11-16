@@ -24,7 +24,6 @@ import { IPOListing } from "../../types/ipo";
 import { getIPOEligibility } from "../../engine/ipoEngine";
 import type { BankLedgerEntry } from "../../types/bank";
 import { normalizeBusinessLevel } from "../../engine/businessLevels";
-import { GAME_DAYS_PER_MONTH } from "../../engine/gameCalendar";
 import ConstructionCompanyScreen from "./ConstructionCompanyScreen";
 import { designSystem } from '../../theme/designSystem';
 import { BusinessDashboardPanel } from "../../components/business/BusinessDashboardPanel";
@@ -35,6 +34,7 @@ import BankingCompanyScreen from "./BankingCompanyScreen";
 import { getBusinessDisplayMeta } from "../../data/businessDisplayCatalog";
 import { commitCashTransaction } from "../../engine/transactionGateway";
 import { BUSINESS_BACK_LABEL } from "../../navigation/navigationContract";
+import { retailHourlyProjection } from "../../engine/businessSimulation";
 
 const STARTER_UNITS = 200;
 const STARTER_COST = 440;
@@ -43,6 +43,7 @@ type Props = {
   business: BusinessEntity;
   cash: number;
   netWorth: number;
+  companyValuation: number;
   timestamp: number;
   ipoListing?: IPOListing | null;
   focusRetail?: boolean;
@@ -57,6 +58,7 @@ export function BusinessMasterHubScreen({
   business,
   cash,
   netWorth,
+  companyValuation,
   timestamp,
   ipoListing,
   focusRetail = false,
@@ -221,6 +223,7 @@ export function BusinessMasterHubScreen({
               business={business}
               cash={cash}
               netWorth={netWorth}
+              companyValue={companyValuation}
               timestamp={timestamp}
               finance={finance}
               onStarterOrder={business.sector === "Retail" ? () => { if (cash >= STARTER_COST) { spend(STARTER_COST, () => ({ ...(business as RetailData), stockUnits: (business as RetailData).stockUnits + STARTER_UNITS, onboardingStep: (business as RetailData).onboardingStep === "ORDER_STOCK" ? "WATCH_FIRST_SALE" : (business as RetailData).onboardingStep })); } else { setHubTab("operations"); } } : undefined}
@@ -333,16 +336,20 @@ function businessUnits(business: BusinessEntity) {
 }
 function businessFinance(business: BusinessEntity) {
   const net = Math.max(0, Number(business.hourlyNetProfit) || 0);
-  const expenses =
-    business.sector === "Retail"
-      ? ((business.monthlyRent ?? 800) + (business.monthlyPayroll ?? 1200)) /
-        GAME_DAYS_PER_MONTH
-      : business.sector === "Mobility"
-        ? Math.max(0, businessUnits(business) * 8)
-        : 0;
   const idle = business.sector === "Retail" && business.stockUnits <= 0;
+  let revenue = net;
+  let expenses = 0;
+  if (business.sector === "Retail" && !idle) {
+    const projection = retailHourlyProjection(business as RetailData);
+    const scale = projection.net > 0 ? net / projection.net : 0;
+    revenue = projection.revenue * scale;
+    expenses = projection.expenses * scale;
+  } else if (business.sector === "Mobility") {
+    expenses = Math.max(0, businessUnits(business) * 8);
+    revenue = net + expenses;
+  }
   return {
-    revenue: idle ? 0 : net + expenses,
+    revenue: idle ? 0 : revenue,
     expenses: idle ? 0 : expenses,
     net: idle ? 0 : net,
     breakEven: net > 0 ? Math.ceil(Math.max(0, business.acquisitionCost) / net) : 0,

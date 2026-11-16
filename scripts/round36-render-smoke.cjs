@@ -604,6 +604,40 @@ const interaction = async (label, businesses, cash, actions) => {
     });
   }
 };
+const businessFinanceDashboardProbe = async () => {
+  const label = "business-dashboard-company-finance-labels";
+  try {
+    currentBusinesses = [retail];
+    let renderer;
+    await act(async () => {
+      renderer = TestRenderer.create(React.createElement(BusinessScreen, props));
+    });
+    pressLabel(renderer, "MANAGE");
+    const visibleText = renderer.root
+      .findAll((node) => node.props?.children != null)
+      .map(textContent)
+      .join(" ");
+    for (const expected of [
+      "PROJECTED SALES / HR",
+      "OPERATING COST / HR",
+      "NET PROFIT / HR",
+      "COMPANY VALUE",
+      "UNSETTLED CASH",
+      "EMPIRE NET WORTH",
+    ]) {
+      if (!visibleText.includes(expected))
+        throw new Error(`Missing company-finance label: ${expected}`);
+    }
+    renderer.unmount();
+    interactionResults.push({ label, ok: true });
+  } catch (error) {
+    interactionResults.push({
+      label,
+      ok: false,
+      error: String(error?.stack || error),
+    });
+  }
+};
 const taxiInteraction = async (label, company, cash, actions) => {
   try {
     let state = company;
@@ -783,6 +817,7 @@ const factoryInteraction = async (label, company, cash, actions) => {
   }
 };
 (async () => {
+  await businessFinanceDashboardProbe();
   await interaction("interaction-retail-l1-manage", [retail], 10000, [
     "MANAGE",
     "DASHBOARD",
